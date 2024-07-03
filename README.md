@@ -1,5 +1,3 @@
-以下是翻译后的 Markdown 文档：
-
 # Chen
 
 Chen is the WebDB connection component of JumpServer, supporting multiple database protocols.
