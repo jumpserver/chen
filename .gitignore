@@ -1,0 +1,10 @@
+node_modules
+.idea
+target
+*.iml
+.DS_Store
+replay
+backend/web/src/main/resources/static
+backend/web/src/main/resources/static/**
+data
+config/application-dev.yml

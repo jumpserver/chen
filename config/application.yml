@@ -1,0 +1,28 @@
+server:
+  port: 8082
+  servlet:
+    context-path: /chen
+    encoding:
+      charset: utf-8
+      force: true
+      enabled: true
+
+logging:
+  level:
+    root: INFO
+  file:
+    name: data/logs/chen.log
+
+spring:
+  messages:
+    basename: i18n/chen
+
+grpc:
+  client:
+    wisp:
+      address: static://127.0.0.1:9090
+      enable-keep-alive: true
+      negotiationType: PLAINTEXT
+
+i18n:
+  endpoint: http://core:8080

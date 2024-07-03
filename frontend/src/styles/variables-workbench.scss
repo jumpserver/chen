@@ -1,0 +1,48 @@
+/* Color
+-------------------------- */
+$workbench-color-primary: #1e1e1e !default;
+
+$workbench-color-white: #FFFFFF !default;
+
+$workbench-color-black: #000000 !default;
+
+$workbench-color-primary-light-1: mix($workbench-color-white, $workbench-color-primary, 2%) !default;
+// #232323
+$workbench-color-primary-light-3: mix($workbench-color-white, $workbench-color-primary, 3%) !default;
+// #252525
+$workbench-color-primary-light-6: mix($workbench-color-white, $workbench-color-primary, 6%) !default;
+// 2c2c2c
+$workbench-color-primary-light-10: mix($workbench-color-white, $workbench-color-primary, 10%) !default;
+// #353535
+$workbench-color-primary-light-15: mix($workbench-color-white, $workbench-color-primary, 15%) !default;
+// #404040
+$workbench-color-primary-light-20: mix($workbench-color-white, $workbench-color-primary, 20%) !default;
+// #4b4b4b
+$workbench-color-primary-light-30: mix($workbench-color-white, $workbench-color-primary, 30%) !default;
+// #626262
+
+/// color|Font Color
+$workbench-color-text-primary: #cccccc !default;
+$workbench-color-text-secondary: #909399 !default;
+/// color|Border Color
+$workbench-color-border-base: $workbench-color-primary-light-20 !default;
+/// color|hover Color
+$workbench-hover-color: #1471af !default;
+
+
+/* Size
+-------------------------- */
+$workbench-size-base: 13px !default;
+$workbench-size-small: 12px !default;
+
+/* Height
+-------------------------- */
+$workbench-header-height: 35px !default;
+$workbench-footer-height: 22px !default;
+
+/* Width
+-------------------------- */
+$workbench-aside-width: 48px !default;
+
+// Box-shadow
+$workbench-box-shadow-base: rgba(0, 0, 0, .36) 0px 2px 4px!default;

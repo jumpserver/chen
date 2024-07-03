@@ -1,0 +1,274 @@
+package org.jumpserver.chen.framework.datasource.base;
+
+import com.alibaba.druid.DbType;
+import com.alibaba.druid.pool.DruidPooledConnection;
+import com.alibaba.druid.sql.PagerUtils;
+import com.alibaba.druid.sql.SQLUtils;
+import com.alibaba.druid.sql.ast.statement.SQLDeleteStatement;
+import com.alibaba.druid.sql.ast.statement.SQLInsertStatement;
+import com.alibaba.druid.sql.ast.statement.SQLSelectStatement;
+import com.alibaba.druid.sql.ast.statement.SQLUpdateStatement;
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
+import org.jumpserver.chen.framework.datasource.ConnectionManager;
+import org.jumpserver.chen.framework.datasource.entity.resource.Field;
+import org.jumpserver.chen.framework.datasource.sql.*;
+import org.jumpserver.chen.framework.jms.exception.CommandRejectException;
+import org.jumpserver.chen.framework.session.SessionManager;
+import org.jumpserver.chen.framework.utils.HexUtils;
+import org.jumpserver.chen.framework.utils.PageUtils;
+import org.jumpserver.chen.framework.utils.ReflectUtils;
+
+import java.math.BigInteger;
+import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+@Slf4j
+public abstract class BaseSQLActuator implements SQLActuator {
+
+    @Getter
+    private final DbType druidDbType;
+    private ConnectionManager connectionManager;
+    private Connection connection;
+
+    public DbType getDbType() {
+        return druidDbType;
+    }
+
+    public BaseSQLActuator(ConnectionManager connectionManager) {
+        this.connectionManager = connectionManager;
+        this.druidDbType = connectionManager.getDatasource().getDruidDbType();
+    }
+
+    protected BaseSQLActuator(BaseSQLActuator sqlActuator, Connection connection) {
+        this.druidDbType = sqlActuator.getDruidDbType();
+        this.connection = connection;
+    }
+
+
+    @Override
+    public int getAffectedRows(SQL sql) throws SQLException {
+        var result = 0;
+
+        var sqlStmts = SQLUtils.parseStatements(sql.getSql(), this.druidDbType);
+
+        if (sqlStmts.size() != 1) {
+            return -1;
+        }
+
+        var sqlStmt = sqlStmts.get(0);
+
+        if (sqlStmt instanceof SQLUpdateStatement || sqlStmt instanceof SQLDeleteStatement || sqlStmt instanceof SQLInsertStatement) {
+            var conn = this.getConnection();
+            try {
+                conn.setAutoCommit(false);
+                var stmt = conn.createStatement();
+                stmt.execute(sqlStmt.toString());
+
+                result = stmt.getUpdateCount();
+
+                conn.rollback();
+                stmt.close();
+            } finally {
+                if (this.connection == null) {
+                    conn.close();
+                } else {
+                    conn.setAutoCommit(true);
+                }
+            }
+        }
+        return result;
+    }
+
+    @Override
+    public List<String> parseSQL(SQL sql) {
+        return SQLUtils.parseStatements(sql.getSql(), this.druidDbType).stream()
+                .map(stmt -> SQLUtils.toSQLString(stmt, this.druidDbType))
+                .toList();
+    }
+
+    @Override
+    public <T> List<T> getObjects(String sql, Class<T> clazz, Map<String, Integer> fieldMapping) throws SQLException {
+        List<T> objects = new ArrayList<>();
+        try (Connection conn = this.getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            while (rs.next()) {
+                T object = clazz.getDeclaredConstructor().newInstance();
+                for (Map.Entry<String, Integer> entry : fieldMapping.entrySet()) {
+                    if (entry.getValue() == null || entry.getValue() < 1 || entry.getValue() > rs.getMetaData().getColumnCount()) {
+                        continue;
+                    }
+                    ReflectUtils.setFieldValue(object, entry.getKey(), rs.getObject(entry.getValue()));
+                }
+                objects.add(object);
+            }
+        } catch (Exception e) {
+            var msg = "run sql %s error, %s".formatted(sql, e.getMessage());
+            throw new SQLException(msg);
+        }
+        return objects;
+    }
+
+    @Override
+    public SQLQueryResult execute(SQL sql) throws SQLException {
+        var plan = this.createPlan(sql);
+        return plan.execute();
+    }
+
+
+    @Override
+    public SQLQueryResult execute(SQLExecutePlan plan) throws SQLException {
+        String sql = plan.getTargetSQL();
+        SQLQueryResult result = new SQLQueryResult(sql);
+        result.setAclResult(plan.getAclResult());
+        try {
+            Statement statement = plan.createStatement();
+            this.executeStatement(plan, statement, result);
+        } finally {
+            if (plan.getConnection() instanceof DruidPooledConnection) {
+                plan.getConnection().close();
+            }
+        }
+        return result;
+    }
+
+    private void executeStatement(SQLExecutePlan plan, Statement statement, SQLQueryResult result) throws SQLException {
+        try (statement) {
+            result.setStartTime(new Time(System.currentTimeMillis()));
+
+            var hasResult = statement.execute(plan.getTargetSQL());
+            result.setHasResultSet(hasResult);
+
+            result.setQueryFinishedTime(new Time(System.currentTimeMillis()));
+
+            if (hasResult) {
+                var resultSet = statement.getResultSet();
+
+                for (int i = 1; i <= resultSet.getMetaData().getColumnCount(); i++) {
+                    Field field = new Field();
+                    field.setName(resultSet.getMetaData().getColumnName(i));
+                    result.getFields().add(field);
+                }
+
+                while (resultSet.next()) {
+                    List<Object> fs = new ArrayList<>();
+                    for (int i = 1; i <= resultSet.getMetaData().getColumnCount(); i++) {
+                        try {
+                            var obj = resultSet.getObject(i);
+                            if (obj instanceof Timestamp timestamp) {
+                                fs.add(new Date(timestamp.getTime()));
+                            } else if (obj instanceof Long l) {
+                                fs.add(l.toString());
+                            } else if (obj instanceof BigInteger b) {
+                                fs.add(b.toString());
+                            } else if (obj instanceof byte[]) {
+                                fs.add(HexUtils.bytesToHex((byte[]) obj));
+                            }else if (obj instanceof Blob){
+                                fs.add(HexUtils.bytesToHex(((Blob) obj).getBytes(1, (int) ((Blob) obj).length())));
+                            } else {
+                                fs.add(obj);
+                            }
+                        } catch (NoClassDefFoundError e) {
+                            log.error(e.getMessage());
+                        }
+                    }
+                    result.getData().add(fs);
+                }
+                resultSet.close();
+                result.setFetchFinishedTime(new Time(System.currentTimeMillis()));
+
+                var total = this.count(plan);
+                if (total < 0) {
+                    result.setTotal(result.getData().size());
+                } else {
+                    result.setPaged(true);
+                    result.setTotal(total);
+                }
+
+            } else {
+                result.setUpdateCount(statement.getUpdateCount());
+            }
+            result.setEndTime(new Time(System.currentTimeMillis()));
+        } catch (Exception e) {
+            throw new SQLException(e.getMessage());
+        }
+    }
+
+    @Override
+    public SQLQueryResult executeWithAudit(SQL sql) throws SQLException {
+        var plan = this.createPlan(sql);
+        return plan.executeWithAudit();
+    }
+
+    @Override
+    public SQLQueryResult executeWithAudit(SQLExecutePlan plan) throws SQLException {
+        var sess = SessionManager.getCurrentSession();
+        try {
+            return sess.withAudit(plan.getTargetSQL(), () -> this.execute(plan));
+        } catch (CommandRejectException e) {
+            throw new SQLException(e.getMessage());
+        }
+    }
+
+    public int count(SQL sql) throws SQLException {
+        return this.count(this.createPlan(sql));
+    }
+
+    public int count(SQLExecutePlan plan) throws SQLException {
+        if (plan.getTargetSQLStatement() instanceof SQLSelectStatement) {
+            var limit = PageUtils.getLimit(plan.getSourceSQL(), plan.getDruidDbType());
+            if (limit > 0) {
+                return -1;
+            }
+            var countSQL = PagerUtils.count(plan.getSourceSQL(), plan.getDruidDbType());
+            try (Statement stmt = plan.createStatement()) {
+                var resultSet = stmt.executeQuery(countSQL);
+                if (resultSet.next()) {
+                    return resultSet.getInt(1);
+                }
+            }
+        }
+        return -1;
+    }
+
+
+    @Override
+    public SQLActuator withConnection(Connection connection) {
+        try {
+            return this.getClass()
+                    .getDeclaredConstructor(this.getClass(),
+                            Connection.class)
+                    .newInstance(this, connection);
+        } catch (ReflectiveOperationException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public SQLExecutePlan createPlan(SQL sql) throws SQLException {
+        SQLExecutePlan plan = new SQLExecutePlan(sql.getSql(), this.getDruidDbType());
+        this.createPlan(plan);
+        return plan;
+    }
+
+    @Override
+    public SQLExecutePlan createPlan(SQL sql, SQLQueryParams queryParams) throws SQLException {
+        SQLExecutePlan plan = new SQLExecutePlan(sql.getSql(), this.getDruidDbType());
+        plan.setSqlQueryParams(queryParams);
+        this.createPlan(plan);
+        plan.generateTargetSQL();
+        return plan;
+    }
+
+    private void createPlan(SQLExecutePlan plan) throws SQLException {
+        plan.setSqlActuator(this);
+        plan.setConnection(this.getConnection());
+    }
+
+    private Connection getConnection() throws SQLException {
+        return this.connection != null ? this.connection : this.connectionManager.getConnection();
+    }
+}

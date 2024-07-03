@@ -1,0 +1,8 @@
+{
+  "properties": [
+    {
+      "name": "mock.mysql.dbType",
+      "type": "java.lang.String",
+      "description": "Description for mock.mysql.dbType."
+  }
+] }

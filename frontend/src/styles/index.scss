@@ -1,0 +1,535 @@
+@import "./variables";
+
+body {
+  margin: 0;
+  padding: 0 !important;
+}
+
+// 滚动条整体部分
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: 5px;
+  background-color: rgba(144, 147, 153, 0.3);
+}
+
+::-webkit-scrollbar-track {
+  background: none;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+.splitter-pane-resizer {
+  opacity: 1;
+  background-color: $framework-border-color;
+}
+
+.icon-chen-first_page,
+.icon-chen-last-page {
+  font-size: 14px !important;
+}
+
+.el-loading-mask {
+  background-color: rgba(0, 0, 0, .2) !important;
+}
+
+.el-select-dropdown {
+  background: $background-color;
+  border: 1px solid $component-border-color;
+  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+
+  &.el-popper {
+    margin-top: 6px;
+
+    .el-select-dropdown__empty {
+      color: $font-color;
+      padding: 6px 0;
+    }
+
+    .popper__arrow {
+      &::after {
+        border-bottom-color: $background-color;
+      }
+
+      border-bottom-color: $component-border-color;
+    }
+  }
+
+  .el-select-dropdown__item {
+    padding: 0 12px;
+    color: $font-color;
+    font-size: 13px;
+
+    &:hover, &:focus, &.selected {
+      color: #FFFFFF;
+      background-color: $active-background-color;
+    }
+
+    &.hover {
+      background-color: $active-background-color;
+    }
+  }
+}
+
+.splitter-pane.splitter-paneR,
+.splitter-pane.splitter-paneL {
+  overflow: hidden;
+
+  & > div {
+    height: 100% !important;
+  }
+}
+
+.el-tree {
+  .el-tree-node__content {
+    font-size: 12px;
+    height: 22px;
+
+    &:hover {
+      color: $font-color;
+      background-color: rgba(255, 255, 255, 0.1) !important;
+    }
+
+    .node {
+      user-select: none;
+    }
+  }
+
+  .el-tree-node:focus > .el-tree-node__content {
+    color: #FFFFFF;
+    background-color: $active-background-color !important;
+  }
+}
+
+.el-dropdown-menu {
+  background: $background-color;
+  border: 1px solid #323232;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+
+  .popper__arrow {
+    &::after {
+      border-top-color: $background-color !important;
+      border-bottom-color: $background-color !important;
+    }
+
+    border-top-color: $component-border-color !important;
+    border-bottom-color: $component-border-color !important;
+  }
+
+  .el-dropdown-menu__item {
+    padding: 0 12px;
+    color: $font-color;
+
+    &:hover, &:focus {
+      color: #FFFFFF;
+      background-color: $active-background-color;
+    }
+  }
+}
+
+.el-cascader-panel {
+  &.is-bordered {
+    border: 1px solid $component-border-color;
+    border-right: none;
+  }
+
+  & >  .el-cascader-menu__wrap {
+    height: initial !important;
+  }
+
+  .el-cascader-node__label {
+    text-align: left;
+    padding: 0 10px 0 0;
+    font-weight: 500;
+  }
+
+  .el-cascader-menu {
+    min-width: 170px;
+    border-right: 1px solid $component-border-color;
+    border-radius: 3px;
+    padding: 5px 0;
+
+    .el-cascader-node {
+      line-height: 1.5;
+      font-size: 12px;
+      height: 28px;
+      padding: 0 15px;
+      color: $font-color;
+
+      &:hover, &:focus {
+        color: #FFFFFF;
+        background: $active-background-color;
+      }
+    }
+  }
+}
+
+.el-dialog {
+  color: $font-color;
+  background-color: $background-color;
+  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+
+  .el-dialog__title {
+    color: $font-color;
+  }
+
+  .el-dialog__body {
+    padding: 10px 16px;
+  }
+
+  .el-form-item__label {
+    color: $font-color;
+  }
+}
+
+.el-alert {
+  &.query-message {
+    padding: 0;
+    width: 100%;
+    border-radius: 0;
+
+    .el-alert__content {
+      width: 100%;
+
+      .el-alert__description {
+        display: inline-block;
+        padding-left: 4px;
+        margin: 4px 0 0;
+      }
+
+      .el-alert__closebtn {
+        top: 7px;
+      }
+    }
+  }
+}
+
+.el-input {
+  &:hover {
+    .el-input__inner {
+      border-color: $active-background-color !important;
+    }
+  }
+}
+
+.el-select .el-input__inner,
+.el-input .el-input__inner {
+  &:hover {
+    border-color: $active-background-color;
+  }
+
+  color: $font-color;
+  border: 1px solid #60605e;
+  background-color: $background-color;;
+}
+
+.el-button {
+  &:hover {
+    color: $active-background-color;
+  }
+}
+
+.iconfont {
+  font-size: 13px;
+}
+
+.el-dialog {
+  .el-button {
+    &.el-button--default {
+      color: #FFFFFF;
+      border-color: #5b5b5b;
+      background-color: $background-color;
+
+      &:hover, &:focus {
+        background-color: #505254;
+      }
+    }
+
+    &.el-button--primary {
+      color: #FFFFFF;
+      border-color: $active-background-color;
+      background-color: $active-background-color;
+
+      &:hover, &:focus {
+        background-color: #679aff;
+      }
+    }
+  }
+}
+
+.toolbar {
+  .el-button {
+    & > span {
+      margin-left: 0 !important;
+    }
+
+    &.is-loading:before {
+      background-color: transparent !important;
+    }
+
+    &.is-disabled {
+      color: #5F5F5F;
+      background-color: transparent;
+    }
+  }
+}
+
+.toolbar-select.el-select {
+  height: 100%;
+  vertical-align: top;
+
+  .el-input--mini {
+    &.el-input--suffix {
+      height: 100%;
+      line-height: 28px;
+    }
+
+    .el-input__inner {
+      height: 26px;
+      line-height: 26px;
+      border: none;
+    }
+  }
+
+  .el-input__inner {
+    background: transparent;
+  }
+}
+
+.el-tabs--card {
+  .el-tabs__nav-prev, .el-tabs__nav-next {
+    width: 20px;
+    height: 28px;
+    line-height: 28px;
+
+    &:hover {
+      color: #FFFFFF;
+    }
+  }
+
+  & > .el-tabs__header {
+    height: 28px;
+    line-height: 28px;
+    margin: 0;
+    border-bottom: 1px solid $framework-border-color;
+
+    .el-tabs__nav-wrap {
+      height: 100%;
+
+      .el-tabs__nav-scroll {
+        background-color: $background-color;
+
+        .el-tabs__item {
+          height: 28px;
+          line-height: 28px;
+          padding: 0 8px;
+          font-size: 12px;
+          color: $font-color;
+          border-left: none;
+          background-color: $background-color;
+
+          &:hover {
+            .el-icon-close {
+              opacity: 1;
+            }
+          }
+
+          &:nth-child(2) {
+            padding-left: 8px !important;
+          }
+
+          &.is-closable:hover {
+            color: #ffffff;
+            padding-left: 8px !important;
+            padding-right: 8px !important;
+          }
+
+          &.is-active {
+            padding-left: 8px;
+            padding-right: 8px;
+            border-bottom: 2px solid $active-background-color;
+            color: #ffffff;
+            background-color: rgba(255, 255, 255, 0.1) !important;
+
+            .el-icon-close {
+              opacity: 1;
+            }
+          }
+
+          .tab-pane-label {
+            display: inline-block;
+            max-width: 300px;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            user-select: none;
+
+            & > i {
+              margin-right: 4px;
+            }
+          }
+
+          .el-icon-close {
+            top: -2px;
+            vertical-align: super;
+            margin-left: 0;
+            color: #798389;
+            font-size: 14px;
+            width: 14px !important;
+            opacity: 0;
+          }
+        }
+
+        .el-tabs__nav {
+          border: none;
+        }
+      }
+    }
+  }
+
+  .el-tabs__content {
+    height: calc(100% - 28px);
+
+    .el-tab-pane {
+      height: 100%;
+    }
+  }
+}
+
+.hot-table.handsontable {
+  height: calc(100% - 28px) !important;
+
+  .ht_master {
+    height: 100% !important;
+
+    tr th {
+      visibility: inherit;
+      border: 1px solid transparent;
+    }
+
+    .wtHolder {
+      height: 100% !important;
+      overflow-x: auto !important;
+      cursor: pointer;
+    }
+  }
+
+  .ht_clone_left {
+    tbody.htCore {
+      & > tr {
+        border-bottom: 1px solid #373737 !important;
+      }
+    }
+  }
+
+  .manualRowResizer:hover,
+  .manualRowResizer.active,
+  .manualColumnResizer:hover,
+  .manualColumnResizer.active {
+    &:hover {
+      background-color: $active-background-color;
+    }
+
+    background-color: $active-background-color;
+  }
+
+  thead th {
+    height: 24px;
+    color: $font-color;
+    border: transparent !important;
+    border-right: 1px solid #373737 !important;
+    border-bottom: 1px solid #373737 !important;
+    background: $component-border-color !important;
+
+    &:last-child {
+      border-right: 1px solid #373737;
+      border-bottom: none !important;
+    }
+
+    & > .relative {
+      font-weight: 600;
+      & > .colHeader.columnSorting.ascending::before,
+      & > .colHeader.columnSorting.descending::before {
+        filter: invert(35%) sepia(67%) saturate(1363%) hue-rotate(197deg) brightness(85%) contrast(92%);
+      }
+    }
+  }
+
+  tbody {
+    tr:first-child td {
+      border-top: none !important;
+    }
+
+    & > tr {
+      & > th {
+        color: $font-color;
+        border-bottom: 1px solid #373737 !important;
+        border-left: 1px solid transparent !important;
+        background: $component-border-color !important;
+
+        &:first-child {
+          border-top: 1px solid #373737 !important;
+          border: 1px solid transparent !important;
+          border-bottom: 1px solid #373737 !important;
+        }
+      }
+
+      & > td {
+        border-right: 1px solid #373737 !important;
+      }
+    }
+
+    td {
+      color: $font-color !important;
+      background: $framework-border-color;
+      border-right: none;
+      border-bottom: 1px solid #373737;
+
+      &:first-of-type {
+        border-left: none;
+      }
+    }
+  }
+}
+
+
+.text-primary {
+  color: #1ab394
+}
+
+.text-danger {
+  color: #FF0000;
+}
+.text-warning {
+  color: #FFFF00
+}
+
+.material-theme.menu {
+  background: #383a3c !important;
+  box-shadow: 0px 5px 5px -3px rgba(0, 0, 0, 0.2),
+  0px 8px 10px 1px rgba(0, 0, 0, 0.14), 0px 3px 14px 2px rgba(0, 0, 0, 0.12) !important;
+}
+
+.material-theme .menu_item {
+  color: #BBBBBB !important;
+  font-size: 12px !important;
+}
+
+.material-theme .menu_item__divided {
+  border-bottom-color: rgb(77, 76, 76) !important;
+}
+
+.material-theme .menu_item__available:hover,
+.material-theme .menu_item_expand {
+  background: rgba(0, 0, 0, 0.09) !important;
+
+}
+
+.contextmenu_menu.menu {
+  padding: 5px 0 !important;
+}
