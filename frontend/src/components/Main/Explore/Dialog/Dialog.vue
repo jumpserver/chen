@@ -8,10 +8,10 @@
   >
     <div style="margin: 32px 10px;border-top: 1px">
       <div v-if="meta.type === 'detail'">
-        <DetailContent :meta="meta" />
+        <DetailContent :meta="meta"/>
       </div>
       <div v-if="meta.type === 'form'">
-        <DetailContent />
+        <DetailContent/>
       </div>
     </div>
   </el-dialog>
@@ -47,12 +47,6 @@ export default {
       }
     }
   },
-  data() {
-    return {
-      aaa: true
-
-    }
-  },
   computed: {
     iVisible: {
       get() {
@@ -61,6 +55,12 @@ export default {
       set(val) {
         this.$emit('update:visible', val)
       }
+    }
+  },
+  data() {
+    return {
+      aaa: true
+
     }
   },
   methods: {

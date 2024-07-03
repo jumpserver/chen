@@ -2,6 +2,7 @@
   <el-alert
     v-show="opened"
     :description="message"
+    :title="title"
     :type="type"
     class="query-message"
     @close="onClose"

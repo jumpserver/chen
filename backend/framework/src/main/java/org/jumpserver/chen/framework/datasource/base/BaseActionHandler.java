@@ -44,19 +44,19 @@ public abstract class BaseActionHandler implements ActionHandler {
     public List<Action> getDatasourceActions(TreeNode node) {
         return List.of(
                 Action.builder()
-                        .label(MessageUtils.get("Refresh"))
+                        .label(MessageUtils.get("action.refresh"))
                         .key("refresh_node")
                         .divided(true)
                         .icon("el-icon-refresh")
                         .build(),
                 Action.builder()
-                        .label(MessageUtils.get("NewQuery"))
+                        .label(MessageUtils.get("action.new_query"))
                         .key("new_query")
                         .icon("el-icon-search")
                         .build()
                 ,
                 Action.builder()
-                        .label(MessageUtils.get("ShowProperties"))
+                        .label(MessageUtils.get("action.show_properties"))
                         .key("show_properties")
                         .icon("fa fa-align-justify")
                         .build()
@@ -67,13 +67,13 @@ public abstract class BaseActionHandler implements ActionHandler {
     public List<Action> getSchemaActions(TreeNode node) {
         return List.of(
                 Action.builder()
-                        .label(MessageUtils.get("Refresh"))
+                        .label(MessageUtils.get("action.refresh"))
                         .key("refresh_node")
                         .divided(true)
                         .icon("el-icon-refresh")
                         .build(),
                 Action.builder()
-                        .label(MessageUtils.get("NewQuery"))
+                        .label(MessageUtils.get("action.new_query"))
                         .key("new_query")
                         .icon("el-icon-search")
                         .build()
@@ -84,12 +84,12 @@ public abstract class BaseActionHandler implements ActionHandler {
     public List<Action> getTableActions(TreeNode node) {
         return List.of(
                 Action.builder()
-                        .label(MessageUtils.get("NewQuery"))
+                        .label(MessageUtils.get("action.new_query"))
                         .key("new_query")
                         .icon("el-icon-search")
                         .build(),
                 Action.builder()
-                        .label(MessageUtils.get("ViewData"))
+                        .label(MessageUtils.get("action.view_data"))
                         .key("view_data")
                         .icon("el-icon-view")
                         .build()
@@ -100,7 +100,7 @@ public abstract class BaseActionHandler implements ActionHandler {
     public List<Action> getViewActions(TreeNode node) {
         return List.of(
                 Action.builder()
-                        .label(MessageUtils.get("Refresh"))
+                        .label(MessageUtils.get("action.refresh"))
                         .key("refresh_node")
                         .divided(true)
                         .icon("el-icon-refresh")
@@ -117,7 +117,7 @@ public abstract class BaseActionHandler implements ActionHandler {
     public List<Action> getFolderActions(TreeNode node) {
         return List.of(
                 Action.builder()
-                        .label(MessageUtils.get("Refresh"))
+                        .label(MessageUtils.get("action.refresh"))
                         .key("refresh_node")
                         .divided(true)
                         .icon("el-icon-refresh")
@@ -164,7 +164,7 @@ public abstract class BaseActionHandler implements ActionHandler {
         var objName = TreeUtils.getValue(node.getKey(), type);
         var result = sqlActuator.execute(SQL.of(sql, objName));
 
-        var detailDialog = new DetailDialog(node.getKey(), type + MessageUtils.get("Properties"));
+        var detailDialog = new DetailDialog(node.getKey(), type + MessageUtils.get("title.properties"));
         detailDialog.setWidth("50%");
         for (int i = 0; i < result.getFields().size(); i++) {
             var column = result.getFields().get(i);
@@ -186,42 +186,42 @@ public abstract class BaseActionHandler implements ActionHandler {
 
 
     public EventEmitter onDatasourceProperties(TreeNode node) {
-        var dialog = new DetailDialog(node.getKey(), MessageUtils.get("DatasourceProperties"));
+        var dialog = new DetailDialog(node.getKey(), MessageUtils.get("title.datasource_properties"));
         dialog.setWidth("50%");
         var info = SessionManager.getCurrentSession().getDatasource().getInfo();
         dialog.addItem(DetailItem.builder()
                         .name("name")
-                        .label(MessageUtils.get("Name"))
+                        .label(MessageUtils.get("action.label.name"))
                         .value(info.getName())
                         .build())
                 .addItem(DetailItem.builder()
                         .name("type")
-                        .label(MessageUtils.get("Type"))
+                        .label(MessageUtils.get("action.label.type"))
                         .value(info.getDbType())
                         .build())
                 .addItem(DetailItem.builder()
                         .name("version")
-                        .label(MessageUtils.get("Version"))
+                        .label(MessageUtils.get("action.label.version"))
                         .value(info.getVersion())
                         .build())
                 .addItem(DetailItem.builder()
                         .name("dbUser")
-                        .label(MessageUtils.get("User"))
+                        .label(MessageUtils.get("action.label.user"))
                         .value(info.getDbUser())
                         .build())
                 .addItem(DetailItem.builder()
                         .name("jdbcUrl")
-                        .label(MessageUtils.get("JDBCURL"))
+                        .label(MessageUtils.get("action.label.jdbc_url"))
                         .value(info.getJdbcUrl())
                         .build())
                 .addItem(DetailItem.builder()
                         .name("driverClass")
-                        .label(MessageUtils.get("DriverClass"))
+                        .label(MessageUtils.get("action.label.driver_class"))
                         .value(info.getDriverClassName())
                         .build())
                 .addItem(DetailItem.builder()
                         .name("driverVersion")
-                        .label(MessageUtils.get("DriverVersion"))
+                        .label(MessageUtils.get("action.label.driver_version"))
                         .value(info.getDriverVersion())
                         .build());
         return EventEmitter.of("new_dialog", dialog);

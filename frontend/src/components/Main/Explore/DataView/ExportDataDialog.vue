@@ -1,18 +1,18 @@
 <template>
   <el-dialog
     v-if="visible"
-    :title="$tc('ExportData')"
+    :title="$tc('title.export_data')"
     :visible.sync="iVisible"
     width="40%"
   >
     <el-form ref="form" :model="form" label-width="80px">
-      <el-radio v-model="form.scope" label="current">{{ $tc('ExportCurrent') }}</el-radio>
-      <el-radio v-model="form.scope" label="all">{{ $tc('ExportAll') }}</el-radio>
+      <el-radio v-model="form.scope" label="current">{{ $tc('option.export_current') }}</el-radio>
+      <el-radio v-model="form.scope" label="all">{{ $tc('option.export_all') }}</el-radio>
     </el-form>
 
     <span slot="footer" class="dialog-footer">
-      <el-button @click="iVisible = false">{{ $tc('Cancel') }}</el-button>
-      <el-button type="primary" @click="onSubmit">{{ $tc('Confirm') }}</el-button>
+      <el-button @click="iVisible = false">{{ $tc('action.cancel') }}</el-button>
+      <el-button type="primary" @click="onSubmit">{{ $tc('action.confirm') }}</el-button>
     </span>
   </el-dialog>
 </template>

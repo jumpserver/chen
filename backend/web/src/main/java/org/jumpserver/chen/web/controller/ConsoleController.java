@@ -23,7 +23,7 @@ public class ConsoleController {
     @GetMapping("/export/{fileKey}")
     public ResponseEntity<Resource> exportData(@PathVariable String fileKey) {
         if (!SessionManager.getCurrentSession().canDownload()) {
-            throw new ChenException(MessageUtils.get("NoPermissionError"));
+            throw new ChenException(MessageUtils.get("msg.error.no_permission"));
         }
         var path = SessionManager.getCurrentSession().getTempPath();
         Resource resource = new FileSystemResource(path.resolve(fileKey).toFile());
@@ -38,7 +38,7 @@ public class ConsoleController {
     @PostMapping("/upload")
     public UploadResponse uploadData(@RequestParam("file") MultipartFile file) {
         if (!SessionManager.getCurrentSession().canUpload()) {
-            throw new ChenException(MessageUtils.get("NoPermissionError"));
+            throw new ChenException(MessageUtils.get("msg.error.no_permission"));
         }
         try {
             var basePath = SessionManager.getCurrentSession().getTempPath();

@@ -23,6 +23,3 @@ grpc:
       address: static://127.0.0.1:9090
       enable-keep-alive: true
       negotiationType: PLAINTEXT
-
-i18n:
-  endpoint: http://core:8080

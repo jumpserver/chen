@@ -1,5 +1,5 @@
 <template>
-  <div id="app" v-if="ready">
+  <div id="app">
     <AppMain/>
   </div>
 </template>
@@ -12,11 +12,6 @@ export default {
   name: 'App',
   components: {
     AppMain
-  },
-  computed: {
-    ready() {
-      return this.$store.getters.i18nLoaded
-    }
   }
 }
 </script>
@@ -28,7 +23,7 @@ html, body {
 }
 
 #app {
-  font-family: "open sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-family: "SF Mono", Monaco, Consolas, monospace, Avenir, Helvetica, Arial, sans-serif;
   font-size: 13px;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;

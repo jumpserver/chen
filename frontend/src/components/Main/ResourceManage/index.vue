@@ -2,11 +2,11 @@
   <div class="container">
     <div class="toolbar-panel">
       <TreeNavbar
-        :title="$tc('DatabaseExplorer')"
+        :title="$tc('title.database_explorer')"
       />
     </div>
     <div class="tree-panel">
-      <tree />
+      <tree/>
     </div>
   </div>
 </template>

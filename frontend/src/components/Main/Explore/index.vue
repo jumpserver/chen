@@ -1,12 +1,12 @@
 <template>
   <div class="explore_body">
-    <Dialog :visible.sync="dialogVisible" :meta="dialogMeta" />
+    <Dialog :visible.sync="dialogVisible" :meta="dialogMeta"/>
     <FormTemplate
       v-if="formTemplateVisible"
       :form-options="formOptions"
       :visible.sync="formTemplateVisible"
     />
-    <Message :subject="subjects.globalMessageSubject" />
+    <Message :subject="subjects.globalMessageSubject"/>
     <el-tabs v-model="activeTab" closable type="card" @tab-remove="onCloseTab">
       <el-tab-pane
         v-for="(item) in tabs"
@@ -14,13 +14,13 @@
         :name="item.name"
       >
         <span v-if="!item.loading" slot="label" class="tab-pane-label">
-          <i class="iconfont" :class="'icon-chen-' + item.icon" />
+          <i class="iconfont" :class="'icon-chen-' + item.icon"/>
           <el-tooltip effect="dark" :content="item.title">
             <span>{{ item.title }}</span>
           </el-tooltip>
         </span>
         <span v-if="item.loading" slot="label" class="tab-pane-label">
-          <i class="fa fa-spinner fa-spin" />
+          <i class="fa fa-spinner fa-spin"/>
           Loading
         </span>
         <component

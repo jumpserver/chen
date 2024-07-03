@@ -18,17 +18,17 @@ public class PostgresqlActionHandler extends BaseActionHandler {
     public List<Action> getTableActions(TreeNode node) {
         return List.of(
                 Action.builder()
-                        .label(MessageUtils.get("NewQuery"))
+                        .label(MessageUtils.get("action.new_query"))
                         .key("new_query")
                         .icon("el-icon-search")
                         .build(),
                 Action.builder()
-                        .label(MessageUtils.get("ViewData"))
+                        .label(MessageUtils.get("action.view_data"))
                         .key("view_data")
                         .icon("el-icon-view")
                         .build(),
                 Action.builder()
-                        .label(MessageUtils.get("ShowProperties"))
+                        .label(MessageUtils.get("action.show_properties"))
                         .key("show_properties")
                         .icon("fa fa-align-justify")
                         .build()
@@ -38,12 +38,12 @@ public class PostgresqlActionHandler extends BaseActionHandler {
     public List<Action> getDatabaseActions(TreeNode node) {
         return List.of(
                 Action.builder()
-                        .label(MessageUtils.get("NewQuery"))
+                        .label(MessageUtils.get("action.new_query"))
                         .key("new_query")
                         .icon("el-icon-search")
                         .build(),
                 Action.builder()
-                        .label(MessageUtils.get("ShowProperties"))
+                        .label(MessageUtils.get("action.show_properties"))
                         .key("show_properties")
                         .icon("fa fa-align-justify")
                         .build()
@@ -57,7 +57,7 @@ public class PostgresqlActionHandler extends BaseActionHandler {
     }
 
 
-    private static final String SQL_SELECT_TABLE_DETAIL = "SELECT table_name,table_schema,table_type FROM information_schema.tables WHERE  table_name = '?'";
+    private static final String SQL_SELECT_TABLE_DETAIL = "SELECT table_name,table_schema,table_type FROM information_schema.tables WHERE  table_name = '?";
 
     public EventEmitter onTableProperties(TreeNode node) throws SQLException {
         return this.onShowObjectProperties("table", SQL_SELECT_TABLE_DETAIL, node);

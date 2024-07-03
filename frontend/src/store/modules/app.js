@@ -5,9 +5,8 @@ import i18n from '@/i18n'
 const state = {
   authenticated: false,
   token: '',
-  lang: 'zh',
+  lang: 'zh-CN',
   disableautohash: false,
-  i18nLoaded: false,
   profile: {
     dbType: '',
     username: '',
@@ -31,28 +30,22 @@ const mutations = {
     state.profile = profile
     if (!profile.canCopy) {
       document.addEventListener('copy', (e) => {
-        Message.error(i18n.t('CopyNotAllowed'))
+        Message.error(i18n.t('msg.copy_not_allowed'))
         e.preventDefault()
         navigator.clipboard.writeText('').then(r => {})
       })
     }
     if (!profile.canPaste) {
       document.addEventListener('paste', (e) => {
-        Message.error(i18n.t('PasteNotAllowed'))
+        Message.error(i18n.t('msg.copy_not_allowed'))
         e.preventDefault()
         navigator.clipboard.writeText('').then(r => {})
       })
     }
-  },
-  SET_I18N_LOADED: (state, loaded) => {
-    state.i18nLoaded = loaded
   }
 }
 
 const actions = {
-  setI18nLoaded: (state, loaded) => {
-    state.commit('SET_I18N_LOADED', loaded)
-  },
   loadProfile({ commit }) {
     getProfile().then(data => {
       commit('PROFILE', data)

@@ -64,13 +64,13 @@ public class SQLExecutePlan {
 
             if (this.getSqlQueryParams().getOffset() < 0) {
                 this.close();
-                throw new SQLException(MessageUtils.get("AlreadyFirstPageError"));
+                throw new SQLException(MessageUtils.get("msg.error.already_first_page"));
             }
 
             var count = this.sqlActuator.count(this);
             if (count > 0 && this.getSqlQueryParams().getOffset() >= count) {
                 this.close();
-                throw new SQLException(MessageUtils.get("AlreadyLastPageError"));
+                throw new SQLException(MessageUtils.get("msg.error.already_last_page"));
             }
         }
     }

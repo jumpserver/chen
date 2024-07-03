@@ -12,8 +12,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.Comparator;
-import java.util.List;
 import java.util.Locale;
 
 @RestController
@@ -50,37 +48,18 @@ public class AuthController {
 
     private Locale getLanguage(HttpServletRequest request) {
         var cookies = request.getCookies();
-
-        var langTag = "";
-
         if (cookies != null) {
             for (var cookie : cookies) {
                 if (cookie.getName().equals("django_language")) {
-                    langTag = cookie.getValue();
+                    switch (cookie.getValue()) {
+                        case "en":
+                            return Locale.US;
+                        case "ja":
+                            return Locale.JAPAN;
+                    }
                 }
             }
         }
-
-        if (langTag.isEmpty()) {
-            langTag = getPreferredLanguage(request.getHeader("Accept-Language"));
-        }
-
-        return switch (langTag.toLowerCase()) {
-            case "ja" -> Locale.JAPAN;
-            case "tw", "zh-hant" -> Locale.TAIWAN;
-            case "zh", "zh-cn", "zh-hans" -> Locale.CHINA;
-            default -> Locale.US;
-        };
-    }
-
-    private String getPreferredLanguage(String acceptLanguage) {
-        if (acceptLanguage == null || acceptLanguage.isEmpty()) {
-            return null;
-        }
-        List<Locale.LanguageRange> languageRanges = Locale.LanguageRange.parse(acceptLanguage);
-
-        languageRanges.sort(Comparator.comparingDouble(Locale.LanguageRange::getWeight).reversed());
-
-        return languageRanges.get(0).getRange();
+        return Locale.CHINA;
     }
 }

@@ -78,7 +78,7 @@ export default {
             return this.state.paged
           },
           value: () => {
-            return '共 ' + this.$t('NumRow', { num: this.state.total })
+            return '共 ' + this.$t('common.num_row', { num: this.state.total })
           }
         },
         pagination: {
@@ -89,19 +89,19 @@ export default {
           },
           options: [
             {
-              label: this.$t('NumRow', { num: 50 }),
+              label: this.$t('common.num_row', { num: 50 }),
               value: 50
             },
             {
-              label: this.$t('NumRow', { num: 100 }),
+              label: this.$t('common.num_row', { num: 100 }),
               value: 100
             },
             {
-              label: this.$t('NumRow', { num: 200 }),
+              label: this.$t('common.num_row', { num: 200 }),
               value: 200
             },
             {
-              label: this.$t('NumRow', { num: 500 }),
+              label: this.$t('common.num_row', { num: 500 }),
               value: 500
             }
           ],
@@ -111,9 +111,9 @@ export default {
           customDisplayContent: () => {
             let content = ''
             if (this.isStatePaged) {
-              content += this.$t('NumRow', { num: this.state.limit }) + ' | ' + content
+              content += this.$t('common.num_row', { num: this.state.limit }) + ' | ' + content
             }
-            content += this.$tc('Total') + this.$t('NumRow', { num: this.state.total })
+            content += this.$tc('button.total') + this.$t('common.num_row', { num: this.state.total })
             return content
           }
         },

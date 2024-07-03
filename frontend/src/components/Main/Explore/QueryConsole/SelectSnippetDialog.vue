@@ -1,19 +1,19 @@
 <template>
   <el-dialog
-    v-if="visible"
-    :title="$tc('SelectSQL')"
-    :visible.sync="iVisible"
-    width="40%"
+      v-if="visible"
+      :title="$tc('title.select_sql')"
+      :visible.sync="iVisible"
+      width="40%"
   >
     <span>
       <el-table :data="snippets">
-        <el-table-column property="name" :label="$tc('Name')" width="120px" />
-        <el-table-column show-overflow-tooltip property="args" :label="$tc('Content')" />
+        <el-table-column property="name" :label="$tc('common.name')" width="120px"/>
+        <el-table-column show-overflow-tooltip property="args" :label="$tc('common.content')"/>
         <el-table-column width="80px" label="">
           <template slot-scope="scope">
             <el-button type="text" size="small" @click="onSelectSnippet(scope.row)">{{
-              $tc('Insert')
-            }}</el-button>
+                $tc('button.insert')
+              }}</el-button>
           </template>
         </el-table-column>
       </el-table>

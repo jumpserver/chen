@@ -25,7 +25,7 @@
           >
             <span slot="label">
               <i class="el-icon-tickets"/>
-              {{ $tc('LogOutput') }}
+              {{ $tc('common.log') }}
             </span>
             <Log :subject="logSubject" style="padding: 5px"/>
           </el-tab-pane>

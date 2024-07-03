@@ -1,51 +1,61 @@
-// i18n.js
 import Vue from 'vue'
-import locale from 'element-ui/lib/locale'
 import VueI18n from 'vue-i18n'
-import messages from './langs'
-import date from './date'
-import VueCookie from 'vue-cookie'
-import axios from 'axios'
-import store from '@/store'
 
 Vue.use(VueI18n)
-const cookieLang = VueCookie.get('django_language')
-const storeLang = VueCookie.get('lang')
-const browserLang = navigator.systemLanguage || navigator.language
-let lang = cookieLang || storeLang || browserLang || 'zh'
-if (lang === 'zh-hant') {
-  lang = 'zh_hant'
-} else {
-  lang = lang.slice(0, 2)
+
+const LOADED_LANGUAGES = ['zh-CN', 'en-US', 'ja-JP', 'zh-Hant']
+const LANG_FILES = require.context('./lang', true, /\.js$/)
+
+const messages = LANG_FILES.keys().reduce((messages, path) => {
+  const value = LANG_FILES(path)
+  const lang = path.replace(/^\.\/(.*)\.\w+$/, '$1')
+  if (LOADED_LANGUAGES.includes(lang)) {
+    messages[lang] = value.default
+  }
+  return messages
+}, {})
+
+export const getLanguage = () => {
+  const language = localStorage.getItem('chen_language')
+  return language
 }
+
 const i18n = new VueI18n({
-  locale: lang,
-  fallbackLocale: 'en',
-  silentFallbackWarn: true,
-  silentTranslationWarn: true,
-  dateTimeFormats: date,
+  locale: getLanguage(),
   messages
 })
-locale.i18n((key, value) => i18n.t(key, value)) // 重点: 为了实现element插件的多语言切换
 
-Vue.prototype.$tr = (key) => {
-  return i18n.t('' + key)
+const importLanguage = lang => {
+  return Promise.resolve(lang)
 }
 
-axios.get(`/api/v1/settings/i18n/chen/?lang=${lang}&flat=0`)
-  .then((res) => {
-    if (res.status !== 200) {
-      return
-    }
-    const data = res.data
-    for (const key in data) {
-      if (Object.prototype.hasOwnProperty.call(data, key)) {
-        i18n.mergeLocaleMessage(key, data[key])
-      }
-    }
-  })
-  .finally(() => {
-    store.dispatch('app/setI18nLoaded', true)
-  })
+const setLang = lang => {
+  localStorage.setItem('language', lang)
+  i18n.locale = lang
+}
+
+export const setLanguage = lang => {
+  if (i18n.locale !== lang) {
+    importLanguage(lang).then(setLang)
+  }
+}
+
+Vue.prototype.$tm = function(key, ...keys) {
+  const values = []
+  for (const k of keys) {
+    values.push(i18n.t(k))
+  }
+  return i18n.t(key, values)
+}
+
+Vue.prototype.$tk = function(key) {
+  const hasKey = i18n.te(key)
+  if (hasKey) {
+    return i18n.t(key)
+  }
+  return key
+}
+
+Vue.prototype.$setLang = setLanguage
 
 export default i18n

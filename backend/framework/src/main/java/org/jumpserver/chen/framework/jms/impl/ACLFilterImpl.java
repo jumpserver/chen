@@ -13,6 +13,7 @@ import org.jumpserver.chen.wisp.ServiceGrpc;
 import org.jumpserver.chen.wisp.ServiceOuterClass;
 
 import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -62,10 +63,10 @@ public class ACLFilterImpl implements ACLFilter {
                 var countDownLatch = new CountDownLatch(1);
                 AtomicReference<Exception> exception = new AtomicReference<>(null);
 
-                var dialog = new Dialog(MessageUtils.get("CommandReview"));
-                dialog.setBody(MessageUtils.get("CommandReviewMessage"));
+                var dialog = new Dialog(MessageUtils.get("msg.dialog.title.command_review"));
+                dialog.setBody(MessageUtils.get("msg.dialog.message.command_review"));
 
-                dialog.addButton(new Button(MessageUtils.get("Submit"), "submit", () -> {
+                dialog.addButton(new Button(MessageUtils.get("btn.label.submit"), "submit", () -> {
 
                     var token = SessionManager.getContextToken();
                     new Thread(() -> {
@@ -79,8 +80,8 @@ public class ACLFilterImpl implements ACLFilter {
                         }
                     }).start();
                 }));
-                dialog.addButton(new Button(MessageUtils.get("Cancel"), "cancel", () -> {
-                    exception.set(new RuntimeException(MessageUtils.get("UserCancelCommandReviewError")));
+                dialog.addButton(new Button(MessageUtils.get("btn.label.cancel"), "cancel", () -> {
+                    exception.set(new RuntimeException(MessageUtils.get("msg.error.user_cancel_command_review")));
                     countDownLatch.countDown();
                 }));
 
@@ -108,16 +109,17 @@ public class ACLFilterImpl implements ACLFilter {
 
     private void createAndWaitTicket(String command, Common.CommandACL commandACL, Connection connection) {
         var affectRows = 0;
+
+        var sqlActuator = SessionManager.getCurrentSession()
+                .getDatasource()
+                .getConnectionManager()
+                .getSqlActuator();
+        if (connection != null) {
+            sqlActuator = sqlActuator.withConnection(connection);
+        }
         try {
-            var sqlActuator = SessionManager.getCurrentSession()
-                    .getDatasource()
-                    .getConnectionManager()
-                    .getSqlActuator();
-            if (connection != null) {
-                sqlActuator = sqlActuator.withConnection(connection);
-            }
             affectRows = sqlActuator.getAffectedRows(SQL.of(command));
-        } catch (Exception e) {
+        } catch (SQLException e) {
             log.error("get affected rows failed", e);
         }
 
@@ -142,9 +144,9 @@ public class ACLFilterImpl implements ACLFilter {
 
 
     private void openCommandReviewEvent(Runnable cancel, String command, long startTIme, long endTime) {
-        var dialog = new Dialog(MessageUtils.get("CommandReview"));
-        dialog.setBody(MessageUtils.get("WaitCommandReviewMessage"));
-        dialog.addButton(new Button(MessageUtils.get("Cancel"), "cancel", () -> {
+        var dialog = new Dialog(MessageUtils.get("msg.dialog.title.command_review"));
+        dialog.setBody(MessageUtils.get("msg.dialog.message.wait_command_review"));
+        dialog.addButton(new Button(MessageUtils.get("btn.label.cancel"), "cancel", () -> {
             cancel.run();
             SessionManager.getCurrentSession().getController().closeDialog();
         }));
@@ -170,7 +172,7 @@ public class ACLFilterImpl implements ACLFilter {
         AtomicReference<RuntimeException> exception = new AtomicReference<>(null);
 
         this.openCommandReviewEvent(() -> {
-            exception.set(new RuntimeException(MessageUtils.get("UserCancelCommandReviewError")));
+            exception.set(new RuntimeException(MessageUtils.get("msg.error.user_cancel_command_review")));
             cdl.countDown();
             timer.cancel();
 
@@ -186,7 +188,7 @@ public class ACLFilterImpl implements ACLFilter {
                     SessionManager.setContext(token);
 
                     if (System.currentTimeMillis() > endTime) {
-                        exception.set(new RuntimeException(MessageUtils.get("CommandReviewTimeoutError")));
+                        exception.set(new RuntimeException(MessageUtils.get("msg.error.command_review_timeout")));
                         timer.cancel();
                         cdl.countDown();
                     }
@@ -210,7 +212,7 @@ public class ACLFilterImpl implements ACLFilter {
                         }
                         case Rejected, Closed -> {
                             ticketClosed.set(true);
-                            exception.set(new RuntimeException(MessageUtils.get("CommandReviewRejectBy", checkResponse.getData().getProcessor())));
+                            exception.set(new RuntimeException(MessageUtils.get("msg.error.command_review_reject", checkResponse.getData().getProcessor())));
                             timer.cancel();
                             cdl.countDown();
                         }

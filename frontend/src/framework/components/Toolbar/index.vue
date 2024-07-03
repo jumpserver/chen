@@ -1,10 +1,10 @@
 <template>
   <div :style="iStyle" class="toolbar">
     <span class="left">
-      <Items :items="defaultItems" :setting="iSettings" v-bind="$attrs" />
+      <Items :items="defaultItems" :setting="iSettings" v-bind="$attrs"/>
     </span>
     <span class="right">
-      <Items :items="rightItems" :setting="iSettings" v-bind="$attrs" />
+      <Items :items="rightItems" :setting="iSettings" v-bind="$attrs"/>
     </span>
   </div>
 </template>

@@ -4,23 +4,23 @@
       <SplitPane :default-percent="40" :min-percent="20" split="horizontal">
         <template slot="paneL">
           <CodeEditor
-            :node-key="nodeKey"
-            :state="state"
-            :subjects="subjects"
-            @action="onEditorAction"
-            @run="onRunSql"
+              :node-key="nodeKey"
+              :state="state"
+              :subjects="subjects"
+              @action="onEditorAction"
+              @run="onRunSql"
           />
         </template>
         <template slot="paneR">
           <div class="">
             <div class="message">
-              <Message :subject="subjects.messageSubject" />
+              <Message :subject="subjects.messageSubject"/>
             </div>
             <ResultBar
-              :subjects="subjects"
-              @closeDataView="onCloseDataView"
-              @dataViewAction="onDataViewAction"
-              @limitChange="onLimitChange"
+                :subjects="subjects"
+                @closeDataView="onCloseDataView"
+                @dataViewAction="onDataViewAction"
+                @limitChange="onLimitChange"
             />
           </div>
         </template>

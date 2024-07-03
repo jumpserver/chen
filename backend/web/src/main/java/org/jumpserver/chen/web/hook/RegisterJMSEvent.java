@@ -78,7 +78,7 @@ public class RegisterJMSEvent {
                         if (targetSession != null) {
                             switch (taskResponse.getTask().getAction()) {
                                 case KillSession ->
-                                        targetSession.close("SessionClosedBy","admin_terminate", taskResponse.getTask().getTerminatedBy());
+                                        targetSession.close("msg.error.session_closed_by","admin_terminate", taskResponse.getTask().getTerminatedBy());
 
                                 case LockSession -> targetSession.lockSession(taskResponse.getTask().getCreatedBy());
                                 case UnlockSession ->

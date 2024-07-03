@@ -1,22 +1,22 @@
 <template>
   <el-dialog
-    ref="dialog"
-    :title="dialogOptions.title"
-    :show-close="dialogOptions.showClose"
-    :close-on-click-modal="false"
-    :visible.sync="dialogVisible"
+      ref="dialog"
+      :title="dialogOptions.title"
+      :show-close="dialogOptions.showClose"
+      :close-on-click-modal="false"
+      :visible.sync="dialogVisible"
   >
     <div
-      v-if="dialogOptions.body && dialogOptions.bodyType==='html'"
-      v-html="dialogOptions.body"
+        v-if="dialogOptions.body && dialogOptions.bodyType==='html'"
+        v-html="dialogOptions.body"
     />
-    <div v-else v-text="dialogOptions.body" />
+    <div v-else v-text="dialogOptions.body"/>
 
     <span v-if="dialogOptions && dialogOptions.buttons" slot="footer" class="dialog-footer" style="text-align: center">
       <el-button
-        v-for="(item,index) in dialogOptions.buttons"
-        :key="index"
-        @click="onDialogEvent(item.event)"
+          v-for="(item,index) in dialogOptions.buttons"
+          :key="index"
+          @click="onDialogEvent(item.event)"
       >{{ item.label }}</el-button>
     </span>
   </el-dialog>

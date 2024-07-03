@@ -2,44 +2,44 @@
   <div v-loading="state.editorLoading " style="background-color: #383a3c;">
 
     <SelectSnippetDialog
-      v-if="selectSnippetDialogVisible"
-      :visible.sync="selectSnippetDialogVisible"
-      @select="onSelectSnippets"
+        v-if="selectSnippetDialogVisible"
+        :visible.sync="selectSnippetDialogVisible"
+        @select="onSelectSnippets"
     />
 
     <SaveSnippetDialog
-      v-if="saveSnippetDialogVisible"
-      :content="statement"
-      :visible.sync="saveSnippetDialogVisible"
+        v-if="saveSnippetDialogVisible"
+        :content="statement"
+        :visible.sync="saveSnippetDialogVisible"
     />
     <Toolbar
-      :items="toolbarItems"
-      :right-items="rightToolbarItems"
-      style="margin-left: 5px"
+        :items="toolbarItems"
+        :right-items="rightToolbarItems"
+        style="margin-left: 5px"
     />
 
     <el-upload
-      style="display: none"
-      action="/chen/api/console/upload"
-      :multiple="false"
-      :with-credentials="true"
-      :show-file-list="false"
-      :headers="{token: store.getters.token}"
-      :on-success="onUploadSuccess"
-      :on-error="onUploadError"
-      :before-upload="onBeforeUpload"
-      accept=".sql"
+        style="display: none"
+        action="/chen/api/console/upload"
+        :multiple="false"
+        :with-credentials="true"
+        :show-file-list="false"
+        :headers="{token: store.getters.token}"
+        :on-success="onUploadSuccess"
+        :on-error="onUploadError"
+        :before-upload="onBeforeUpload"
+        accept=".sql"
     >
       <a ref="upload" slot="trigger">upload</a>
     </el-upload>
 
     <codemirror
-      ref="cmEditor"
-      v-model="statement"
-      v-loading="state.inQuery"
-      :options="options"
-      @ready="onCmReady"
-      @changes="onCmChange"
+        ref="cmEditor"
+        v-model="statement"
+        v-loading="state.inQuery"
+        :options="options"
+        @ready="onCmReady"
+        @changes="onCmChange"
     />
   </div>
 </template>
@@ -151,15 +151,15 @@ export default {
           name: () => {
             if (this.cmInstance) {
               if (this.selectionValue.length > 0) {
-                return this.$t('RunSelected')
+                return this.$t('button.run_selected')
               } else {
-                return this.$t('Run')
+                return this.$t('button.run')
               }
             }
           },
           type: 'button',
           icon: 'iconfont icon-chen-play text-primary',
-          tip: this.$t('RunHotKey'),
+          tip: this.$t('tip.run'),
           disabled: () => this.state.inQuery,
           loading: () => {
             return this.state.inQuery
@@ -170,14 +170,14 @@ export default {
           split: true,
           type: 'button',
           icon: 'iconfont icon-chen-stop',
-          tip: this.$t('StopHotKey'),
+          tip: this.$t('tip.stop'),
           onClick: () => this.onStop(),
           disabled: () => !this.state.canCancel
         },
         format: {
           type: 'button',
           icon: 'iconfont icon-chen-m-geshihuawenzi',
-          tip: this.$t('FormatHotKey'),
+          tip: this.$t('tip.format'),
           onClick: () => this.onFormat(),
           disabled: () => this.state.inQuery
         },
@@ -185,7 +185,7 @@ export default {
           split: true,
           type: 'button',
           icon: 'iconfont icon-chen-file-open',
-          tip: this.$t('Open'),
+          tip: this.$t('tip.open'),
           onClick: () => {
             this.selectSnippetDialogVisible = true
           },
@@ -194,7 +194,7 @@ export default {
         save: {
           type: 'button',
           icon: 'iconfont icon-chen-save',
-          tip: this.$t('Save'),
+          tip: this.$t('tip.save'),
           onClick: () => {
             this.saveSnippetDialogVisible = true
           },
@@ -210,7 +210,7 @@ export default {
             this.$emit('action', { action: 'change_current_context', data: command })
           },
           customDisplayContent: () => {
-            return this.$tc('Current') + ' Context: ' + this.state.currentContext
+            return this.$tc('common.current') + ' Context: ' + this.state.currentContext
           }
         }
       }

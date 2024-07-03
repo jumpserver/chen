@@ -37,10 +37,10 @@
     </el-form>
     <span slot="footer" class="dialog-footer">
       <el-button @click="iVisible = false">
-        {{ $tc('Cancel') }}
+        {{ $tc('action.cancel') }}
       </el-button>
       <el-button type="primary" @click="onSubmit">
-        {{ $tc('Confirm') }}
+        {{ $tc('action.confirm') }}
       </el-button>
     </span>
   </el-dialog>
@@ -155,6 +155,7 @@ export default {
         data: this.form
       }).then(data => {
         this.$bus.$emit(data.event, data.data)
+        this.$message.success(this.$t('msg.ok'))
       }).finally(() => {
         this.iVisible = false
       })

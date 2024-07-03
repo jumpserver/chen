@@ -64,13 +64,13 @@ public class JMSSession extends BaseSession {
 
     public void lockSession(String creator) {
         SessionManager.setContext(this.getWebToken());
-        this.getController().showMessage(MessageLevel.ERROR, MessageUtils.get("SessionLockedMessage", creator));
+        this.getController().showMessage(MessageLevel.ERROR, MessageUtils.get("msg.dialog.session_locked", creator));
         this.locked = true;
     }
 
     public void unloadSession(String creator) {
         SessionManager.setContext(this.getWebToken());
-        this.getController().showMessage(MessageLevel.SUCCESS, MessageUtils.get("SessionUnlockedMessage", creator));
+        this.getController().showMessage(MessageLevel.SUCCESS, MessageUtils.get("msg.dialog.session_unlocked", creator));
         this.locked = false;
     }
 
@@ -176,16 +176,16 @@ public class JMSSession extends BaseSession {
                         long now = System.currentTimeMillis();
                         var expireTime = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss").format(this.expireTime * 1000);
                         if (now > this.expireTime * 1000) {
-                            this.close("PermissionsExpiredOn", "permission_expired", expireTime);
+                            this.close("msg.error.perms_expired", "permission_expired",expireTime);
                             return;
                         }
                         if (now - this.lastActiveTime > this.maxIdleTimeDelta * 1000 * 60) {
-                            this.close("OverMaxIdleTimeError", "idle_disconnect", this.maxIdleTimeDelta);
+                            this.close("msg.error.over_max_idle_time","idle_disconnect", this.maxIdleTimeDelta);
                             return;
                         }
 
                         if (now - this.lastActiveTime > (long) this.maxSessionTime * 1000 * 60 * 60) {
-                            this.close("OverMaxSessionTimeError", "max_session_timeout", this.maxSessionTime);
+                            this.close("msg.error.over_max_session_time", "max_session_timeout",this.maxSessionTime);
                             return;
                         }
                     }
@@ -217,7 +217,7 @@ public class JMSSession extends BaseSession {
 
         this.getPacketIO().sendPacket("session_close", null);
 
-        var dialog = new Dialog(MessageUtils.get("SessionFinished"));
+        var dialog = new Dialog(MessageUtils.get("msg.dialog.title.session_finished"));
         dialog.setBody(MessageUtils.get(message, args));
         this.getController().showDialog(dialog);
 
@@ -262,7 +262,7 @@ public class JMSSession extends BaseSession {
             this.lastActiveTime = System.currentTimeMillis();
         }
         if (this.locked) {
-            throw new CommandRejectException(MessageUtils.get("SessionLockedError"));
+            throw new CommandRejectException(MessageUtils.get("msg.error.session_locked"));
         }
 
         CommandRecord commandRecord = new CommandRecord(command);

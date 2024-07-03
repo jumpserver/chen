@@ -177,7 +177,7 @@ public abstract class BaseConnectionManager implements ConnectionManager {
             ds.getConnection().close();
         } catch (SQLException e) {
             ds.close();
-            throw new SQLException(String.format("%s : %s", MessageUtils.get("ConnectError"), e.getMessage()));
+            throw new SQLException(String.format("%s : %s", MessageUtils.get("msg.error.connect_error"), e.getMessage()));
         }
         this.dataSourceMap.put(database, ds);
         return ds;

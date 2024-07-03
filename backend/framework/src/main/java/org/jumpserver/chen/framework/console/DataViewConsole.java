@@ -76,7 +76,7 @@ public class DataViewConsole extends AbstractConsole {
     }
 
     public void onConnect(Connect connect) {
-        this.getConsoleLogger().info("Websocket" + MessageUtils.get("Connected"));
+        this.getConsoleLogger().info("Websocket" + MessageUtils.get("state.connected"));
         this.getConsoleLogger().info("view table: %s", this.getTitle());
 
         this.createDataView(this.schema, this.table);
@@ -87,7 +87,7 @@ public class DataViewConsole extends AbstractConsole {
 
             this.tableDataView.loadData();
         } catch (SQLException e) {
-            this.getMessager().send(Message.error(MessageUtils.get("FetchError"), e.getMessage()));
+            this.getMessager().send(Message.error(MessageUtils.get("msg.error.fetch_error"), e.getMessage()));
         } finally {
             this.tableDataView.getStateManager().getState().setLoading(false);
             this.tableDataView.getStateManager().commit();
@@ -112,14 +112,14 @@ public class DataViewConsole extends AbstractConsole {
             var sql = plan.getTargetSQL();
             var aclResult = session.checkACL(sql);
             if (aclResult != null && (aclResult.getRiskLevel() == Common.RiskLevel.Reject || aclResult.getRiskLevel() == Common.RiskLevel.ReviewReject)) {
-                this.getConsoleLogger().error("%s", MessageUtils.get("ACLRejectError"));
+                this.getConsoleLogger().error("%s", MessageUtils.get("msg.error.acl_reject"));
                 CommandRecord commandRecord = new CommandRecord(sql);
                 commandRecord.setRiskLevel(aclResult.getRiskLevel());
                 session.recordCommand(commandRecord);
 
                 this.stateManager.getState().setLoading(false);
                 this.stateManager.commit();
-                throw new SQLException(MessageUtils.get("ACLRejectError"));
+                throw new SQLException(MessageUtils.get("msg.error.acl_reject"));
             }
             plan.setSqlQueryParams(sqlQueryParams);
             plan.generateTargetSQL();
@@ -146,7 +146,7 @@ public class DataViewConsole extends AbstractConsole {
             this.getPacketIO().sendPacket("update_data_view", new UpdateDataView(this.tableDataView.getTitle(), this.tableDataView.getData()));
             this.tableDataView.getStateManager().commit();
         } catch (SQLException e) {
-            this.getMessager().send(Message.error(MessageUtils.get("FetchError"), e.getMessage()));
+            this.getMessager().send(Message.error(MessageUtils.get("msg.error.fetch_error"), e.getMessage()));
         } finally {
             this.tableDataView.getStateManager().getState().setLoading(false);
             this.tableDataView.getStateManager().commit();

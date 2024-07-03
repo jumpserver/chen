@@ -1,17 +1,17 @@
 <template>
   <div class="layout-container">
-    <Controller @ready="onControllerReady" @close="onClose" />
+    <Controller @ready="onControllerReady" @close="onClose"/>
     <split-pane
-      v-if="ready"
-      :min-percent="20"
-      :default-percent="20"
-      split="vertical"
+        v-if="ready"
+        :min-percent="20"
+        :default-percent="20"
+        split="vertical"
     >
       <template #paneL>
-        <resource-manage />
+        <resource-manage/>
       </template>
       <template #paneR>
-        <explore ref="explore" />
+        <explore ref="explore"/>
       </template>
     </split-pane>
   </div>

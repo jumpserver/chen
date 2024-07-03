@@ -10,7 +10,7 @@
   "dependencies": {
     "@handsontable/vue": "12.4.0",
     "ag-grid-community": "^27.1.0",
-    "ag-grid-vue": "^31.3.2",
+    "ag-grid-vue": "^27.1.0",
     "axios": "^0.26.1",
     "codemirror": "^5.65.2",
     "core-js": "^3.6.5",

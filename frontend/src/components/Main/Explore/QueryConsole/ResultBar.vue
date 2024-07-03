@@ -5,10 +5,10 @@
       name="log"
     >
       <span slot="label" class="tab-pane-label">
-        <i class="el-icon-tickets" />
-        {{ $tc('LogOutput') }}
+        <i class="el-icon-tickets"/>
+        {{ $tc('common.log') }}
       </span>
-      <Log :subject="subjects.logSubject" style="padding: 5px" />
+      <Log :subject="subjects.logSubject" style="padding: 5px"/>
     </el-tab-pane>
 
     <el-tab-pane
@@ -18,7 +18,7 @@
       closable
     >
       <span slot="label" class="tab-pane-label">
-        <i class="icon iconfont icon-chen-jurassic_table" />
+        <i class="icon iconfont icon-chen-jurassic_table"/>
         <el-tooltip effect="dark" :content="item.title">
           <span>{{ item.title }}</span>
         </el-tooltip>

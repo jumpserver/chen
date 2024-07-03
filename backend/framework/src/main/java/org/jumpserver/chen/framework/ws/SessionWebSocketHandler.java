@@ -35,8 +35,8 @@ public class SessionWebSocketHandler extends TextWebSocketHandler {
 
         Thread.sleep(300);
 
-        Dialog dialog = new Dialog(MessageUtils.get("InitializeDatasource"));
-        dialog.setBody(MessageUtils.get("InitializingDatasourceMessage"));
+        Dialog dialog = new Dialog(MessageUtils.get("msg.dialog.title.init_datasource"));
+        dialog.setBody(MessageUtils.get("msg.dialog.message.init_datasource"));
 
         sess.getController().showDialog(dialog);
 
@@ -46,7 +46,7 @@ public class SessionWebSocketHandler extends TextWebSocketHandler {
             sess.getDatasource().ping();
             sess.getDatasource().init();
         } catch (Exception e) {
-            dialog.setTitle(MessageUtils.get("InitializeDatasourceFailed"));
+            dialog.setTitle(MessageUtils.get("msg.dialog.title.init_datasource_failed"));
             dialog.setBodyType("html");
 
             dialog.setBody("""
@@ -55,8 +55,8 @@ public class SessionWebSocketHandler extends TextWebSocketHandler {
                         %s: <span style="color: red">%s</span>
                     </div>
                     """.formatted(
-                    MessageUtils.get("initializingDatasourceFailedMessage"),
-                    MessageUtils.get("ErrorMessage"),
+                    MessageUtils.get("msg.dialog.message.init_datasource_failed"),
+                    MessageUtils.get("msg.dialog.title.error_message"),
                     e.getMessage()));
 
 

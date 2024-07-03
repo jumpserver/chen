@@ -18,17 +18,17 @@ public class OracleActionHandler extends BaseActionHandler {
     public List<Action> getTableActions(TreeNode node) {
         return List.of(
                 Action.builder()
-                        .label(MessageUtils.get("NewQuery"))
+                        .label(MessageUtils.get("action.new_query"))
                         .key("new_query")
                         .icon("el-icon-search")
                         .build(),
                 Action.builder()
-                        .label(MessageUtils.get("ViewData"))
+                        .label(MessageUtils.get("action.view_data"))
                         .key("view_data")
                         .icon("el-icon-view")
                         .build(),
                 Action.builder()
-                        .label(MessageUtils.get("ShowProperties"))
+                        .label(MessageUtils.get("action.show_properties"))
                         .key("show_properties")
                         .icon("fa fa-align-justify")
                         .build()

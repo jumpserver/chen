@@ -1,19 +1,19 @@
 <template>
   <el-dialog
-    v-if="visible"
-    :title="$tc('SaveSQL')"
-    :visible.sync="iVisible"
-    width="40%"
+      v-if="visible"
+      :title="$tc('title.save_sql')"
+      :visible.sync="iVisible"
+      width="40%"
   >
     <el-form ref="form" :model="form" label-width="80px">
-      <el-form-item :label="$tc('Name')">
-        <el-input v-model="form.name" />
+      <el-form-item :label="$tc('common.name')">
+        <el-input v-model="form.name"/>
       </el-form-item>
     </el-form>
 
     <span slot="footer" class="dialog-footer">
-      <el-button @click="iVisible = false">{{ $tc('Cancel') }}</el-button>
-      <el-button type="primary" @click="onSubmit">{{ $tc('Confirm') }}</el-button>
+      <el-button @click="iVisible = false">{{ $tc('action.cancel') }}</el-button>
+      <el-button type="primary" @click="onSubmit">{{ $tc('action.confirm') }}</el-button>
     </span>
   </el-dialog>
 </template>
@@ -74,7 +74,7 @@ export default {
           'X-CSRFToken': csrfToken
         }
       }).then(response => {
-        this.$message.success(this.$tc('SaveSucceed'))
+        this.$message.success(this.$tc('message.save_success'))
       }).catch(error => {
         this.$message.error(JSON.stringify((error.response.data)))
       }).finally(() => {

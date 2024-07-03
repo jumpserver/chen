@@ -44,7 +44,7 @@ public class QueryConsole extends AbstractConsole {
 
     public QueryConsole(Datasource datasource, WebSocketSession ws, String nodeKey) {
         super(datasource, ws, nodeKey);
-        this.setTitle(String.format(MessageUtils.get("Query") + "-%d", generateConsoleName()));
+        this.setTitle(String.format(MessageUtils.get("title.query") + "-%d", generateConsoleName()));
         this.datasource = datasource;
     }
 
@@ -69,7 +69,7 @@ public class QueryConsole extends AbstractConsole {
     }
 
     public void onConnect(Connect connect) {
-        this.getConsoleLogger().info("Websocket" + MessageUtils.get("Connected"));
+        this.getConsoleLogger().info("Websocket" + MessageUtils.get("state.connected"));
 
         this.stateManager = new StateManager<>(new QueryConsoleState(this.getTitle())
                 , this.getPacketIO());
@@ -93,7 +93,7 @@ public class QueryConsole extends AbstractConsole {
             this.getState().setCurrentContext(context);
 
         } catch (SQLException e) {
-            this.getConsoleLogger().error(MessageUtils.get("ConnectError") + ": %s", e.getMessage());
+            this.getConsoleLogger().error(MessageUtils.get("msg.error.connect_error") + ": %s", e.getMessage());
         }
 
         this.getState().setLoading(false);
@@ -189,7 +189,7 @@ public class QueryConsole extends AbstractConsole {
             this.getPacketIO().sendPacket("update_data_view", new UpdateDataView(action.getDataView(), dataView.getData()));
 
         } catch (SQLException e) {
-            this.getMessager().send(Message.error(MessageUtils.get("FetchError"), e.getMessage()));
+            this.getMessager().send(Message.error(MessageUtils.get("msg.error.fetch_error"), e.getMessage()));
         } finally {
             dataView.getStateManager().getState().setLoading(false);
             dataView.getStateManager().commit();
@@ -219,7 +219,7 @@ public class QueryConsole extends AbstractConsole {
             this.getState().setCurrentContext(context);
 
         } catch (SQLException e) {
-            this.getConsoleLogger().error(MessageUtils.get("ChangeContextError") + ": %s", e.getMessage());
+            this.getConsoleLogger().error(MessageUtils.get("msg.error.change_context_error") + ": %s", e.getMessage());
         } finally {
             this.getState().setEditorLoading(false);
             this.stateManager.commit();
@@ -263,7 +263,7 @@ public class QueryConsole extends AbstractConsole {
         var aclResult = session.checkACL(sql, this.getConnection());
         if (aclResult != null) {
             if (aclResult.getRiskLevel() == Common.RiskLevel.Reject || aclResult.getRiskLevel() == Common.RiskLevel.ReviewReject) {
-                this.getConsoleLogger().error("%s", MessageUtils.get("ACLRejectError"));
+                this.getConsoleLogger().error("%s", MessageUtils.get("msg.error.acl_reject"));
                 CommandRecord commandRecord = new CommandRecord(sql);
                 commandRecord.setRiskLevel(aclResult.getRiskLevel());
                 session.recordCommand(commandRecord);
@@ -282,8 +282,8 @@ public class QueryConsole extends AbstractConsole {
                 var dataView = this.runSingleSQL(stmt, aclResult);
                 if (!dataView.isHasTable()) {
                     this.getConsoleLogger().success("%s , %s: %d",
-                            MessageUtils.get("ExecuteSuccess"),
-                            MessageUtils.get("AffectedRows"), dataView.getUpdateCount());
+                            MessageUtils.get("msg.success.execute_success"),
+                            MessageUtils.get("msg.info.affected_rows"), dataView.getUpdateCount());
                 } else {
                     this.sendDataView(dataView, clearOthers);
                     clearOthers = false;
@@ -291,11 +291,11 @@ public class QueryConsole extends AbstractConsole {
             }
             this.ensureCurrentSchema();
         } catch (ParserException e) {
-            this.getConsoleLogger().error("%s: %s", MessageUtils.get("ParseError"), e.getMessage());
-            this.getPacketIO().sendPacket("message", Message.error(MessageUtils.get("ParseError"), e.getMessage()));
+            this.getConsoleLogger().error("%s: %s", MessageUtils.get("msg.error.parse_error"), e.getMessage());
+            this.getPacketIO().sendPacket("message", Message.error(MessageUtils.get("msg.error.parse_error"), e.getMessage()));
         } catch (SQLException e) {
-            this.getConsoleLogger().error("%s: %s", MessageUtils.get("ExecuteError"), e.getMessage());
-            this.getPacketIO().sendPacket("message", Message.error(MessageUtils.get("ExecuteError"), e.getMessage()));
+            this.getConsoleLogger().error("%s: %s", MessageUtils.get("msg.error.execute_error"), e.getMessage());
+            this.getPacketIO().sendPacket("message", Message.error(MessageUtils.get("msg.error.execute_error"), e.getMessage()));
         } finally {
             this.getState().setInQuery(false);
             this.getState().setCanCancel(false);
