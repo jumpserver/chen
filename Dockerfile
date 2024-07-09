@@ -1,4 +1,4 @@
-FROM debian:bullseye-slim as stage-wisp-build
+FROM debian:bullseye-slim AS stage-wisp-build
 ARG TARGETARCH
 
 ARG DEPENDENCIES="                    \
@@ -37,7 +37,7 @@ RUN set -ex \
     && chmod 755 /usr/local/bin/wisp \
     && rm -f /opt/*.tar.gz
 
-from node:16.20-bullseye-slim as stage-web-build
+from node:16.20-bullseye-slim AS stage-web-build
 ARG TARGETARCH
 ARG NPM_REGISTRY="https://registry.npmmirror.com"
 
@@ -57,7 +57,7 @@ ADD frontend .
 RUN --mount=type=cache,target=/usr/local/share/.cache/yarn,sharing=locked,id=chen \
     yarn build
 
-FROM debian:bullseye-slim as stage-chen-build
+FROM debian:bullseye-slim AS stage-chen-build
 ARG TARGETARCH
 
 ARG DEPENDENCIES="                    \
