@@ -3,13 +3,13 @@ package org.jumpserver.chen.web.config;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.MessageSource;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.support.AbstractMessageSource;
 import org.springframework.stereotype.Component;
-import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.servlet.LocaleResolver;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
@@ -63,7 +63,14 @@ class JsonMessageSource extends AbstractMessageSource {
 
 
     public JsonMessageSource(@Value("${i18n.endpoint}") String endpoint) {
-        this.endpoint = endpoint;
+        // 首先从环境变量中读取 core 的地址
+
+        String coreHost = System.getenv("CORE_HOST");
+        if (StringUtils.isNotBlank(coreHost)) {
+            this.endpoint = coreHost;
+        } else {
+            this.endpoint = endpoint;
+        }
 
         var languages = new String[]{
                 "en", "ja", "zh", "zh_hant"
@@ -128,7 +135,7 @@ class JsonMessageSource extends AbstractMessageSource {
         Map<String, String> localeMessages = messages.get(languageTag);
         if (localeMessages != null) {
             String message = localeMessages.get(code);
-            if (StringUtils.hasText(message)) {
+            if (StringUtils.isNotBlank(message)) {
                 return new MessageFormat(message, locale);
             }
         }
