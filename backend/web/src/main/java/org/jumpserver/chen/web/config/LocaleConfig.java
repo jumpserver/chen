@@ -63,7 +63,15 @@ class JsonMessageSource extends AbstractMessageSource {
 
 
     public JsonMessageSource(@Value("${i18n.endpoint}") String endpoint) {
-        this.endpoint = endpoint;
+        // 首先从环境变量中读取 core 的地址
+
+        String coreHost = System.getenv("CORE_HOST");
+
+        if (!coreHost.isEmpty()) {
+            this.endpoint = coreHost;
+        } else {
+            this.endpoint = endpoint;
+        }
 
         var languages = new String[]{
                 "en", "ja", "zh", "zh_hant"
