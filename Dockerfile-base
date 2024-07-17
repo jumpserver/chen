@@ -42,8 +42,8 @@ RUN set -ex \
 WORKDIR /opt/chen/frontend
 COPY frontend/package.json frontend/yarn.lock ./
 
-RUN npm install -g pnpm \
-    && pnpm install
+RUN --mount=type=cache,target=/usr/local/share/.cache/yarn,sharing=locked,id=chen \
+    yarn install
 
 # Install Maven dependencies
 ARG MAVEN_VERSION=3.9.7

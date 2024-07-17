@@ -5,7 +5,7 @@ WORKDIR /opt/chen/
 COPY . .
 
 RUN cd frontend \
-    && pnpm build
+    && yarn build
 
 RUN mvn clean package -DskipTests
 
