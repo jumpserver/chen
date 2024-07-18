@@ -18,7 +18,6 @@
     "font-awesome": "^4.7.0",
     "handsontable": "12.4.0",
     "moment": "^2.29.4",
-    "rxjs": "^7.5.5",
     "sql-formatter": "^9.0.0",
     "vue": "^2.6.11",
     "vue-codemirror": "^4.0.6",
