@@ -16,9 +16,7 @@ ARG DEPENDENCIES="                    \
         openjdk-17-jre-headless"
 
 ARG APT_MIRROR=http://deb.debian.org
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked,id=chen \
-    --mount=type=cache,target=/var/lib/apt,sharing=locked,id=chen \
-    sed -i "s@http://.*.debian.org@${APT_MIRROR}@g" /etc/apt/sources.list \
+RUN sed -i "s@http://.*.debian.org@${APT_MIRROR}@g" /etc/apt/sources.list \
     && rm -f /etc/apt/apt.conf.d/docker-clean \
     && ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
     && apt-get update \
