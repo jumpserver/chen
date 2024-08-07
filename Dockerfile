@@ -27,10 +27,12 @@ RUN sed -i "s@http://.*.debian.org@${APT_MIRROR}@g" /etc/apt/sources.list \
     && sed -i "s@# alias @alias @g" ~/.bashrc
 
 WORKDIR /opt/chen
-COPY entrypoint.sh drivers config ./
 
 COPY --from=stage-build /usr/local/bin /usr/local/bin
 COPY --from=stage-build /opt/chen/backend/web/target/web-*.jar /opt/chen/chen.jar
+COPY --from=stage-build /opt/chen/entrypoint.sh .
+COPY --from=stage-build /opt/chen/drivers /opt/chen/drivers
+COPY --from=stage-build /opt/chen/config/application.yml /opt/chen/config/application.yml
 
 ARG VERSION=dev
 ENV VERSION=$VERSION
