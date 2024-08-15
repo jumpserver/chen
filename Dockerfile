@@ -28,7 +28,7 @@ RUN sed -i "s@http://.*.debian.org@${APT_MIRROR}@g" /etc/apt/sources.list \
 
 WORKDIR /opt/chen
 
-COPY --from=stage-build /usr/local/bin /usr/local/bin
+COPY --from=stage-build /usr/local/bin/check /usr/local/bin/wisp /usr/local/bin/
 COPY --from=stage-build /opt/chen/backend/web/target/web-*.jar /opt/chen/chen.jar
 COPY --from=stage-build /opt/chen/entrypoint.sh .
 COPY --from=stage-build /opt/chen/drivers /opt/chen/drivers
