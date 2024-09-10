@@ -2,23 +2,29 @@
   <div v-loading="state.loading" class="data-view" id="doc">
     <ExportDataDialog :visible.sync="exportDataDialogVisible" @submit="onExportSubmit"/>
     <Toolbar :items="iToolBarItems"/>
-    <HotTable
-        ref="hostTable"
-        :settings="hotSettings"
-        class="hot-table"
+    <AgGridVue
+      :rowData="rowData"
+      :columnDefs="colDefs"
+      class="ag-theme-balham-dark"
+      style="height: 100%"
+      :defaultColDef="defaultColDef"
+      :gridOptions="gridOptions"
     />
   </div>
 </template>
 
 <script>
 import Toolbar from '@/framework/components/Toolbar/index.vue'
-import { HotTable } from '@handsontable/vue'
 import { Subject } from 'rxjs'
 import ExportDataDialog from '@/components/Main/Explore/DataView/ExportDataDialog.vue'
+import { AgGridVue } from 'ag-grid-vue'
+
+import 'ag-grid-community/styles/ag-grid.css'
+import 'ag-grid-community/styles/ag-theme-balham.css'
 
 export default {
   name: 'DataView',
-  components: { ExportDataDialog, Toolbar, HotTable },
+  components: { ExportDataDialog, Toolbar, AgGridVue },
   props: {
     meta: {
       type: Object,
@@ -47,6 +53,9 @@ export default {
   },
   data() {
     return {
+      rowData: [],
+      colDefs: [],
+
       exportDataDialogVisible: false,
       state: {
         limit: 0,
@@ -146,19 +155,14 @@ export default {
           onClick: this.onExport
         }
       },
-      hotSettings: {
-        contextMenu: false,
-        // multiColumnSorting: true,
-        rowHeaders: true,
-        wordWrap: false,
-        colWidths: 200,
-        colHeaders: [],
-        columns: [],
-        manualColumnResize: true,
-        manualRowResize: true,
-        viewportColumnRenderingOffset: 200, // 渲染列数
-        viewportRowRenderingOffset: 200, // 渲染行数
-        licenseKey: 'non-commercial-and-evaluation'
+      defaultColDef: {
+        resizable: true,
+        sortable: false,
+        filter: false
+      },
+      gridOptions: {
+        suppressMovableColumnsHints: true,
+        suppressSortingHints: true
       },
       init: false
     }
@@ -192,23 +196,17 @@ export default {
       return this.state
     },
     reloadTable() {
-      const hotInstance = this.$refs.hostTable.hotInstance
-      hotInstance.loadData(this.data.data)
+      this.rowData = this.data.data
     },
     initTable() {
-      const headers = this.data.fields.map((item) => item.name)
-      const columns = this.data.fields.map((item) => {
+      const headers = this.data.fields.map((item) => {
         return {
-          data: item.name,
-          type: 'text',
-          readOnly: true
+          field: item.name
         }
       })
-      this.hotSettings.colHeaders = headers
-      this.hotSettings.columns = columns
-      const hotInstance = this.$refs.hostTable.hotInstance
-      hotInstance.updateSettings(this.hotSettings, false)
-      hotInstance.render()
+
+      this.colDefs = headers
+
       this.reloadTable()
       this.init = true
     },
