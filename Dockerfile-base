@@ -43,7 +43,7 @@ WORKDIR /opt/chen/frontend
 COPY frontend/package.json frontend/package-lock.json frontend/yarn.lock ./
 
 RUN --mount=type=cache,target=/usr/local/share/.cache/yarn,sharing=locked,id=chen \
-    npm install
+    npm install --legacy-peer-deps
 
 # Install Maven dependencies
 ARG MAVEN_VERSION=3.9.7
