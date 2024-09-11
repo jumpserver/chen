@@ -2,7 +2,7 @@ package org.jumpserver.chen.framework.jms.entity;
 
 import lombok.Data;
 import org.jumpserver.chen.framework.datasource.sql.SQLQueryResult;
-import org.jumpserver.chen.wisp.Common;
+import org.jumpserver.wisp.Common;
 
 @Data
 public class CommandRecord {

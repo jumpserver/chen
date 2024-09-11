@@ -8,9 +8,9 @@ import org.jumpserver.chen.framework.datasource.entity.DBConnectInfo;
 import org.jumpserver.chen.framework.session.Session;
 import org.jumpserver.chen.framework.session.impl.JMSSession;
 import org.jumpserver.chen.web.service.SessionService;
-import org.jumpserver.chen.wisp.Common;
-import org.jumpserver.chen.wisp.ServiceGrpc;
-import org.jumpserver.chen.wisp.ServiceOuterClass;
+import org.jumpserver.wisp.Common;
+import org.jumpserver.wisp.ServiceGrpc;
+import org.jumpserver.wisp.ServiceOuterClass;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
