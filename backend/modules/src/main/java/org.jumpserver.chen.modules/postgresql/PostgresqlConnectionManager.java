@@ -6,6 +6,7 @@ import org.jumpserver.chen.framework.datasource.entity.DBConnectInfo;
 import org.jumpserver.chen.framework.datasource.sql.SQL;
 
 import java.sql.SQLException;
+import java.util.Properties;
 
 public class PostgresqlConnectionManager extends BaseConnectionManager {
 
@@ -28,6 +29,22 @@ public class PostgresqlConnectionManager extends BaseConnectionManager {
         var url = this.getConnectInfo().toJDBCUrl(jdbcUrlTemplate);
         this.ping(url);
         this.jdbcUrl = url;
+    }
+
+    protected void setSSLProps(Properties props) {
+        if (this.getConnectInfo().getOptions().get("useSSL") != null
+                && (boolean) this.getConnectInfo().getOptions().get("useSSL")) {
+
+            var caCertPath = (String) this.getConnectInfo().getOptions().get("caCert");
+            var clientCertPath = (String) this.getConnectInfo().getOptions().get("clientCert");
+            var clientKeyPath = (String) this.getConnectInfo().getOptions().get("clientKey");
+
+            props.setProperty("ssl", "true");
+            props.setProperty("sslmode", "verify-full");
+            props.setProperty("sslrootcert", caCertPath);
+            props.setProperty("sslcert", clientCertPath);
+            props.setProperty("sslkey", clientKeyPath);
+        }
     }
 
     private static final String SQL_GET_VERSION = "SELECT version()";
