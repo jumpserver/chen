@@ -4,10 +4,10 @@ import org.jumpserver.chen.framework.datasource.Datasource;
 import org.jumpserver.chen.framework.datasource.base.BaseConnectionManager;
 import org.jumpserver.chen.framework.datasource.entity.DBConnectInfo;
 import org.jumpserver.chen.framework.datasource.sql.SQL;
+import org.jumpserver.chen.modules.base.ssl.SSLCertManager;
 
 import java.sql.SQLException;
 import java.util.Properties;
-
 public class PostgresqlConnectionManager extends BaseConnectionManager {
 
     private static final String jdbcUrlTemplate = "jdbc:postgresql://${host}:${port}/${db}?useUnicode=true&characterEncoding=UTF-8";
@@ -35,15 +35,25 @@ public class PostgresqlConnectionManager extends BaseConnectionManager {
         if (this.getConnectInfo().getOptions().get("useSSL") != null
                 && (boolean) this.getConnectInfo().getOptions().get("useSSL")) {
 
-            var caCertPath = (String) this.getConnectInfo().getOptions().get("caCert");
-            var clientCertPath = (String) this.getConnectInfo().getOptions().get("clientCert");
-            var clientKeyPath = (String) this.getConnectInfo().getOptions().get("clientKey");
+            var caCert = (String) this.getConnectInfo().getOptions().get("caCert");
+            var clientCert = (String) this.getConnectInfo().getOptions().get("clientCert");
+            var clientKey = (String) this.getConnectInfo().getOptions().get("clientKey");
 
-            props.setProperty("ssl", "true");
-            props.setProperty("sslmode", "verify-full");
-            props.setProperty("sslrootcert", caCertPath);
-            props.setProperty("sslcert", clientCertPath);
-            props.setProperty("sslkey", clientKeyPath);
+            var sslManager = new SSLCertManager();
+            sslManager.setCaCert(caCert);
+            sslManager.setClientCert(clientCert);
+            sslManager.setClientCertKey(clientKey);
+
+
+            try {
+                props.setProperty("ssl", "true");
+                props.setProperty("sslmode", "verify-full");
+                props.setProperty("sslrootcert", sslManager.getCaCertPath());
+                props.setProperty("sslcert", sslManager.getClientCertPath());
+                props.setProperty("sslkey", sslManager.getClientCertKeyPath());
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 
