@@ -7,7 +7,7 @@ COPY . .
 RUN cd frontend \
     && npm run build
 
-RUN mvn clean package -DskipTests
+RUN mvn clean package -Dmaven.test.skip=true
 
 FROM debian:bullseye-slim
 
