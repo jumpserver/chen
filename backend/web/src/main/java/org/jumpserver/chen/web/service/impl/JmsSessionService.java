@@ -108,6 +108,7 @@ public class JmsSessionService implements SessionService {
             dbConnectInfo.getOptions().put("caCert", asset.getSpecific().getCaCert());
             dbConnectInfo.getOptions().put("clientCert", asset.getSpecific().getClientCert());
             dbConnectInfo.getOptions().put("clientKey", asset.getSpecific().getClientKey());
+            dbConnectInfo.getOptions().put("pgSSLMode", asset.getSpecific().getPgSslMode());
         }
         return DatasourceFactory.fromConnectInfo(dbConnectInfo);
     }
