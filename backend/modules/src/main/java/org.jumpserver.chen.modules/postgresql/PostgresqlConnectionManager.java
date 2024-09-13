@@ -8,6 +8,7 @@ import org.jumpserver.chen.modules.base.ssl.SSLCertManager;
 
 import java.sql.SQLException;
 import java.util.Properties;
+
 public class PostgresqlConnectionManager extends BaseConnectionManager {
 
     private static final String jdbcUrlTemplate = "jdbc:postgresql://${host}:${port}/${db}?useUnicode=true&characterEncoding=UTF-8";
@@ -38,6 +39,7 @@ public class PostgresqlConnectionManager extends BaseConnectionManager {
             var caCert = (String) this.getConnectInfo().getOptions().get("caCert");
             var clientCert = (String) this.getConnectInfo().getOptions().get("clientCert");
             var clientKey = (String) this.getConnectInfo().getOptions().get("clientKey");
+            var sslMode = (String) this.getConnectInfo().getOptions().get("pgSSLMode");
 
             var sslManager = new SSLCertManager();
             sslManager.setCaCert(caCert);
@@ -47,7 +49,7 @@ public class PostgresqlConnectionManager extends BaseConnectionManager {
 
             try {
                 props.setProperty("ssl", "true");
-                props.setProperty("sslmode", "verify-full");
+                props.setProperty("sslmode", sslMode);
                 props.setProperty("sslrootcert", sslManager.getCaCertPath());
                 props.setProperty("sslcert", sslManager.getClientCertPath());
                 props.setProperty("sslkey", sslManager.getClientCertKeyPath());
