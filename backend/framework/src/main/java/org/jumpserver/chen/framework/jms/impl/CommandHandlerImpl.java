@@ -3,9 +3,9 @@ package org.jumpserver.chen.framework.jms.impl;
 import lombok.extern.slf4j.Slf4j;
 import org.jumpserver.chen.framework.jms.CommandHandler;
 import org.jumpserver.chen.framework.jms.entity.CommandRecord;
-import org.jumpserver.chen.wisp.Common;
-import org.jumpserver.chen.wisp.ServiceGrpc;
-import org.jumpserver.chen.wisp.ServiceOuterClass;
+import org.jumpserver.wisp.Common;
+import org.jumpserver.wisp.ServiceGrpc;
+import org.jumpserver.wisp.ServiceOuterClass;
 import org.springframework.scheduling.annotation.Async;
 
 @Slf4j

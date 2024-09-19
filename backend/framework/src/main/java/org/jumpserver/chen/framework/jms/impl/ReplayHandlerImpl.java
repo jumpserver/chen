@@ -4,9 +4,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.jumpserver.chen.framework.jms.ReplayHandler;
 import org.jumpserver.chen.framework.jms.asciinema.AsciinemaWriter;
 import org.jumpserver.chen.framework.jms.exception.ReplayException;
-import org.jumpserver.chen.wisp.Common;
-import org.jumpserver.chen.wisp.ServiceGrpc;
-import org.jumpserver.chen.wisp.ServiceOuterClass;
+import org.jumpserver.wisp.Common;
+import org.jumpserver.wisp.ServiceGrpc;
+import org.jumpserver.wisp.ServiceOuterClass;
 
 import java.io.File;
 import java.io.FileWriter;

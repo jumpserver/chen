@@ -8,9 +8,9 @@ import org.jumpserver.chen.framework.datasource.entity.DBConnectInfo;
 import org.jumpserver.chen.framework.session.Session;
 import org.jumpserver.chen.framework.session.impl.JMSSession;
 import org.jumpserver.chen.web.service.SessionService;
-import org.jumpserver.chen.wisp.Common;
-import org.jumpserver.chen.wisp.ServiceGrpc;
-import org.jumpserver.chen.wisp.ServiceOuterClass;
+import org.jumpserver.wisp.Common;
+import org.jumpserver.wisp.ServiceGrpc;
+import org.jumpserver.wisp.ServiceOuterClass;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -108,6 +108,7 @@ public class JmsSessionService implements SessionService {
             dbConnectInfo.getOptions().put("caCert", asset.getSpecific().getCaCert());
             dbConnectInfo.getOptions().put("clientCert", asset.getSpecific().getClientCert());
             dbConnectInfo.getOptions().put("clientKey", asset.getSpecific().getClientKey());
+            dbConnectInfo.getOptions().put("pgSSLMode", asset.getSpecific().getPgSslMode());
         }
         return DatasourceFactory.fromConnectInfo(dbConnectInfo);
     }

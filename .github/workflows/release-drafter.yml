@@ -31,7 +31,7 @@ jobs:
           tag: ${{ steps.get_version.outputs.TAG }}
       - uses: actions/setup-node@v3
         with:
-          node-version: '16.20'
+          node-version: '20.15'
       - name: Build web
         run: |
           cd frontend
@@ -62,13 +62,3 @@ jobs:
             build/chen-${{ steps.get_version.outputs.TAG }}.tar.gz.md5
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: sync chen-release
-        env:
-          REPO_URL: jumpserver/chen-release
-          TAG_NAME: ${{ steps.get_version.outputs.TAG }}
-          BRANCH: master
-          ACCESS_TOKEN: ${{ secrets.PRIVATE_TOKEN }}
-          FILE_PATTERN: "build/*"
-        run:  |
-          wget "https://github.com/LeeEirc/ghaction/releases/download/v0.0.2/ghrcreate-linux-amd64"
-          chmod +x ghrcreate-linux-amd64 && ./ghrcreate-linux-amd64

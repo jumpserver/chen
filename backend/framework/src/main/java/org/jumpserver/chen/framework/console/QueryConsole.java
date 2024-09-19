@@ -20,9 +20,11 @@ import org.jumpserver.chen.framework.i18n.MessageUtils;
 import org.jumpserver.chen.framework.jms.acl.ACLResult;
 import org.jumpserver.chen.framework.jms.entity.CommandRecord;
 import org.jumpserver.chen.framework.session.SessionManager;
+import org.jumpserver.chen.framework.session.controller.dialog.Button;
+import org.jumpserver.chen.framework.session.controller.dialog.Dialog;
 import org.jumpserver.chen.framework.utils.TreeUtils;
 import org.jumpserver.chen.framework.ws.io.Packet;
-import org.jumpserver.chen.wisp.Common;
+import org.jumpserver.wisp.Common;
 import org.springframework.web.socket.WebSocketSession;
 
 import java.io.IOException;
@@ -32,6 +34,8 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Slf4j
 public class QueryConsole extends AbstractConsole {
@@ -271,6 +275,42 @@ public class QueryConsole extends AbstractConsole {
                 this.getState().setInQuery(false);
                 this.stateManager.commit();
                 return;
+            }
+
+            if (aclResult.isNotify()) {
+
+                var dialog = new Dialog(MessageUtils.get("Warning"));
+                dialog.setBody(MessageUtils.get("CommandWarningDialogMessage"));
+                var countDownLatch = new CountDownLatch(1);
+                AtomicBoolean hasNext = new AtomicBoolean(true);
+
+                dialog.addButton(new Button(MessageUtils.get("Submit"), "submit", countDownLatch::countDown));
+
+                dialog.addButton(new Button(MessageUtils.get("Cancel"), "cancel", () -> {
+                    hasNext.set(false);
+                    countDownLatch.countDown();
+                    this.getConsoleLogger().warn(MessageUtils.get("ExecutionCanceled"));
+                }));
+
+                SessionManager.getCurrentSession().getController().showDialog(dialog);
+
+                try {
+                    countDownLatch.await();
+
+                    if (!hasNext.get()) {
+                        this.getState().setInQuery(false);
+                        this.stateManager.commit();
+                        return;
+                    }
+
+                } catch (InterruptedException e) {
+                    this.getState().setInQuery(false);
+                    this.stateManager.commit();
+
+                    this.getConsoleLogger().error("获取结果失败!");
+                } finally {
+                    SessionManager.getCurrentSession().getController().closeDialog();
+                }
             }
         }
 

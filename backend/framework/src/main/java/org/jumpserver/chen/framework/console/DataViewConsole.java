@@ -13,13 +13,17 @@ import org.jumpserver.chen.framework.datasource.Datasource;
 import org.jumpserver.chen.framework.i18n.MessageUtils;
 import org.jumpserver.chen.framework.jms.entity.CommandRecord;
 import org.jumpserver.chen.framework.session.SessionManager;
+import org.jumpserver.chen.framework.session.controller.dialog.Button;
+import org.jumpserver.chen.framework.session.controller.dialog.Dialog;
 import org.jumpserver.chen.framework.utils.TreeUtils;
 import org.jumpserver.chen.framework.ws.io.Packet;
-import org.jumpserver.chen.wisp.Common;
+import org.jumpserver.wisp.Common;
 import org.springframework.web.socket.WebSocketSession;
 
 import java.sql.SQLException;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class DataViewConsole extends AbstractConsole {
 
@@ -110,6 +114,7 @@ public class DataViewConsole extends AbstractConsole {
                     .getSqlActuator()
                     .createPlan(schemaName, tableName, null);
             var sql = plan.getTargetSQL();
+
             var aclResult = session.checkACL(sql);
             if (aclResult != null && (aclResult.getRiskLevel() == Common.RiskLevel.Reject || aclResult.getRiskLevel() == Common.RiskLevel.ReviewReject)) {
                 this.getConsoleLogger().error("%s", MessageUtils.get("ACLRejectError"));
@@ -121,6 +126,42 @@ public class DataViewConsole extends AbstractConsole {
                 this.stateManager.commit();
                 throw new SQLException(MessageUtils.get("ACLRejectError"));
             }
+
+            if (aclResult!=null && aclResult.isNotify()) {
+
+                var dialog = new Dialog(MessageUtils.get("Warning"));
+                dialog.setBody(MessageUtils.get("CommandWarningDialogMessage"));
+                var countDownLatch = new CountDownLatch(1);
+                AtomicBoolean hasNext = new AtomicBoolean(true);
+
+                dialog.addButton(new Button(MessageUtils.get("Submit"), "submit", countDownLatch::countDown));
+
+                dialog.addButton(new Button(MessageUtils.get("Cancel"), "cancel", () -> {
+                    hasNext.set(false);
+                    countDownLatch.countDown();
+                    this.getConsoleLogger().warn(MessageUtils.get("ExecutionCanceled"));
+                }));
+
+                SessionManager.getCurrentSession().getController().showDialog(dialog);
+
+                try {
+                    countDownLatch.await();
+
+                    if (!hasNext.get()) {
+                        throw new SQLException(MessageUtils.get("ExecutionCanceled"));
+                    }
+
+                } catch (InterruptedException e) {
+                    this.stateManager.commit();
+
+                    this.getConsoleLogger().error("get result error");
+                } finally {
+                    SessionManager.getCurrentSession().getController().closeDialog();
+                }
+            }
+
+
+
             plan.setSqlQueryParams(sqlQueryParams);
             plan.generateTargetSQL();
 

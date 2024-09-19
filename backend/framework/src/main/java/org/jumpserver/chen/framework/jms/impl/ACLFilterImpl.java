@@ -8,9 +8,9 @@ import org.jumpserver.chen.framework.jms.acl.ACLResult;
 import org.jumpserver.chen.framework.session.SessionManager;
 import org.jumpserver.chen.framework.session.controller.dialog.Button;
 import org.jumpserver.chen.framework.session.controller.dialog.Dialog;
-import org.jumpserver.chen.wisp.Common;
-import org.jumpserver.chen.wisp.ServiceGrpc;
-import org.jumpserver.chen.wisp.ServiceOuterClass;
+import org.jumpserver.wisp.Common;
+import org.jumpserver.wisp.ServiceGrpc;
+import org.jumpserver.wisp.ServiceOuterClass;
 
 import java.sql.Connection;
 import java.util.List;
@@ -54,6 +54,10 @@ public class ACLFilterImpl implements ACLFilter {
             }
             case Warning -> {
                 result.setRiskLevel(Common.RiskLevel.Warning);
+            }
+            case NotifyWarning -> {
+                result.setRiskLevel(Common.RiskLevel.Warning);
+                result.setNotify(true);
             }
             case Reject -> {
                 result.setRiskLevel(Common.RiskLevel.Reject);

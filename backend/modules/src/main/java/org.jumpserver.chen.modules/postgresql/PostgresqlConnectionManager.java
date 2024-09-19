@@ -4,8 +4,10 @@ import org.jumpserver.chen.framework.datasource.Datasource;
 import org.jumpserver.chen.framework.datasource.base.BaseConnectionManager;
 import org.jumpserver.chen.framework.datasource.entity.DBConnectInfo;
 import org.jumpserver.chen.framework.datasource.sql.SQL;
+import org.jumpserver.chen.modules.base.ssl.SSLCertManager;
 
 import java.sql.SQLException;
+import java.util.Properties;
 
 public class PostgresqlConnectionManager extends BaseConnectionManager {
 
@@ -28,6 +30,33 @@ public class PostgresqlConnectionManager extends BaseConnectionManager {
         var url = this.getConnectInfo().toJDBCUrl(jdbcUrlTemplate);
         this.ping(url);
         this.jdbcUrl = url;
+    }
+
+    protected void setSSLProps(Properties props) {
+        if (this.getConnectInfo().getOptions().get("useSSL") != null
+                && (boolean) this.getConnectInfo().getOptions().get("useSSL")) {
+
+            var caCert = (String) this.getConnectInfo().getOptions().get("caCert");
+            var clientCert = (String) this.getConnectInfo().getOptions().get("clientCert");
+            var clientKey = (String) this.getConnectInfo().getOptions().get("clientKey");
+            var sslMode = (String) this.getConnectInfo().getOptions().get("pgSSLMode");
+
+            var sslManager = new SSLCertManager();
+            sslManager.setCaCert(caCert);
+            sslManager.setClientCert(clientCert);
+            sslManager.setClientCertKey(clientKey);
+
+
+            try {
+                props.setProperty("ssl", "true");
+                props.setProperty("sslmode", sslMode);
+                props.setProperty("sslrootcert", sslManager.getCaCertPath());
+                props.setProperty("sslcert", sslManager.getClientCertPath());
+                props.setProperty("sslkey", sslManager.getClientCertKeyPath());
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
     }
 
     private static final String SQL_GET_VERSION = "SELECT version()";

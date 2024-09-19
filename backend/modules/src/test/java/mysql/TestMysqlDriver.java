@@ -1,7 +1,7 @@
 package mysql;
 
 import com.alibaba.druid.pool.DruidDataSource;
-import org.jumpserver.chen.framework.ssl.JKSGenerator;
+import org.jumpserver.chen.modules.base.ssl.JKSGenerator;
 
 import java.lang.reflect.InvocationTargetException;
 import java.net.MalformedURLException;

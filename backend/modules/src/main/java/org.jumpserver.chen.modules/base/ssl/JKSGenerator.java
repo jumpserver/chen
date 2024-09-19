@@ -1,4 +1,4 @@
-package org.jumpserver.chen.framework.ssl;
+package org.jumpserver.chen.modules.base.ssl;
 
 import lombok.Setter;
 import org.apache.commons.lang3.StringUtils;

@@ -19,6 +19,7 @@ import org.jumpserver.chen.framework.utils.HexUtils;
 import org.jumpserver.chen.framework.utils.PageUtils;
 import org.jumpserver.chen.framework.utils.ReflectUtils;
 
+import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.sql.*;
 import java.util.ArrayList;
@@ -160,13 +161,11 @@ public abstract class BaseSQLActuator implements SQLActuator {
                             var obj = resultSet.getObject(i);
                             if (obj instanceof Timestamp timestamp) {
                                 fs.add(new Date(timestamp.getTime()));
-                            } else if (obj instanceof Long l) {
-                                fs.add(l.toString());
-                            } else if (obj instanceof BigInteger b) {
-                                fs.add(b.toString());
+                            } else if (obj instanceof Long || obj instanceof BigDecimal || obj instanceof BigInteger) {
+                                fs.add(obj.toString());
                             } else if (obj instanceof byte[]) {
                                 fs.add(HexUtils.bytesToHex((byte[]) obj));
-                            }else if (obj instanceof Blob){
+                            } else if (obj instanceof Blob) {
                                 fs.add(HexUtils.bytesToHex(((Blob) obj).getBytes(1, (int) ((Blob) obj).length())));
                             } else {
                                 fs.add(obj);

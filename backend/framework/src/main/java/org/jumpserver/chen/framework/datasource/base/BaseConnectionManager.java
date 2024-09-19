@@ -10,7 +10,6 @@ import org.jumpserver.chen.framework.datasource.sql.SQLActuator;
 import org.jumpserver.chen.framework.driver.DriverClassLoader;
 import org.jumpserver.chen.framework.driver.DriverManager;
 import org.jumpserver.chen.framework.i18n.MessageUtils;
-import org.jumpserver.chen.framework.ssl.JKSGenerator;
 
 import java.lang.reflect.InvocationTargetException;
 import java.sql.Connection;
@@ -50,32 +49,7 @@ public abstract class BaseConnectionManager implements ConnectionManager {
         this.ping(jdbcUrl, props);
     }
 
-    protected void setSSLProps(Properties props) {
-        if (this.getConnectInfo().getOptions().get("useSSL") != null
-                && (boolean) this.getConnectInfo().getOptions().get("useSSL")) {
-            props.setProperty("useSSL", "true");
-            props.setProperty("requireSSL", "true");
-            var jksGenerator = new JKSGenerator();
-            if ((boolean) this.getConnectInfo().getOptions().get("verifyServerCertificate")) {
-                props.setProperty("verifyServerCertificate", "true");
-                jksGenerator.setCaCert((String) this.getConnectInfo().getOptions().get("caCert"));
-
-                var caCertPath = jksGenerator.generateCaJKS();
-                props.setProperty("trustCertificateKeyStoreUrl", "file:" + caCertPath);
-                props.setProperty("trustCertificateKeyStorePassword", JKSGenerator.JSK_PASS);
-
-            }
-            if (StringUtils.isNotBlank((String) this.getConnectInfo().getOptions().get("clientCert"))) {
-                jksGenerator.setClientCert((String) this.getConnectInfo().getOptions().get("clientCert"));
-                jksGenerator.setClientKey((String) this.getConnectInfo().getOptions().get("clientKey"));
-                var clientCertPath = jksGenerator.generateClientJKS();
-                props.setProperty("clientCertificateKeyStoreUrl", "file:" + clientCertPath);
-                props.setProperty("clientCertificateKeyStorePassword", JKSGenerator.JSK_PASS);
-                props.setProperty("clientKeyPassword", JKSGenerator.JSK_PASS);
-
-            }
-        }
-    }
+    protected void setSSLProps(Properties props) {}
 
 
     public List<DriverClassLoader> getDriverClassLoaders() {

@@ -1,4 +1,4 @@
-FROM jumpserver/chen-base:20240808_094305 AS stage-build
+FROM jumpserver/chen-base:20240913_102042 AS stage-build
 ENV LANG=en_US.UTF-8
 
 WORKDIR /opt/chen/
@@ -7,7 +7,7 @@ COPY . .
 RUN cd frontend \
     && npm run build
 
-RUN mvn clean package -DskipTests
+RUN mvn clean package -Dmaven.test.skip=true
 
 FROM debian:bullseye-slim
 

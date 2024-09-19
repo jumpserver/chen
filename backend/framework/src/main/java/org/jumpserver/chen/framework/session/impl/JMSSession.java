@@ -21,9 +21,9 @@ import org.jumpserver.chen.framework.session.controller.dialog.Dialog;
 import org.jumpserver.chen.framework.session.controller.message.MessageLevel;
 import org.jumpserver.chen.framework.session.exception.SessionException;
 import org.jumpserver.chen.framework.ws.io.PacketIO;
-import org.jumpserver.chen.wisp.Common;
-import org.jumpserver.chen.wisp.ServiceGrpc;
-import org.jumpserver.chen.wisp.ServiceOuterClass;
+import org.jumpserver.wisp.Common;
+import org.jumpserver.wisp.ServiceGrpc;
+import org.jumpserver.wisp.ServiceOuterClass;
 
 import java.sql.Connection;
 import java.sql.SQLException;

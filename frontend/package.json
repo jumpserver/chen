@@ -9,16 +9,15 @@
   },
   "dependencies": {
     "@handsontable/vue": "12.4.0",
-    "ag-grid-community": "^27.1.0",
-    "ag-grid-vue": "^31.3.2",
+    "ag-grid-community": "^32.1.0",
+    "ag-grid-vue": "^31.3.4",
     "axios": "^0.26.1",
     "codemirror": "^5.65.2",
     "core-js": "^3.6.5",
     "element-ui": "^2.15.13",
     "font-awesome": "^4.7.0",
-    "handsontable": "12.4.0",
     "moment": "^2.29.4",
-    "rxjs": "^7.5.5",
+    "rxjs": "^6.6.7",
     "sql-formatter": "^9.0.0",
     "vue": "^2.6.11",
     "vue-codemirror": "^4.0.6",
@@ -60,4 +59,5 @@
     "last 2 versions",
     "not dead"
   ]
+
 }

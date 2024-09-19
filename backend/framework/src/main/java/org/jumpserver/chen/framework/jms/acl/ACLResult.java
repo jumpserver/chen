@@ -1,7 +1,7 @@
 package org.jumpserver.chen.framework.jms.acl;
 
 import lombok.Data;
-import org.jumpserver.chen.wisp.Common;
+import org.jumpserver.wisp.Common;
 
 @Data
 public class ACLResult {
@@ -10,5 +10,7 @@ public class ACLResult {
     private String CmdAclId;
 
     private String CmdGroupId;
+
+    private boolean Notify = false;
 
 }
