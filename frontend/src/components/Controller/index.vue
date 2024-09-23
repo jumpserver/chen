@@ -52,15 +52,21 @@ export default {
   methods: {
     handleRenewLunaSession() {
       const lunaEvent = this.lunaEvent
-      document.body.addEventListener('keydown', function() {
-        lunaEvent.sendEventToLuna(MESSAGES.KEYBOARDEVENT)
+
+      document.body.addEventListener('keydown', function(event) {
+        const isAltShift = event.altKey && event.shiftKey
+
+        if (isAltShift && event.key === 'ArrowLeft') {
+          lunaEvent.sendEventToLuna(MESSAGES.KEYEVENT, 'alt-shift-left')
+        } else if (isAltShift && event.key === 'ArrowRight') {
+          lunaEvent.sendEventToLuna(MESSAGES.KEYEVENT, 'alt-shift-right')
+        }
       })
-      document.body.addEventListener('keyup', function() {
-        lunaEvent.sendEventToLuna(MESSAGES.KEYBOARDEVENT)
-      })
+
       document.body.addEventListener('click', function() {
         lunaEvent.sendEventToLuna(MESSAGES.MOUSEEVENT)
       })
+
       document.body.addEventListener('dblclick', function() {
         lunaEvent.sendEventToLuna(MESSAGES.MOUSEEVENT)
       })
