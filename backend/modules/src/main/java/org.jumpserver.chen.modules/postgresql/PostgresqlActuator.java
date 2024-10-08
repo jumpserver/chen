@@ -33,12 +33,12 @@ public class PostgresqlActuator extends BaseSQLActuator {
 
     @Override
     public void changeSchema(String schema) throws SQLException {
-        this.execute(SQL.of("SET SEARCH_PATH TO ?;", schema));
+        this.execute(SQL.of("SET SEARCH_PATH TO '?';", schema));
     }
 
     @Override
     public SQLExecutePlan createPlan(String schema, String table, SQLQueryParams sqlQueryParams) throws SQLException {
-        var sql = SQL.of("select * from ?.?", schema, table);
+        var sql = SQL.of("select * from \"?\".\"?\"", schema, table);
         return this.createPlan(sql, sqlQueryParams);
     }
 }
