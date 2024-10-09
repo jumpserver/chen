@@ -41,6 +41,14 @@ public final class Common {
      * <code>UnlockSession = 2;</code>
      */
     UnlockSession(2),
+    /**
+     * <code>TokenPermExpired = 3;</code>
+     */
+    TokenPermExpired(3),
+    /**
+     * <code>TokenPermValid = 4;</code>
+     */
+    TokenPermValid(4),
     UNRECOGNIZED(-1),
     ;
 
@@ -65,6 +73,14 @@ public final class Common {
      * <code>UnlockSession = 2;</code>
      */
     public static final int UnlockSession_VALUE = 2;
+    /**
+     * <code>TokenPermExpired = 3;</code>
+     */
+    public static final int TokenPermExpired_VALUE = 3;
+    /**
+     * <code>TokenPermValid = 4;</code>
+     */
+    public static final int TokenPermValid_VALUE = 4;
 
 
     public final int getNumber() {
@@ -94,6 +110,8 @@ public final class Common {
         case 0: return KillSession;
         case 1: return LockSession;
         case 2: return UnlockSession;
+        case 3: return TokenPermExpired;
+        case 4: return TokenPermValid;
         default: return null;
       }
     }
@@ -13088,6 +13106,18 @@ public final class Common {
      */
     com.google.protobuf.ByteString
         getAccountIdBytes();
+
+    /**
+     * <code>string token_id = 13;</code>
+     * @return The tokenId.
+     */
+    java.lang.String getTokenId();
+    /**
+     * <code>string token_id = 13;</code>
+     * @return The bytes for tokenId.
+     */
+    com.google.protobuf.ByteString
+        getTokenIdBytes();
   }
   /**
    * Protobuf type {@code message.Session}
@@ -13122,6 +13152,7 @@ public final class Common {
       userId_ = "";
       assetId_ = "";
       accountId_ = "";
+      tokenId_ = "";
     }
 
     public static final com.google.protobuf.Descriptors.Descriptor
@@ -13691,6 +13722,45 @@ public final class Common {
       }
     }
 
+    public static final int TOKEN_ID_FIELD_NUMBER = 13;
+    @SuppressWarnings("serial")
+    private volatile java.lang.Object tokenId_ = "";
+    /**
+     * <code>string token_id = 13;</code>
+     * @return The tokenId.
+     */
+    @java.lang.Override
+    public java.lang.String getTokenId() {
+      java.lang.Object ref = tokenId_;
+      if (ref instanceof java.lang.String) {
+        return (java.lang.String) ref;
+      } else {
+        com.google.protobuf.ByteString bs = 
+            (com.google.protobuf.ByteString) ref;
+        java.lang.String s = bs.toStringUtf8();
+        tokenId_ = s;
+        return s;
+      }
+    }
+    /**
+     * <code>string token_id = 13;</code>
+     * @return The bytes for tokenId.
+     */
+    @java.lang.Override
+    public com.google.protobuf.ByteString
+        getTokenIdBytes() {
+      java.lang.Object ref = tokenId_;
+      if (ref instanceof java.lang.String) {
+        com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString.copyFromUtf8(
+                (java.lang.String) ref);
+        tokenId_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+
     private byte memoizedIsInitialized = -1;
     @java.lang.Override
     public final boolean isInitialized() {
@@ -13741,6 +13811,9 @@ public final class Common {
       if (!com.google.protobuf.GeneratedMessage.isStringEmpty(accountId_)) {
         com.google.protobuf.GeneratedMessage.writeString(output, 12, accountId_);
       }
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(tokenId_)) {
+        com.google.protobuf.GeneratedMessage.writeString(output, 13, tokenId_);
+      }
       getUnknownFields().writeTo(output);
     }
 
@@ -13788,6 +13861,9 @@ public final class Common {
       if (!com.google.protobuf.GeneratedMessage.isStringEmpty(accountId_)) {
         size += com.google.protobuf.GeneratedMessage.computeStringSize(12, accountId_);
       }
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(tokenId_)) {
+        size += com.google.protobuf.GeneratedMessage.computeStringSize(13, tokenId_);
+      }
       size += getUnknownFields().getSerializedSize();
       memoizedSize = size;
       return size;
@@ -13826,6 +13902,8 @@ public final class Common {
           .equals(other.getAssetId())) return false;
       if (!getAccountId()
           .equals(other.getAccountId())) return false;
+      if (!getTokenId()
+          .equals(other.getTokenId())) return false;
       if (!getUnknownFields().equals(other.getUnknownFields())) return false;
       return true;
     }
@@ -13862,6 +13940,8 @@ public final class Common {
       hash = (53 * hash) + getAssetId().hashCode();
       hash = (37 * hash) + ACCOUNT_ID_FIELD_NUMBER;
       hash = (53 * hash) + getAccountId().hashCode();
+      hash = (37 * hash) + TOKEN_ID_FIELD_NUMBER;
+      hash = (53 * hash) + getTokenId().hashCode();
       hash = (29 * hash) + getUnknownFields().hashCode();
       memoizedHashCode = hash;
       return hash;
@@ -14005,6 +14085,7 @@ public final class Common {
         userId_ = "";
         assetId_ = "";
         accountId_ = "";
+        tokenId_ = "";
         return this;
       }
 
@@ -14074,6 +14155,9 @@ public final class Common {
         if (((from_bitField0_ & 0x00000800) != 0)) {
           result.accountId_ = accountId_;
         }
+        if (((from_bitField0_ & 0x00001000) != 0)) {
+          result.tokenId_ = tokenId_;
+        }
       }
 
       @java.lang.Override
@@ -14142,6 +14226,11 @@ public final class Common {
         if (!other.getAccountId().isEmpty()) {
           accountId_ = other.accountId_;
           bitField0_ |= 0x00000800;
+          onChanged();
+        }
+        if (!other.getTokenId().isEmpty()) {
+          tokenId_ = other.tokenId_;
+          bitField0_ |= 0x00001000;
           onChanged();
         }
         this.mergeUnknownFields(other.getUnknownFields());
@@ -14230,6 +14319,11 @@ public final class Common {
                 bitField0_ |= 0x00000800;
                 break;
               } // case 98
+              case 106: {
+                tokenId_ = input.readStringRequireUtf8();
+                bitField0_ |= 0x00001000;
+                break;
+              } // case 106
               default: {
                 if (!super.parseUnknownField(input, extensionRegistry, tag)) {
                   done = true; // was an endgroup tag
@@ -15052,6 +15146,78 @@ public final class Common {
         return this;
       }
 
+      private java.lang.Object tokenId_ = "";
+      /**
+       * <code>string token_id = 13;</code>
+       * @return The tokenId.
+       */
+      public java.lang.String getTokenId() {
+        java.lang.Object ref = tokenId_;
+        if (!(ref instanceof java.lang.String)) {
+          com.google.protobuf.ByteString bs =
+              (com.google.protobuf.ByteString) ref;
+          java.lang.String s = bs.toStringUtf8();
+          tokenId_ = s;
+          return s;
+        } else {
+          return (java.lang.String) ref;
+        }
+      }
+      /**
+       * <code>string token_id = 13;</code>
+       * @return The bytes for tokenId.
+       */
+      public com.google.protobuf.ByteString
+          getTokenIdBytes() {
+        java.lang.Object ref = tokenId_;
+        if (ref instanceof String) {
+          com.google.protobuf.ByteString b = 
+              com.google.protobuf.ByteString.copyFromUtf8(
+                  (java.lang.String) ref);
+          tokenId_ = b;
+          return b;
+        } else {
+          return (com.google.protobuf.ByteString) ref;
+        }
+      }
+      /**
+       * <code>string token_id = 13;</code>
+       * @param value The tokenId to set.
+       * @return This builder for chaining.
+       */
+      public Builder setTokenId(
+          java.lang.String value) {
+        if (value == null) { throw new NullPointerException(); }
+        tokenId_ = value;
+        bitField0_ |= 0x00001000;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string token_id = 13;</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearTokenId() {
+        tokenId_ = getDefaultInstance().getTokenId();
+        bitField0_ = (bitField0_ & ~0x00001000);
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string token_id = 13;</code>
+       * @param value The bytes for tokenId to set.
+       * @return This builder for chaining.
+       */
+      public Builder setTokenIdBytes(
+          com.google.protobuf.ByteString value) {
+        if (value == null) { throw new NullPointerException(); }
+        checkByteStringIsUtf8(value);
+        tokenId_ = value;
+        bitField0_ |= 0x00001000;
+        onChanged();
+        return this;
+      }
+
       // @@protoc_insertion_point(builder_scope:message.Session)
     }
 
@@ -15098,6 +15264,737 @@ public final class Common {
 
     @java.lang.Override
     public org.jumpserver.wisp.Common.Session getDefaultInstanceForType() {
+      return DEFAULT_INSTANCE;
+    }
+
+  }
+
+  public interface TokenStatusOrBuilder extends
+      // @@protoc_insertion_point(interface_extends:message.TokenStatus)
+      com.google.protobuf.MessageOrBuilder {
+
+    /**
+     * <code>string code = 1;</code>
+     * @return The code.
+     */
+    java.lang.String getCode();
+    /**
+     * <code>string code = 1;</code>
+     * @return The bytes for code.
+     */
+    com.google.protobuf.ByteString
+        getCodeBytes();
+
+    /**
+     * <code>string detail = 2;</code>
+     * @return The detail.
+     */
+    java.lang.String getDetail();
+    /**
+     * <code>string detail = 2;</code>
+     * @return The bytes for detail.
+     */
+    com.google.protobuf.ByteString
+        getDetailBytes();
+
+    /**
+     * <code>bool is_expired = 3;</code>
+     * @return The isExpired.
+     */
+    boolean getIsExpired();
+  }
+  /**
+   * Protobuf type {@code message.TokenStatus}
+   */
+  public static final class TokenStatus extends
+      com.google.protobuf.GeneratedMessage implements
+      // @@protoc_insertion_point(message_implements:message.TokenStatus)
+      TokenStatusOrBuilder {
+  private static final long serialVersionUID = 0L;
+    static {
+      com.google.protobuf.RuntimeVersion.validateProtobufGencodeVersion(
+        com.google.protobuf.RuntimeVersion.RuntimeDomain.PUBLIC,
+        /* major= */ 4,
+        /* minor= */ 26,
+        /* patch= */ 1,
+        /* suffix= */ "",
+        TokenStatus.class.getName());
+    }
+    // Use TokenStatus.newBuilder() to construct.
+    private TokenStatus(com.google.protobuf.GeneratedMessage.Builder<?> builder) {
+      super(builder);
+    }
+    private TokenStatus() {
+      code_ = "";
+      detail_ = "";
+    }
+
+    public static final com.google.protobuf.Descriptors.Descriptor
+        getDescriptor() {
+      return org.jumpserver.wisp.Common.internal_static_message_TokenStatus_descriptor;
+    }
+
+    @java.lang.Override
+    protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
+        internalGetFieldAccessorTable() {
+      return org.jumpserver.wisp.Common.internal_static_message_TokenStatus_fieldAccessorTable
+          .ensureFieldAccessorsInitialized(
+              org.jumpserver.wisp.Common.TokenStatus.class, org.jumpserver.wisp.Common.TokenStatus.Builder.class);
+    }
+
+    public static final int CODE_FIELD_NUMBER = 1;
+    @SuppressWarnings("serial")
+    private volatile java.lang.Object code_ = "";
+    /**
+     * <code>string code = 1;</code>
+     * @return The code.
+     */
+    @java.lang.Override
+    public java.lang.String getCode() {
+      java.lang.Object ref = code_;
+      if (ref instanceof java.lang.String) {
+        return (java.lang.String) ref;
+      } else {
+        com.google.protobuf.ByteString bs = 
+            (com.google.protobuf.ByteString) ref;
+        java.lang.String s = bs.toStringUtf8();
+        code_ = s;
+        return s;
+      }
+    }
+    /**
+     * <code>string code = 1;</code>
+     * @return The bytes for code.
+     */
+    @java.lang.Override
+    public com.google.protobuf.ByteString
+        getCodeBytes() {
+      java.lang.Object ref = code_;
+      if (ref instanceof java.lang.String) {
+        com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString.copyFromUtf8(
+                (java.lang.String) ref);
+        code_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+
+    public static final int DETAIL_FIELD_NUMBER = 2;
+    @SuppressWarnings("serial")
+    private volatile java.lang.Object detail_ = "";
+    /**
+     * <code>string detail = 2;</code>
+     * @return The detail.
+     */
+    @java.lang.Override
+    public java.lang.String getDetail() {
+      java.lang.Object ref = detail_;
+      if (ref instanceof java.lang.String) {
+        return (java.lang.String) ref;
+      } else {
+        com.google.protobuf.ByteString bs = 
+            (com.google.protobuf.ByteString) ref;
+        java.lang.String s = bs.toStringUtf8();
+        detail_ = s;
+        return s;
+      }
+    }
+    /**
+     * <code>string detail = 2;</code>
+     * @return The bytes for detail.
+     */
+    @java.lang.Override
+    public com.google.protobuf.ByteString
+        getDetailBytes() {
+      java.lang.Object ref = detail_;
+      if (ref instanceof java.lang.String) {
+        com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString.copyFromUtf8(
+                (java.lang.String) ref);
+        detail_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+
+    public static final int IS_EXPIRED_FIELD_NUMBER = 3;
+    private boolean isExpired_ = false;
+    /**
+     * <code>bool is_expired = 3;</code>
+     * @return The isExpired.
+     */
+    @java.lang.Override
+    public boolean getIsExpired() {
+      return isExpired_;
+    }
+
+    private byte memoizedIsInitialized = -1;
+    @java.lang.Override
+    public final boolean isInitialized() {
+      byte isInitialized = memoizedIsInitialized;
+      if (isInitialized == 1) return true;
+      if (isInitialized == 0) return false;
+
+      memoizedIsInitialized = 1;
+      return true;
+    }
+
+    @java.lang.Override
+    public void writeTo(com.google.protobuf.CodedOutputStream output)
+                        throws java.io.IOException {
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(code_)) {
+        com.google.protobuf.GeneratedMessage.writeString(output, 1, code_);
+      }
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(detail_)) {
+        com.google.protobuf.GeneratedMessage.writeString(output, 2, detail_);
+      }
+      if (isExpired_ != false) {
+        output.writeBool(3, isExpired_);
+      }
+      getUnknownFields().writeTo(output);
+    }
+
+    @java.lang.Override
+    public int getSerializedSize() {
+      int size = memoizedSize;
+      if (size != -1) return size;
+
+      size = 0;
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(code_)) {
+        size += com.google.protobuf.GeneratedMessage.computeStringSize(1, code_);
+      }
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(detail_)) {
+        size += com.google.protobuf.GeneratedMessage.computeStringSize(2, detail_);
+      }
+      if (isExpired_ != false) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeBoolSize(3, isExpired_);
+      }
+      size += getUnknownFields().getSerializedSize();
+      memoizedSize = size;
+      return size;
+    }
+
+    @java.lang.Override
+    public boolean equals(final java.lang.Object obj) {
+      if (obj == this) {
+       return true;
+      }
+      if (!(obj instanceof org.jumpserver.wisp.Common.TokenStatus)) {
+        return super.equals(obj);
+      }
+      org.jumpserver.wisp.Common.TokenStatus other = (org.jumpserver.wisp.Common.TokenStatus) obj;
+
+      if (!getCode()
+          .equals(other.getCode())) return false;
+      if (!getDetail()
+          .equals(other.getDetail())) return false;
+      if (getIsExpired()
+          != other.getIsExpired()) return false;
+      if (!getUnknownFields().equals(other.getUnknownFields())) return false;
+      return true;
+    }
+
+    @java.lang.Override
+    public int hashCode() {
+      if (memoizedHashCode != 0) {
+        return memoizedHashCode;
+      }
+      int hash = 41;
+      hash = (19 * hash) + getDescriptor().hashCode();
+      hash = (37 * hash) + CODE_FIELD_NUMBER;
+      hash = (53 * hash) + getCode().hashCode();
+      hash = (37 * hash) + DETAIL_FIELD_NUMBER;
+      hash = (53 * hash) + getDetail().hashCode();
+      hash = (37 * hash) + IS_EXPIRED_FIELD_NUMBER;
+      hash = (53 * hash) + com.google.protobuf.Internal.hashBoolean(
+          getIsExpired());
+      hash = (29 * hash) + getUnknownFields().hashCode();
+      memoizedHashCode = hash;
+      return hash;
+    }
+
+    public static org.jumpserver.wisp.Common.TokenStatus parseFrom(
+        java.nio.ByteBuffer data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static org.jumpserver.wisp.Common.TokenStatus parseFrom(
+        java.nio.ByteBuffer data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static org.jumpserver.wisp.Common.TokenStatus parseFrom(
+        com.google.protobuf.ByteString data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static org.jumpserver.wisp.Common.TokenStatus parseFrom(
+        com.google.protobuf.ByteString data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static org.jumpserver.wisp.Common.TokenStatus parseFrom(byte[] data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static org.jumpserver.wisp.Common.TokenStatus parseFrom(
+        byte[] data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static org.jumpserver.wisp.Common.TokenStatus parseFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseWithIOException(PARSER, input);
+    }
+    public static org.jumpserver.wisp.Common.TokenStatus parseFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseWithIOException(PARSER, input, extensionRegistry);
+    }
+
+    public static org.jumpserver.wisp.Common.TokenStatus parseDelimitedFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseDelimitedWithIOException(PARSER, input);
+    }
+
+    public static org.jumpserver.wisp.Common.TokenStatus parseDelimitedFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseDelimitedWithIOException(PARSER, input, extensionRegistry);
+    }
+    public static org.jumpserver.wisp.Common.TokenStatus parseFrom(
+        com.google.protobuf.CodedInputStream input)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseWithIOException(PARSER, input);
+    }
+    public static org.jumpserver.wisp.Common.TokenStatus parseFrom(
+        com.google.protobuf.CodedInputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseWithIOException(PARSER, input, extensionRegistry);
+    }
+
+    @java.lang.Override
+    public Builder newBuilderForType() { return newBuilder(); }
+    public static Builder newBuilder() {
+      return DEFAULT_INSTANCE.toBuilder();
+    }
+    public static Builder newBuilder(org.jumpserver.wisp.Common.TokenStatus prototype) {
+      return DEFAULT_INSTANCE.toBuilder().mergeFrom(prototype);
+    }
+    @java.lang.Override
+    public Builder toBuilder() {
+      return this == DEFAULT_INSTANCE
+          ? new Builder() : new Builder().mergeFrom(this);
+    }
+
+    @java.lang.Override
+    protected Builder newBuilderForType(
+        com.google.protobuf.GeneratedMessage.BuilderParent parent) {
+      Builder builder = new Builder(parent);
+      return builder;
+    }
+    /**
+     * Protobuf type {@code message.TokenStatus}
+     */
+    public static final class Builder extends
+        com.google.protobuf.GeneratedMessage.Builder<Builder> implements
+        // @@protoc_insertion_point(builder_implements:message.TokenStatus)
+        org.jumpserver.wisp.Common.TokenStatusOrBuilder {
+      public static final com.google.protobuf.Descriptors.Descriptor
+          getDescriptor() {
+        return org.jumpserver.wisp.Common.internal_static_message_TokenStatus_descriptor;
+      }
+
+      @java.lang.Override
+      protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
+          internalGetFieldAccessorTable() {
+        return org.jumpserver.wisp.Common.internal_static_message_TokenStatus_fieldAccessorTable
+            .ensureFieldAccessorsInitialized(
+                org.jumpserver.wisp.Common.TokenStatus.class, org.jumpserver.wisp.Common.TokenStatus.Builder.class);
+      }
+
+      // Construct using org.jumpserver.wisp.Common.TokenStatus.newBuilder()
+      private Builder() {
+
+      }
+
+      private Builder(
+          com.google.protobuf.GeneratedMessage.BuilderParent parent) {
+        super(parent);
+
+      }
+      @java.lang.Override
+      public Builder clear() {
+        super.clear();
+        bitField0_ = 0;
+        code_ = "";
+        detail_ = "";
+        isExpired_ = false;
+        return this;
+      }
+
+      @java.lang.Override
+      public com.google.protobuf.Descriptors.Descriptor
+          getDescriptorForType() {
+        return org.jumpserver.wisp.Common.internal_static_message_TokenStatus_descriptor;
+      }
+
+      @java.lang.Override
+      public org.jumpserver.wisp.Common.TokenStatus getDefaultInstanceForType() {
+        return org.jumpserver.wisp.Common.TokenStatus.getDefaultInstance();
+      }
+
+      @java.lang.Override
+      public org.jumpserver.wisp.Common.TokenStatus build() {
+        org.jumpserver.wisp.Common.TokenStatus result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(result);
+        }
+        return result;
+      }
+
+      @java.lang.Override
+      public org.jumpserver.wisp.Common.TokenStatus buildPartial() {
+        org.jumpserver.wisp.Common.TokenStatus result = new org.jumpserver.wisp.Common.TokenStatus(this);
+        if (bitField0_ != 0) { buildPartial0(result); }
+        onBuilt();
+        return result;
+      }
+
+      private void buildPartial0(org.jumpserver.wisp.Common.TokenStatus result) {
+        int from_bitField0_ = bitField0_;
+        if (((from_bitField0_ & 0x00000001) != 0)) {
+          result.code_ = code_;
+        }
+        if (((from_bitField0_ & 0x00000002) != 0)) {
+          result.detail_ = detail_;
+        }
+        if (((from_bitField0_ & 0x00000004) != 0)) {
+          result.isExpired_ = isExpired_;
+        }
+      }
+
+      @java.lang.Override
+      public Builder mergeFrom(com.google.protobuf.Message other) {
+        if (other instanceof org.jumpserver.wisp.Common.TokenStatus) {
+          return mergeFrom((org.jumpserver.wisp.Common.TokenStatus)other);
+        } else {
+          super.mergeFrom(other);
+          return this;
+        }
+      }
+
+      public Builder mergeFrom(org.jumpserver.wisp.Common.TokenStatus other) {
+        if (other == org.jumpserver.wisp.Common.TokenStatus.getDefaultInstance()) return this;
+        if (!other.getCode().isEmpty()) {
+          code_ = other.code_;
+          bitField0_ |= 0x00000001;
+          onChanged();
+        }
+        if (!other.getDetail().isEmpty()) {
+          detail_ = other.detail_;
+          bitField0_ |= 0x00000002;
+          onChanged();
+        }
+        if (other.getIsExpired() != false) {
+          setIsExpired(other.getIsExpired());
+        }
+        this.mergeUnknownFields(other.getUnknownFields());
+        onChanged();
+        return this;
+      }
+
+      @java.lang.Override
+      public final boolean isInitialized() {
+        return true;
+      }
+
+      @java.lang.Override
+      public Builder mergeFrom(
+          com.google.protobuf.CodedInputStream input,
+          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          throws java.io.IOException {
+        if (extensionRegistry == null) {
+          throw new java.lang.NullPointerException();
+        }
+        try {
+          boolean done = false;
+          while (!done) {
+            int tag = input.readTag();
+            switch (tag) {
+              case 0:
+                done = true;
+                break;
+              case 10: {
+                code_ = input.readStringRequireUtf8();
+                bitField0_ |= 0x00000001;
+                break;
+              } // case 10
+              case 18: {
+                detail_ = input.readStringRequireUtf8();
+                bitField0_ |= 0x00000002;
+                break;
+              } // case 18
+              case 24: {
+                isExpired_ = input.readBool();
+                bitField0_ |= 0x00000004;
+                break;
+              } // case 24
+              default: {
+                if (!super.parseUnknownField(input, extensionRegistry, tag)) {
+                  done = true; // was an endgroup tag
+                }
+                break;
+              } // default:
+            } // switch (tag)
+          } // while (!done)
+        } catch (com.google.protobuf.InvalidProtocolBufferException e) {
+          throw e.unwrapIOException();
+        } finally {
+          onChanged();
+        } // finally
+        return this;
+      }
+      private int bitField0_;
+
+      private java.lang.Object code_ = "";
+      /**
+       * <code>string code = 1;</code>
+       * @return The code.
+       */
+      public java.lang.String getCode() {
+        java.lang.Object ref = code_;
+        if (!(ref instanceof java.lang.String)) {
+          com.google.protobuf.ByteString bs =
+              (com.google.protobuf.ByteString) ref;
+          java.lang.String s = bs.toStringUtf8();
+          code_ = s;
+          return s;
+        } else {
+          return (java.lang.String) ref;
+        }
+      }
+      /**
+       * <code>string code = 1;</code>
+       * @return The bytes for code.
+       */
+      public com.google.protobuf.ByteString
+          getCodeBytes() {
+        java.lang.Object ref = code_;
+        if (ref instanceof String) {
+          com.google.protobuf.ByteString b = 
+              com.google.protobuf.ByteString.copyFromUtf8(
+                  (java.lang.String) ref);
+          code_ = b;
+          return b;
+        } else {
+          return (com.google.protobuf.ByteString) ref;
+        }
+      }
+      /**
+       * <code>string code = 1;</code>
+       * @param value The code to set.
+       * @return This builder for chaining.
+       */
+      public Builder setCode(
+          java.lang.String value) {
+        if (value == null) { throw new NullPointerException(); }
+        code_ = value;
+        bitField0_ |= 0x00000001;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string code = 1;</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearCode() {
+        code_ = getDefaultInstance().getCode();
+        bitField0_ = (bitField0_ & ~0x00000001);
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string code = 1;</code>
+       * @param value The bytes for code to set.
+       * @return This builder for chaining.
+       */
+      public Builder setCodeBytes(
+          com.google.protobuf.ByteString value) {
+        if (value == null) { throw new NullPointerException(); }
+        checkByteStringIsUtf8(value);
+        code_ = value;
+        bitField0_ |= 0x00000001;
+        onChanged();
+        return this;
+      }
+
+      private java.lang.Object detail_ = "";
+      /**
+       * <code>string detail = 2;</code>
+       * @return The detail.
+       */
+      public java.lang.String getDetail() {
+        java.lang.Object ref = detail_;
+        if (!(ref instanceof java.lang.String)) {
+          com.google.protobuf.ByteString bs =
+              (com.google.protobuf.ByteString) ref;
+          java.lang.String s = bs.toStringUtf8();
+          detail_ = s;
+          return s;
+        } else {
+          return (java.lang.String) ref;
+        }
+      }
+      /**
+       * <code>string detail = 2;</code>
+       * @return The bytes for detail.
+       */
+      public com.google.protobuf.ByteString
+          getDetailBytes() {
+        java.lang.Object ref = detail_;
+        if (ref instanceof String) {
+          com.google.protobuf.ByteString b = 
+              com.google.protobuf.ByteString.copyFromUtf8(
+                  (java.lang.String) ref);
+          detail_ = b;
+          return b;
+        } else {
+          return (com.google.protobuf.ByteString) ref;
+        }
+      }
+      /**
+       * <code>string detail = 2;</code>
+       * @param value The detail to set.
+       * @return This builder for chaining.
+       */
+      public Builder setDetail(
+          java.lang.String value) {
+        if (value == null) { throw new NullPointerException(); }
+        detail_ = value;
+        bitField0_ |= 0x00000002;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string detail = 2;</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearDetail() {
+        detail_ = getDefaultInstance().getDetail();
+        bitField0_ = (bitField0_ & ~0x00000002);
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string detail = 2;</code>
+       * @param value The bytes for detail to set.
+       * @return This builder for chaining.
+       */
+      public Builder setDetailBytes(
+          com.google.protobuf.ByteString value) {
+        if (value == null) { throw new NullPointerException(); }
+        checkByteStringIsUtf8(value);
+        detail_ = value;
+        bitField0_ |= 0x00000002;
+        onChanged();
+        return this;
+      }
+
+      private boolean isExpired_ ;
+      /**
+       * <code>bool is_expired = 3;</code>
+       * @return The isExpired.
+       */
+      @java.lang.Override
+      public boolean getIsExpired() {
+        return isExpired_;
+      }
+      /**
+       * <code>bool is_expired = 3;</code>
+       * @param value The isExpired to set.
+       * @return This builder for chaining.
+       */
+      public Builder setIsExpired(boolean value) {
+
+        isExpired_ = value;
+        bitField0_ |= 0x00000004;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>bool is_expired = 3;</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearIsExpired() {
+        bitField0_ = (bitField0_ & ~0x00000004);
+        isExpired_ = false;
+        onChanged();
+        return this;
+      }
+
+      // @@protoc_insertion_point(builder_scope:message.TokenStatus)
+    }
+
+    // @@protoc_insertion_point(class_scope:message.TokenStatus)
+    private static final org.jumpserver.wisp.Common.TokenStatus DEFAULT_INSTANCE;
+    static {
+      DEFAULT_INSTANCE = new org.jumpserver.wisp.Common.TokenStatus();
+    }
+
+    public static org.jumpserver.wisp.Common.TokenStatus getDefaultInstance() {
+      return DEFAULT_INSTANCE;
+    }
+
+    private static final com.google.protobuf.Parser<TokenStatus>
+        PARSER = new com.google.protobuf.AbstractParser<TokenStatus>() {
+      @java.lang.Override
+      public TokenStatus parsePartialFrom(
+          com.google.protobuf.CodedInputStream input,
+          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          throws com.google.protobuf.InvalidProtocolBufferException {
+        Builder builder = newBuilder();
+        try {
+          builder.mergeFrom(input, extensionRegistry);
+        } catch (com.google.protobuf.InvalidProtocolBufferException e) {
+          throw e.setUnfinishedMessage(builder.buildPartial());
+        } catch (com.google.protobuf.UninitializedMessageException e) {
+          throw e.asInvalidProtocolBufferException().setUnfinishedMessage(builder.buildPartial());
+        } catch (java.io.IOException e) {
+          throw new com.google.protobuf.InvalidProtocolBufferException(e)
+              .setUnfinishedMessage(builder.buildPartial());
+        }
+        return builder.buildPartial();
+      }
+    };
+
+    public static com.google.protobuf.Parser<TokenStatus> parser() {
+      return PARSER;
+    }
+
+    @java.lang.Override
+    public com.google.protobuf.Parser<TokenStatus> getParserForType() {
+      return PARSER;
+    }
+
+    @java.lang.Override
+    public org.jumpserver.wisp.Common.TokenStatus getDefaultInstanceForType() {
       return DEFAULT_INSTANCE;
     }
 
@@ -15165,6 +16062,21 @@ public final class Common {
      */
     com.google.protobuf.ByteString
         getCreatedByBytes();
+
+    /**
+     * <code>.message.TokenStatus token_status = 6;</code>
+     * @return Whether the tokenStatus field is set.
+     */
+    boolean hasTokenStatus();
+    /**
+     * <code>.message.TokenStatus token_status = 6;</code>
+     * @return The tokenStatus.
+     */
+    org.jumpserver.wisp.Common.TokenStatus getTokenStatus();
+    /**
+     * <code>.message.TokenStatus token_status = 6;</code>
+     */
+    org.jumpserver.wisp.Common.TokenStatusOrBuilder getTokenStatusOrBuilder();
   }
   /**
    * Protobuf type {@code message.TerminalTask}
@@ -15208,6 +16120,7 @@ public final class Common {
               org.jumpserver.wisp.Common.TerminalTask.class, org.jumpserver.wisp.Common.TerminalTask.Builder.class);
     }
 
+    private int bitField0_;
     public static final int ID_FIELD_NUMBER = 1;
     @SuppressWarnings("serial")
     private volatile java.lang.Object id_ = "";
@@ -15382,6 +16295,32 @@ public final class Common {
       }
     }
 
+    public static final int TOKEN_STATUS_FIELD_NUMBER = 6;
+    private org.jumpserver.wisp.Common.TokenStatus tokenStatus_;
+    /**
+     * <code>.message.TokenStatus token_status = 6;</code>
+     * @return Whether the tokenStatus field is set.
+     */
+    @java.lang.Override
+    public boolean hasTokenStatus() {
+      return ((bitField0_ & 0x00000001) != 0);
+    }
+    /**
+     * <code>.message.TokenStatus token_status = 6;</code>
+     * @return The tokenStatus.
+     */
+    @java.lang.Override
+    public org.jumpserver.wisp.Common.TokenStatus getTokenStatus() {
+      return tokenStatus_ == null ? org.jumpserver.wisp.Common.TokenStatus.getDefaultInstance() : tokenStatus_;
+    }
+    /**
+     * <code>.message.TokenStatus token_status = 6;</code>
+     */
+    @java.lang.Override
+    public org.jumpserver.wisp.Common.TokenStatusOrBuilder getTokenStatusOrBuilder() {
+      return tokenStatus_ == null ? org.jumpserver.wisp.Common.TokenStatus.getDefaultInstance() : tokenStatus_;
+    }
+
     private byte memoizedIsInitialized = -1;
     @java.lang.Override
     public final boolean isInitialized() {
@@ -15411,6 +16350,9 @@ public final class Common {
       if (!com.google.protobuf.GeneratedMessage.isStringEmpty(createdBy_)) {
         com.google.protobuf.GeneratedMessage.writeString(output, 5, createdBy_);
       }
+      if (((bitField0_ & 0x00000001) != 0)) {
+        output.writeMessage(6, getTokenStatus());
+      }
       getUnknownFields().writeTo(output);
     }
 
@@ -15436,6 +16378,10 @@ public final class Common {
       if (!com.google.protobuf.GeneratedMessage.isStringEmpty(createdBy_)) {
         size += com.google.protobuf.GeneratedMessage.computeStringSize(5, createdBy_);
       }
+      if (((bitField0_ & 0x00000001) != 0)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeMessageSize(6, getTokenStatus());
+      }
       size += getUnknownFields().getSerializedSize();
       memoizedSize = size;
       return size;
@@ -15460,6 +16406,11 @@ public final class Common {
           .equals(other.getTerminatedBy())) return false;
       if (!getCreatedBy()
           .equals(other.getCreatedBy())) return false;
+      if (hasTokenStatus() != other.hasTokenStatus()) return false;
+      if (hasTokenStatus()) {
+        if (!getTokenStatus()
+            .equals(other.getTokenStatus())) return false;
+      }
       if (!getUnknownFields().equals(other.getUnknownFields())) return false;
       return true;
     }
@@ -15481,6 +16432,10 @@ public final class Common {
       hash = (53 * hash) + getTerminatedBy().hashCode();
       hash = (37 * hash) + CREATED_BY_FIELD_NUMBER;
       hash = (53 * hash) + getCreatedBy().hashCode();
+      if (hasTokenStatus()) {
+        hash = (37 * hash) + TOKEN_STATUS_FIELD_NUMBER;
+        hash = (53 * hash) + getTokenStatus().hashCode();
+      }
       hash = (29 * hash) + getUnknownFields().hashCode();
       memoizedHashCode = hash;
       return hash;
@@ -15600,13 +16555,19 @@ public final class Common {
 
       // Construct using org.jumpserver.wisp.Common.TerminalTask.newBuilder()
       private Builder() {
-
+        maybeForceBuilderInitialization();
       }
 
       private Builder(
           com.google.protobuf.GeneratedMessage.BuilderParent parent) {
         super(parent);
-
+        maybeForceBuilderInitialization();
+      }
+      private void maybeForceBuilderInitialization() {
+        if (com.google.protobuf.GeneratedMessage
+                .alwaysUseFieldBuilders) {
+          getTokenStatusFieldBuilder();
+        }
       }
       @java.lang.Override
       public Builder clear() {
@@ -15617,6 +16578,11 @@ public final class Common {
         sessionId_ = "";
         terminatedBy_ = "";
         createdBy_ = "";
+        tokenStatus_ = null;
+        if (tokenStatusBuilder_ != null) {
+          tokenStatusBuilder_.dispose();
+          tokenStatusBuilder_ = null;
+        }
         return this;
       }
 
@@ -15665,6 +16631,14 @@ public final class Common {
         if (((from_bitField0_ & 0x00000010) != 0)) {
           result.createdBy_ = createdBy_;
         }
+        int to_bitField0_ = 0;
+        if (((from_bitField0_ & 0x00000020) != 0)) {
+          result.tokenStatus_ = tokenStatusBuilder_ == null
+              ? tokenStatus_
+              : tokenStatusBuilder_.build();
+          to_bitField0_ |= 0x00000001;
+        }
+        result.bitField0_ |= to_bitField0_;
       }
 
       @java.lang.Override
@@ -15701,6 +16675,9 @@ public final class Common {
           createdBy_ = other.createdBy_;
           bitField0_ |= 0x00000010;
           onChanged();
+        }
+        if (other.hasTokenStatus()) {
+          mergeTokenStatus(other.getTokenStatus());
         }
         this.mergeUnknownFields(other.getUnknownFields());
         onChanged();
@@ -15753,6 +16730,13 @@ public final class Common {
                 bitField0_ |= 0x00000010;
                 break;
               } // case 42
+              case 50: {
+                input.readMessage(
+                    getTokenStatusFieldBuilder().getBuilder(),
+                    extensionRegistry);
+                bitField0_ |= 0x00000020;
+                break;
+              } // case 50
               default: {
                 if (!super.parseUnknownField(input, extensionRegistry, tag)) {
                   done = true; // was an endgroup tag
@@ -16109,6 +17093,127 @@ public final class Common {
         bitField0_ |= 0x00000010;
         onChanged();
         return this;
+      }
+
+      private org.jumpserver.wisp.Common.TokenStatus tokenStatus_;
+      private com.google.protobuf.SingleFieldBuilder<
+          org.jumpserver.wisp.Common.TokenStatus, org.jumpserver.wisp.Common.TokenStatus.Builder, org.jumpserver.wisp.Common.TokenStatusOrBuilder> tokenStatusBuilder_;
+      /**
+       * <code>.message.TokenStatus token_status = 6;</code>
+       * @return Whether the tokenStatus field is set.
+       */
+      public boolean hasTokenStatus() {
+        return ((bitField0_ & 0x00000020) != 0);
+      }
+      /**
+       * <code>.message.TokenStatus token_status = 6;</code>
+       * @return The tokenStatus.
+       */
+      public org.jumpserver.wisp.Common.TokenStatus getTokenStatus() {
+        if (tokenStatusBuilder_ == null) {
+          return tokenStatus_ == null ? org.jumpserver.wisp.Common.TokenStatus.getDefaultInstance() : tokenStatus_;
+        } else {
+          return tokenStatusBuilder_.getMessage();
+        }
+      }
+      /**
+       * <code>.message.TokenStatus token_status = 6;</code>
+       */
+      public Builder setTokenStatus(org.jumpserver.wisp.Common.TokenStatus value) {
+        if (tokenStatusBuilder_ == null) {
+          if (value == null) {
+            throw new NullPointerException();
+          }
+          tokenStatus_ = value;
+        } else {
+          tokenStatusBuilder_.setMessage(value);
+        }
+        bitField0_ |= 0x00000020;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>.message.TokenStatus token_status = 6;</code>
+       */
+      public Builder setTokenStatus(
+          org.jumpserver.wisp.Common.TokenStatus.Builder builderForValue) {
+        if (tokenStatusBuilder_ == null) {
+          tokenStatus_ = builderForValue.build();
+        } else {
+          tokenStatusBuilder_.setMessage(builderForValue.build());
+        }
+        bitField0_ |= 0x00000020;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>.message.TokenStatus token_status = 6;</code>
+       */
+      public Builder mergeTokenStatus(org.jumpserver.wisp.Common.TokenStatus value) {
+        if (tokenStatusBuilder_ == null) {
+          if (((bitField0_ & 0x00000020) != 0) &&
+            tokenStatus_ != null &&
+            tokenStatus_ != org.jumpserver.wisp.Common.TokenStatus.getDefaultInstance()) {
+            getTokenStatusBuilder().mergeFrom(value);
+          } else {
+            tokenStatus_ = value;
+          }
+        } else {
+          tokenStatusBuilder_.mergeFrom(value);
+        }
+        if (tokenStatus_ != null) {
+          bitField0_ |= 0x00000020;
+          onChanged();
+        }
+        return this;
+      }
+      /**
+       * <code>.message.TokenStatus token_status = 6;</code>
+       */
+      public Builder clearTokenStatus() {
+        bitField0_ = (bitField0_ & ~0x00000020);
+        tokenStatus_ = null;
+        if (tokenStatusBuilder_ != null) {
+          tokenStatusBuilder_.dispose();
+          tokenStatusBuilder_ = null;
+        }
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>.message.TokenStatus token_status = 6;</code>
+       */
+      public org.jumpserver.wisp.Common.TokenStatus.Builder getTokenStatusBuilder() {
+        bitField0_ |= 0x00000020;
+        onChanged();
+        return getTokenStatusFieldBuilder().getBuilder();
+      }
+      /**
+       * <code>.message.TokenStatus token_status = 6;</code>
+       */
+      public org.jumpserver.wisp.Common.TokenStatusOrBuilder getTokenStatusOrBuilder() {
+        if (tokenStatusBuilder_ != null) {
+          return tokenStatusBuilder_.getMessageOrBuilder();
+        } else {
+          return tokenStatus_ == null ?
+              org.jumpserver.wisp.Common.TokenStatus.getDefaultInstance() : tokenStatus_;
+        }
+      }
+      /**
+       * <code>.message.TokenStatus token_status = 6;</code>
+       */
+      private com.google.protobuf.SingleFieldBuilder<
+          org.jumpserver.wisp.Common.TokenStatus, org.jumpserver.wisp.Common.TokenStatus.Builder, org.jumpserver.wisp.Common.TokenStatusOrBuilder> 
+          getTokenStatusFieldBuilder() {
+        if (tokenStatusBuilder_ == null) {
+          tokenStatusBuilder_ = new com.google.protobuf.SingleFieldBuilder<
+              org.jumpserver.wisp.Common.TokenStatus, org.jumpserver.wisp.Common.TokenStatus.Builder, org.jumpserver.wisp.Common.TokenStatusOrBuilder>(
+                  getTokenStatus(),
+                  getParentForChildren(),
+                  isClean());
+          tokenStatus_ = null;
+        }
+        return tokenStatusBuilder_;
       }
 
       // @@protoc_insertion_point(builder_scope:message.TerminalTask)
@@ -25387,6 +26492,11 @@ java.lang.String defaultValue) {
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_Session_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
+    internal_static_message_TokenStatus_descriptor;
+  private static final 
+    com.google.protobuf.GeneratedMessage.FieldAccessorTable
+      internal_static_message_TokenStatus_fieldAccessorTable;
+  private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_TerminalTask_descriptor;
   private static final 
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
@@ -25481,59 +26591,63 @@ java.lang.String defaultValue) {
       "\n\014CommandGroup\022\n\n\002id\030\001 \001(\t\022\014\n\004name\030\002 \001(\t" +
       "\022\017\n\007content\030\003 \001(\t\022\014\n\004Type\030\004 \001(\t\022\017\n\007patte" +
       "rn\030\005 \001(\t\022\023\n\013ignore_case\030\006 \001(\010\"\037\n\nExpireI" +
-      "nfo\022\021\n\texpire_at\030\001 \001(\003\"\242\002\n\007Session\022\n\n\002id" +
+      "nfo\022\021\n\texpire_at\030\001 \001(\003\"\264\002\n\007Session\022\n\n\002id" +
       "\030\001 \001(\t\022\014\n\004user\030\002 \001(\t\022\r\n\005asset\030\003 \001(\t\022\017\n\007a" +
       "ccount\030\004 \001(\t\022.\n\nlogin_from\030\005 \001(\0162\032.messa" +
       "ge.Session.LoginFrom\022\023\n\013remote_addr\030\006 \001(" +
       "\t\022\020\n\010protocol\030\007 \001(\t\022\022\n\ndate_start\030\010 \001(\003\022" +
       "\016\n\006org_id\030\t \001(\t\022\017\n\007user_id\030\n \001(\t\022\020\n\010asse" +
-      "t_id\030\013 \001(\t\022\022\n\naccount_id\030\014 \001(\t\"+\n\tLoginF" +
-      "rom\022\006\n\002WT\020\000\022\006\n\002ST\020\001\022\006\n\002RT\020\002\022\006\n\002DT\020\003\"~\n\014T" +
-      "erminalTask\022\n\n\002id\030\001 \001(\t\022#\n\006action\030\002 \001(\0162" +
-      "\023.message.TaskAction\022\022\n\nsession_id\030\003 \001(\t" +
-      "\022\025\n\rterminated_by\030\004 \001(\t\022\022\n\ncreated_by\030\005 " +
-      "\001(\t\"\205\003\n\rTokenAuthInfo\022\016\n\006key_id\030\001 \001(\t\022\022\n" +
-      "\nsecrete_id\030\002 \001(\t\022\035\n\005asset\030\003 \001(\0132\016.messa" +
-      "ge.Asset\022\033\n\004user\030\004 \001(\0132\r.message.User\022!\n" +
-      "\007account\030\005 \001(\0132\020.message.Account\022\'\n\nperm" +
-      "ission\030\006 \001(\0132\023.message.Permission\022(\n\013exp" +
-      "ire_info\030\007 \001(\0132\023.message.ExpireInfo\022)\n\014f" +
-      "ilter_rules\030\010 \003(\0132\023.message.CommandACL\022\"" +
-      "\n\010gateways\030\t \003(\0132\020.message.Gateway\022*\n\007se" +
-      "tting\030\n \001(\0132\031.message.ComponentSetting\022#" +
-      "\n\010platform\030\013 \001(\0132\021.message.Platform\"\203\001\n\010" +
-      "Platform\022\n\n\002id\030\001 \001(\005\022\014\n\004name\030\002 \001(\t\022\020\n\010ca" +
-      "tegory\030\003 \001(\t\022\017\n\007charset\030\004 \001(\t\022\014\n\004type\030\005 " +
-      "\001(\t\022,\n\tprotocols\030\006 \003(\0132\031.message.Platfor" +
-      "mProtocol\"\246\001\n\020PlatformProtocol\022\n\n\002id\030\001 \001" +
-      "(\005\022\014\n\004name\030\002 \001(\t\022\014\n\004port\030\003 \001(\005\0229\n\010settin" +
-      "gs\030\004 \003(\0132\'.message.PlatformProtocol.Sett" +
-      "ingsEntry\032/\n\rSettingsEntry\022\013\n\003key\030\001 \001(\t\022" +
-      "\r\n\005value\030\002 \001(\t:\0028\001\"C\n\020ComponentSetting\022\025" +
-      "\n\rmax_idle_time\030\001 \001(\005\022\030\n\020max_session_tim" +
-      "e\030\002 \001(\005\"1\n\007Forward\022\n\n\002id\030\001 \001(\t\022\014\n\004Host\030\002" +
-      " \001(\t\022\014\n\004port\030\003 \001(\005\"\216\001\n\rPublicSetting\022\025\n\r" +
-      "xpack_enabled\030\001 \001(\010\022\025\n\rvalid_license\030\002 \001" +
-      "(\010\022\024\n\014gpt_base_url\030\003 \001(\t\022\023\n\013gpt_api_key\030" +
-      "\004 \001(\t\022\021\n\tgpt_proxy\030\005 \001(\t\022\021\n\tgpt_model\030\006 " +
-      "\001(\t\"%\n\006Cookie\022\014\n\004name\030\001 \001(\t\022\r\n\005value\030\002 \001" +
-      "(\t\"\250\003\n\020LifecycleLogData\0223\n\005event\030\001 \001(\0162$" +
-      ".message.LifecycleLogData.event_type\022\016\n\006" +
-      "reason\030\002 \001(\t\022\014\n\004user\030\003 \001(\t\"\300\002\n\nevent_typ" +
-      "e\022\027\n\023AssetConnectSuccess\020\000\022\030\n\024AssetConne" +
-      "ctFinished\020\001\022\023\n\017CreateShareLink\020\002\022\023\n\017Use" +
-      "rJoinSession\020\003\022\024\n\020UserLeaveSession\020\004\022\024\n\020" +
-      "AdminJoinMonitor\020\005\022\024\n\020AdminExitMonitor\020\006" +
-      "\022\026\n\022ReplayConvertStart\020\007\022\030\n\024ReplayConver" +
-      "tSuccess\020\010\022\030\n\024ReplayConvertFailure\020\t\022\025\n\021" +
-      "ReplayUploadStart\020\n\022\027\n\023ReplayUploadSucce" +
-      "ss\020\013\022\027\n\023ReplayUploadFailure\020\014*A\n\nTaskAct" +
-      "ion\022\017\n\013KillSession\020\000\022\017\n\013LockSession\020\001\022\021\n" +
-      "\rUnlockSession\020\002*f\n\tRiskLevel\022\n\n\006Normal\020" +
-      "\000\022\013\n\007Warning\020\001\022\n\n\006Reject\020\002\022\020\n\014ReviewReje" +
-      "ct\020\003\022\020\n\014ReviewAccept\020\004\022\020\n\014ReviewCancel\020\005" +
-      "B \n\023org.jumpserver.wispZ\t/protobufb\006prot" +
-      "o3"
+      "t_id\030\013 \001(\t\022\022\n\naccount_id\030\014 \001(\t\022\020\n\010token_" +
+      "id\030\r \001(\t\"+\n\tLoginFrom\022\006\n\002WT\020\000\022\006\n\002ST\020\001\022\006\n" +
+      "\002RT\020\002\022\006\n\002DT\020\003\"?\n\013TokenStatus\022\014\n\004code\030\001 \001" +
+      "(\t\022\016\n\006detail\030\002 \001(\t\022\022\n\nis_expired\030\003 \001(\010\"\252" +
+      "\001\n\014TerminalTask\022\n\n\002id\030\001 \001(\t\022#\n\006action\030\002 " +
+      "\001(\0162\023.message.TaskAction\022\022\n\nsession_id\030\003" +
+      " \001(\t\022\025\n\rterminated_by\030\004 \001(\t\022\022\n\ncreated_b" +
+      "y\030\005 \001(\t\022*\n\014token_status\030\006 \001(\0132\024.message." +
+      "TokenStatus\"\205\003\n\rTokenAuthInfo\022\016\n\006key_id\030" +
+      "\001 \001(\t\022\022\n\nsecrete_id\030\002 \001(\t\022\035\n\005asset\030\003 \001(\013" +
+      "2\016.message.Asset\022\033\n\004user\030\004 \001(\0132\r.message" +
+      ".User\022!\n\007account\030\005 \001(\0132\020.message.Account" +
+      "\022\'\n\npermission\030\006 \001(\0132\023.message.Permissio" +
+      "n\022(\n\013expire_info\030\007 \001(\0132\023.message.ExpireI" +
+      "nfo\022)\n\014filter_rules\030\010 \003(\0132\023.message.Comm" +
+      "andACL\022\"\n\010gateways\030\t \003(\0132\020.message.Gatew" +
+      "ay\022*\n\007setting\030\n \001(\0132\031.message.ComponentS" +
+      "etting\022#\n\010platform\030\013 \001(\0132\021.message.Platf" +
+      "orm\"\203\001\n\010Platform\022\n\n\002id\030\001 \001(\005\022\014\n\004name\030\002 \001" +
+      "(\t\022\020\n\010category\030\003 \001(\t\022\017\n\007charset\030\004 \001(\t\022\014\n" +
+      "\004type\030\005 \001(\t\022,\n\tprotocols\030\006 \003(\0132\031.message" +
+      ".PlatformProtocol\"\246\001\n\020PlatformProtocol\022\n" +
+      "\n\002id\030\001 \001(\005\022\014\n\004name\030\002 \001(\t\022\014\n\004port\030\003 \001(\005\0229" +
+      "\n\010settings\030\004 \003(\0132\'.message.PlatformProto" +
+      "col.SettingsEntry\032/\n\rSettingsEntry\022\013\n\003ke" +
+      "y\030\001 \001(\t\022\r\n\005value\030\002 \001(\t:\0028\001\"C\n\020ComponentS" +
+      "etting\022\025\n\rmax_idle_time\030\001 \001(\005\022\030\n\020max_ses" +
+      "sion_time\030\002 \001(\005\"1\n\007Forward\022\n\n\002id\030\001 \001(\t\022\014" +
+      "\n\004Host\030\002 \001(\t\022\014\n\004port\030\003 \001(\005\"\216\001\n\rPublicSet" +
+      "ting\022\025\n\rxpack_enabled\030\001 \001(\010\022\025\n\rvalid_lic" +
+      "ense\030\002 \001(\010\022\024\n\014gpt_base_url\030\003 \001(\t\022\023\n\013gpt_" +
+      "api_key\030\004 \001(\t\022\021\n\tgpt_proxy\030\005 \001(\t\022\021\n\tgpt_" +
+      "model\030\006 \001(\t\"%\n\006Cookie\022\014\n\004name\030\001 \001(\t\022\r\n\005v" +
+      "alue\030\002 \001(\t\"\250\003\n\020LifecycleLogData\0223\n\005event" +
+      "\030\001 \001(\0162$.message.LifecycleLogData.event_" +
+      "type\022\016\n\006reason\030\002 \001(\t\022\014\n\004user\030\003 \001(\t\"\300\002\n\ne" +
+      "vent_type\022\027\n\023AssetConnectSuccess\020\000\022\030\n\024As" +
+      "setConnectFinished\020\001\022\023\n\017CreateShareLink\020" +
+      "\002\022\023\n\017UserJoinSession\020\003\022\024\n\020UserLeaveSessi" +
+      "on\020\004\022\024\n\020AdminJoinMonitor\020\005\022\024\n\020AdminExitM" +
+      "onitor\020\006\022\026\n\022ReplayConvertStart\020\007\022\030\n\024Repl" +
+      "ayConvertSuccess\020\010\022\030\n\024ReplayConvertFailu" +
+      "re\020\t\022\025\n\021ReplayUploadStart\020\n\022\027\n\023ReplayUpl" +
+      "oadSuccess\020\013\022\027\n\023ReplayUploadFailure\020\014*k\n" +
+      "\nTaskAction\022\017\n\013KillSession\020\000\022\017\n\013LockSess" +
+      "ion\020\001\022\021\n\rUnlockSession\020\002\022\024\n\020TokenPermExp" +
+      "ired\020\003\022\022\n\016TokenPermValid\020\004*f\n\tRiskLevel\022" +
+      "\n\n\006Normal\020\000\022\013\n\007Warning\020\001\022\n\n\006Reject\020\002\022\020\n\014" +
+      "ReviewReject\020\003\022\020\n\014ReviewAccept\020\004\022\020\n\014Revi" +
+      "ewCancel\020\005B \n\023org.jumpserver.wispZ\t/prot" +
+      "obufb\006proto3"
     };
     descriptor = com.google.protobuf.Descriptors.FileDescriptor
       .internalBuildGeneratedFileFrom(descriptorData,
@@ -25610,27 +26724,33 @@ java.lang.String defaultValue) {
     internal_static_message_Session_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_message_Session_descriptor,
-        new java.lang.String[] { "Id", "User", "Asset", "Account", "LoginFrom", "RemoteAddr", "Protocol", "DateStart", "OrgId", "UserId", "AssetId", "AccountId", });
-    internal_static_message_TerminalTask_descriptor =
+        new java.lang.String[] { "Id", "User", "Asset", "Account", "LoginFrom", "RemoteAddr", "Protocol", "DateStart", "OrgId", "UserId", "AssetId", "AccountId", "TokenId", });
+    internal_static_message_TokenStatus_descriptor =
       getDescriptor().getMessageTypes().get(11);
+    internal_static_message_TokenStatus_fieldAccessorTable = new
+      com.google.protobuf.GeneratedMessage.FieldAccessorTable(
+        internal_static_message_TokenStatus_descriptor,
+        new java.lang.String[] { "Code", "Detail", "IsExpired", });
+    internal_static_message_TerminalTask_descriptor =
+      getDescriptor().getMessageTypes().get(12);
     internal_static_message_TerminalTask_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_message_TerminalTask_descriptor,
-        new java.lang.String[] { "Id", "Action", "SessionId", "TerminatedBy", "CreatedBy", });
+        new java.lang.String[] { "Id", "Action", "SessionId", "TerminatedBy", "CreatedBy", "TokenStatus", });
     internal_static_message_TokenAuthInfo_descriptor =
-      getDescriptor().getMessageTypes().get(12);
+      getDescriptor().getMessageTypes().get(13);
     internal_static_message_TokenAuthInfo_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_message_TokenAuthInfo_descriptor,
         new java.lang.String[] { "KeyId", "SecreteId", "Asset", "User", "Account", "Permission", "ExpireInfo", "FilterRules", "Gateways", "Setting", "Platform", });
     internal_static_message_Platform_descriptor =
-      getDescriptor().getMessageTypes().get(13);
+      getDescriptor().getMessageTypes().get(14);
     internal_static_message_Platform_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_message_Platform_descriptor,
         new java.lang.String[] { "Id", "Name", "Category", "Charset", "Type", "Protocols", });
     internal_static_message_PlatformProtocol_descriptor =
-      getDescriptor().getMessageTypes().get(14);
+      getDescriptor().getMessageTypes().get(15);
     internal_static_message_PlatformProtocol_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_message_PlatformProtocol_descriptor,
@@ -25642,31 +26762,31 @@ java.lang.String defaultValue) {
         internal_static_message_PlatformProtocol_SettingsEntry_descriptor,
         new java.lang.String[] { "Key", "Value", });
     internal_static_message_ComponentSetting_descriptor =
-      getDescriptor().getMessageTypes().get(15);
+      getDescriptor().getMessageTypes().get(16);
     internal_static_message_ComponentSetting_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_message_ComponentSetting_descriptor,
         new java.lang.String[] { "MaxIdleTime", "MaxSessionTime", });
     internal_static_message_Forward_descriptor =
-      getDescriptor().getMessageTypes().get(16);
+      getDescriptor().getMessageTypes().get(17);
     internal_static_message_Forward_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_message_Forward_descriptor,
         new java.lang.String[] { "Id", "Host", "Port", });
     internal_static_message_PublicSetting_descriptor =
-      getDescriptor().getMessageTypes().get(17);
+      getDescriptor().getMessageTypes().get(18);
     internal_static_message_PublicSetting_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_message_PublicSetting_descriptor,
         new java.lang.String[] { "XpackEnabled", "ValidLicense", "GptBaseUrl", "GptApiKey", "GptProxy", "GptModel", });
     internal_static_message_Cookie_descriptor =
-      getDescriptor().getMessageTypes().get(18);
+      getDescriptor().getMessageTypes().get(19);
     internal_static_message_Cookie_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_message_Cookie_descriptor,
         new java.lang.String[] { "Name", "Value", });
     internal_static_message_LifecycleLogData_descriptor =
-      getDescriptor().getMessageTypes().get(19);
+      getDescriptor().getMessageTypes().get(20);
     internal_static_message_LifecycleLogData_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_message_LifecycleLogData_descriptor,

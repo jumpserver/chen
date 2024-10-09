@@ -126,6 +126,7 @@ public class JmsSessionService implements SessionService {
                 .setProtocol(tokenResp.getData().getAsset().getProtocols(0).getName())
                 .setDateStart(System.currentTimeMillis() / 1000)
                 .setRemoteAddr(remoteAddr)
+                .setTokenId(tokenResp.getData().getKeyId())
                 .build();
 
         var sessionResp = this.serviceBlockingStub.createSession(
