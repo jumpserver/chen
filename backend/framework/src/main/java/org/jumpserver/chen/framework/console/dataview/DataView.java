@@ -14,6 +14,7 @@ import org.jumpserver.chen.framework.jms.entity.CommandRecord;
 import org.jumpserver.chen.framework.session.SessionManager;
 import org.jumpserver.chen.framework.ws.io.PacketIO;
 
+import java.io.BufferedWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.sql.SQLException;
@@ -125,6 +126,15 @@ public class DataView extends SQLResult {
         }
     }
 
+    private static void writeString(BufferedWriter writer, Object object) throws IOException {
+        var str = object.toString();
+
+        if (str.contains(",")) {
+            str = "\"" + str + "\"";
+        }
+        writer.write(str);
+    }
+
     public void export(String scope) throws SQLException {
         var session = SessionManager.getCurrentSession();
 
@@ -144,7 +154,7 @@ public class DataView extends SQLResult {
 
             if (scope.equals("current")) {
                 for (Field field : this.data.getFields()) {
-                    writer.write(field.getName());
+                    writeString(writer, field.getName());
                     writer.write(",");
                 }
                 writer.newLine();
@@ -155,7 +165,7 @@ public class DataView extends SQLResult {
                             writer.write("NULL");
                             writer.write(",");
                         } else {
-                            writer.write(row.get(field.getName()).toString());
+                            writeString(writer, row.get(field.getName()));
                             writer.write(",");
                         }
                     }
