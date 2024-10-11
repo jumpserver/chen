@@ -219,7 +219,7 @@ public class JMSSession extends BaseSession {
                             return;
                         }
                         if (LocalDateTime.now().isAfter(this.dynamicEndTime)) {
-                            this.close("OverMaxSessionTimeError", this.dynamicEndReason, this.dynamicEndTime);
+                            this.close("PermissionAlreadyExpired", this.dynamicEndReason);
                             return;
                         }
 
