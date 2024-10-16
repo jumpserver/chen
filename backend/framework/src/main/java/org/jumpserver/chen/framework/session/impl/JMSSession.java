@@ -109,6 +109,9 @@ public class JMSSession extends BaseSession {
 
 
     public void setDynamicEndInfo(String reason) {
+
+        SessionManager.setContext(this.getWebToken());
+
         this.dynamicEndReason = reason;
         this.dynamicEndTime = LocalDateTime.now().plusMinutes(10);
 
