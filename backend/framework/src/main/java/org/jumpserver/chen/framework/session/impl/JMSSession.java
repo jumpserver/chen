@@ -97,9 +97,8 @@ public class JMSSession extends BaseSession {
         this.expireTime = tokenResp.getData().getExpireInfo().getExpireAt();
         this.maxIdleTimeDelta = tokenResp.getData().getSetting().getMaxIdleTime();
 
-        this.maxSessionEndHours= tokenResp.getData().getSetting().getMaxSessionTime();
+        this.maxSessionEndHours = tokenResp.getData().getSetting().getMaxSessionTime();
         this.maxSessionEndTime = LocalDateTime.now().plusHours(tokenResp.getData().getSetting().getMaxSessionTime());
-        this.maxSessionEndTime = LocalDateTime.now().plusMinutes(10);
         this.dynamicEndTime = this.maxSessionEndTime;
 
         this.canUpload = tokenResp.getData().getPermission().getEnableUpload();
@@ -213,8 +212,9 @@ public class JMSSession extends BaseSession {
             while (this.isActive()) {
                 try {
                     Thread.sleep(5000);
+
                     synchronized (this) {
-                        var expireTime = LocalDateTime.ofEpochSecond(this.expireTime, 0, ZoneOffset.UTC);
+                        var expireTime = LocalDateTime.ofEpochSecond(this.expireTime, 0, ZoneOffset.ofHours(8));
 
                         if (LocalDateTime.now().isAfter(expireTime)) {
                             this.close("PermissionsExpiredOn", "permission_expired", expireTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
