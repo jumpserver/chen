@@ -17,6 +17,7 @@ import org.jumpserver.chen.framework.jms.impl.CommandHandlerImpl;
 import org.jumpserver.chen.framework.jms.impl.ReplayHandlerImpl;
 import org.jumpserver.chen.framework.session.QueryAuditFunction;
 import org.jumpserver.chen.framework.session.SessionManager;
+import org.jumpserver.chen.framework.session.controller.dialog.Button;
 import org.jumpserver.chen.framework.session.controller.dialog.Dialog;
 import org.jumpserver.chen.framework.session.controller.message.MessageLevel;
 import org.jumpserver.chen.framework.session.exception.SessionException;
@@ -27,8 +28,11 @@ import org.jumpserver.wisp.ServiceOuterClass;
 
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.text.SimpleDateFormat;
+import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @Slf4j
@@ -45,9 +49,15 @@ public class JMSSession extends BaseSession {
     private final List<Common.CommandACL> commandACLs;
     private final long maxIdleTimeDelta;
     private final long expireTime;
-    private long lastActiveTime;
 
-    private int maxSessionTime;
+
+    private LocalDateTime lastActiveTime;
+
+    private LocalDateTime maxSessionEndTime;
+    private int maxSessionEndHours;
+    private LocalDateTime dynamicEndTime;
+    private String dynamicEndReason;
+
     private Thread waitIdleTimeThread;
     @Setter
     private String gatewayId;
@@ -86,12 +96,40 @@ public class JMSSession extends BaseSession {
         this.commandACLs = tokenResp.getData().getFilterRulesList();
         this.expireTime = tokenResp.getData().getExpireInfo().getExpireAt();
         this.maxIdleTimeDelta = tokenResp.getData().getSetting().getMaxIdleTime();
-        this.maxSessionTime = tokenResp.getData().getSetting().getMaxSessionTime();
+
+        this.maxSessionEndHours = tokenResp.getData().getSetting().getMaxSessionTime();
+        this.maxSessionEndTime = LocalDateTime.now().plusHours(tokenResp.getData().getSetting().getMaxSessionTime());
+        this.dynamicEndTime = this.maxSessionEndTime;
+
         this.canUpload = tokenResp.getData().getPermission().getEnableUpload();
         this.canDownload = tokenResp.getData().getPermission().getEnableDownload();
         this.canCopy = tokenResp.getData().getPermission().getEnableCopy();
         this.canPaste = tokenResp.getData().getPermission().getEnablePaste();
     }
+
+
+    public void setDynamicEndInfo(String reason) {
+
+        SessionManager.setContext(this.getWebToken());
+
+        this.dynamicEndReason = reason;
+        this.dynamicEndTime = LocalDateTime.now().plusMinutes(10);
+
+        var dialog = new Dialog(MessageUtils.get("PermissionExpiredDialogTitle"));
+
+        dialog.setBody(MessageUtils.get("PermissionExpiredDialogMessage"));
+
+        dialog.addButton(new Button(MessageUtils.get("Cancel"), "cancel", () -> this.getController().closeDialog()));
+
+        this.getController().showDialog(dialog);
+
+    }
+
+    public void resetDynamicEndInfo() {
+        this.dynamicEndReason = "";
+        this.dynamicEndTime = this.maxSessionEndTime;
+    }
+
 
     @Override
     public void recordCommand(String command) {
@@ -167,27 +205,40 @@ public class JMSSession extends BaseSession {
     }
 
     private void startWaitIdleTime() {
-        this.lastActiveTime = System.currentTimeMillis();
+        this.lastActiveTime = LocalDateTime.now();
+
+        var token = SessionManager.getContextToken();
+
         this.waitIdleTimeThread = new Thread(() -> {
+            SessionManager.setContext(token);
+
             while (this.isActive()) {
                 try {
                     Thread.sleep(5000);
+
                     synchronized (this) {
-                        long now = System.currentTimeMillis();
-                        var expireTime = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss").format(this.expireTime * 1000);
-                        if (now > this.expireTime * 1000) {
-                            this.close("PermissionsExpiredOn", "permission_expired", expireTime);
+                        var expireTime = LocalDateTime.ofEpochSecond(this.expireTime, 0, ZoneOffset.ofHours(8));
+
+                        if (LocalDateTime.now().isAfter(expireTime)) {
+                            this.close("PermissionsExpiredOn", "permission_expired", expireTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
                             return;
                         }
-                        if (now - this.lastActiveTime > this.maxIdleTimeDelta * 1000 * 60) {
+
+                        if (Math.abs(Duration.between(LocalDateTime.now(), this.lastActiveTime).toMinutes()) > this.maxIdleTimeDelta) {
                             this.close("OverMaxIdleTimeError", "idle_disconnect", this.maxIdleTimeDelta);
                             return;
                         }
 
-                        if (now - this.lastActiveTime > (long) this.maxSessionTime * 1000 * 60 * 60) {
-                            this.close("OverMaxSessionTimeError", "max_session_timeout", this.maxSessionTime);
+                        if (LocalDateTime.now().isAfter(this.maxSessionEndTime)) {
+                            this.close("OverMaxSessionTimeError", "max_session_timeout", this.maxSessionEndHours);
                             return;
                         }
+
+                        if (LocalDateTime.now().isAfter(this.dynamicEndTime)) {
+                            this.close("PermissionAlreadyExpired", this.dynamicEndReason);
+                            return;
+                        }
+
                     }
                 } catch (InterruptedException e) {
                     log.info("JMSSession waitIdleTimeThread interrupted, close it");
@@ -259,7 +310,7 @@ public class JMSSession extends BaseSession {
     @Override
     public SQLQueryResult withAudit(String command, QueryAuditFunction queryAuditFunction) throws SQLException, CommandRejectException {
         synchronized (this) {
-            this.lastActiveTime = System.currentTimeMillis();
+            this.lastActiveTime = LocalDateTime.now();
         }
         if (this.locked) {
             throw new CommandRejectException(MessageUtils.get("SessionLockedError"));

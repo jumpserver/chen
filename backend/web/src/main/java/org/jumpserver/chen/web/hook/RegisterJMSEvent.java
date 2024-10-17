@@ -78,11 +78,14 @@ public class RegisterJMSEvent {
                         if (targetSession != null) {
                             switch (taskResponse.getTask().getAction()) {
                                 case KillSession ->
-                                        targetSession.close("SessionClosedBy","admin_terminate", taskResponse.getTask().getTerminatedBy());
+                                        targetSession.close("SessionClosedBy", "admin_terminate", taskResponse.getTask().getTerminatedBy());
 
                                 case LockSession -> targetSession.lockSession(taskResponse.getTask().getCreatedBy());
                                 case UnlockSession ->
                                         targetSession.unloadSession(taskResponse.getTask().getCreatedBy());
+                                case TokenPermExpired ->
+                                        targetSession.setDynamicEndInfo(taskResponse.getTask().getTokenStatus().getDetail());
+                                case TokenPermValid -> targetSession.resetDynamicEndInfo();
                             }
                             var req = ServiceOuterClass.FinishedTaskRequest
                                     .newBuilder()
