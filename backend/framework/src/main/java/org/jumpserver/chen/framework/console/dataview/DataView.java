@@ -12,11 +12,13 @@ import org.jumpserver.chen.framework.datasource.sql.SQLQueryParams;
 import org.jumpserver.chen.framework.datasource.sql.SQLQueryResult;
 import org.jumpserver.chen.framework.jms.entity.CommandRecord;
 import org.jumpserver.chen.framework.session.SessionManager;
+import org.jumpserver.chen.framework.utils.CodeUtils;
 import org.jumpserver.chen.framework.ws.io.PacketIO;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.sql.Clob;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -164,6 +166,9 @@ public class DataView extends SQLResult {
                         if (row.get(field.getName()) == null) {
                             writer.write("NULL");
                             writer.write(",");
+                        } else if (row.get(field.getName()) instanceof Clob clob) {
+                            writer.write(CodeUtils.escapeCsvValue(clob.getSubString(1, (int) clob.length())));
+                            writer.write(",");
                         } else {
                             writeString(writer, row.get(field.getName()));
                             writer.write(",");
@@ -189,6 +194,9 @@ public class DataView extends SQLResult {
                     for (Object o : row) {
                         if (o == null) {
                             writer.write("NULL");
+                            writer.write(",");
+                        } else if (o instanceof Clob clob) {
+                            writer.write(CodeUtils.escapeCsvValue(clob.getSubString(1, (int) clob.length())));
                             writer.write(",");
                         } else {
                             writer.write(o.toString());
