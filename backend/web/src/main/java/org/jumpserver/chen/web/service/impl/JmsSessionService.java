@@ -2,6 +2,7 @@ package org.jumpserver.chen.web.service.impl;
 
 import lombok.extern.slf4j.Slf4j;
 import net.devh.boot.grpc.client.inject.GrpcClient;
+import org.apache.commons.lang3.StringUtils;
 import org.jumpserver.chen.framework.datasource.Datasource;
 import org.jumpserver.chen.framework.datasource.DatasourceFactory;
 import org.jumpserver.chen.framework.datasource.entity.DBConnectInfo;
@@ -25,6 +26,22 @@ public class JmsSessionService implements SessionService {
 
         var tokenResp = this.getTokenResponse(token);
         var jmsSession = this.createJMSSession(tokenResp, remoteAddr);
+
+        if (StringUtils.isNotBlank(tokenResp.getData().getFaceMonitorToken())) {
+            var faceMonitorToken = tokenResp.getData().getFaceMonitorToken();
+
+            var req = ServiceOuterClass.JoinFaceMonitorRequest.newBuilder()
+                    .setFaceMonitorToken(faceMonitorToken)
+                    .setSessionId(jmsSession.getId())
+                    .build();
+
+            var resp = serviceBlockingStub.joinFaceMonitor(req);
+            if (!resp.getStatus().getOk()) {
+                throw new RuntimeException("Create face monitor context failed");
+            }
+        }
+
+
         var datasource = this.createDatasource(tokenResp);
         var session = new JMSSession(jmsSession, datasource, remoteAddr, this.serviceBlockingStub, tokenResp);
         this.handleGateways(tokenResp, session, datasource);
