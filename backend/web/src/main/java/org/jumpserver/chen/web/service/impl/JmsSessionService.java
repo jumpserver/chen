@@ -14,6 +14,8 @@ import org.jumpserver.wisp.ServiceGrpc;
 import org.jumpserver.wisp.ServiceOuterClass;
 import org.springframework.stereotype.Service;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.time.Instant;
 
 @Service
@@ -97,10 +99,26 @@ public class JmsSessionService implements SessionService {
         }
     }
 
+    public static String getIPAddressType(String host) {
+        try {
+            InetAddress address = InetAddress.getByName(host);
+            if (address.getHostAddress().contains(":")) {
+                return "IPv6";
+            } else {
+                return "IPv4";
+            }
+        } catch (UnknownHostException e) {
+            return "Unknown";
+        }
+    }
+
     private Datasource createDatasource(ServiceOuterClass.TokenResponse tokenResp) {
         DBConnectInfo dbConnectInfo = new DBConnectInfo();
 
-        dbConnectInfo.setHost(tokenResp.getData().getAsset().getAddress());
+        var address = getIPAddressType(dbConnectInfo.getHost()).equals("IPv6") ?
+                dbConnectInfo.getHost() : String.format("[%s]", dbConnectInfo.getHost());
+
+        dbConnectInfo.setHost(address);
         dbConnectInfo.setPort(tokenResp.getData().getAsset().getProtocols(0).getPort());
         dbConnectInfo.setDbType(tokenResp.getData().getAsset().getProtocols(0).getName().toLowerCase());
         dbConnectInfo.setUser(tokenResp.getData().getAccount().getUsername());
