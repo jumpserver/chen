@@ -102,6 +102,7 @@ public class JmsSessionService implements SessionService {
     public static String getIPAddressType(String host) {
         try {
             InetAddress address = InetAddress.getByName(host);
+
             if (address.getHostAddress().contains(":")) {
                 return "IPv6";
             } else {
@@ -115,8 +116,10 @@ public class JmsSessionService implements SessionService {
     private Datasource createDatasource(ServiceOuterClass.TokenResponse tokenResp) {
         DBConnectInfo dbConnectInfo = new DBConnectInfo();
 
-        var address = getIPAddressType(dbConnectInfo.getHost()).equals("IPv6") ?
-                String.format("[%s]", dbConnectInfo.getHost()) : dbConnectInfo.getHost();
+        var address = tokenResp.getData().getAsset().getAddress();
+
+        address = getIPAddressType(address).equals("IPv6") ?
+                String.format("[%s]", address) : address;
 
         dbConnectInfo.setHost(address);
         dbConnectInfo.setPort(tokenResp.getData().getAsset().getProtocols(0).getPort());
