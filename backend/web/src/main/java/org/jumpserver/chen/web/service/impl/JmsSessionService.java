@@ -2,6 +2,7 @@ package org.jumpserver.chen.web.service.impl;
 
 import lombok.extern.slf4j.Slf4j;
 import net.devh.boot.grpc.client.inject.GrpcClient;
+import org.apache.commons.lang3.StringUtils;
 import org.jumpserver.chen.framework.datasource.Datasource;
 import org.jumpserver.chen.framework.datasource.DatasourceFactory;
 import org.jumpserver.chen.framework.datasource.entity.DBConnectInfo;
@@ -13,6 +14,8 @@ import org.jumpserver.wisp.ServiceGrpc;
 import org.jumpserver.wisp.ServiceOuterClass;
 import org.springframework.stereotype.Service;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.time.Instant;
 
 @Service
@@ -25,6 +28,22 @@ public class JmsSessionService implements SessionService {
 
         var tokenResp = this.getTokenResponse(token);
         var jmsSession = this.createJMSSession(tokenResp, remoteAddr);
+
+        if (StringUtils.isNotBlank(tokenResp.getData().getFaceMonitorToken())) {
+            var faceMonitorToken = tokenResp.getData().getFaceMonitorToken();
+
+            var req = ServiceOuterClass.JoinFaceMonitorRequest.newBuilder()
+                    .setFaceMonitorToken(faceMonitorToken)
+                    .setSessionId(jmsSession.getId())
+                    .build();
+
+            var resp = serviceBlockingStub.joinFaceMonitor(req);
+            if (!resp.getStatus().getOk()) {
+                throw new RuntimeException("Create face monitor context failed");
+            }
+        }
+
+
         var datasource = this.createDatasource(tokenResp);
         var session = new JMSSession(jmsSession, datasource, remoteAddr, this.serviceBlockingStub, tokenResp);
         this.handleGateways(tokenResp, session, datasource);
@@ -80,10 +99,29 @@ public class JmsSessionService implements SessionService {
         }
     }
 
+    public static String getIPAddressType(String host) {
+        try {
+            InetAddress address = InetAddress.getByName(host);
+
+            if (address.getHostAddress().contains(":")) {
+                return "IPv6";
+            } else {
+                return "IPv4";
+            }
+        } catch (UnknownHostException e) {
+            return "Unknown";
+        }
+    }
+
     private Datasource createDatasource(ServiceOuterClass.TokenResponse tokenResp) {
         DBConnectInfo dbConnectInfo = new DBConnectInfo();
 
-        dbConnectInfo.setHost(tokenResp.getData().getAsset().getAddress());
+        var address = tokenResp.getData().getAsset().getAddress();
+
+        address = getIPAddressType(address).equals("IPv6") ?
+                String.format("[%s]", address) : address;
+
+        dbConnectInfo.setHost(address);
         dbConnectInfo.setPort(tokenResp.getData().getAsset().getProtocols(0).getPort());
         dbConnectInfo.setDbType(tokenResp.getData().getAsset().getProtocols(0).getName().toLowerCase());
         dbConnectInfo.setUser(tokenResp.getData().getAccount().getUsername());
