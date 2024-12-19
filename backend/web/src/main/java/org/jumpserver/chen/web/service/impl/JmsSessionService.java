@@ -116,7 +116,7 @@ public class JmsSessionService implements SessionService {
         DBConnectInfo dbConnectInfo = new DBConnectInfo();
 
         var address = getIPAddressType(dbConnectInfo.getHost()).equals("IPv6") ?
-                dbConnectInfo.getHost() : String.format("[%s]", dbConnectInfo.getHost());
+                String.format("[%s]", dbConnectInfo.getHost()) : dbConnectInfo.getHost();
 
         dbConnectInfo.setHost(address);
         dbConnectInfo.setPort(tokenResp.getData().getAsset().getProtocols(0).getPort());
