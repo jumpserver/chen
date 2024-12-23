@@ -77,6 +77,7 @@ COPY --from=stage-chen-build /opt/chen/backend/web/target/web-*.jar /opt/chen/ch
 COPY --from=stage-chen-build /opt/chen/entrypoint.sh .
 COPY --from=stage-chen-build /opt/chen/drivers /opt/chen/drivers
 COPY --from=stage-chen-build /opt/chen/config/application.yml /opt/chen/config/application.yml
+COPY --from=stage-chen-build /opt/chen/config/logback.xml /opt/chen/config/logback.xml
 
 ARG VERSION
 ENV VERSION=$VERSION
