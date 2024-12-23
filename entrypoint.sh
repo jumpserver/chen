@@ -16,7 +16,7 @@ if [ ! "$LOG_LEVEL" ]; then
     LOG_LEVEL=ERROR
 fi
 
-sed -i "s@root: INFO@root: ${LOG_LEVEL}@g" /opt/chen/config/application.yml
+sed -i "s@level=\"INFO\"@level=\"${LOG_LEVEL}\"@g" /opt/chen/config/logback.xml
 
 echo
 date

@@ -8,10 +8,7 @@ server:
       enabled: true
 
 logging:
-  level:
-    root: INFO
-  file:
-    name: data/logs/chen.log
+  config: config/logback.xml
 
 spring:
   messages:
