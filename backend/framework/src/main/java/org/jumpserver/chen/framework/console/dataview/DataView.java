@@ -194,14 +194,14 @@ public class DataView extends SQLResult {
                 writer.newLine();
 
                 for (List<Object> row : result.getData()) {
-                    for (Object o : row) {
-                        if (o == null) {
-                            writer.write("NULL");
-                            writer.write(",");
+                    for (Object obj : row) {
+                        if (obj instanceof Date) {
+                            SimpleDateFormat fmt = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+                            writeString(writer, fmt.format(obj));
                         } else {
-                            writer.write(o.toString());
-                            writer.write(",");
+                            writeString(writer, obj);
                         }
+                        writer.write(",");
                     }
                     writer.newLine();
                 }
