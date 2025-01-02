@@ -18,8 +18,10 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.sql.SQLException;
+import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -165,7 +167,13 @@ public class DataView extends SQLResult {
                             writer.write("NULL");
                             writer.write(",");
                         } else {
-                            writeString(writer, row.get(field.getName()));
+                            var obj = row.get(field.getName());
+                            if (obj instanceof Date) {
+                                SimpleDateFormat fmt = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+                                writeString(writer, fmt.format(obj));
+                            } else {
+                                writeString(writer, obj);
+                            }
                             writer.write(",");
                         }
                     }
