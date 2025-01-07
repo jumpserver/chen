@@ -1,5 +1,7 @@
 package org.jumpserver.chen.modules.oracle;
 
+import com.alibaba.druid.DbType;
+import com.alibaba.druid.sql.SQLUtils;
 import org.jumpserver.chen.framework.datasource.ConnectionManager;
 import org.jumpserver.chen.framework.datasource.base.BaseSQLActuator;
 import org.jumpserver.chen.framework.datasource.sql.SQL;
@@ -58,5 +60,12 @@ public class OracleActuator extends BaseSQLActuator {
     public SQLExecutePlan createPlan(SQL sql) throws SQLException {
         this.beforeCreatePlan(sql);
         return super.createPlan(sql);
+    }
+
+    @Override
+    public List<String> parseSQL(SQL sql) {
+        return SQLUtils.parseStatements(sql.getSql(), DbType.ali_oracle).stream()
+                .map(stmt -> SQLUtils.toSQLString(stmt, DbType.ali_oracle))
+                .toList();
     }
 }
