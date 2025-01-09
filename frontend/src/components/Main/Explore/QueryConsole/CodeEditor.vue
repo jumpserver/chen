@@ -253,7 +253,24 @@ export default {
     },
     onRun() {
       const sql = this.selectionValue || this.statement
-      this.$emit('action', { action: 'run_sql', data: sql })
+      const CHUNK_SIZE = 4096
+
+      if (sql.length <= CHUNK_SIZE) {
+        this.$emit('action', { action: 'run_sql', data: sql })
+      } else {
+        const totalChunks = Math.ceil(sql.length / CHUNK_SIZE)
+        for (let i = 0; i < totalChunks; i++) {
+          const chunk = sql.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE)
+          this.$emit('action', {
+            action: 'run_sql_chunk',
+            data: { chunk, index: i, total: totalChunks }
+          })
+        }
+        this.$emit('action', {
+          action: 'run_sql_complete',
+          data: { total: totalChunks }
+        })
+      }
     },
     onStop() {
       this.$emit('action', { action: 'cancel' })

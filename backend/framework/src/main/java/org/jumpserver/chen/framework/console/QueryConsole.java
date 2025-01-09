@@ -32,6 +32,8 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
 
 @Slf4j
 public class QueryConsole extends AbstractConsole {
@@ -149,6 +151,13 @@ public class QueryConsole extends AbstractConsole {
                 this.getState().setInQuery(false);
                 this.stateManager.commit();
             }
+            case QueryConsoleAction.ACTION_RUN_SQL_CHUNK -> {
+                this.handleSQLChunk(action);
+            }
+            case QueryConsoleAction.ACTION_RUN_SQL_COMPLETE -> {
+                this.handleSQLComplete();
+            }
+
             case QueryConsoleAction.ACTION_RUN_SQL_FILE -> {
                 this.getState().setInQuery(true);
                 this.stateManager.commit();
@@ -173,6 +182,60 @@ public class QueryConsole extends AbstractConsole {
         }
     }
 
+    private final ConcurrentHashMap<Integer, String> sqlChunks = new ConcurrentHashMap<>();
+    private CountDownLatch latch;
+    private int expectedChunks = -1;
+
+    private void handleSQLChunk(QueryConsoleAction action) {
+        var data = (Map<String, Object>) action.getData();
+        var chunk = (String) data.get("chunk");
+        var index = (Integer) data.get("index");
+        var total = (Integer) data.get("total");
+
+        synchronized (this) {
+            if (expectedChunks == -1) {
+                expectedChunks = total;
+                latch = new CountDownLatch(total);
+            }
+        }
+
+        if (sqlChunks.putIfAbsent(index, chunk) == null) {
+            latch.countDown();
+        }
+    }
+
+    /**
+     * 处理分段 SQL 接收完成
+     */
+    private void handleSQLComplete() {
+        try {
+            // 等待所有分段接收完成
+            latch.await();
+
+            // 按照索引顺序合并所有分段
+            StringBuilder sqlBuilder = new StringBuilder();
+            for (int i = 0; i < expectedChunks; i++) {
+                sqlBuilder.append(sqlChunks.get(i));
+            }
+
+            // 合并完成后清理缓存
+            var sql = sqlBuilder.toString();
+            sqlChunks.clear();
+            expectedChunks = -1;
+
+            // 执行完整 SQL
+            this.getState().setInQuery(true);
+            this.stateManager.commit();
+
+            this.onSQL(sql);
+
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } finally {
+            this.getState().setInQuery(false);
+            this.stateManager.commit();
+        }
+    }
 
     private void onDataViewAction(DataViewAction action) {
         var dataView = this.dataViews.get(action.getDataView());

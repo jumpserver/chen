@@ -4,23 +4,22 @@
       <SplitPane :default-percent="40" :min-percent="20" split="horizontal">
         <template slot="paneL">
           <CodeEditor
-              :node-key="nodeKey"
-              :state="state"
-              :subjects="subjects"
-              @action="onEditorAction"
-              @run="onRunSql"
+            :node-key="nodeKey"
+            :state="state"
+            :subjects="subjects"
+            @action="onEditorAction"
           />
         </template>
         <template slot="paneR">
           <div class="">
             <div class="message">
-              <Message :subject="subjects.messageSubject"/>
+              <Message :subject="subjects.messageSubject" />
             </div>
             <ResultBar
-                :subjects="subjects"
-                @closeDataView="onCloseDataView"
-                @dataViewAction="onDataViewAction"
-                @limitChange="onLimitChange"
+              :subjects="subjects"
+              @closeDataView="onCloseDataView"
+              @dataViewAction="onDataViewAction"
+              @limitChange="onLimitChange"
             />
           </div>
         </template>
@@ -153,11 +152,7 @@ export default {
     onDataViewAction(action) {
       this.ws.send(JSON.stringify({ type: 'data_view_action', data: action }))
     },
-    onRunSql(sql) {
-      this.ws.send(JSON.stringify({ type: 'sql', data: sql }))
-    },
     onCloseDataView(name) {
-      console.log(name)
       this.ws.send(JSON.stringify({ type: 'close_data_view', data: name }))
     },
     onLimitChange(limit) {
