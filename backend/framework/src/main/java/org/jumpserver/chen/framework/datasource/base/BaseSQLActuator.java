@@ -10,6 +10,7 @@ import com.alibaba.druid.sql.ast.statement.SQLSelectStatement;
 import com.alibaba.druid.sql.ast.statement.SQLUpdateStatement;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.jumpserver.chen.framework.datasource.ConnectionManager;
 import org.jumpserver.chen.framework.datasource.entity.resource.Field;
 import org.jumpserver.chen.framework.datasource.sql.*;
@@ -150,7 +151,10 @@ public abstract class BaseSQLActuator implements SQLActuator {
 
                 for (int i = 1; i <= resultSet.getMetaData().getColumnCount(); i++) {
                     Field field = new Field();
-                    field.setName(resultSet.getMetaData().getColumnName(i));
+
+                    var fieldName = StringUtils.isNotEmpty(resultSet.getMetaData().getColumnLabel(i)) ?
+                            resultSet.getMetaData().getColumnLabel(i) : resultSet.getMetaData().getColumnName(i);
+                    field.setName(fieldName);
                     result.getFields().add(field);
                 }
 
