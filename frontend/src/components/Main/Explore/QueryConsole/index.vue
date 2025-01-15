@@ -8,7 +8,6 @@
             :state="state"
             :subjects="subjects"
             @action="onEditorAction"
-            @run="onRunSql"
           />
         </template>
         <template slot="paneR">
@@ -153,11 +152,7 @@ export default {
     onDataViewAction(action) {
       this.ws.send(JSON.stringify({ type: 'data_view_action', data: action }))
     },
-    onRunSql(sql) {
-      this.ws.send(JSON.stringify({ type: 'sql', data: sql }))
-    },
     onCloseDataView(name) {
-      console.log(name)
       this.ws.send(JSON.stringify({ type: 'close_data_view', data: name }))
     },
     onLimitChange(limit) {

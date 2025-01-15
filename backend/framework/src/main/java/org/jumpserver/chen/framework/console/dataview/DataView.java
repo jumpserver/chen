@@ -20,8 +20,10 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.sql.Clob;
 import java.sql.SQLException;
+import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -101,13 +103,17 @@ public class DataView extends SQLResult {
         this.data.getData().clear();
 
         this.getStateManager().getState().setTotal(result.getTotal());
+        this.fullDataViewData(this.data, result);
+    }
 
 
-        this.data.setFields(result.getFields());
+    private void fullDataViewData(DataViewData viewData, SQLQueryResult result) {
+
+        viewData.setFields(result.getFields());
 
         Map<String, Integer> fieldNumMap = new HashMap<>();
 
-        this.data.getFields().forEach(field -> {
+        viewData.getFields().forEach(field -> {
             if (fieldNumMap.containsKey(field.getName())) {
                 var fieldName = field.getName();
                 var num = fieldNumMap.get(field.getName());
@@ -118,15 +124,15 @@ public class DataView extends SQLResult {
             }
         });
 
-
         for (List<Object> row : result.getData()) {
             Map<String, Object> map = new HashMap<>();
             for (int i = 0; i < row.size(); i++) {
-                map.put(this.data.getFields().get(i).getName(), row.get(i));
+                map.put(viewData.getFields().get(i).getName(), row.get(i));
             }
-            this.data.getData().add(map);
+            viewData.getData().add(map);
         }
     }
+
 
     private static void writeString(BufferedWriter writer, Object object) throws IOException {
         var str = object.toString();
@@ -135,6 +141,35 @@ public class DataView extends SQLResult {
             str = "\"" + str + "\"";
         }
         writer.write(str);
+    }
+
+    private void writeCSVData(BufferedWriter writer, DataViewData viewData) throws IOException, SQLException {
+
+        for (Field field : viewData.getFields()) {
+            writeString(writer, field.getName());
+            writer.write(",");
+        }
+        for (Map<String, Object> row : viewData.getData()) {
+            for (Field field : viewData.getFields()) {
+                var obj = row.get(field.getName());
+                if (obj == null) {
+                    writer.write("NULL");
+                    writer.write(",");
+                } else if (obj instanceof Clob clob) {
+                    writer.write(CodeUtils.escapeCsvValue(clob.getSubString(1, (int) clob.length())));
+                    writer.write(",");
+                } else if (obj instanceof Date) {
+                    SimpleDateFormat fmt = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+                    writeString(writer, fmt.format(obj));
+                } else {
+                    writeString(writer, row.get(field.getName()));
+                    writer.write(",");
+                }
+            }
+            writer.newLine();
+        }
+
+        writer.newLine();
     }
 
     public void export(String scope) throws SQLException {
@@ -155,27 +190,7 @@ public class DataView extends SQLResult {
             var writer = Files.newBufferedWriter(f.toPath());
 
             if (scope.equals("current")) {
-                for (Field field : this.data.getFields()) {
-                    writeString(writer, field.getName());
-                    writer.write(",");
-                }
-                writer.newLine();
-
-                for (Map<String, Object> row : this.data.getData()) {
-                    for (Field field : this.data.getFields()) {
-                        if (row.get(field.getName()) == null) {
-                            writer.write("NULL");
-                            writer.write(",");
-                        } else if (row.get(field.getName()) instanceof Clob clob) {
-                            writer.write(CodeUtils.escapeCsvValue(clob.getSubString(1, (int) clob.length())));
-                            writer.write(",");
-                        } else {
-                            writeString(writer, row.get(field.getName()));
-                            writer.write(",");
-                        }
-                    }
-                    writer.newLine();
-                }
+                this.writeCSVData(writer, this.data);
                 command.setOutput(String.format("%d rows exported", this.data.getData().size()));
             }
 
@@ -183,28 +198,8 @@ public class DataView extends SQLResult {
                 SQLQueryParams queryParams = new SQLQueryParams();
                 queryParams.setLimit(-1);
                 var result = this.loadDataInterface.loadData(queryParams);
-
-                for (Field field : result.getFields()) {
-                    writer.write(field.getName());
-                    writer.write(",");
-                }
-                writer.newLine();
-
-                for (List<Object> row : result.getData()) {
-                    for (Object o : row) {
-                        if (o == null) {
-                            writer.write("NULL");
-                            writer.write(",");
-                        } else if (o instanceof Clob clob) {
-                            writer.write(CodeUtils.escapeCsvValue(clob.getSubString(1, (int) clob.length())));
-                            writer.write(",");
-                        } else {
-                            writer.write(o.toString());
-                            writer.write(",");
-                        }
-                    }
-                    writer.newLine();
-                }
+                var viewData = new DataViewData();
+                this.fullDataViewData(viewData, result);
                 command.setOutput(String.format("%d rows exported", result.getData().size()));
             }
             writer.flush();
