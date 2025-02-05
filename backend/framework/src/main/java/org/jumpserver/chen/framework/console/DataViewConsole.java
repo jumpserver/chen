@@ -104,7 +104,8 @@ public class DataViewConsole extends AbstractConsole {
     public void createDataView(String schemaName, String tableName) {
 
         var viewTitle = this.getTitle() + "child";
-        this.getPacketIO().sendPacket("new_data_view", Map.of("title", viewTitle));
+        var data = Map.of("title", viewTitle, "schema", this.schema, "table", this.table);
+        this.getPacketIO().sendPacket("new_data_view", data);
         var dataView = new DataView(viewTitle, this.getPacketIO(), this.getConsoleLogger());
 
         var session = SessionManager.getCurrentSession();
