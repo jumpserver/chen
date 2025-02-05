@@ -310,6 +310,10 @@ export default {
             .replace('{conditional_attrs}', conditional_attrs)
         }
       }
+      if (!navigator.clipboard) {
+        this.$message.error(`${this.$t('NoPermissionError')}: clipboard`)
+        return
+      }
       navigator.clipboard.writeText(sql).then(() => {
         this.$message.success(this.$t('CopySucceeded'))
       }).catch((error) => {
