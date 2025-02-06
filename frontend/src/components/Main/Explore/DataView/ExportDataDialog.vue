@@ -6,8 +6,16 @@
     width="40%"
   >
     <el-form ref="form" :model="form" label-width="80px">
-      <el-radio v-model="form.scope" label="current">{{ $tc('ExportCurrent') }}</el-radio>
-      <el-radio v-model="form.scope" label="all">{{ $tc('ExportAll') }}</el-radio>
+
+      <el-form-item :label="$tc('Scope')">
+        <el-radio v-model="form.scope" label="current">{{ $tc('ExportCurrent') }}</el-radio>
+        <el-radio v-model="form.scope" label="all">{{ $tc('ExportAll') }}</el-radio>
+      </el-form-item>
+
+      <el-form-item :label="$tc('Format')">
+        <el-radio v-model="form.format" label="csv">CSV</el-radio>
+        <el-radio v-model="form.format" label="excel">Excel</el-radio>
+      </el-form-item>
     </el-form>
 
     <span slot="footer" class="dialog-footer">
@@ -35,7 +43,8 @@ export default {
   data() {
     return {
       form: {
-        scope: 'current'
+        scope: 'current',
+        format: 'csv'
       }
     }
   },
@@ -53,7 +62,7 @@ export default {
   },
   methods: {
     onSubmit() {
-      this.$emit('submit', this.form.scope)
+      this.$emit('submit', { scope: this.form.scope, format: this.form.format })
     }
   }
 }
