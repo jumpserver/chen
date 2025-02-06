@@ -4,26 +4,18 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import org.jumpserver.chen.framework.console.action.DataViewAction;
 import org.jumpserver.chen.framework.console.component.Logger;
+import org.jumpserver.chen.framework.console.dataview.export.DataExport;
 import org.jumpserver.chen.framework.console.entity.response.SQLResult;
 import org.jumpserver.chen.framework.console.state.DataViewState;
 import org.jumpserver.chen.framework.console.state.StateManager;
-import org.jumpserver.chen.framework.datasource.entity.resource.Field;
 import org.jumpserver.chen.framework.datasource.sql.SQLQueryParams;
 import org.jumpserver.chen.framework.datasource.sql.SQLQueryResult;
 import org.jumpserver.chen.framework.jms.entity.CommandRecord;
 import org.jumpserver.chen.framework.session.SessionManager;
-import org.jumpserver.chen.framework.utils.CodeUtils;
 import org.jumpserver.chen.framework.ws.io.PacketIO;
 
-import java.io.BufferedWriter;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.sql.Clob;
+import java.io.File;
 import java.sql.SQLException;
-import java.text.SimpleDateFormat;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -74,7 +66,10 @@ public class DataView extends SQLResult {
                 this.changeLimit((int) action.getData());
             }
             case DataViewAction.ACTION_EXPORT -> {
-                this.export((String) action.getData());
+                var data = (Map<String, String>) action.getData();
+                var scope = data.get("scope");
+                var format = data.get("format");
+                this.export(scope, format);
             }
         }
     }
@@ -134,84 +129,39 @@ public class DataView extends SQLResult {
     }
 
 
-    private static void writeString(BufferedWriter writer, Object object) throws IOException {
-        var str = object.toString();
-
-        if (str.contains(",")) {
-            str = "\"" + str + "\"";
-        }
-        writer.write(str);
-    }
-
-    private void writeCSVData(BufferedWriter writer, DataViewData viewData) throws IOException, SQLException {
-
-        for (Field field : viewData.getFields()) {
-            writeString(writer, field.getName());
-            writer.write(",");
-        }
-        for (Map<String, Object> row : viewData.getData()) {
-            for (Field field : viewData.getFields()) {
-                var obj = row.get(field.getName());
-                if (obj == null) {
-                    writer.write("NULL");
-                    writer.write(",");
-                } else if (obj instanceof Clob clob) {
-                    writer.write(CodeUtils.escapeCsvValue(clob.getSubString(1, (int) clob.length())));
-                    writer.write(",");
-                } else if (obj instanceof Date) {
-                    SimpleDateFormat fmt = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-                    writeString(writer, fmt.format(obj));
-                } else {
-                    writeString(writer, row.get(field.getName()));
-                    writer.write(",");
-                }
-            }
-            writer.newLine();
-        }
-
-        writer.newLine();
-    }
-
-    public void export(String scope) throws SQLException {
+    public void export(String scope, String format) throws SQLException {
         var session = SessionManager.getCurrentSession();
-
-
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss");
-        String timestamp = LocalDateTime.now().format(formatter);
-        var f = session.createFile(String.format("data_%s.csv", timestamp));
 
         CommandRecord command = new CommandRecord(String.format("Export data: %s", this.title));
 
         try {
             if (!SessionManager.getCurrentSession().canDownload()) {
-                session.getController().sendFile(f.getName());
                 return;
             }
-            var writer = Files.newBufferedWriter(f.toPath());
-
-            if (scope.equals("current")) {
-                this.writeCSVData(writer, this.data);
-                command.setOutput(String.format("%d rows exported", this.data.getData().size()));
+            File f = null;
+            switch (scope) {
+                case "current":
+                    f = DataExport.export(format, this.data);
+                    command.setOutput(String.format("%d rows exported", this.data.getData().size()));
+                    break;
+                case "all":
+                    SQLQueryParams queryParams = new SQLQueryParams();
+                    queryParams.setLimit(-1);
+                    var result = this.loadDataInterface.loadData(queryParams);
+                    var viewData = new DataViewData();
+                    this.fullDataViewData(viewData, result);
+                    f = DataExport.export(format, viewData);
+                    command.setOutput(String.format("%d rows exported", result.getData().size()));
+                    break;
             }
-
-            if (scope.equals("all")) {
-                SQLQueryParams queryParams = new SQLQueryParams();
-                queryParams.setLimit(-1);
-                var result = this.loadDataInterface.loadData(queryParams);
-                var viewData = new DataViewData();
-                this.fullDataViewData(viewData, result);
-                command.setOutput(String.format("%d rows exported", result.getData().size()));
-            }
-            writer.flush();
-            writer.close();
 
             this.consoleLogger.success(command.getOutput());
             session.recordCommand(command);
+            session.getController().sendFile(f.getName());
 
-        } catch (IOException e) {
+        } catch (Exception e) {
             throw new RuntimeException(e);
         }
-        session.getController().sendFile(f.getName());
     }
 
 
