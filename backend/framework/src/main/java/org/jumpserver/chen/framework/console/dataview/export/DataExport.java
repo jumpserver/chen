@@ -101,6 +101,7 @@ class DataExportCSV implements DataExportInterface {
             writeString(writer, field.getName());
             writer.write(",");
         }
+        writer.newLine();
         for (Map<String, Object> row : data.getData()) {
             for (Field field : data.getFields()) {
                 var obj = row.get(field.getName());
