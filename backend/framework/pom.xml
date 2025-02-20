@@ -52,6 +52,11 @@
             <artifactId>bcpkix-jdk15on</artifactId>
             <version>1.68</version>
         </dependency>
+        <dependency>
+            <groupId>org.dhatim</groupId>
+            <artifactId>fastexcel</artifactId>
+            <version>0.18.4</version>
+        </dependency>
     </dependencies>
 
 
