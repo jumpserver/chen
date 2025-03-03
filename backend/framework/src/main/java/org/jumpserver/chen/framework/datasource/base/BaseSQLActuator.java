@@ -10,6 +10,7 @@ import com.alibaba.druid.sql.ast.statement.SQLSelectStatement;
 import com.alibaba.druid.sql.ast.statement.SQLUpdateStatement;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.jumpserver.chen.framework.datasource.ConnectionManager;
 import org.jumpserver.chen.framework.datasource.entity.resource.Field;
 import org.jumpserver.chen.framework.datasource.sql.*;
@@ -19,6 +20,7 @@ import org.jumpserver.chen.framework.utils.HexUtils;
 import org.jumpserver.chen.framework.utils.PageUtils;
 import org.jumpserver.chen.framework.utils.ReflectUtils;
 
+import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.sql.*;
 import java.util.ArrayList;
@@ -149,7 +151,10 @@ public abstract class BaseSQLActuator implements SQLActuator {
 
                 for (int i = 1; i <= resultSet.getMetaData().getColumnCount(); i++) {
                     Field field = new Field();
-                    field.setName(resultSet.getMetaData().getColumnName(i));
+
+                    var fieldName = StringUtils.isNotEmpty(resultSet.getMetaData().getColumnLabel(i)) ?
+                            resultSet.getMetaData().getColumnLabel(i) : resultSet.getMetaData().getColumnName(i);
+                    field.setName(fieldName);
                     result.getFields().add(field);
                 }
 
@@ -160,12 +165,12 @@ public abstract class BaseSQLActuator implements SQLActuator {
                             var obj = resultSet.getObject(i);
                             if (obj instanceof Timestamp timestamp) {
                                 fs.add(new Date(timestamp.getTime()));
-                            } else if (obj instanceof Long l) {
-                                fs.add(l.toString());
-                            } else if (obj instanceof BigInteger b) {
-                                fs.add(b.toString());
+                            } else if (obj instanceof Long || obj instanceof BigDecimal || obj instanceof BigInteger) {
+                                fs.add(obj.toString());
                             } else if (obj instanceof byte[]) {
                                 fs.add(HexUtils.bytesToHex((byte[]) obj));
+                            } else if (obj instanceof Blob) {
+                                fs.add(HexUtils.bytesToHex(((Blob) obj).getBytes(1, (int) ((Blob) obj).length())));
                             } else {
                                 fs.add(obj);
                             }
