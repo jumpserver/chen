@@ -10,8 +10,10 @@ import org.jumpserver.chen.framework.console.state.DataViewState;
 import org.jumpserver.chen.framework.console.state.StateManager;
 import org.jumpserver.chen.framework.datasource.sql.SQLQueryParams;
 import org.jumpserver.chen.framework.datasource.sql.SQLQueryResult;
+import org.jumpserver.chen.framework.i18n.MessageUtils;
 import org.jumpserver.chen.framework.jms.entity.CommandRecord;
 import org.jumpserver.chen.framework.session.SessionManager;
+import org.jumpserver.chen.framework.session.controller.message.MessageLevel;
 import org.jumpserver.chen.framework.ws.io.PacketIO;
 
 import java.io.File;
@@ -136,6 +138,7 @@ public class DataView extends SQLResult {
 
         try {
             if (!SessionManager.getCurrentSession().canDownload()) {
+                SessionManager.getCurrentSession().getController().showMessage(MessageLevel.ERROR, MessageUtils.get("DownloadNotAllowed"));
                 return;
             }
             File f = null;
