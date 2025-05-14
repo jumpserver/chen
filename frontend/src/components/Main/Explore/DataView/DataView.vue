@@ -1,8 +1,14 @@
 <template>
-  <div id="doc" v-loading="state.loading" class="data-view" @contextmenu.prevent="preventDefaultContextMenu">
-    <RightMenu ref="rightMenu" :menus="menus" />
-    <ExportDataDialog :visible.sync="exportDataDialogVisible" @submit="onExportSubmit" />
-    <Toolbar :items="iToolBarItems" />
+  <div
+    id="doc"
+    v-loading="state.loading"
+    class="data-view"
+    @contextmenu.prevent="preventDefaultContextMenu"
+    style="z-index: 99;position: relative"
+  >
+    <RightMenu ref="rightMenu" :menus="menus"/>
+    <ExportDataDialog :visible.sync="exportDataDialogVisible" @submit="onExportSubmit"/>
+    <Toolbar :items="iToolBarItems"/>
     <AgGridVue
       :rowData="rowData"
       :columnDefs="colDefs"

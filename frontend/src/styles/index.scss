@@ -27,6 +27,7 @@ body {
 .splitter-pane-resizer {
   opacity: 1;
   background-color: $framework-border-color;
+  z-index: 1 !important;
 }
 
 .icon-chen-first_page,
@@ -138,7 +139,7 @@ body {
     border-right: none;
   }
 
-  & >  .el-cascader-menu__wrap {
+  & > .el-cascader-menu__wrap {
     height: initial !important;
   }
 
@@ -453,6 +454,7 @@ body {
 
     & > .relative {
       font-weight: 600;
+
       & > .colHeader.columnSorting.ascending::before,
       & > .colHeader.columnSorting.descending::before {
         filter: invert(35%) sepia(67%) saturate(1363%) hue-rotate(197deg) brightness(85%) contrast(92%);
@@ -505,6 +507,7 @@ body {
 .text-danger {
   color: #FF0000;
 }
+
 .text-warning {
   color: #FFFF00
 }
