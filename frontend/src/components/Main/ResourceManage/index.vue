@@ -1,12 +1,12 @@
 <template>
-  <div class="container">
+  <div class="container" style="z-index: 99;position: relative">
     <div class="toolbar-panel">
       <TreeNavbar
         :title="$tc('DatabaseExplorer')"
       />
     </div>
     <div class="tree-panel">
-      <tree />
+      <tree/>
     </div>
   </div>
 </template>
