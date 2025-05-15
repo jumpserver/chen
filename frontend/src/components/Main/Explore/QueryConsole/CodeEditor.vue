@@ -133,7 +133,7 @@ export default {
           'Ctrl-Enter': (cm) => {
             this.onRun()
           },
-          'Ctrl-C': (cm) => {
+          'Ctrl-D': (cm) => {
             this.onStop()
           },
           'Ctrl-S': (cm) => {
