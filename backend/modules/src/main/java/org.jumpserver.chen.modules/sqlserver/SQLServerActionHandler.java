@@ -45,7 +45,7 @@ public class SQLServerActionHandler extends BaseActionHandler {
         );
     }
 
-    private static final String SQL_SELECT_DATABASE_DETAIL = "SELECT name,collation_name  FROM SYS.DATABASES WHERE name = '?'";
+    private static final String SQL_SELECT_DATABASE_DETAIL = "SELECT name,collation_name  FROM sys.databases WHERE name = '?'";
     public EventEmitter onDatabaseProperties(TreeNode node) throws SQLException {
         return this.onShowObjectProperties("database", SQL_SELECT_DATABASE_DETAIL, node);
     }
