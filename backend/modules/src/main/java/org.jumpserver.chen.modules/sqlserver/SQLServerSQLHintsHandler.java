@@ -30,7 +30,7 @@ public class SQLServerSQLHintsHandler extends BaseSQLHintsHandler {
         return null;
     }
 
-    private static final String GET_ALL_SCHEMAS = "SELECT schema_name FROM information_schema.schemata";
+    private static final String GET_ALL_SCHEMAS = "SELECT schema_name FROM INFORMATION_SCHEMA.SCHEMATA";
 
     public List<Schema> getAllSchemas() throws SQLException {
         return this.connectionManager.getSqlActuator()
@@ -38,7 +38,7 @@ public class SQLServerSQLHintsHandler extends BaseSQLHintsHandler {
                         Schema.class, Map.of("name", 1));
     }
 
-    private static final String GET_ALL_TABLES = "SELECT table_name AS name,table_schema FROM information_schema.tables";
+    private static final String GET_ALL_TABLES = "SELECT table_name AS name,table_schema FROM INFORMATION_SCHEMA.TABLES";
 
     public List<Table> getAllTables() throws SQLException {
         return this.connectionManager.getSqlActuator()
@@ -46,7 +46,7 @@ public class SQLServerSQLHintsHandler extends BaseSQLHintsHandler {
                         Table.class, Map.of("name", 1, "schema", 2));
     }
 
-    private static final String GET_ALL_FIELDS = "SELECT column_name AS name, table_schema, table_name FROM information_schema.columns";
+    private static final String GET_ALL_FIELDS = "SELECT column_name AS name, table_schema, table_name FROM INFORMATION_SCHEMA.COLUMNS";
 
     public List<Field> getAllFields() throws SQLException {
         return this.connectionManager.getSqlActuator()

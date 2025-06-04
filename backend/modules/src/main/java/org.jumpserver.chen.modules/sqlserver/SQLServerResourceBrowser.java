@@ -57,21 +57,21 @@ public class SQLServerResourceBrowser extends BaseResourceBrowser {
     }
 
     // 查询当前数据库下所有的schema
-    private static final String SQL_GET_SCHEMAS = "SELECT schema_name FROM information_schema.schemata";
+    private static final String SQL_GET_SCHEMAS = "SELECT schema_name FROM INFORMATION_SCHEMA.SCHEMATA";
 
     @Override
     public List<Schema> getSchemas() throws SQLException {
         return this.getSchemas(SQL.of(SQL_GET_SCHEMAS));
     }
 
-    private static final String SQL_GET_TABLES = " SELECT table_name AS name FROM information_schema.tables WHERE table_schema = '?'";
+    private static final String SQL_GET_TABLES = " SELECT table_name AS name FROM INFORMATION_SCHEMA.TABLES WHERE table_schema = '?'";
 
     @Override
     public List<Table> getTables(String schema) throws SQLException {
         return this.getTables(SQL.of(SQL_GET_TABLES, schema));
     }
 
-    private static final String SQL_GET_VIEWS = "SELECT table_name AS name FROM information_schema.tables WHERE table_schema = '?' AND table_type = 'VIEW'";
+    private static final String SQL_GET_VIEWS = "SELECT table_name AS name FROM INFORMATION_SCHEMA.TABLES WHERE table_schema = '?' AND table_type = 'VIEW'";
 
     @Override
     public List<View> getViews(String schema) throws SQLException {
