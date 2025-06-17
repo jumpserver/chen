@@ -56,29 +56,26 @@ public abstract class BaseSQLActuator implements SQLActuator {
 
         var sqlStmts = SQLUtils.parseStatements(sql.getSql(), this.druidDbType);
 
-        if (sqlStmts.size() != 1) {
-            return -1;
-        }
+        for (var sqlStmt : sqlStmts) {
+            if (sqlStmt instanceof SQLUpdateStatement || sqlStmt instanceof SQLDeleteStatement || sqlStmt instanceof SQLInsertStatement) {
+                var conn = this.getConnection();
+                try {
+                    conn.setAutoCommit(false);
+                    var stmt = conn.createStatement();
+                    stmt.execute(sqlStmt.toString());
 
-        var sqlStmt = sqlStmts.get(0);
+                    result += stmt.getUpdateCount();
 
-        if (sqlStmt instanceof SQLUpdateStatement || sqlStmt instanceof SQLDeleteStatement || sqlStmt instanceof SQLInsertStatement) {
-            var conn = this.getConnection();
-            try {
-                conn.setAutoCommit(false);
-                var stmt = conn.createStatement();
-                stmt.execute(sqlStmt.toString());
-
-                result = stmt.getUpdateCount();
-
-                conn.rollback();
-                stmt.close();
-            } finally {
-                if (this.connection == null) {
-                    conn.close();
-                } else {
-                    conn.setAutoCommit(true);
+                    conn.rollback();
+                    stmt.close();
+                } finally {
+                    if (this.connection == null) {
+                        conn.close();
+                    } else {
+                        conn.setAutoCommit(true);
+                    }
                 }
+
             }
         }
         return result;
