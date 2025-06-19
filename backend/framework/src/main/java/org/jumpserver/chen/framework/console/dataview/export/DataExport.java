@@ -18,6 +18,7 @@ import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Date;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -57,8 +58,21 @@ class DataExportExcel implements DataExportInterface {
              Workbook workbook = new Workbook(fos, "JumpServer", "4.0")) {
 
             Worksheet sheet = workbook.newWorksheet("Data");
-            List<Field> fields = data.getFields();
-            List<Map<String, Object>> rows = data.getData();
+
+
+            List<Field> fields = data.getFields().stream()
+                    .filter(f -> !f.getName().equalsIgnoreCase("ROWNUM"))
+                    .toList();
+            data.setFields(fields);
+
+            List<Map<String, Object>> rows = data.getData().stream()
+                    .map(m -> {
+                        Map<String, Object> newMap = new LinkedHashMap<>(m);
+                        newMap.remove("ROWNUM");
+                        return newMap;
+                    })
+                    .toList();
+
 
             for (int col = 0; col < fields.size(); col++) {
                 sheet.value(0, col, fields.get(col).getName());
@@ -97,13 +111,26 @@ class DataExportCSV implements DataExportInterface {
     public void exportData(String path, DataViewData data) throws Exception {
         var writer = Files.newBufferedWriter(Path.of(path));
 
-        for (Field field : data.getFields()) {
+        List<Field> fields = data.getFields().stream()
+                .filter(f -> !f.getName().equalsIgnoreCase("ROWNUM"))
+                .toList();
+        data.setFields(fields);
+
+        List<Map<String, Object>> rows = data.getData().stream()
+                .map(m -> {
+                    Map<String, Object> newMap = new LinkedHashMap<>(m);
+                    newMap.remove("ROWNUM");
+                    return newMap;
+                })
+                .toList();
+
+        for (Field field : fields) {
             writeString(writer, field.getName());
             writer.write(",");
         }
         writer.newLine();
-        for (Map<String, Object> row : data.getData()) {
-            for (Field field : data.getFields()) {
+        for (Map<String, Object> row : rows) {
+            for (Field field : fields) {
                 var obj = row.get(field.getName());
                 if (obj == null) {
                     writer.write("NULL");
