@@ -36,6 +36,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 @Slf4j
@@ -214,8 +215,14 @@ public class QueryConsole extends AbstractConsole {
      */
     private void handleSQLComplete() {
         try {
+
             // 等待所有分段接收完成
-            latch.await();
+            boolean completed = latch.await(10, TimeUnit.SECONDS); // 超时10秒
+
+            if (!completed) {
+                this.getConsoleLogger().error("read sql message timeout!！");
+                return;
+            }
 
             // 按照索引顺序合并所有分段
             StringBuilder sqlBuilder = new StringBuilder();
