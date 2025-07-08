@@ -27,7 +27,7 @@ RUN set -ex \
     && chmod 755 /usr/local/bin/check \
     && rm -f check-${CHECK_VERSION}-linux-${TARGETARCH}.tar.gz
 
-ARG WISP_VERSION=v0.2.5
+ARG WISP_VERSION=v0.2.7
 RUN set -ex \
     && wget https://github.com/jumpserver/wisp/releases/download/${WISP_VERSION}/wisp-${WISP_VERSION}-linux-${TARGETARCH}.tar.gz \
     && tar -xf wisp-${WISP_VERSION}-linux-${TARGETARCH}.tar.gz -C /usr/local/bin/ --strip-components=1 \
@@ -43,7 +43,7 @@ RUN --mount=type=cache,target=/usr/local/share/.cache/yarn,sharing=locked,id=che
     npm install
 
 # Install Maven dependencies
-ARG MAVEN_VERSION=3.9.9
+ARG MAVEN_VERSION=3.9.10
 ARG USER_HOME_DIR="/root"
 ARG BASE_URL=https://downloads.apache.org/maven/maven-3/${MAVEN_VERSION}/binaries
 ARG MAVEN_MIRROR=https://repo.maven.apache.org/maven2
