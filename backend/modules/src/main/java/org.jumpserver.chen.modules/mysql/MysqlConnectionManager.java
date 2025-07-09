@@ -7,7 +7,12 @@ import org.jumpserver.chen.framework.datasource.entity.DBConnectInfo;
 import org.jumpserver.chen.framework.datasource.sql.SQL;
 import org.jumpserver.chen.modules.base.ssl.JKSGenerator;
 
+import java.sql.Connection;
 import java.sql.SQLException;
+import java.sql.Statement;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.util.Properties;
 
 public class MysqlConnectionManager extends BaseConnectionManager {
@@ -30,6 +35,34 @@ public class MysqlConnectionManager extends BaseConnectionManager {
         var url = this.getConnectInfo().toJDBCUrl(jdbcUrlTemplate);
         this.ping(url);
         this.jdbcUrl = url;
+    }
+
+
+    @Override
+    public Connection getConnection() throws SQLException {
+        var conn = super.getConnection();
+        setTimeZone(conn);
+        return conn;
+    }
+
+    @Override
+    public Connection getPhysicalConnection() throws SQLException {
+        var conn = super.getPhysicalConnection();
+        setTimeZone(conn);
+        return conn;
+    }
+
+    private void setTimeZone(Connection conn) throws SQLException {
+        ZoneId zoneId = ZoneId.systemDefault();
+
+        ZonedDateTime now = ZonedDateTime.now(zoneId);
+        ZoneOffset offset = now.getOffset();
+
+        String offsetStr = offset.toString();
+
+        try (Statement stmt = conn.createStatement()) {
+            stmt.execute("SET time_zone = '" + offsetStr + "'");
+        }
     }
 
 
