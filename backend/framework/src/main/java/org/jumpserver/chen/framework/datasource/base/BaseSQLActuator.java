@@ -168,6 +168,8 @@ public abstract class BaseSQLActuator implements SQLActuator {
                                 fs.add(HexUtils.bytesToHex((byte[]) obj));
                             } else if (obj instanceof Blob) {
                                 fs.add(HexUtils.bytesToHex(((Blob) obj).getBytes(1, (int) ((Blob) obj).length())));
+                            } else if (obj!= null && obj.getClass().getSimpleName().equalsIgnoreCase("pgobject")) {
+                                fs.add(obj.toString());
                             } else {
                                 fs.add(obj);
                             }
