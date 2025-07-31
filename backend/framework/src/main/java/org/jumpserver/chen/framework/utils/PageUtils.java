@@ -429,46 +429,59 @@ public class PageUtils {
     }
 
     private static String count(SQLSelect select, DbType dbType) {
+        // 去除 ORDER BY
         if (select.getOrderBy() != null) {
-            select.setOrderBy((SQLOrderBy) null);
+            select.setOrderBy(null);
         }
 
         SQLSelectQuery query = select.getQuery();
-        clearOrderBy(query);
+        clearOrderBy(query); // 自定义的清理嵌套子查询中的 ORDER BY 的方法
+
         if (query instanceof SQLSelectQueryBlock) {
-            SQLSelectItem countItem = createCountItem(dbType);
             SQLSelectQueryBlock queryBlock = (SQLSelectQueryBlock) query;
             List<SQLSelectItem> selectList = queryBlock.getSelectList();
+            int distinctOption = queryBlock.getDistionOption();
+
+            // 情况 1: 存在 GROUP BY，需用子查询
             if (queryBlock.getGroupBy() != null && queryBlock.getGroupBy().getItems().size() > 0) {
-                if (queryBlock.getSelectList().size() == 1 && ((SQLSelectItem) queryBlock.getSelectList().get(0)).getExpr() instanceof SQLAllColumnExpr) {
-                    queryBlock.getSelectList().clear();
-                    queryBlock.getSelectList().add(new SQLSelectItem(new SQLIntegerExpr(1)));
+                if (selectList.size() == 1 && selectList.get(0).getExpr() instanceof SQLAllColumnExpr) {
+                    selectList.clear();
+                    selectList.add(new SQLSelectItem(new SQLIntegerExpr(1)));
                 }
-
                 return createCountUseSubQuery(select, dbType);
-            } else {
-                int option = queryBlock.getDistionOption();
-                if (option == 2 && selectList.size() >= 1) {
-                    SQLAggregateExpr countExpr = new SQLAggregateExpr("COUNT", SQLAggregateOption.DISTINCT);
-
-                    for (int i = 0; i < selectList.size(); ++i) {
-                        countExpr.addArgument(((SQLSelectItem) selectList.get(i)).getExpr());
-                    }
-
-                    selectList.clear();
-                    queryBlock.setDistionOption(0);
-                    queryBlock.addSelectItem(countExpr);
-                } else {
-                    selectList.clear();
-                    selectList.add(countItem);
-                }
-
-                return SQLUtils.toSQLString(select, dbType);
             }
+
+            // 情况 2: DISTINCT 情况下，Oracle 特别处理
+            if (distinctOption == SQLSetQuantifier.DISTINCT) {
+                if (dbType == DbType.oracle && (
+                        selectList.size() > 1 ||
+                                (selectList.size() == 1 && selectList.get(0).getExpr() instanceof SQLAllColumnExpr)
+                )) {
+                    // SELECT DISTINCT * 或多字段，Oracle 不支持直接 count(distinct ...)
+                    return createCountUseSubQuery(select, dbType);
+                } else {
+                    // 只有一个字段，Oracle 支持 count(distinct col)
+                    SQLAggregateExpr countExpr = new SQLAggregateExpr("COUNT", SQLAggregateOption.DISTINCT);
+                    for (SQLSelectItem item : selectList) {
+                        countExpr.addArgument(item.getExpr());
+                    }
+                    selectList.clear();
+                    queryBlock.setDistionOption(0); // 去除 DISTINCT
+                    queryBlock.addSelectItem(countExpr);
+                    return SQLUtils.toSQLString(select, dbType);
+                }
+            }
+
+            // 情况 3: 非 DISTINCT，无 GROUP BY，直接 count(*)
+            selectList.clear();
+            selectList.add(createCountItem(dbType));
+            return SQLUtils.toSQLString(select, dbType);
+
         } else if (query instanceof SQLUnionQuery) {
+            // UNION 情况统一使用子查询
             return createCountUseSubQuery(select, dbType);
         } else {
-            throw new IllegalStateException();
+            throw new IllegalStateException("不支持的 SQL 查询类型: " + query.getClass().getName());
         }
     }
 
