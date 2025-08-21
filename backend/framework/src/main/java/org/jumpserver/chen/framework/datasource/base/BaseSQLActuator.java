@@ -2,7 +2,6 @@ package org.jumpserver.chen.framework.datasource.base;
 
 import com.alibaba.druid.DbType;
 import com.alibaba.druid.pool.DruidPooledConnection;
-import com.alibaba.druid.sql.PagerUtils;
 import com.alibaba.druid.sql.SQLUtils;
 import com.alibaba.druid.sql.ast.statement.SQLDeleteStatement;
 import com.alibaba.druid.sql.ast.statement.SQLInsertStatement;
@@ -225,7 +224,7 @@ public abstract class BaseSQLActuator implements SQLActuator {
             if (limit > 0) {
                 return -1;
             }
-            var countSQL = PagerUtils.count(plan.getSourceSQL(), plan.getDruidDbType());
+            var countSQL = PageUtils.count(plan.getSourceSQL(), plan.getDruidDbType());
             try (Statement stmt = plan.createStatement()) {
                 var resultSet = stmt.executeQuery(countSQL);
                 if (resultSet.next()) {

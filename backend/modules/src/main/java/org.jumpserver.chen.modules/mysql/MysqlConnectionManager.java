@@ -58,7 +58,8 @@ public class MysqlConnectionManager extends BaseConnectionManager {
         ZonedDateTime now = ZonedDateTime.now(zoneId);
         ZoneOffset offset = now.getOffset();
 
-        String offsetStr = offset.toString();
+        String offsetStr = offset.equals(ZoneOffset.UTC) ? "+00:00" : offset.toString();
+
 
         try (Statement stmt = conn.createStatement()) {
             stmt.execute("SET time_zone = '" + offsetStr + "'");
