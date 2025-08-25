@@ -24,7 +24,7 @@ const message = {
   },
   tip: {
     run: 'Run (Ctrl + Enter)',
-    stop: 'Stop (Ctrl + C)',
+    stop: 'Stop (Ctrl + D)',
     format: 'Format (Ctrl + L)'
   },
   option: {

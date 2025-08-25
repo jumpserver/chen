@@ -24,7 +24,7 @@ const message = {
   },
   tip: {
     run: '実行 (Ctrl + Enter)',
-    stop: '停止 (Ctrl + C)',
+    stop: '停止 (Ctrl + D)',
     format: 'フォーマット (Ctrl + L)'
   },
   option: {
