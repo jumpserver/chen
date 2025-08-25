@@ -28,7 +28,7 @@ const message = {
   tip: {
     upload: '運行SQL文件',
     run: '運行 (Ctrl + Enter)',
-    stop: '停止 (Ctrl + C)',
+    stop: '停止 (Ctrl + D)',
     format: '格式化 (Ctrl + L)',
     open: '打開 (Ctrl + R)',
     save: '保存 (Ctrl + S)'
