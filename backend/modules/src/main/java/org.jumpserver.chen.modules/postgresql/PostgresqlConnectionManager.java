@@ -1,5 +1,6 @@
 package org.jumpserver.chen.modules.postgresql;
 
+import org.apache.commons.lang3.StringUtils;
 import org.jumpserver.chen.framework.datasource.Datasource;
 import org.jumpserver.chen.framework.datasource.base.BaseConnectionManager;
 import org.jumpserver.chen.framework.datasource.entity.DBConnectInfo;
@@ -48,11 +49,24 @@ public class PostgresqlConnectionManager extends BaseConnectionManager {
 
 
             try {
+                var sslCaCertPath = sslManager.getCaCertPath();
+                var sslClientCertPath = sslManager.getClientCertPath();
+                var sslClientCertKeyPath = sslManager.getClientCertKeyPath();
+
                 props.setProperty("ssl", "true");
                 props.setProperty("sslmode", sslMode);
-                props.setProperty("sslrootcert", sslManager.getCaCertPath());
-                props.setProperty("sslcert", sslManager.getClientCertPath());
-                props.setProperty("sslkey", sslManager.getClientCertKeyPath());
+
+                if (StringUtils.isNotEmpty(sslCaCertPath)) {
+                    props.setProperty("sslrootcert", sslManager.getCaCertPath());
+                }
+
+                if (StringUtils.isNotEmpty(sslClientCertPath)) {
+                    props.setProperty("sslcert", sslManager.getClientCertPath());
+                }
+
+                if (StringUtils.isNotEmpty(sslClientCertKeyPath)) {
+                    props.setProperty("sslkey", sslManager.getClientCertKeyPath());
+                }
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }

@@ -1,6 +1,7 @@
 package org.jumpserver.chen.modules.base.ssl;
 
 import lombok.Setter;
+import org.apache.commons.lang3.StringUtils;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -27,6 +28,10 @@ public class SSLCertManager {
 
     // 获取 CA 证书的路径
     public String getCaCertPath() throws IOException {
+        if (StringUtils.isEmpty(caCert)) {
+            return null;
+        }
+
         if (caCertFile == null) {
             caCertFile = createTempFile("ca-cert", caCert);
         }
@@ -35,6 +40,10 @@ public class SSLCertManager {
 
     // 获取客户端私钥的路径，并将 PEM 格式的私钥转换为 DER 格式
     public String getClientCertKeyPath() throws Exception {
+        if (StringUtils.isEmpty(clientCertKey)) {
+            return null;
+        }
+
         if (clientCertKeyFile == null) {
             // 检查 clientCertKey 是否是 PEM 格式并转换为 DER
             clientCertKeyFile = createTempFile("client-cert-key", convertPEMToDER(clientCertKey));
@@ -44,6 +53,11 @@ public class SSLCertManager {
 
     // 获取客户端证书的路径
     public String getClientCertPath() throws IOException {
+
+        if (StringUtils.isEmpty(clientCert)) {
+            return null;
+        }
+
         if (clientCertFile == null) {
             clientCertFile = createTempFile("client-cert", clientCert);
         }
