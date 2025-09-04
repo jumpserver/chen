@@ -5,7 +5,7 @@
     :show-close="dialogOptions.showClose"
     :close-on-click-modal="false"
     :visible.sync="dialogVisible"
-    :modal=false
+    :modal="false"
   >
     <div
       v-if="dialogOptions.body && dialogOptions.bodyType==='html'"
