@@ -3,6 +3,7 @@ package org.jumpserver.chen.web.config;
 import org.jumpserver.chen.framework.ws.ConsoleWebSocketHandler;
 import org.jumpserver.chen.framework.ws.DBConsoleWebsocketHandler;
 import org.jumpserver.chen.framework.ws.SessionWebSocketHandler;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.server.ServerHttpRequest;
 import org.springframework.http.server.ServerHttpResponse;
@@ -11,6 +12,7 @@ import org.springframework.web.socket.config.annotation.EnableWebSocket;
 import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
 import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;
 import org.springframework.web.socket.server.HandshakeInterceptor;
+import org.springframework.web.socket.server.standard.ServletServerContainerFactoryBean;
 
 import java.util.Map;
 import java.util.Objects;
@@ -18,6 +20,19 @@ import java.util.Objects;
 @Configuration
 @EnableWebSocket
 public class WebSocketConfig implements WebSocketConfigurer {
+
+
+    @Bean
+    public ServletServerContainerFactoryBean createWebSocketContainer() {
+        ServletServerContainerFactoryBean container = new ServletServerContainerFactoryBean();
+        container.setMaxTextMessageBufferSize(20 * 1024 * 1024);
+        container.setMaxBinaryMessageBufferSize(20 * 1024 * 1024);
+        // 可选：异步发送超时
+        // container.setAsyncSendTimeout(20_000L);
+        return container;
+    }
+
+
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
         registry
