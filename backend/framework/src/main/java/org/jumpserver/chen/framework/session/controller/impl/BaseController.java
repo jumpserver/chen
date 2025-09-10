@@ -1,6 +1,7 @@
 package org.jumpserver.chen.framework.session.controller.impl;
 
 import lombok.extern.slf4j.Slf4j;
+import org.jumpserver.chen.framework.session.SessionManager;
 import org.jumpserver.chen.framework.session.controller.Controller;
 import org.jumpserver.chen.framework.session.controller.dialog.Dialog;
 import org.jumpserver.chen.framework.session.controller.message.Message;
@@ -40,9 +41,18 @@ public class BaseController implements Controller {
             case "dialog_event":
                 this.onDialogEvent((String) packet.getData());
                 break;
+            case "input_active":
+                this.refreshLastActiveTime();
+                break;
             default:
                 break;
         }
+    }
+
+
+    private void refreshLastActiveTime() {
+        var session = SessionManager.getCurrentSession();
+        session.refreshLastActiveTime();
     }
 
     @Override
