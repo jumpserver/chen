@@ -13,10 +13,15 @@ import java.io.File;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.time.LocalDateTime;
 import java.util.Locale;
 import java.util.Map;
 
 public interface Session {
+
+    void refreshLastActiveTime();
+
+    LocalDateTime getLastActiveTime();
 
     boolean canUpload();
 
