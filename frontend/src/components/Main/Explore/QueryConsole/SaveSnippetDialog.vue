@@ -3,6 +3,7 @@
     v-if="visible"
     :title="$tc('SaveSQL')"
     :visible.sync="iVisible"
+    :modal="false"
     width="40%"
   >
     <el-form ref="form" :model="form" label-width="80px">
