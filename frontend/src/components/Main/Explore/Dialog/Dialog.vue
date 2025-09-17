@@ -5,6 +5,7 @@
     :width="meta.width"
     :close-on-click-modal="false"
     :destroy-on-close="true"
+    :modal="false"
   >
     <div style="margin: 32px 10px;border-top: 1px">
       <div v-if="meta.type === 'detail'">
