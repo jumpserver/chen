@@ -21,6 +21,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.time.LocalDateTime;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -57,12 +58,20 @@ public class BaseSession implements Session {
 
     private boolean enableAutoComplete = true;
 
+    @Getter
+    private LocalDateTime lastActiveTime;
+
 
     public BaseSession(Datasource datasource, String remoteAddr) {
         this.datasource = datasource;
         this.remoteAddr = remoteAddr;
     }
 
+
+    @Override
+    public void refreshLastActiveTime() {
+        this.lastActiveTime = LocalDateTime.now();
+    }
 
     @Override
     public boolean canUpload() {

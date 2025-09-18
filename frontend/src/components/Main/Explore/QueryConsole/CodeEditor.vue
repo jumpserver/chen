@@ -64,6 +64,7 @@ import 'codemirror/addon/edit/matchbrackets.js'
 import { getHints } from '@/api/resource'
 import SelectSnippetDialog from '@/components/Main/Explore/QueryConsole/SelectSnippetDialog.vue'
 import SaveSnippetDialog from '@/components/Main/Explore/QueryConsole/SaveSnippetDialog.vue'
+import { bus } from '@/bus'
 
 const formatterMap = {
   'clickhouse': 'sql',
@@ -283,6 +284,9 @@ export default {
       this.cm = cm
     },
     onCmChange(cm, change) {
+      // 向 luna 发送事件
+      bus.$emit('input-active')
+
       const { text, origin } = change[0]
       if (origin === '+input' && text[0].trim()) {
         if (this.autoComplete) {

@@ -5,12 +5,13 @@
     :show-close="dialogOptions.showClose"
     :close-on-click-modal="false"
     :visible.sync="dialogVisible"
+    :modal="false"
   >
     <div
       v-if="dialogOptions.body && dialogOptions.bodyType==='html'"
       v-html="dialogOptions.body"
     />
-    <div v-else v-text="dialogOptions.body" />
+    <div v-else v-text="dialogOptions.body"/>
 
     <span v-if="dialogOptions && dialogOptions.buttons" slot="footer" class="dialog-footer" style="text-align: center">
       <el-button
@@ -26,6 +27,7 @@
 import { getUrlParams } from '@/utils/field'
 import { LunaEvent, MESSAGES } from '@/utils/luna'
 import { index } from '@/request'
+import { bus } from '@/bus'
 
 export default {
   name: 'Controller',
@@ -48,8 +50,20 @@ export default {
     this.lunaEvent.init()
     this.auth()
     this.handleRenewLunaSession()
+    this.handleInputActive()
   },
   methods: {
+    handleInputActive() {
+      bus.$on('input-active', () => {
+        this.lunaEvent.sendEventToLuna(MESSAGES.INPUT_ACTIVE)
+      })
+
+      this.lunaEvent.setInputActiveHandler(() => {
+        console.log('receive other window input active message')
+        this.sendPacket('input_active')
+      })
+    },
+
     handleRenewLunaSession() {
       const lunaEvent = this.lunaEvent
 

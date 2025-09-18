@@ -51,8 +51,6 @@ public class JMSSession extends BaseSession {
     private final long expireTime;
 
 
-    private LocalDateTime lastActiveTime;
-
     private LocalDateTime maxSessionEndTime;
     private int maxSessionEndHours;
     private LocalDateTime dynamicEndTime;
@@ -205,7 +203,7 @@ public class JMSSession extends BaseSession {
     }
 
     private void startWaitIdleTime() {
-        this.lastActiveTime = LocalDateTime.now();
+        this.refreshLastActiveTime();
 
         var token = SessionManager.getContextToken();
 
@@ -224,7 +222,7 @@ public class JMSSession extends BaseSession {
                             return;
                         }
 
-                        if (Math.abs(Duration.between(LocalDateTime.now(), this.lastActiveTime).toMinutes()) > this.maxIdleTimeDelta) {
+                        if (Math.abs(Duration.between(LocalDateTime.now(), this.getLastActiveTime()).toMinutes()) > this.maxIdleTimeDelta) {
                             this.close("OverMaxIdleTimeError", "idle_disconnect", this.maxIdleTimeDelta);
                             return;
                         }
@@ -310,7 +308,7 @@ public class JMSSession extends BaseSession {
     @Override
     public SQLQueryResult withAudit(String command, QueryAuditFunction queryAuditFunction) throws SQLException, CommandRejectException {
         synchronized (this) {
-            this.lastActiveTime = LocalDateTime.now();
+            this.refreshLastActiveTime();
         }
         if (this.locked) {
             throw new CommandRejectException(MessageUtils.get("SessionLockedError"));

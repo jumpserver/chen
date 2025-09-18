@@ -4,6 +4,7 @@
     :title="$tc('SelectSQL')"
     :visible.sync="iVisible"
     width="40%"
+    :modal="false"
   >
     <span>
       <el-table :data="snippets">

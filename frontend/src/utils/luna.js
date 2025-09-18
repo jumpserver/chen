@@ -4,7 +4,8 @@ export const MESSAGES = {
   CLOSE: 'CLOSE',
   CONNECTED: 'CONNECTED',
   KEYEVENT: 'KEYEVENT',
-  MOUSEEVENT: 'MOUSEEVENT'
+  MOUSEEVENT: 'MOUSEEVENT',
+  INPUT_ACTIVE: 'INPUT_ACTIVE'
 }
 
 export class LunaEvent {
@@ -25,7 +26,14 @@ export class LunaEvent {
         this.origin = event.origin
         this.sendEventToLuna(MESSAGES.PONG)
         break
+      case MESSAGES.INPUT_ACTIVE:
+        this.inputActiveHandler && this.inputActiveHandler()
+        break
     }
+  }
+
+  setInputActiveHandler(func) {
+    this.inputActiveHandler = func
   }
 
   sendEventToLuna(name, data) {
