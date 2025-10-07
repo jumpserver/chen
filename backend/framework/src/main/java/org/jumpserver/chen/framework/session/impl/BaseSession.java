@@ -15,6 +15,7 @@ import org.jumpserver.chen.framework.jms.acl.ACLResult;
 import org.jumpserver.chen.framework.session.controller.Controller;
 import org.jumpserver.chen.framework.session.controller.impl.BaseController;
 import org.jumpserver.chen.framework.ws.io.PacketIO;
+import org.jumpserver.wisp.Common;
 
 import java.io.File;
 import java.nio.file.Path;
@@ -22,6 +23,7 @@ import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -67,6 +69,11 @@ public class BaseSession implements Session {
         this.remoteAddr = remoteAddr;
     }
 
+
+    @Override
+    public List<Common.DataMaskingRule> getDataMaskingRules() {
+        return List.of();
+    }
 
     @Override
     public void refreshLastActiveTime() {

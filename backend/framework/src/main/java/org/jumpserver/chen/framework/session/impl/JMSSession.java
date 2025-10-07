@@ -41,6 +41,8 @@ public class JMSSession extends BaseSession {
     @Getter
     private final Common.Session jmsSession;
 
+    @Getter
+    private List<Common.DataMaskingRule> dataMaskingRules;
     private ACLFilter aclFilter;
     private CommandHandler commandHandler;
     private ReplayHandler replayHandler;
@@ -103,6 +105,7 @@ public class JMSSession extends BaseSession {
         this.canDownload = tokenResp.getData().getPermission().getEnableDownload();
         this.canCopy = tokenResp.getData().getPermission().getEnableCopy();
         this.canPaste = tokenResp.getData().getPermission().getEnablePaste();
+        this.dataMaskingRules = tokenResp.getData().getDataMaskingRulesList();
     }
 
 
