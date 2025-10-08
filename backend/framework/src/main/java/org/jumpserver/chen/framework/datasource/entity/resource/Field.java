@@ -7,6 +7,8 @@ import org.jumpserver.chen.framework.utils.TreeUtils;
 public class Field implements ResourceNode {
 
     private String name;
+    private String label;
+    private String columnName;
     private String schema;
     private String table;
     private String type;

@@ -27,6 +27,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 @Slf4j
 public abstract class BaseSQLActuator implements SQLActuator {
@@ -153,6 +155,8 @@ public abstract class BaseSQLActuator implements SQLActuator {
                     var fieldName = StringUtils.isNotEmpty(resultSet.getMetaData().getColumnLabel(i)) ?
                             resultSet.getMetaData().getColumnLabel(i) : resultSet.getMetaData().getColumnName(i);
                     field.setName(fieldName);
+                    field.setColumnName(resultSet.getMetaData().getColumnName(i));
+                    field.setLabel(resultSet.getMetaData().getColumnLabel(i));
                     result.getFields().add(field);
                 }
 
@@ -184,34 +188,7 @@ public abstract class BaseSQLActuator implements SQLActuator {
                 result.setFetchFinishedTime(new Time(System.currentTimeMillis()));
 
                 // 数据脱敏
-
-                var rules = SessionManager.getCurrentSession().getDataMaskingRules();
-                var maskIndexes = new ArrayList<>();
-                var maskRules = new HashMap<Integer, Common.DataMaskingRule>();
-                for (var i = 0; i < result.getFields().size(); i++) {
-                    for (Common.DataMaskingRule rule : rules) {
-                        if (result.getFields().get(i).getName().equalsIgnoreCase(rule.getFieldsPattern())) {
-                            maskIndexes.add(i);
-                            maskRules.put(i, rule);
-                        }
-                    }
-                }
-
-                for (var i = 0; i < result.getData().size(); i++) {
-                    for (var j = 0; j < result.getData().get(i).size(); j++) {
-                        if (maskIndexes.contains(j)) {
-                            var rule = maskRules.get(j);
-                            var val = result.getData().get(i).get(j);
-                            if (val instanceof String) {
-                                var rep = this.replaceColumnVal(rule, (String) val);
-                                result.getData().get(i).set(j, rep);
-                            } else {
-                                result.getData().get(i).set(j, rule.getMaskPattern());
-                            }
-                        }
-                    }
-                }
-
+                this.handleDataMasking(result);
 
                 var total = this.count(plan);
                 if (total < 0) {
@@ -230,9 +207,58 @@ public abstract class BaseSQLActuator implements SQLActuator {
         }
     }
 
+    private void handleDataMasking(SQLQueryResult result) {
+        var rules = SessionManager.getCurrentSession().getDataMaskingRules();
+        var maskIndexes = new ArrayList<>();
+        var maskRules = new HashMap<Integer, Common.DataMaskingRule>();
+        for (var i = 0; i < result.getFields().size(); i++) {
+            for (Common.DataMaskingRule rule : rules) {
+                if (matchFiled(result.getFields().get(i), rule.getFieldsPattern())) {
+                    maskIndexes.add(i);
+                    maskRules.put(i, rule);
+                }
+            }
+        }
+
+        for (var i = 0; i < result.getData().size(); i++) {
+            for (var j = 0; j < result.getData().get(i).size(); j++) {
+                if (maskIndexes.contains(j)) {
+                    var rule = maskRules.get(j);
+                    var val = result.getData().get(i).get(j);
+                    if (val instanceof String) {
+                        var rep = this.replaceColumnVal(rule, (String) val);
+                        result.getData().get(i).set(j, rep);
+                    } else {
+                        result.getData().get(i).set(j, rule.getMaskPattern());
+                    }
+                }
+            }
+        }
+    }
+
+    private boolean matchFiled(Field field, String pattern) {
+        var names = List.of(field.getColumnName(), field.getLabel());
+        var ps = pattern.split(",");
+
+        for (String name : names) {
+            for (String p : ps) {
+
+                try {
+                    int flags = Pattern.UNICODE_CASE | Pattern.CASE_INSENSITIVE;
+                    var pa = Pattern.compile(p, flags);
+                    if (pa.matcher(name).find()) {
+                        return true;
+                    }
+                } catch (PatternSyntaxException e) {
+                    return false;
+                }
+            }
+        }
+        return false;
+    }
 
 
-    public  String replaceColumnVal(Common.DataMaskingRule rule, String val) {
+    private String replaceColumnVal(Common.DataMaskingRule rule, String val) {
         if (rule == null) {
             return "####";
         } else {
