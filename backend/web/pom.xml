@@ -106,14 +106,5 @@
             <artifactId>modules</artifactId>
             <version>${revision}</version>
         </dependency>
-
-        <dependency>
-            <groupId>org.jumpserver</groupId>
-            <artifactId>sqlparser</artifactId>
-            <version>${revision}</version>
-        </dependency>
-
     </dependencies>
-
-
 </project>
