@@ -70,3 +70,4 @@ RUN set -ex \
     && sed -i "s@https://repo.maven.apache.org/maven2@${MAVEN_MIRROR}@g" settings.xml \
     && \cp -f settings.xml /root/.m2/ \
     && mvn clean install
+
