@@ -19,7 +19,7 @@ RUN set -ex \
     && rm -rf /var/lib/apt/lists/*
 
 # Install tools and dependencies
-ARG CHECK_VERSION=v1.0.4
+ARG CHECK_VERSION=v1.0.5
 RUN set -ex \
     && wget https://github.com/jumpserver-dev/healthcheck/releases/download/${CHECK_VERSION}/check-${CHECK_VERSION}-linux-${TARGETARCH}.tar.gz \
     && tar -xf check-${CHECK_VERSION}-linux-${TARGETARCH}.tar.gz -C /usr/local/bin/ check \
@@ -68,6 +68,6 @@ RUN set -ex \
     && mkdir -p /root/.m2 \
     && mkdir -p /opt/chen/frontend/dist \
     && sed -i "s@https://repo.maven.apache.org/maven2@${MAVEN_MIRROR}@g" settings.xml \
-    && \cp -f settings.xml /root/.m2/ \
+    && cp -f settings.xml /root/.m2/ \
     && mvn clean install
 

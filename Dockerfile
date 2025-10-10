@@ -1,4 +1,4 @@
-FROM jumpserver/chen-base:20251009_123506 AS stage-build
+FROM jumpserver/chen-base:20251010_105539 AS stage-build
 ENV LANG=en_US.UTF-8
 
 WORKDIR /opt/chen/
