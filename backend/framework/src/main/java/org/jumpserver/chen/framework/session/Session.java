@@ -21,6 +21,10 @@ import java.util.Map;
 
 public interface Session {
 
+    String getLockCreator();
+
+    boolean isLocked();
+
     List<Common.DataMaskingRule> getDataMaskingRules();
 
     void refreshLastActiveTime();

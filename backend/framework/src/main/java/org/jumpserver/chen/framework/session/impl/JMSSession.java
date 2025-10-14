@@ -62,7 +62,12 @@ public class JMSSession extends BaseSession {
     @Setter
     private String gatewayId;
 
+
+    @Getter
     private boolean locked = false;
+
+    @Getter
+    private String lockCreator;
 
     private boolean canUpload = false;
     private boolean canDownload = false;
@@ -72,16 +77,21 @@ public class JMSSession extends BaseSession {
 
     private boolean closed = false;
 
+
     public void lockSession(String creator) {
         SessionManager.setContext(this.getWebToken());
-        this.getController().showMessage(MessageLevel.ERROR, MessageUtils.get("SessionLockedMessage", creator));
+
+        this.lockCreator = creator;
         this.locked = true;
+        this.getController().showMessage(MessageLevel.ERROR, MessageUtils.get("SessionLockedMessage", this.lockCreator));
     }
 
     public void unloadSession(String creator) {
         SessionManager.setContext(this.getWebToken());
+
         this.getController().showMessage(MessageLevel.SUCCESS, MessageUtils.get("SessionUnlockedMessage", creator));
         this.locked = false;
+        this.lockCreator = null;
     }
 
 

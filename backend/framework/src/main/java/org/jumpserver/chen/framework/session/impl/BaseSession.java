@@ -63,6 +63,12 @@ public class BaseSession implements Session {
     @Getter
     private LocalDateTime lastActiveTime;
 
+    @Getter
+    private boolean locked = false;
+
+    @Getter
+    private String lockCreator;
+
 
     public BaseSession(Datasource datasource, String remoteAddr) {
         this.datasource = datasource;
