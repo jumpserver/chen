@@ -141,6 +141,12 @@ public class DataView extends SQLResult {
                 SessionManager.getCurrentSession().getController().showMessage(MessageLevel.ERROR, MessageUtils.get("DownloadNotAllowed"));
                 return;
             }
+
+            if (SessionManager.getCurrentSession().isLocked()) {
+                SessionManager.getCurrentSession().getController().showMessage(MessageLevel.ERROR, MessageUtils.get("SessionLockedMessage", SessionManager.getCurrentSession().getLockCreator()));
+                return;
+            }
+
             File f = null;
             switch (scope) {
                 case "current":
