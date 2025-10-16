@@ -4,6 +4,7 @@
     :title="$tc('ExportData')"
     :visible.sync="iVisible"
     :modal="false"
+    :append-to-body="true"
     width="40%"
   >
     <el-form ref="form" :model="form" label-width="80px">
