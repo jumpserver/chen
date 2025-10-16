@@ -7,7 +7,7 @@
     style="z-index: 99;position: relative"
   >
     <RightMenu ref="rightMenu" :menus="menus"/>
-    <ExportDataDialog :visible.sync="exportDataDialogVisible" @submit="onExportSubmit"/>
+    <ExportDataDialog :visible.sync="exportDataDialogVisible" @submit="onExportSubmit" />
     <Toolbar :items="iToolBarItems"/>
     <AgGridVue
       :rowData="rowData"

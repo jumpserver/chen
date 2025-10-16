@@ -18,13 +18,17 @@ import org.jumpserver.chen.framework.session.SessionManager;
 import org.jumpserver.chen.framework.utils.HexUtils;
 import org.jumpserver.chen.framework.utils.PageUtils;
 import org.jumpserver.chen.framework.utils.ReflectUtils;
+import org.jumpserver.wisp.Common;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.sql.*;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 @Slf4j
 public abstract class BaseSQLActuator implements SQLActuator {
@@ -151,6 +155,8 @@ public abstract class BaseSQLActuator implements SQLActuator {
                     var fieldName = StringUtils.isNotEmpty(resultSet.getMetaData().getColumnLabel(i)) ?
                             resultSet.getMetaData().getColumnLabel(i) : resultSet.getMetaData().getColumnName(i);
                     field.setName(fieldName);
+                    field.setColumnName(resultSet.getMetaData().getColumnName(i));
+                    field.setLabel(resultSet.getMetaData().getColumnLabel(i));
                     result.getFields().add(field);
                 }
 
@@ -167,7 +173,7 @@ public abstract class BaseSQLActuator implements SQLActuator {
                                 fs.add(HexUtils.bytesToHex((byte[]) obj));
                             } else if (obj instanceof Blob) {
                                 fs.add(HexUtils.bytesToHex(((Blob) obj).getBytes(1, (int) ((Blob) obj).length())));
-                            } else if (obj!= null && obj.getClass().getSimpleName().equalsIgnoreCase("pgobject")) {
+                            } else if (obj != null && obj.getClass().getSimpleName().equalsIgnoreCase("pgobject")) {
                                 fs.add(obj.toString());
                             } else {
                                 fs.add(obj);
@@ -180,6 +186,9 @@ public abstract class BaseSQLActuator implements SQLActuator {
                 }
                 resultSet.close();
                 result.setFetchFinishedTime(new Time(System.currentTimeMillis()));
+
+                // 数据脱敏
+                this.handleDataMasking(result);
 
                 var total = this.count(plan);
                 if (total < 0) {
@@ -195,6 +204,120 @@ public abstract class BaseSQLActuator implements SQLActuator {
             result.setEndTime(new Time(System.currentTimeMillis()));
         } catch (Exception e) {
             throw new SQLException(e.getMessage());
+        }
+    }
+
+    private void handleDataMasking(SQLQueryResult result) {
+        var rules = SessionManager.getCurrentSession().getDataMaskingRules();
+        var maskIndexes = new ArrayList<>();
+        var maskRules = new HashMap<Integer, Common.DataMaskingRule>();
+        for (var i = 0; i < result.getFields().size(); i++) {
+            for (Common.DataMaskingRule rule : rules) {
+                if (this.matchField(result.getFields().get(i), rule.getFieldsPattern())) {
+                    maskIndexes.add(i);
+                    maskRules.put(i, rule);
+                }
+            }
+        }
+
+        for (var i = 0; i < result.getData().size(); i++) {
+            for (var j = 0; j < result.getData().get(i).size(); j++) {
+                if (maskIndexes.contains(j)) {
+                    var rule = maskRules.get(j);
+                    var val = result.getData().get(i).get(j);
+                    if (val instanceof String) {
+                        var rep = this.replaceColumnVal(rule, (String) val);
+                        result.getData().get(i).set(j, rep);
+                    } else {
+                        result.getData().get(i).set(j, rule.getMaskPattern());
+                    }
+                }
+            }
+        }
+    }
+
+    private boolean matchField(Field field, String pattern) {
+        List<String> names = List.of(field.getColumnName(), field.getLabel());
+        String[] ps = pattern.split(",");
+
+        for (String name : names) {
+            for (String p : ps) {
+                p = p.trim();
+                if (p.isEmpty()) continue;
+
+                try {
+                    // 先整体转义，避免用户写的正则符号被误解释
+                    String regex = Pattern.quote(p);
+                    // 把被转义的 \* 恢复为 .*
+                    regex = regex.replace("\\*", ".*");
+                    // 加上锚点，实现整串匹配
+                    regex = "^" + regex + "$";
+
+                    int flags = Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE;
+                    Pattern pa = Pattern.compile(regex, flags);
+
+                    if (pa.matcher(name).matches()) { // 注意：用 matches() 而不是 find()
+                        return true;
+                    }
+                } catch (PatternSyntaxException e) {
+                    // 忽略坏模式，继续下一个
+                    continue;
+                }
+            }
+        }
+        return false;
+    }
+
+
+    private String replaceColumnVal(Common.DataMaskingRule rule, String val) {
+        if (rule == null) {
+            return "####";
+        } else {
+            rule.getMaskingMethod();
+        }
+
+        String method = rule.getMaskingMethod();
+        rule.getMaskPattern();
+        String pattern = rule.getMaskPattern();
+
+        switch (method) {
+            case "fixed_char":
+                // 固定字符替换
+                if (pattern.isEmpty()) {
+                    return "####";
+                }
+                return pattern;
+
+            case "hide_middle":
+                // 隐藏中间
+                if (val == null || val.length() < 3) {
+                    return pattern.isEmpty() ? "####" : pattern;
+                }
+                return val.charAt(0)
+                        + "*".repeat(val.length() - 2)
+                        + val.substring(val.length() - 1);
+
+            case "keep_prefix":
+                // 保留前缀
+                int prefix = 2;
+                if (val == null || prefix >= val.length()) {
+                    return "####";
+                }
+                return val.substring(0, prefix)
+                        + "*".repeat(val.length() - prefix);
+
+            case "keep_suffix":
+                // 保留后缀
+                int suffix = 2;
+                if (val == null || suffix >= val.length()) {
+                    return "####";
+                }
+                return "*".repeat(val.length() - suffix)
+                        + val.substring(val.length() - suffix);
+
+            default:
+                // 未知策略
+                return pattern.isEmpty() ? "####" : pattern;
         }
     }
 

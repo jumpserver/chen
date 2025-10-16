@@ -728,6 +728,37 @@ public final class ServiceGrpc {
     return getJoinFaceMonitorMethod;
   }
 
+  private static volatile io.grpc.MethodDescriptor<org.jumpserver.wisp.ServiceOuterClass.Empty,
+      org.jumpserver.wisp.ServiceOuterClass.AccountDetailResponse> getGetAccountChatMethod;
+
+  @io.grpc.stub.annotations.RpcMethod(
+      fullMethodName = SERVICE_NAME + '/' + "GetAccountChat",
+      requestType = org.jumpserver.wisp.ServiceOuterClass.Empty.class,
+      responseType = org.jumpserver.wisp.ServiceOuterClass.AccountDetailResponse.class,
+      methodType = io.grpc.MethodDescriptor.MethodType.UNARY)
+  public static io.grpc.MethodDescriptor<org.jumpserver.wisp.ServiceOuterClass.Empty,
+      org.jumpserver.wisp.ServiceOuterClass.AccountDetailResponse> getGetAccountChatMethod() {
+    io.grpc.MethodDescriptor<org.jumpserver.wisp.ServiceOuterClass.Empty, org.jumpserver.wisp.ServiceOuterClass.AccountDetailResponse> getGetAccountChatMethod;
+    if ((getGetAccountChatMethod = ServiceGrpc.getGetAccountChatMethod) == null) {
+      synchronized (ServiceGrpc.class) {
+        if ((getGetAccountChatMethod = ServiceGrpc.getGetAccountChatMethod) == null) {
+          ServiceGrpc.getGetAccountChatMethod = getGetAccountChatMethod =
+              io.grpc.MethodDescriptor.<org.jumpserver.wisp.ServiceOuterClass.Empty, org.jumpserver.wisp.ServiceOuterClass.AccountDetailResponse>newBuilder()
+              .setType(io.grpc.MethodDescriptor.MethodType.UNARY)
+              .setFullMethodName(generateFullMethodName(SERVICE_NAME, "GetAccountChat"))
+              .setSampledToLocalTracing(true)
+              .setRequestMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
+                  org.jumpserver.wisp.ServiceOuterClass.Empty.getDefaultInstance()))
+              .setResponseMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
+                  org.jumpserver.wisp.ServiceOuterClass.AccountDetailResponse.getDefaultInstance()))
+              .setSchemaDescriptor(new ServiceMethodDescriptorSupplier("GetAccountChat"))
+              .build();
+        }
+      }
+    }
+    return getGetAccountChatMethod;
+  }
+
   /**
    * Creates a new async stub that supports all call types for the service
    */
@@ -935,6 +966,13 @@ public final class ServiceGrpc {
     default void joinFaceMonitor(org.jumpserver.wisp.ServiceOuterClass.JoinFaceMonitorRequest request,
         io.grpc.stub.StreamObserver<org.jumpserver.wisp.ServiceOuterClass.JoinFaceMonitorResponse> responseObserver) {
       io.grpc.stub.ServerCalls.asyncUnimplementedUnaryCall(getJoinFaceMonitorMethod(), responseObserver);
+    }
+
+    /**
+     */
+    default void getAccountChat(org.jumpserver.wisp.ServiceOuterClass.Empty request,
+        io.grpc.stub.StreamObserver<org.jumpserver.wisp.ServiceOuterClass.AccountDetailResponse> responseObserver) {
+      io.grpc.stub.ServerCalls.asyncUnimplementedUnaryCall(getGetAccountChatMethod(), responseObserver);
     }
   }
 
@@ -1148,6 +1186,14 @@ public final class ServiceGrpc {
       io.grpc.stub.ClientCalls.asyncUnaryCall(
           getChannel().newCall(getJoinFaceMonitorMethod(), getCallOptions()), request, responseObserver);
     }
+
+    /**
+     */
+    public void getAccountChat(org.jumpserver.wisp.ServiceOuterClass.Empty request,
+        io.grpc.stub.StreamObserver<org.jumpserver.wisp.ServiceOuterClass.AccountDetailResponse> responseObserver) {
+      io.grpc.stub.ClientCalls.asyncUnaryCall(
+          getChannel().newCall(getGetAccountChatMethod(), getCallOptions()), request, responseObserver);
+    }
   }
 
   /**
@@ -1318,6 +1364,13 @@ public final class ServiceGrpc {
     public org.jumpserver.wisp.ServiceOuterClass.JoinFaceMonitorResponse joinFaceMonitor(org.jumpserver.wisp.ServiceOuterClass.JoinFaceMonitorRequest request) {
       return io.grpc.stub.ClientCalls.blockingUnaryCall(
           getChannel(), getJoinFaceMonitorMethod(), getCallOptions(), request);
+    }
+
+    /**
+     */
+    public org.jumpserver.wisp.ServiceOuterClass.AccountDetailResponse getAccountChat(org.jumpserver.wisp.ServiceOuterClass.Empty request) {
+      return io.grpc.stub.ClientCalls.blockingUnaryCall(
+          getChannel(), getGetAccountChatMethod(), getCallOptions(), request);
     }
   }
 
@@ -1512,6 +1565,14 @@ public final class ServiceGrpc {
       return io.grpc.stub.ClientCalls.futureUnaryCall(
           getChannel().newCall(getJoinFaceMonitorMethod(), getCallOptions()), request);
     }
+
+    /**
+     */
+    public com.google.common.util.concurrent.ListenableFuture<org.jumpserver.wisp.ServiceOuterClass.AccountDetailResponse> getAccountChat(
+        org.jumpserver.wisp.ServiceOuterClass.Empty request) {
+      return io.grpc.stub.ClientCalls.futureUnaryCall(
+          getChannel().newCall(getGetAccountChatMethod(), getCallOptions()), request);
+    }
   }
 
   private static final int METHODID_GET_TOKEN_AUTH_INFO = 0;
@@ -1536,7 +1597,8 @@ public final class ServiceGrpc {
   private static final int METHODID_FACE_RECOGNITION_CALLBACK = 19;
   private static final int METHODID_FACE_MONITOR_CALLBACK = 20;
   private static final int METHODID_JOIN_FACE_MONITOR = 21;
-  private static final int METHODID_DISPATCH_TASK = 22;
+  private static final int METHODID_GET_ACCOUNT_CHAT = 22;
+  private static final int METHODID_DISPATCH_TASK = 23;
 
   private static final class MethodHandlers<Req, Resp> implements
       io.grpc.stub.ServerCalls.UnaryMethod<Req, Resp>,
@@ -1642,6 +1704,10 @@ public final class ServiceGrpc {
         case METHODID_JOIN_FACE_MONITOR:
           serviceImpl.joinFaceMonitor((org.jumpserver.wisp.ServiceOuterClass.JoinFaceMonitorRequest) request,
               (io.grpc.stub.StreamObserver<org.jumpserver.wisp.ServiceOuterClass.JoinFaceMonitorResponse>) responseObserver);
+          break;
+        case METHODID_GET_ACCOUNT_CHAT:
+          serviceImpl.getAccountChat((org.jumpserver.wisp.ServiceOuterClass.Empty) request,
+              (io.grpc.stub.StreamObserver<org.jumpserver.wisp.ServiceOuterClass.AccountDetailResponse>) responseObserver);
           break;
         default:
           throw new AssertionError();
@@ -1825,6 +1891,13 @@ public final class ServiceGrpc {
               org.jumpserver.wisp.ServiceOuterClass.JoinFaceMonitorRequest,
               org.jumpserver.wisp.ServiceOuterClass.JoinFaceMonitorResponse>(
                 service, METHODID_JOIN_FACE_MONITOR)))
+        .addMethod(
+          getGetAccountChatMethod(),
+          io.grpc.stub.ServerCalls.asyncUnaryCall(
+            new MethodHandlers<
+              org.jumpserver.wisp.ServiceOuterClass.Empty,
+              org.jumpserver.wisp.ServiceOuterClass.AccountDetailResponse>(
+                service, METHODID_GET_ACCOUNT_CHAT)))
         .build();
   }
 
@@ -1896,6 +1969,7 @@ public final class ServiceGrpc {
               .addMethod(getFaceRecognitionCallbackMethod())
               .addMethod(getFaceMonitorCallbackMethod())
               .addMethod(getJoinFaceMonitorMethod())
+              .addMethod(getGetAccountChatMethod())
               .build();
         }
       }

@@ -8,16 +8,24 @@ import org.jumpserver.chen.framework.jms.entity.CommandRecord;
 import org.jumpserver.chen.framework.jms.exception.CommandRejectException;
 import org.jumpserver.chen.framework.session.controller.Controller;
 import org.jumpserver.chen.framework.ws.io.PacketIO;
+import org.jumpserver.wisp.Common;
 
 import java.io.File;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
 public interface Session {
+
+    String getLockCreator();
+
+    boolean isLocked();
+
+    List<Common.DataMaskingRule> getDataMaskingRules();
 
     void refreshLastActiveTime();
 
