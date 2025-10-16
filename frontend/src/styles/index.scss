@@ -562,13 +562,14 @@ body:hover ::-webkit-scrollbar,
   background-color: rgba(62, 162, 223, 0.53) !important;
 }
 
-.CodeMirror-hscrollbar:hover {
-    background-color: rgba(0, 0, 0, .5);
-}
+// 已注释掉，因为全局设置了滚动条样式
+// .CodeMirror-hscrollbar:hover {
+//     background-color: rgba(0, 0, 0, .5);
+// }
 
-.CodeMirror-vscrollbar:hover {
-    background-color: rgba(0, 0, 0, .5);
-}
+// .CodeMirror-vscrollbar:hover {
+//     background-color: rgba(0, 0, 0, .5);
+// }
 
 .splitter-pane {
   z-index: 99;
