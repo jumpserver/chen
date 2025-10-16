@@ -213,7 +213,7 @@ public abstract class BaseSQLActuator implements SQLActuator {
         var maskRules = new HashMap<Integer, Common.DataMaskingRule>();
         for (var i = 0; i < result.getFields().size(); i++) {
             for (Common.DataMaskingRule rule : rules) {
-                if (matchFiled(result.getFields().get(i), rule.getFieldsPattern())) {
+                if (this.matchField(result.getFields().get(i), rule.getFieldsPattern())) {
                     maskIndexes.add(i);
                     maskRules.put(i, rule);
                 }
@@ -236,21 +236,32 @@ public abstract class BaseSQLActuator implements SQLActuator {
         }
     }
 
-    private boolean matchFiled(Field field, String pattern) {
-        var names = List.of(field.getColumnName(), field.getLabel());
-        var ps = pattern.split(",");
+    private boolean matchField(Field field, String pattern) {
+        List<String> names = List.of(field.getColumnName(), field.getLabel());
+        String[] ps = pattern.split(",");
 
         for (String name : names) {
             for (String p : ps) {
+                p = p.trim();
+                if (p.isEmpty()) continue;
 
                 try {
-                    int flags = Pattern.UNICODE_CASE | Pattern.CASE_INSENSITIVE;
-                    var pa = Pattern.compile(p, flags);
-                    if (pa.matcher(name).find()) {
+                    // 先整体转义，避免用户写的正则符号被误解释
+                    String regex = Pattern.quote(p);
+                    // 把被转义的 \* 恢复为 .*
+                    regex = regex.replace("\\*", ".*");
+                    // 加上锚点，实现整串匹配
+                    regex = "^" + regex + "$";
+
+                    int flags = Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE;
+                    Pattern pa = Pattern.compile(regex, flags);
+
+                    if (pa.matcher(name).matches()) { // 注意：用 matches() 而不是 find()
                         return true;
                     }
                 } catch (PatternSyntaxException e) {
-                    return false;
+                    // 忽略坏模式，继续下一个
+                    continue;
                 }
             }
         }
