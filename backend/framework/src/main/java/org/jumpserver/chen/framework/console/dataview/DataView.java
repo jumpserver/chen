@@ -129,8 +129,17 @@ public class DataView extends SQLResult {
     }
 
     private static void writeString(BufferedWriter writer, Object object) throws IOException {
-        var str = object.toString();
+        String str;
 
+        if (object == null) {
+            str = "NULL";
+        } else {
+            try {
+                str = object.toString();
+            } catch (Exception e) {
+                str = "NULL";
+            }
+        }
         if (str.contains(",")) {
             str = "\"" + str + "\"";
         }
