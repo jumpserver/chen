@@ -9,7 +9,7 @@ RUN cd frontend \
 
 RUN mvn clean package -Dmaven.test.skip=true
 
-FROM debian:bullseye-slim
+FROM debian:trixie-slim
 
 ARG DEPENDENCIES="                    \
         ca-certificates               \
@@ -18,7 +18,7 @@ ARG DEPENDENCIES="                    \
 ARG APT_MIRROR=http://deb.debian.org
 
 RUN set -ex \
-    && sed -i "s@http://.*.debian.org@${APT_MIRROR}@g" /etc/apt/sources.list \
+    && sed -i "s@http://.*.debian.org@${APT_MIRROR}@g" /etc/apt/sources.list.d/debian.sources \
     && ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
     && apt-get update \
     && apt-get install -y --no-install-recommends ${DEPENDENCIES} \
