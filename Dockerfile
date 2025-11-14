@@ -23,7 +23,7 @@ RUN set -ex \
     && apt-get update \
     && apt-get install -y --no-install-recommends ${DEPENDENCIES} \
     && echo "no" | dpkg-reconfigure dash \
-    && sed -i "s@jdk.tls.disabledAlgorithms=SSLv3, TLSv1, TLSv1.1@jdk.tls.disabledAlgorithms=SSLv3@" /etc/java-17-openjdk/security/java.security
+    && sed -i "s@jdk.tls.disabledAlgorithms=SSLv3, TLSv1, TLSv1.1@jdk.tls.disabledAlgorithms=SSLv3@" /etc/java-21-openjdk/security/java.security
 
 WORKDIR /opt/chen
 
