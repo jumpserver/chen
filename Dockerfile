@@ -13,7 +13,7 @@ FROM debian:trixie-slim
 
 ARG DEPENDENCIES="                    \
         ca-certificates               \
-        openjdk-17-jre-headless"
+        openjdk-21-jdk-headless"
 
 ARG APT_MIRROR=http://deb.debian.org
 

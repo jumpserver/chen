@@ -4,7 +4,7 @@ ARG TARGETARCH
 # Install linux dependencies
 ARG DEPENDENCIES="                    \
         ca-certificates              \
-        openjdk-17-jre-headless       \
+        openjdk-21-jdk-headless       \
         curl                          \
         wget"
 
