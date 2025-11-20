@@ -1,4 +1,4 @@
-FROM jumpserver/chen-base:20251011_081112 AS stage-build
+FROM jumpserver/chen-base:20251114_082449 AS stage-build
 ENV LANG=en_US.UTF-8
 
 WORKDIR /opt/chen/
@@ -9,21 +9,21 @@ RUN cd frontend \
 
 RUN mvn clean package -Dmaven.test.skip=true
 
-FROM debian:bullseye-slim
+FROM debian:trixie-slim
 
 ARG DEPENDENCIES="                    \
         ca-certificates               \
-        openjdk-17-jre-headless"
+        openjdk-21-jdk-headless"
 
 ARG APT_MIRROR=http://deb.debian.org
 
 RUN set -ex \
-    && sed -i "s@http://.*.debian.org@${APT_MIRROR}@g" /etc/apt/sources.list \
+    && sed -i "s@http://.*.debian.org@${APT_MIRROR}@g" /etc/apt/sources.list.d/debian.sources \
     && ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
     && apt-get update \
     && apt-get install -y --no-install-recommends ${DEPENDENCIES} \
     && echo "no" | dpkg-reconfigure dash \
-    && sed -i "s@jdk.tls.disabledAlgorithms=SSLv3, TLSv1, TLSv1.1@jdk.tls.disabledAlgorithms=SSLv3@" /etc/java-17-openjdk/security/java.security
+    && sed -i "s@jdk.tls.disabledAlgorithms=SSLv3, TLSv1, TLSv1.1@jdk.tls.disabledAlgorithms=SSLv3@" /etc/java-21-openjdk/security/java.security
 
 WORKDIR /opt/chen
 
