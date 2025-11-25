@@ -9,13 +9,14 @@ import java.sql.SQLException;
 import java.util.Objects;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 public class OracleConnectionManager extends BaseConnectionManager {
 
     private static final String sidTemplate = "jdbc:oracle:thin:@${host}:${port}:${db}?oracle.jdbc.timezoneAsRegion=false&useUnicode=true&characterEncoding=UTF-8&oracle.jdbc.J2EE13Compliant=true";
     private static final String serviceTemplate = "jdbc:oracle:thin:@//${host}:${port}/${db}?oracle.jdbc.timezoneAsRegion=false&useUnicode=true&characterEncoding=UTF-8&oracle.jdbc.J2EE13Compliant=true";
+    private static final long PING_TIMEOUT_SECONDS = 20;
     private String jdbcUrl;
 
     public OracleConnectionManager(DBConnectInfo connectInfo, Datasource datasource) {
@@ -31,6 +32,10 @@ public class OracleConnectionManager extends BaseConnectionManager {
 
     @Override
     public void ping() {
+        // Keep original host (FQDN). Forcing InetAddress resolution can pick an
+        // unreachable public A record while the hostname itself is reachable.
+        // Hang fix = connect/read timeouts + first-success-wins (do not wait for SID).
+
         var sidUrl = this.getConnectInfo().toJDBCUrl(sidTemplate);
         var serviceUrl = this.getConnectInfo().toJDBCUrl(serviceTemplate);
 
@@ -38,31 +43,86 @@ public class OracleConnectionManager extends BaseConnectionManager {
         if (this.getConnectInfo().getOptions().containsKey("internal_logon")) {
             props.setProperty("internal_logon", this.getConnectInfo().getOptions().get("internal_logon").toString());
         }
+        // Fail fast instead of blocking forever in Driver.connect().
+        props.setProperty("oracle.net.CONNECT_TIMEOUT", "10000");
+        props.setProperty("oracle.jdbc.ReadTimeout", "15000");
 
         var pool = Executors.newFixedThreadPool(2);
 
         CompletableFuture<ConnectionAttempt> f1 = CompletableFuture.supplyAsync(
-                () -> this.attemptConnection(sidUrl, props), pool
+                () -> this.attemptConnection(sidUrl, copyProps(props)), pool
         );
 
         CompletableFuture<ConnectionAttempt> f2 = CompletableFuture.supplyAsync(
-                () -> this.attemptConnection(serviceUrl, props), pool
+                () -> this.attemptConnection(serviceUrl, copyProps(props)), pool
         );
 
-        CompletableFuture<Void> combinedFuture = CompletableFuture.allOf(f1, f2);
         try {
-            combinedFuture.get(); // 等待所有Future完成
-            // 判断哪个Future成功完成，并设置jdbcUrl
-            var sidAttempt = f1.get();
-            var serviceNameAttempt = f2.get();
-            this.jdbcUrl = sidAttempt.jdbcUrl() != null ? sidAttempt.jdbcUrl() : serviceNameAttempt.jdbcUrl();
-            if (this.jdbcUrl == null) {
-                throw connectionFailed(sidAttempt.error(), serviceNameAttempt.error());
+            ConnectionAttempt winner = waitForFirstSuccess(f1, f2, PING_TIMEOUT_SECONDS);
+            if (winner != null && winner.jdbcUrl() != null) {
+                this.jdbcUrl = winner.jdbcUrl();
+                return;
             }
-        } catch (InterruptedException | ExecutionException e) {
-            throw new RuntimeException("Error occurred while pinging database", e);
+            var sidAttempt = peekAttempt(f1);
+            var serviceNameAttempt = peekAttempt(f2);
+            throw connectionFailed(sidAttempt.error(), serviceNameAttempt.error());
         } finally {
-            pool.shutdown(); // 不要忘记关闭线程池
+            f1.cancel(true);
+            f2.cancel(true);
+            pool.shutdownNow();
+        }
+    }
+
+    /**
+     * Return as soon as either probe succeeds. Do not wait for the other
+     * (SID+FQDN may hang inside ojdbc even with timeouts).
+     */
+    private static ConnectionAttempt waitForFirstSuccess(
+            CompletableFuture<ConnectionAttempt> f1,
+            CompletableFuture<ConnectionAttempt> f2,
+            long timeoutSeconds
+    ) {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSeconds);
+        while (System.nanoTime() < deadline) {
+            if (f1.isDone()) {
+                var a = peekAttempt(f1);
+                if (a.jdbcUrl() != null) {
+                    return a;
+                }
+            }
+            if (f2.isDone()) {
+                var a = peekAttempt(f2);
+                if (a.jdbcUrl() != null) {
+                    return a;
+                }
+            }
+            if (f1.isDone() && f2.isDone()) {
+                return null;
+            }
+            try {
+                Thread.sleep(50);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private static Properties copyProps(Properties props) {
+        Properties copy = new Properties();
+        copy.putAll(props);
+        return copy;
+    }
+
+    private static ConnectionAttempt peekAttempt(CompletableFuture<ConnectionAttempt> future) {
+        if (!future.isDone() || future.isCancelled() || future.isCompletedExceptionally()) {
+            return new ConnectionAttempt(null, new SQLException("Oracle probe timed out or was cancelled"));
+        }
+        try {
+            return future.getNow(new ConnectionAttempt(null, new SQLException("Oracle probe returned empty")));
+        } catch (Exception e) {
+            return new ConnectionAttempt(null, new SQLException(e.getMessage(), e));
         }
     }
 
@@ -76,11 +136,15 @@ public class OracleConnectionManager extends BaseConnectionManager {
     }
 
     private RuntimeException connectionFailed(SQLException sidError, SQLException serviceNameError) {
-        var message = Objects.equals(sidError.getMessage(), serviceNameError.getMessage())
-                ? sidError.getMessage()
-                : "SID: %s; ServiceName: %s".formatted(sidError.getMessage(), serviceNameError.getMessage());
+        var sidMsg = sidError != null ? sidError.getMessage() : "unknown";
+        var snMsg = serviceNameError != null ? serviceNameError.getMessage() : "unknown";
+        var message = Objects.equals(sidMsg, snMsg)
+                ? sidMsg
+                : "SID: %s; ServiceName: %s".formatted(sidMsg, snMsg);
         var error = new RuntimeException(message, sidError);
-        error.addSuppressed(serviceNameError);
+        if (serviceNameError != null) {
+            error.addSuppressed(serviceNameError);
+        }
         return error;
     }
 
