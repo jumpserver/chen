@@ -17,7 +17,7 @@ import java.util.Properties;
 
 public class MysqlConnectionManager extends BaseConnectionManager {
 
-    private static final String jdbcUrlTemplate = "jdbc:mysql://${host}:${port}/${db}?useSSL=false&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=CONVERT_TO_NULL&tinyInt1isBit=false";
+    private static final String jdbcUrlTemplate = "jdbc:mysql://${host}:${port}/${db}?useSSL=false&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=CONVERT_TO_NULL&tinyInt1isBit=false&jdbcCompliantTruncation=false";
     private String jdbcUrl;
 
     public MysqlConnectionManager(DBConnectInfo connectInfo, Datasource datasource) {
@@ -36,7 +36,6 @@ public class MysqlConnectionManager extends BaseConnectionManager {
         this.ping(url);
         this.jdbcUrl = url;
     }
-
 
     @Override
     public Connection getConnection() throws SQLException {
@@ -60,12 +59,10 @@ public class MysqlConnectionManager extends BaseConnectionManager {
 
         String offsetStr = offset.equals(ZoneOffset.UTC) ? "+00:00" : offset.toString();
 
-
         try (Statement stmt = conn.createStatement()) {
             stmt.execute("SET time_zone = '" + offsetStr + "'");
         }
     }
-
 
     protected void setSSLProps(Properties props) {
         if (this.getConnectInfo().getOptions().get("useSSL") != null
@@ -101,7 +98,6 @@ public class MysqlConnectionManager extends BaseConnectionManager {
         return (String) result.getData().get(0).get(0);
     }
 
-
     @Override
     public String getJDBCUrl() {
         return this.jdbcUrl;
@@ -111,7 +107,6 @@ public class MysqlConnectionManager extends BaseConnectionManager {
     public String getDisplayJDBCUrl() {
         return this.getConnectInfo().toDisplayJDBCUrl(jdbcUrlTemplate);
     }
-
 
     @Override
     public String getJDBCUrl(String database) {
