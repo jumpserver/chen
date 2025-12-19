@@ -9,7 +9,7 @@ import java.sql.SQLException;
 
 public class MysqlConnectionManager extends BaseConnectionManager {
 
-    private static final String jdbcUrlTemplate = "jdbc:mysql://${host}:${port}/${db}?useSSL=false&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=CONVERT_TO_NULL&tinyInt1isBit=false";
+    private static final String jdbcUrlTemplate = "jdbc:mysql://${host}:${port}/${db}?useSSL=false&useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=CONVERT_TO_NULL&tinyInt1isBit=false&jdbcCompliantTruncation=false";
     private String jdbcUrl;
 
     public MysqlConnectionManager(DBConnectInfo connectInfo, Datasource datasource) {
