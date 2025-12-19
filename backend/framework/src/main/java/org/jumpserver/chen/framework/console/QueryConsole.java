@@ -505,6 +505,14 @@ public class QueryConsole extends AbstractConsole {
 
     @Override
     public void close() {
+        if (this.currentPlan != null) {
+            // flush
+            var session = SessionManager.getCurrentSession();
+            var lastCmd = this.currentPlan.getTargetSQL();
+            var cmdRecord = new CommandRecord(lastCmd);
+            cmdRecord.setError("Abnormal exit");
+            session.recordCommand(cmdRecord);
+        }
         log.info("console closed");
     }
 }
