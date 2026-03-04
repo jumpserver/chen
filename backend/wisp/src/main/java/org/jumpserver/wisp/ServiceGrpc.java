@@ -759,6 +759,37 @@ public final class ServiceGrpc {
     return getGetAccountChatMethod;
   }
 
+  private static volatile io.grpc.MethodDescriptor<org.jumpserver.wisp.ServiceOuterClass.HTTPRequest,
+      org.jumpserver.wisp.ServiceOuterClass.HTTPResponse> getCallAPIMethod;
+
+  @io.grpc.stub.annotations.RpcMethod(
+      fullMethodName = SERVICE_NAME + '/' + "CallAPI",
+      requestType = org.jumpserver.wisp.ServiceOuterClass.HTTPRequest.class,
+      responseType = org.jumpserver.wisp.ServiceOuterClass.HTTPResponse.class,
+      methodType = io.grpc.MethodDescriptor.MethodType.UNARY)
+  public static io.grpc.MethodDescriptor<org.jumpserver.wisp.ServiceOuterClass.HTTPRequest,
+      org.jumpserver.wisp.ServiceOuterClass.HTTPResponse> getCallAPIMethod() {
+    io.grpc.MethodDescriptor<org.jumpserver.wisp.ServiceOuterClass.HTTPRequest, org.jumpserver.wisp.ServiceOuterClass.HTTPResponse> getCallAPIMethod;
+    if ((getCallAPIMethod = ServiceGrpc.getCallAPIMethod) == null) {
+      synchronized (ServiceGrpc.class) {
+        if ((getCallAPIMethod = ServiceGrpc.getCallAPIMethod) == null) {
+          ServiceGrpc.getCallAPIMethod = getCallAPIMethod =
+              io.grpc.MethodDescriptor.<org.jumpserver.wisp.ServiceOuterClass.HTTPRequest, org.jumpserver.wisp.ServiceOuterClass.HTTPResponse>newBuilder()
+              .setType(io.grpc.MethodDescriptor.MethodType.UNARY)
+              .setFullMethodName(generateFullMethodName(SERVICE_NAME, "CallAPI"))
+              .setSampledToLocalTracing(true)
+              .setRequestMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
+                  org.jumpserver.wisp.ServiceOuterClass.HTTPRequest.getDefaultInstance()))
+              .setResponseMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
+                  org.jumpserver.wisp.ServiceOuterClass.HTTPResponse.getDefaultInstance()))
+              .setSchemaDescriptor(new ServiceMethodDescriptorSupplier("CallAPI"))
+              .build();
+        }
+      }
+    }
+    return getCallAPIMethod;
+  }
+
   /**
    * Creates a new async stub that supports all call types for the service
    */
@@ -973,6 +1004,13 @@ public final class ServiceGrpc {
     default void getAccountChat(org.jumpserver.wisp.ServiceOuterClass.Empty request,
         io.grpc.stub.StreamObserver<org.jumpserver.wisp.ServiceOuterClass.AccountDetailResponse> responseObserver) {
       io.grpc.stub.ServerCalls.asyncUnimplementedUnaryCall(getGetAccountChatMethod(), responseObserver);
+    }
+
+    /**
+     */
+    default void callAPI(org.jumpserver.wisp.ServiceOuterClass.HTTPRequest request,
+        io.grpc.stub.StreamObserver<org.jumpserver.wisp.ServiceOuterClass.HTTPResponse> responseObserver) {
+      io.grpc.stub.ServerCalls.asyncUnimplementedUnaryCall(getCallAPIMethod(), responseObserver);
     }
   }
 
@@ -1194,6 +1232,14 @@ public final class ServiceGrpc {
       io.grpc.stub.ClientCalls.asyncUnaryCall(
           getChannel().newCall(getGetAccountChatMethod(), getCallOptions()), request, responseObserver);
     }
+
+    /**
+     */
+    public void callAPI(org.jumpserver.wisp.ServiceOuterClass.HTTPRequest request,
+        io.grpc.stub.StreamObserver<org.jumpserver.wisp.ServiceOuterClass.HTTPResponse> responseObserver) {
+      io.grpc.stub.ClientCalls.asyncUnaryCall(
+          getChannel().newCall(getCallAPIMethod(), getCallOptions()), request, responseObserver);
+    }
   }
 
   /**
@@ -1371,6 +1417,13 @@ public final class ServiceGrpc {
     public org.jumpserver.wisp.ServiceOuterClass.AccountDetailResponse getAccountChat(org.jumpserver.wisp.ServiceOuterClass.Empty request) {
       return io.grpc.stub.ClientCalls.blockingUnaryCall(
           getChannel(), getGetAccountChatMethod(), getCallOptions(), request);
+    }
+
+    /**
+     */
+    public org.jumpserver.wisp.ServiceOuterClass.HTTPResponse callAPI(org.jumpserver.wisp.ServiceOuterClass.HTTPRequest request) {
+      return io.grpc.stub.ClientCalls.blockingUnaryCall(
+          getChannel(), getCallAPIMethod(), getCallOptions(), request);
     }
   }
 
@@ -1573,6 +1626,14 @@ public final class ServiceGrpc {
       return io.grpc.stub.ClientCalls.futureUnaryCall(
           getChannel().newCall(getGetAccountChatMethod(), getCallOptions()), request);
     }
+
+    /**
+     */
+    public com.google.common.util.concurrent.ListenableFuture<org.jumpserver.wisp.ServiceOuterClass.HTTPResponse> callAPI(
+        org.jumpserver.wisp.ServiceOuterClass.HTTPRequest request) {
+      return io.grpc.stub.ClientCalls.futureUnaryCall(
+          getChannel().newCall(getCallAPIMethod(), getCallOptions()), request);
+    }
   }
 
   private static final int METHODID_GET_TOKEN_AUTH_INFO = 0;
@@ -1598,7 +1659,8 @@ public final class ServiceGrpc {
   private static final int METHODID_FACE_MONITOR_CALLBACK = 20;
   private static final int METHODID_JOIN_FACE_MONITOR = 21;
   private static final int METHODID_GET_ACCOUNT_CHAT = 22;
-  private static final int METHODID_DISPATCH_TASK = 23;
+  private static final int METHODID_CALL_API = 23;
+  private static final int METHODID_DISPATCH_TASK = 24;
 
   private static final class MethodHandlers<Req, Resp> implements
       io.grpc.stub.ServerCalls.UnaryMethod<Req, Resp>,
@@ -1708,6 +1770,10 @@ public final class ServiceGrpc {
         case METHODID_GET_ACCOUNT_CHAT:
           serviceImpl.getAccountChat((org.jumpserver.wisp.ServiceOuterClass.Empty) request,
               (io.grpc.stub.StreamObserver<org.jumpserver.wisp.ServiceOuterClass.AccountDetailResponse>) responseObserver);
+          break;
+        case METHODID_CALL_API:
+          serviceImpl.callAPI((org.jumpserver.wisp.ServiceOuterClass.HTTPRequest) request,
+              (io.grpc.stub.StreamObserver<org.jumpserver.wisp.ServiceOuterClass.HTTPResponse>) responseObserver);
           break;
         default:
           throw new AssertionError();
@@ -1898,6 +1964,13 @@ public final class ServiceGrpc {
               org.jumpserver.wisp.ServiceOuterClass.Empty,
               org.jumpserver.wisp.ServiceOuterClass.AccountDetailResponse>(
                 service, METHODID_GET_ACCOUNT_CHAT)))
+        .addMethod(
+          getCallAPIMethod(),
+          io.grpc.stub.ServerCalls.asyncUnaryCall(
+            new MethodHandlers<
+              org.jumpserver.wisp.ServiceOuterClass.HTTPRequest,
+              org.jumpserver.wisp.ServiceOuterClass.HTTPResponse>(
+                service, METHODID_CALL_API)))
         .build();
   }
 
@@ -1970,6 +2043,7 @@ public final class ServiceGrpc {
               .addMethod(getFaceMonitorCallbackMethod())
               .addMethod(getJoinFaceMonitorMethod())
               .addMethod(getGetAccountChatMethod())
+              .addMethod(getCallAPIMethod())
               .build();
         }
       }
