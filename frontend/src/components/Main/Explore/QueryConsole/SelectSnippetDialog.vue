@@ -68,24 +68,26 @@ export default {
 </script>
 
 <style scoped>
-::v-deep .el-table tr {
+::v-deep .el-table {
   background-color: #383a3c;
 }
 
-::v-deep .el-table tr:hover {
-  background-color: #7c7c7e !important;
+::v-deep .el-table tr {
+  background-color: #383a3c !important;
 }
 
-::v-deep .el-table--enable-row-hover .el-table__body tr:hover > td.el-table__cell {
-  background-color: #7c7c7e !important;
-}
-
-::v-deep .el-table td.el-table__cell, .el-table th.el-table__cell.is-leaf {
-  border-bottom: 1px solid #7c7c7e
+::v-deep .el-table td.el-table__cell {
+  background-color: #383a3c !important;
+  border-bottom: 1px solid #7c7c7e;
 }
 
 ::v-deep .el-table th.el-table__cell {
-  background-color: #383a3c;
+  background-color: #383a3c !important;
+  border-bottom: 1px solid #7c7c7e;
+}
+
+::v-deep .el-table--enable-row-hover .el-table__body tr:hover > td.el-table__cell {
+  background-color: #4a4d50 !important;
 }
 
 .el-table {
