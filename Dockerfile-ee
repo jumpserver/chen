@@ -4,10 +4,8 @@ FROM jumpserver/chen:${VERSION}-ce
 ARG TARGETARCH
 
 ARG DEPENDENCIES="                    \
-        curl                          \
         iputils-ping                  \
         telnet                        \
-        vim                           \
         wget"
 
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked,id=chen \
@@ -15,3 +13,4 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked,id=chen \
     set -ex \
     && apt-get update \
     && apt-get install -y --no-install-recommends ${DEPENDENCIES}
+    
