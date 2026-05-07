@@ -38,6 +38,20 @@ jobs:
         id: repo
         run: echo "REPO=$(basename ${{ github.repository }})" >> $GITHUB_ENV
 
+      - name: Debug Maven download URL
+        run: |
+          set -eux
+      
+          MAVEN_VERSION=3.9.12
+          BASE_URL="https://downloads.apache.org/maven/maven-3/${MAVEN_VERSION}/binaries"
+          MAVEN_URL="${BASE_URL}/apache-maven-${MAVEN_VERSION}-bin.tar.gz"
+      
+          echo "MAVEN_VERSION=${MAVEN_VERSION}"
+          echo "BASE_URL=${BASE_URL}"
+          echo "MAVEN_URL=${MAVEN_URL}"
+      
+          curl -fSLI "${MAVEN_URL}"
+            
       - name: Build and push multi-arch image
         uses: docker/build-push-action@v6
         with:
