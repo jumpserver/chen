@@ -26,9 +26,9 @@ RUN set -ex \
 
 ARG WISP_VERSION=v0.2.13
 RUN set -ex \
-    && wget https://github.com/jumpserver/wisp/releases/download/${WISP_VERSION}/wisp-linux-${TARGETARCH}.deb \
-    && dpkg -i wisp-linux-${TARGETARCH}.deb \
-    && rm -f wisp-linux-${TARGETARCH}.deb
+    && wget https://github.com/jumpserver/wisp/releases/download/${WISP_VERSION}/wisp_linux_${TARGETARCH}.deb \
+    && dpkg -i wisp_linux_${TARGETARCH}.deb \
+    && rm -f wisp_linux_${TARGETARCH}.deb
 
 # Install NPM dependencies
 WORKDIR /opt/chen/frontend
