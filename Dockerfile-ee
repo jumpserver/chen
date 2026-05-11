@@ -5,8 +5,7 @@ ARG TARGETARCH
 
 ARG DEPENDENCIES="                    \
         iputils-ping                  \
-        telnet                        \
-        wget"
+        telnet                        
 
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked,id=chen \
     --mount=type=cache,target=/var/lib/apt,sharing=locked,id=chen \
