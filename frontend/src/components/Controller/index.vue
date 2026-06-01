@@ -28,6 +28,7 @@ import { getUrlParams } from '@/utils/field'
 import { LunaEvent, MESSAGES } from '@/utils/luna'
 import { index } from '@/request'
 import { bus } from '@/bus'
+import { appApiUrl, appWsUrl } from '@/utils/path'
 
 export default {
   name: 'Controller',
@@ -101,8 +102,7 @@ export default {
       })
     },
     initWs(token) {
-      const scheme = document.location.protocol === 'https:' ? 'wss' : 'ws'
-      const ws = new WebSocket(`${scheme}://${window.location.host}/chen/ws/session`, token)
+      const ws = new WebSocket(appWsUrl('session'), token)
       ws.onmessage = (msg) => {
         const m = JSON.parse(msg.data)
         this.handlePacket(m)
@@ -147,7 +147,7 @@ export default {
       }
     },
     async onDownloadFile(fileName) {
-      const response = await index.get(`/chen/api/console/export/${fileName}`, {
+      const response = await index.get(appApiUrl(`console/export/${fileName}`), {
         responseType: 'blob'
       })
       const blob = new Blob([response.data], { type: response.headers['content-type'] })

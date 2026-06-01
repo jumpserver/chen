@@ -7,6 +7,7 @@ import date from './date'
 import VueCookie from 'vue-cookie'
 import axios from 'axios'
 import store from '@/store'
+import { apiUrl } from '@/utils/path'
 
 Vue.use(VueI18n)
 const cookieLang = VueCookie.get('django_language')
@@ -32,7 +33,7 @@ Vue.prototype.$tr = (key) => {
   return i18n.t('' + key)
 }
 
-axios.get(`/api/v1/settings/i18n/chen/?lang=${lang}&flat=0`)
+axios.get(apiUrl(`v1/settings/i18n/chen/?lang=${lang}&flat=0`))
   .then((res) => {
     if (res.status !== 200) {
       return

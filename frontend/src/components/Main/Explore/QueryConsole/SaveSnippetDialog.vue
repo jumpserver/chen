@@ -23,6 +23,7 @@
 import axios from 'axios'
 import VueCookie from 'vue-cookie'
 import store from '@/store'
+import { apiUrl } from '@/utils/path'
 
 export default {
   name: 'SaveSnippetDialog',
@@ -66,7 +67,7 @@ export default {
     },
     onSubmit() {
       const csrfToken = this.getCsrfToken()
-      axios.post('/api/v1/ops/adhocs/', {
+      axios.post(apiUrl('v1/ops/adhocs/'), {
         name: this.form.name,
         args: this.content,
         module: store.getters.profile?.dbType

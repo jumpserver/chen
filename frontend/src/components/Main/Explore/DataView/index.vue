@@ -42,6 +42,7 @@ import Log from '@/components/Main/Explore/QueryConsole/Log.vue'
 import { Subject } from 'rxjs'
 import SplitPane from 'vue-splitpane'
 import Message from '@/components/Main/Explore/Message.vue'
+import { appWsUrl } from '@/utils/path'
 
 export default {
   components: {
@@ -94,8 +95,7 @@ export default {
   methods: {
     initWs() {
       const token = store.getters.token
-      const scheme = document.location.protocol === 'https:' ? 'wss' : 'ws'
-      const ws = new WebSocket(`${scheme}://${window.location.host}/chen/ws/console`, token)
+      const ws = new WebSocket(appWsUrl('console'), token)
       ws.onmessage = (e) => {
         const msg = JSON.parse(e.data)
         this.handleWSMessage(msg)
