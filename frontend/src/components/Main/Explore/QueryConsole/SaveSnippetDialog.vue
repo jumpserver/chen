@@ -4,11 +4,16 @@
     :title="$tc('SaveSQL')"
     :visible.sync="iVisible"
     :modal="false"
+    :append-to-body="true"
     width="40%"
   >
     <el-form ref="form" :model="form" label-width="80px">
       <el-form-item :label="$tc('Name')">
         <el-input v-model="form.name" />
+      </el-form-item>
+      <el-form-item :label="$tc('Scope')">
+        <el-radio v-model="form.scope" label="private">{{ $tc('Private') }}</el-radio>
+        <el-radio v-model="form.scope" label="public">{{ $tc('Public') }}</el-radio>
       </el-form-item>
     </el-form>
 
@@ -39,7 +44,8 @@ export default {
   data() {
     return {
       form: {
-        name: ''
+        name: '',
+        scope: 'private'
       }
     }
   },
@@ -69,7 +75,8 @@ export default {
       axios.post('/api/v1/ops/adhocs/', {
         name: this.form.name,
         args: this.content,
-        module: store.getters.profile?.dbType
+        module: store.getters.profile?.dbType,
+        scope: this.form.scope
       }, {
         headers: {
           'X-CSRFToken': csrfToken
