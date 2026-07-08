@@ -1,0 +1,24 @@
+services:
+  chen-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: chen-backend-dev
+    volumes:
+      - ./config:/opt/chen/config
+      - chen-data:/opt/chen/data
+    ports:
+      - "8082:8082"
+    environment:
+      LOG_LEVEL: INFO
+      BOOTSTRAP_TOKEN: PleaseChangeMe
+      CORE_HOST: http://192.168.1.80:8080
+      EXECUTE_PROGRAM: >-
+        java -Dfile.encoding=utf-8 -XX:+ExitOnOutOfMemoryError
+        -jar /opt/chen/chen.jar
+        --spring.config.additional-location=optional:file:/opt/chen/config/
+        --spring.profiles.active=dev
+    restart: unless-stopped
+
+volumes:
+  chen-data:

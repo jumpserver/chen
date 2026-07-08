@@ -4,8 +4,6 @@ ENV LANG=en_US.UTF-8
 WORKDIR /opt/chen/
 COPY . .
 
-RUN cd frontend \
-    && npm run build
 
 RUN mvn clean package -Dmaven.test.skip=true
 
