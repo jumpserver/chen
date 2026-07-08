@@ -5,6 +5,7 @@ import org.jumpserver.chen.framework.datasource.ConnectionManager;
 import org.jumpserver.chen.framework.datasource.base.BaseSQLActuator;
 import org.jumpserver.chen.framework.datasource.sql.SQL;
 import org.jumpserver.chen.framework.datasource.sql.SQLExecutePlan;
+import org.jumpserver.chen.framework.datasource.sql.SQLIdentifier;
 import org.jumpserver.chen.framework.datasource.sql.SQLQueryParams;
 
 import java.sql.Connection;
@@ -38,7 +39,8 @@ public class PostgresqlActuator extends BaseSQLActuator {
     public void changeSchema(String schema) throws SQLException {
         var ss = schema.split("\\.");
         var schemaName = ss.length > 1 ? ss[1] : ss[0];
-        this.execute(SQL.of("SET SEARCH_PATH TO '?';", schemaName));
+        var identifier = SQLIdentifier.quote(this.getDbType(), schemaName);
+        this.execute(SQL.of("SET SEARCH_PATH TO " + identifier));
     }
 
     @Override
