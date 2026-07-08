@@ -4,6 +4,7 @@ import org.jumpserver.chen.framework.datasource.ConnectionManager;
 import org.jumpserver.chen.framework.datasource.base.BaseSQLActuator;
 import org.jumpserver.chen.framework.datasource.sql.SQL;
 import org.jumpserver.chen.framework.datasource.sql.SQLExecutePlan;
+import org.jumpserver.chen.framework.datasource.sql.SQLIdentifier;
 import org.jumpserver.chen.framework.datasource.sql.SQLQueryParams;
 
 import java.sql.Connection;
@@ -33,7 +34,8 @@ public class ClickhouseActuator extends BaseSQLActuator {
 
     @Override
     public void changeSchema(String schema) throws SQLException {
-        this.execute(SQL.of("use `?`", schema));
+        var identifier = SQLIdentifier.quote(this.getDbType(), schema);
+        this.execute(SQL.of("use " + identifier));
     }
 
 
