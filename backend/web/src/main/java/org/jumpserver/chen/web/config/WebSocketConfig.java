@@ -1,5 +1,6 @@
 package org.jumpserver.chen.web.config;
 
+import lombok.extern.slf4j.Slf4j;
 import org.jumpserver.chen.framework.ws.ConsoleWebSocketHandler;
 import org.jumpserver.chen.framework.ws.DBConsoleWebsocketHandler;
 import org.jumpserver.chen.framework.ws.SessionWebSocketHandler;
@@ -15,12 +16,14 @@ import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry
 import org.springframework.web.socket.server.HandshakeInterceptor;
 import org.springframework.web.socket.server.standard.ServletServerContainerFactoryBean;
 
+import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.*;
 import java.util.stream.Collectors;
 
 @Configuration
 @EnableWebSocket
+@Slf4j
 public class WebSocketConfig implements WebSocketConfigurer {
 
 
@@ -45,6 +48,7 @@ public class WebSocketConfig implements WebSocketConfigurer {
                 .setAllowedOrigins("*");
     }
 
+    // 仅用于跨 Host 请求的精确白名单，格式为逗号分隔的 host 或 host:port。
     private static final Set<String> TRUSTED_DOMAINS =
             Arrays.stream(
                             Optional.ofNullable(System.getenv("DOMAINS"))
@@ -56,41 +60,83 @@ public class WebSocketConfig implements WebSocketConfigurer {
                     .collect(Collectors.toSet());
 
 
-    private static boolean checkOrigin(String origin) {
+    static boolean checkOrigin(String origin, InetSocketAddress requestHost, Set<String> trustedDomains) {
         if (origin == null || origin.isBlank()) {
             return true;
         }
 
-        if (TRUSTED_DOMAINS.contains("*")) {
+        if (trustedDomains.contains("*")) {
             return true;
         }
 
         try {
             URI uri = URI.create(origin);
+            if (!"http".equalsIgnoreCase(uri.getScheme()) && !"https".equalsIgnoreCase(uri.getScheme())) {
+                return false;
+            }
 
-            String host = uri.getHost();
-            int port = uri.getPort();
+            String originHost = normalizeHost(uri.getHost());
+            if (originHost == null) {
+                return false;
+            }
 
-            // 本机访问直接放行
-            if ("localhost".equalsIgnoreCase(host)
-                    || "127.0.0.1".equals(host)
-                    || "::1".equals(host)
-                    || "0:0:0:0:0:0:0:1".equals(host)) {
+            String normalizedRequestHost = requestHost == null
+                    ? null
+                    : normalizeHost(requestHost.getHostString());
+            // 仅比较 Host，兼容 TLS 在代理终止后转发到 Chen 内部端口的场景。
+            if (originHost.equals(normalizedRequestHost)) {
                 return true;
             }
 
+            // 本机访问直接放行
+            if (isLocalhost(originHost)) {
+                return true;
+            }
 
-            String hostPort =
-                    port > 0
-                            ? host + ":" + port
-                            : host;
+            return matchesTrustedDomains(uri, originHost, trustedDomains);
 
-            return TRUSTED_DOMAINS.contains(hostPort)
-                    || TRUSTED_DOMAINS.contains(host);
-
-        } catch (Exception e) {
+        } catch (IllegalArgumentException e) {
             return false;
         }
+    }
+
+    private static boolean matchesTrustedDomains(URI origin, String originHost, Set<String> trustedDomains) {
+        // 跨 Host 请求必须精确匹配 DOMAINS，禁止使用后缀或子串匹配。
+        if (containsIgnoreCase(trustedDomains, originHost)) {
+            return true;
+        }
+
+        int port = origin.getPort();
+        return port >= 0 && containsIgnoreCase(trustedDomains, formatHostAndPort(originHost, port));
+    }
+
+    private static boolean containsIgnoreCase(Set<String> domains, String value) {
+        return domains.stream()
+                .map(String::trim)
+                .anyMatch(domain -> domain.equalsIgnoreCase(value));
+    }
+
+    private static String normalizeHost(String host) {
+        if (host == null || host.isBlank()) {
+            return null;
+        }
+
+        String normalizedHost = host.trim();
+        if (normalizedHost.startsWith("[") && normalizedHost.endsWith("]")) {
+            normalizedHost = normalizedHost.substring(1, normalizedHost.length() - 1);
+        }
+        return normalizedHost.toLowerCase(Locale.ROOT);
+    }
+
+    private static boolean isLocalhost(String host) {
+        return "localhost".equals(host)
+                || "127.0.0.1".equals(host)
+                || "::1".equals(host)
+                || "0:0:0:0:0:0:0:1".equals(host);
+    }
+
+    private static String formatHostAndPort(String host, int port) {
+        return host.indexOf(':') >= 0 ? "[" + host + "]:" + port : host + ":" + port;
     }
 
     public static class ServletWebSocketHandshakeInterceptor implements HandshakeInterceptor {
@@ -99,15 +145,24 @@ public class WebSocketConfig implements WebSocketConfigurer {
         public boolean beforeHandshake(ServerHttpRequest request, ServerHttpResponse response, WebSocketHandler wsHandler, Map<String, Object> attributes) throws Exception {
 
             String origin = request.getHeaders().getOrigin();
+            InetSocketAddress requestHost = request.getHeaders().getHost();
 
-            if (!checkOrigin(origin)) {
+            if (!checkOrigin(origin, requestHost, TRUSTED_DOMAINS)) {
+                log.warn("Reject WebSocket handshake: untrusted or invalid origin");
                 response.setStatusCode(HttpStatus.FORBIDDEN);
                 return false;
             }
 
-            var token = request.getHeaders().get("Sec-WebSocket-Protocol").get(0);
+            var protocols = request.getHeaders().get("Sec-WebSocket-Protocol");
+            // 拒绝缺失子协议的异常握手，避免读取空列表导致 NPE。
+            if (protocols == null || protocols.isEmpty()) {
+                response.setStatusCode(HttpStatus.UNAUTHORIZED);
+                return false;
+            }
+
+            var token = protocols.get(0);
             attributes.put("token", token);
-            response.getHeaders().put("Sec-WebSocket-Protocol", Objects.requireNonNull(request.getHeaders().get("Sec-WebSocket-Protocol")));
+            response.getHeaders().put("Sec-WebSocket-Protocol", protocols);
             return true;
         }
 
