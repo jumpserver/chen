@@ -10,6 +10,7 @@ import org.jumpserver.chen.framework.driver.DriverClassLoader;
 import java.lang.reflect.InvocationTargetException;
 import java.sql.Driver;
 import java.sql.SQLException;
+import java.util.List;
 
 @Slf4j
 public class SQLServerConnectionManager extends BaseConnectionManager {
@@ -17,7 +18,7 @@ public class SQLServerConnectionManager extends BaseConnectionManager {
     private static final String jdbcUrlTemplate = "jdbc:sqlserver://${host}:${port};DatabaseName=${db};trustServerCertificate=true;";
     private String jdbcUrl;
 
-    private String driverClassloaderName = "mssql-jdbc-12.2.0.jre11.jar";
+    private String driverClassloaderName = "mssql-jdbc-12.10.2.jre11.jar";
 
     public SQLServerConnectionManager(DBConnectInfo connectInfo, Datasource datasource) {
         super(connectInfo, datasource);
@@ -44,12 +45,17 @@ public class SQLServerConnectionManager extends BaseConnectionManager {
                 this.driverClassloaderName = "mssql-jdbc-6.4.0.jre9.jar";
             }
         }
+        var candidateJarNames = List.of(
+                this.driverClassloaderName,
+                "mssql-jdbc-12.2.1.jre11.jar",
+                "mssql-jdbc-12.2.0.jre11.jar"
+        );
         for (DriverClassLoader classLoader : driverClassLoaders) {
-            if (!classLoader.getJarName().equals(this.driverClassloaderName)) {
+            if (!candidateJarNames.contains(classLoader.getJarName())) {
                 continue;
             }
             try {
-                log.info("select driver jar: {}", this.driverClassloaderName);
+                log.info("select driver jar: {}", classLoader.getJarName());
                 return (Driver) classLoader.loadClass(this.getDriverClassName()).getDeclaredConstructor().newInstance();
             } catch (InstantiationException | IllegalAccessException | ClassNotFoundException |
                      InvocationTargetException | NoSuchMethodException e) {

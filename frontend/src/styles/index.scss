@@ -51,6 +51,19 @@ body:hover ::-webkit-scrollbar,
   z-index: 1 !important;
 }
 
+.splitter-pane-resizer.horizontal {
+  z-index: 100 !important;
+  height: 8px !important;
+  margin: -4px 0 !important;
+  border-top-width: 3px !important;
+  border-bottom-width: 3px !important;
+  cursor: row-resize !important;
+}
+
+.splitter-pane-resizer.horizontal:hover {
+  background-color: $component-border-color;
+}
+
 .icon-chen-first_page,
 .icon-chen-last-page {
   font-size: 14px !important;

@@ -1,6 +1,6 @@
 package org.jumpserver.chen.framework.ws.io;
-
-import com.alibaba.fastjson.JSON;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.socket.TextMessage;
@@ -19,10 +19,15 @@ public class PacketIO {
         this.wsSession = ws;
     }
 
+    private static final Gson GSON = new GsonBuilder()
+            .setDateFormat("yyyy-MM-dd HH:mm:ss")
+            .create();
+
     public void sendPacket(Packet packet) {
         synchronized (this.wsSession) {
             try {
-                String json = JSON.toJSONStringWithDateFormat(packet, "yyyy-MM-dd HH:mm:ss");
+
+                String json = GSON.toJson(packet);
                 this.wsSession.sendMessage(new TextMessage(json));
             } catch (IOException e) {
                 log.error(e.getMessage());

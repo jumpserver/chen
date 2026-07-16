@@ -1,4 +1,4 @@
-FROM jumpserver/chen-base:20260303_090037 AS stage-build
+FROM jumpserver/chen-base:20260701_092702 AS stage-build
 ENV LANG=en_US.UTF-8
 
 WORKDIR /opt/chen/
@@ -13,7 +13,7 @@ FROM debian:trixie-slim
 
 ARG DEPENDENCIES="                    \
         ca-certificates               \
-        openjdk-21-jdk-headless"
+        openjdk-21-jre-headless"
 
 ARG APT_MIRROR=http://deb.debian.org
 

@@ -20,6 +20,8 @@ import org.jumpserver.chen.framework.utils.PageUtils;
 import org.jumpserver.chen.framework.utils.ReflectUtils;
 import org.jumpserver.wisp.Common;
 
+import java.io.IOException;
+import java.io.Reader;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.sql.*;
@@ -27,6 +29,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.StringJoiner;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
@@ -35,6 +38,9 @@ public abstract class BaseSQLActuator implements SQLActuator {
 
     @Getter
     private final DbType druidDbType;
+    // Keep large JDBC text values bounded so one cell cannot fail or stall the whole result view.
+    private static final int MAX_TEXT_DISPLAY_LENGTH = 1024 * 1024;
+    private static final String TRUNCATED_SUFFIX = "...[truncated]";
     private ConnectionManager connectionManager;
     private Connection connection;
 
@@ -148,36 +154,25 @@ public abstract class BaseSQLActuator implements SQLActuator {
 
             if (hasResult) {
                 var resultSet = statement.getResultSet();
+                var metaData = resultSet.getMetaData();
+                var columnCount = metaData.getColumnCount();
 
-                for (int i = 1; i <= resultSet.getMetaData().getColumnCount(); i++) {
+                for (int i = 1; i <= columnCount; i++) {
                     Field field = new Field();
 
-                    var fieldName = StringUtils.isNotEmpty(resultSet.getMetaData().getColumnLabel(i)) ?
-                            resultSet.getMetaData().getColumnLabel(i) : resultSet.getMetaData().getColumnName(i);
+                    var fieldName = StringUtils.isNotEmpty(metaData.getColumnLabel(i)) ?
+                            metaData.getColumnLabel(i) : metaData.getColumnName(i);
                     field.setName(fieldName);
-                    field.setColumnName(resultSet.getMetaData().getColumnName(i));
-                    field.setLabel(resultSet.getMetaData().getColumnLabel(i));
+                    field.setColumnName(metaData.getColumnName(i));
+                    field.setLabel(metaData.getColumnLabel(i));
                     result.getFields().add(field);
                 }
 
                 while (resultSet.next()) {
                     List<Object> fs = new ArrayList<>();
-                    for (int i = 1; i <= resultSet.getMetaData().getColumnCount(); i++) {
+                    for (int i = 1; i <= columnCount; i++) {
                         try {
-                            var obj = resultSet.getObject(i);
-                            if (obj instanceof Timestamp timestamp) {
-                                fs.add(new Date(timestamp.getTime()));
-                            } else if (obj instanceof Long || obj instanceof BigDecimal || obj instanceof BigInteger) {
-                                fs.add(obj.toString());
-                            } else if (obj instanceof byte[]) {
-                                fs.add(HexUtils.bytesToHex((byte[]) obj));
-                            } else if (obj instanceof Blob) {
-                                fs.add(HexUtils.bytesToHex(((Blob) obj).getBytes(1, (int) ((Blob) obj).length())));
-                            } else if (obj != null && obj.getClass().getSimpleName().equalsIgnoreCase("pgobject")) {
-                                fs.add(obj.toString());
-                            } else {
-                                fs.add(obj);
-                            }
+                            fs.add(this.normalizeJdbcValue(resultSet.getObject(i)));
                         } catch (NoClassDefFoundError e) {
                             log.error(e.getMessage());
                         }
@@ -205,6 +200,161 @@ public abstract class BaseSQLActuator implements SQLActuator {
         } catch (Exception e) {
             throw new SQLException(e.getMessage());
         }
+    }
+
+    // Normalize JDBC driver objects before FastJSON sees them in update_data_view packets.
+    protected Object normalizeJdbcValue(Object value) throws SQLException {
+        if (value == null) {
+            return null;
+        }
+
+        if (value instanceof Timestamp timestamp) {
+            return new Date(timestamp.getTime());
+        }
+
+        if (value instanceof Long || value instanceof BigDecimal || value instanceof BigInteger) {
+            return value.toString();
+        }
+
+        if (value instanceof java.sql.Array jdbcArray) {
+            return this.toDisplayArray(jdbcArray);
+        }
+
+        if (value instanceof Clob clob) {
+            return this.readClob(clob);
+        }
+
+        if (value instanceof SQLXML sqlxml) {
+            return this.readSqlXml(sqlxml);
+        }
+
+        if (value instanceof byte[] bytes) {
+            return HexUtils.bytesToHex(bytes);
+        }
+
+        if (value instanceof Blob blob) {
+            return HexUtils.bytesToHex(blob.getBytes(1, (int) blob.length()));
+        }
+
+        if (value.getClass().getSimpleName().equalsIgnoreCase("pgobject")) {
+            return value.toString();
+        }
+
+        return value;
+    }
+
+    private String toDisplayArray(java.sql.Array jdbcArray) throws SQLException {
+        try {
+            var text = jdbcArray.toString();
+            // Prefer driver-provided array text when it is not the default Object.toString() form.
+            if (StringUtils.isNotBlank(text) && !isDefaultObjectToString(jdbcArray, text)) {
+                return text;
+            }
+            return formatJdbcArray(jdbcArray.getArray());
+        } finally {
+            try {
+                jdbcArray.free();
+            } catch (SQLException e) {
+                log.debug("free jdbc array failed", e);
+            }
+        }
+    }
+
+    private String readClob(Clob clob) throws SQLException {
+        try (Reader reader = clob.getCharacterStream()) {
+            if (reader != null) {
+                return this.readDisplayText(reader);
+            }
+
+            long length = Math.min(clob.length(), MAX_TEXT_DISPLAY_LENGTH + 1L);
+            return this.truncateDisplayText(clob.getSubString(1, (int) length));
+        } catch (IOException e) {
+            throw new SQLException("read clob failed", e);
+        } finally {
+            try {
+                clob.free();
+            } catch (SQLException e) {
+                log.debug("free clob failed", e);
+            }
+        }
+    }
+
+    private String readSqlXml(SQLXML sqlxml) throws SQLException {
+        try (Reader reader = sqlxml.getCharacterStream()) {
+            if (reader != null) {
+                return this.readDisplayText(reader);
+            }
+
+            return this.truncateDisplayText(sqlxml.getString());
+        } catch (IOException e) {
+            throw new SQLException("read sqlxml failed", e);
+        } finally {
+            try {
+                sqlxml.free();
+            } catch (SQLException e) {
+                log.debug("free sqlxml failed", e);
+            }
+        }
+    }
+
+    private String formatJdbcArray(Object arrayValue) {
+        if (arrayValue == null) {
+            return null;
+        }
+        if (!arrayValue.getClass().isArray()) {
+            return arrayValue.toString();
+        }
+
+        int length = java.lang.reflect.Array.getLength(arrayValue);
+        StringJoiner joiner = new StringJoiner(",", "{", "}");
+        for (int i = 0; i < length; i++) {
+            var item = java.lang.reflect.Array.get(arrayValue, i);
+            // byte[] is also an array; handle it before recursive array formatting.
+            if (item instanceof byte[] bytes) {
+                joiner.add(HexUtils.bytesToHex(bytes));
+            } else if (item != null && item.getClass().isArray()) {
+                joiner.add(formatJdbcArray(item));
+            } else if (item == null) {
+                joiner.add("NULL");
+            } else {
+                joiner.add(item.toString());
+            }
+        }
+        return joiner.toString();
+    }
+
+    private String readDisplayText(Reader reader) throws IOException {
+        StringBuilder builder = new StringBuilder();
+        char[] buffer = new char[8192];
+
+        int read;
+        while ((read = reader.read(buffer)) != -1) {
+            int remaining = MAX_TEXT_DISPLAY_LENGTH - builder.length();
+            if (read > remaining) {
+                builder.append(buffer, 0, remaining);
+                builder.append(TRUNCATED_SUFFIX);
+                return builder.toString();
+            }
+
+            builder.append(buffer, 0, read);
+            if (builder.length() == MAX_TEXT_DISPLAY_LENGTH && reader.read() != -1) {
+                builder.append(TRUNCATED_SUFFIX);
+                return builder.toString();
+            }
+        }
+
+        return builder.toString();
+    }
+
+    private String truncateDisplayText(String text) {
+        if (text == null || text.length() <= MAX_TEXT_DISPLAY_LENGTH) {
+            return text;
+        }
+        return text.substring(0, MAX_TEXT_DISPLAY_LENGTH) + TRUNCATED_SUFFIX;
+    }
+
+    private boolean isDefaultObjectToString(Object value, String text) {
+        return text.equals(value.getClass().getName() + "@" + Integer.toHexString(System.identityHashCode(value)));
     }
 
     private void handleDataMasking(SQLQueryResult result) {

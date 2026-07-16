@@ -20,7 +20,7 @@
 
     <el-upload
       style="display: none"
-      action="/chen/api/console/upload"
+      :action="consoleUploadUrl"
       :multiple="false"
       :with-credentials="true"
       :show-file-list="false"
@@ -65,6 +65,7 @@ import { getHints } from '@/api/resource'
 import SelectSnippetDialog from '@/components/Main/Explore/QueryConsole/SelectSnippetDialog.vue'
 import SaveSnippetDialog from '@/components/Main/Explore/QueryConsole/SaveSnippetDialog.vue'
 import { bus } from '@/bus'
+import { appApiUrl } from '@/utils/path'
 
 const formatterMap = {
   'clickhouse': 'sql',
@@ -229,6 +230,9 @@ export default {
     },
     autoComplete() {
       return !store.getters.disableautohash
+    },
+    consoleUploadUrl() {
+      return appApiUrl('console/upload')
     }
 
   },

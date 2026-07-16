@@ -1,7 +1,7 @@
 package org.jumpserver.chen.framework.console;
 
 import com.alibaba.druid.sql.parser.ParserException;
-import com.alibaba.fastjson.JSON;
+import com.google.gson.Gson;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.jumpserver.chen.framework.console.action.DataViewAction;
@@ -32,7 +32,10 @@ import java.nio.file.Files;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
@@ -47,6 +50,9 @@ public class QueryConsole extends AbstractConsole {
     private volatile SQLExecutePlan currentPlan;
     private StateManager<QueryConsoleState> stateManager;
     private final Map<String, DataView> dataViews = new HashMap<>();
+    private volatile Map<String, String> allowedContexts = Map.of();
+
+    private static final Gson GSON = new Gson();
 
     public QueryConsole(Datasource datasource, WebSocketSession ws, String nodeKey) {
         super(datasource, ws, nodeKey);
@@ -97,6 +103,7 @@ public class QueryConsole extends AbstractConsole {
             }
 
             var schemas = this.getSqlActuator().getSchemas();
+            this.replaceAllowedContexts(schemas);
             this.getState().setContexts(schemas);
 
         } catch (SQLException e) {
@@ -132,12 +139,12 @@ public class QueryConsole extends AbstractConsole {
             }
 
             case Packet.TYPE_QUERY_CONSOLE_ACTION -> {
-                var action = JSON.parseObject(JSON.toJSONString(packet.getData()), QueryConsoleAction.class);
+                var action = GSON.fromJson(GSON.toJson(packet.getData()), QueryConsoleAction.class);
                 this.onAction(action);
 
             }
             case Packet.TYPE_DATA_VIEW_ACTION -> {
-                var action = JSON.parseObject(JSON.toJSONString(packet.getData()), DataViewAction.class);
+                var action = GSON.fromJson(GSON.toJson(packet.getData()), DataViewAction.class);
                 this.onDataViewAction(action);
             }
             default -> log.warn("Unknown packet type {}", packet.getType());
@@ -283,15 +290,19 @@ public class QueryConsole extends AbstractConsole {
     }
 
     public void onManualChangeContext(String context) {
-        if (StringUtils.equals(this.getState().getCurrentContext(), context)) {
+        if (!this.isAllowedContext(context)) {
+            return;
+        }
+        var allowedContext = this.allowedContexts.get(context);
+        if (StringUtils.equals(this.getState().getCurrentContext(), allowedContext)) {
             return;
         }
         try {
             this.getState().setEditorLoading(true);
             this.stateManager.commit();
 
-            this.getSqlActuator().changeSchema(context);
-            this.getState().setCurrentContext(context);
+            this.getSqlActuator().changeSchema(allowedContext);
+            this.getState().setCurrentContext(allowedContext);
 
         } catch (SQLException e) {
             this.getConsoleLogger().error(MessageUtils.get("ChangeContextError") + ": %s", e.getMessage());
@@ -302,8 +313,30 @@ public class QueryConsole extends AbstractConsole {
 
     }
 
+    void replaceAllowedContexts(List<String> contexts) {
+        var canonicalContexts = new LinkedHashMap<String, String>();
+        if (contexts != null) {
+            for (String context : contexts) {
+                if (StringUtils.isNotBlank(context)) {
+                    canonicalContexts.putIfAbsent(context, context);
+                }
+            }
+        }
+        this.allowedContexts = Collections.unmodifiableMap(canonicalContexts);
+    }
+
+    boolean isAllowedContext(String context) {
+        return StringUtils.isNotBlank(context) && this.allowedContexts.containsKey(context);
+    }
 
     public void onSQLFile(String filename) {
+        if (StringUtils.isBlank(filename)
+                || filename.contains("/")
+                || filename.contains("\\")
+                || filename.contains("..")) {
+            log.warn("Rejected invalid SQL file name");
+            return;
+        }
         var filePath = SessionManager.getCurrentSession().getTempPath().resolve(filename);
         var file = filePath.toFile();
 

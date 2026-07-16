@@ -3,19 +3,15 @@
     id="doc"
     v-loading="state.loading"
     class="data-view"
-    @contextmenu.prevent="preventDefaultContextMenu"
     style="z-index: 99;position: relative"
+    @contextmenu.prevent="preventDefaultContextMenu"
   >
-    <RightMenu ref="rightMenu" :menus="menus"/>
+    <RightMenu ref="rightMenu" :menus="menus" />
     <ExportDataDialog :visible.sync="exportDataDialogVisible" @submit="onExportSubmit" />
-    <Toolbar :items="iToolBarItems"/>
-    <AgGridVue
-      :rowData="rowData"
-      :columnDefs="colDefs"
-      class="ag-theme-balham-dark"
-      style="height: 100%"
-      :defaultColDef="defaultColDef"
-      :gridOptions="gridOptions"
+    <Toolbar :items="iToolBarItems" />
+    <ResultGrid
+      :row-data="rowData"
+      :column-defs="colDefs"
       @cell-context-menu="showContextMenu"
     />
   </div>
@@ -26,16 +22,15 @@ import store from '@/store'
 import Toolbar from '@/framework/components/Toolbar/index.vue'
 import { Subject } from 'rxjs'
 import ExportDataDialog from '@/components/Main/Explore/DataView/ExportDataDialog.vue'
-import { AgGridVue } from 'ag-grid-vue'
+
 import RightMenu from '@/components/Main/Explore/DataView/RightMenu.vue'
 import { SpecialCharacters, GeneralInsertSQL, GeneralUpdateSQL } from './const'
 
-import 'ag-grid-community/styles/ag-grid.css'
-import 'ag-grid-community/styles/ag-theme-balham.css'
+import ResultGrid from '@/components/Main/Explore/DataView/ResultGrid.vue'
 
 export default {
   name: 'DataView',
-  components: { ExportDataDialog, Toolbar, AgGridVue, RightMenu },
+  components: { ExportDataDialog, Toolbar, ResultGrid, RightMenu },
   props: {
     meta: {
       type: Object,
@@ -166,15 +161,6 @@ export default {
           onClick: this.onExport
         }
       },
-      defaultColDef: {
-        resizable: true,
-        sortable: false,
-        filter: false
-      },
-      gridOptions: {
-        suppressMovableColumnsHints: true,
-        suppressSortingHints: true
-      },
       init: false,
       currentRow: null,
       menus: [
@@ -243,6 +229,27 @@ export default {
 
       this.reloadTable()
       this.init = true
+    },
+    fallbackWriteClipboardText(text, originalError) {
+      const textarea = document.createElement('textarea')
+      textarea.value = text
+      textarea.setAttribute('readonly', '')
+      textarea.style.position = 'fixed'
+      textarea.style.left = '-9999px'
+      document.body.appendChild(textarea)
+      textarea.select()
+      try {
+        const copied = document.execCommand('copy')
+        if (copied) {
+          this.$message.success(this.$t('CopySucceeded'))
+        } else {
+          throw originalError || new Error('clipboard unavailable')
+        }
+      } catch (error) {
+        this.$message.error(`${this.$t('CopyFailed')}: ${error}`)
+      } finally {
+        document.body.removeChild(textarea)
+      }
     },
     onNextPage() {
       this.$emit('action', { action: 'next_page' })

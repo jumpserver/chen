@@ -16,7 +16,7 @@ public class TestMysqlDriver {
         try {
 
 
-            ClassLoader classLoader = new URLClassLoader(new URL[]{new URL("file:/Users/shenchenyang/IdeaProjects/chen/drivers/mysql/mysql-connector-java-8.0.28.jar")});
+            ClassLoader classLoader = new URLClassLoader(new URL[]{new URL("file:/Users/shenchenyang/IdeaProjects/chen/drivers/mysql/mysql-connector-j-8.4.0.jar")});
 
             Driver driver = (Driver) classLoader.loadClass("com.mysql.cj.jdbc.Driver").getDeclaredConstructor().newInstance();
             DruidDataSource ds = new DruidDataSource();

@@ -19,7 +19,11 @@ public class SQL {
         this.sql = sql;
     }
 
-    public static SQL of(String sql, Map<String, Object> params) {
+    /**
+     * Performs raw string interpolation. This is not a PreparedStatement.
+     * Never pass user-controlled values or SQL identifiers.
+     */
+    public static SQL unsafeInterpolate(String sql, Map<String, Object> params) {
         List<String> paramNames = new ArrayList<>();
         Matcher matcher = Pattern.compile(":(\\w+)").matcher(sql);
         while (matcher.find()) {
@@ -35,11 +39,40 @@ public class SQL {
         return new SQL(sql);
     }
 
-    public static SQL of(String sql, Object... params) {
+    /**
+     * Performs raw string interpolation. This is not a PreparedStatement.
+     * Never pass user-controlled values or SQL identifiers.
+     */
+    public static SQL unsafeInterpolate(String sql, Object... params) {
+        StringBuilder sb = new StringBuilder();
+        int lastPos = 0;
         for (Object param : params) {
-            sql = sql.replaceFirst("\\?", param.toString());
+            int pos = sql.indexOf("?", lastPos);
+            if (pos == -1) break;
+            sb.append(sql, lastPos, pos);
+            sb.append(param.toString()); // 这里直接 append，完全不会触发 $ 报错
+            lastPos = pos + 1;
         }
-        return new SQL(sql);
+        sb.append(sql.substring(lastPos));
+        return new SQL(sb.toString());
+    }
+
+    /**
+     * @deprecated This method performs unsafe raw string interpolation. Use a
+     * PreparedStatement for values and dialect-specific quoting for identifiers.
+     */
+    @Deprecated
+    public static SQL of(String sql, Map<String, Object> params) {
+        return unsafeInterpolate(sql, params);
+    }
+
+    /**
+     * @deprecated This method performs unsafe raw string interpolation. Use a
+     * PreparedStatement for values and dialect-specific quoting for identifiers.
+     */
+    @Deprecated
+    public static SQL of(String sql, Object... params) {
+        return unsafeInterpolate(sql, params);
     }
 
     public static SQL of(String sql) {

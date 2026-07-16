@@ -5,6 +5,25 @@
     <meta content="IE=edge" http-equiv="X-UA-Compatible">
     <meta content="width=device-width,initial-scale=1.0" name="viewport">
     <link href="<%= BASE_URL %>favicon.ico" rel="icon">
+    <script>
+        (function() {
+            var pathname = window.location.pathname || '/'
+            var normalized = pathname.replace(/\/+$/, '') + '/'
+            var marker = '/chen/'
+            var idx = normalized.indexOf(marker)
+            var prefix = ''
+            var uiBase = marker
+
+            if (idx >= 0) {
+                prefix = idx > 0 ? normalized.slice(0, idx) : ''
+                prefix = prefix.replace(/\/+$/, '')
+                uiBase = prefix + marker
+            }
+
+            window.__BASE_PATH__ = prefix
+            window.__CHEN_BASE__ = uiBase
+        })()
+    </script>
 
     <title>Chen: JumpServer Web Database</title>
 </head>

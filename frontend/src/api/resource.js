@@ -1,7 +1,8 @@
 import { post } from '@/request'
+import { appApiUrl } from '@/utils/path'
 
 export function getResourceTreeChildren(parent, force) {
-  let url = `/chen/api/resources/children`
+  let url = appApiUrl('resources/children')
   if (force) {
     url += '?force=true'
   }
@@ -9,17 +10,17 @@ export function getResourceTreeChildren(parent, force) {
 }
 
 export function getActions(node) {
-  return post(`/chen/api/resources/actions`, node)
+  return post(appApiUrl('resources/actions'), node)
 }
 
 export function doAction(node, action) {
-  return post(`/chen/api/resources/actions/do`, { node: node, action: action })
+  return post(appApiUrl('resources/actions/do'), { node: node, action: action })
 }
 
 export function submitResourceForm(form) {
-  return post(`/chen/api/resources/forms`, form)
+  return post(appApiUrl('resources/forms'), form)
 }
 
 export function getHints(nodeKey, context) {
-  return post(`/chen/api/resources/hints`, { nodeKey: nodeKey, context: context })
+  return post(appApiUrl('resources/hints'), { nodeKey: nodeKey, context: context })
 }

@@ -6,7 +6,7 @@ import lombok.Data;
 public class Button {
     private String label;
     private String event;
-    private Runnable eventHandler;
+    private transient Runnable eventHandler;
 
     public Button(String label, String event, Runnable eventHandler) {
         this.label = label;

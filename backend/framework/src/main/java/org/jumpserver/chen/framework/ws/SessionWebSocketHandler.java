@@ -1,6 +1,6 @@
 package org.jumpserver.chen.framework.ws;
 
-import com.alibaba.fastjson.JSON;
+import com.google.gson.Gson;
 import lombok.extern.slf4j.Slf4j;
 import org.jumpserver.chen.framework.i18n.MessageUtils;
 import org.jumpserver.chen.framework.session.Session;
@@ -16,6 +16,8 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 @Slf4j
 public class SessionWebSocketHandler extends TextWebSocketHandler {
+
+    private static final Gson GSON = new Gson();
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
@@ -77,7 +79,11 @@ public class SessionWebSocketHandler extends TextWebSocketHandler {
         SessionManager.setContext(token);
         var webSession = SessionManager.getCurrentSession();
 
-        var packet = JSON.parseObject(message.getPayload().toString(), Packet.class);
+        var packet = GSON.fromJson(
+                message.getPayload().toString(),
+                Packet.class
+        );
+
         switch (packet.getType()) {
             case "ping" -> {
                 log.debug("receive ping packet from session {}", webSession.getUsername());

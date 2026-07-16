@@ -31,7 +31,8 @@ public class MysqlActuator extends BaseSQLActuator {
 
     @Override
     public void changeSchema(String schema) throws SQLException {
-        this.execute(SQL.of("use `?`", schema));
+        var identifier = SQLIdentifier.quote(this.getDbType(), schema);
+        this.execute(SQL.of("use " + identifier));
     }
 
 
