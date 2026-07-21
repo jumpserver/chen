@@ -10,6 +10,7 @@ import org.jumpserver.chen.framework.datasource.sql.SQLActuator;
 import org.jumpserver.chen.framework.driver.DriverClassLoader;
 import org.jumpserver.chen.framework.driver.DriverManager;
 import org.jumpserver.chen.framework.i18n.MessageUtils;
+import org.jumpserver.chen.framework.utils.SqlIdentifierUtils;
 
 import java.lang.reflect.InvocationTargetException;
 import java.sql.Connection;
@@ -120,6 +121,9 @@ public abstract class BaseConnectionManager implements ConnectionManager {
         if (StringUtils.isEmpty(database)) {
             database = this.connectInfo.getDb();
         }
+        // Reject URL metacharacters before interpolation into the JDBC URL,
+        // preventing injection of driver connection properties.
+        SqlIdentifierUtils.validateDatabaseName(database);
         if (this.dataSourceMap.containsKey(database)) {
             return this.dataSourceMap.get(database);
         }

@@ -141,6 +141,7 @@ class DataExportCSV implements DataExportInterface {
                 } else if (obj instanceof Date) {
                     SimpleDateFormat fmt = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
                     writeString(writer, fmt.format(obj));
+                    writer.write(",");
                 } else {
                     writeString(writer, row.get(field.getName()));
                     writer.write(",");

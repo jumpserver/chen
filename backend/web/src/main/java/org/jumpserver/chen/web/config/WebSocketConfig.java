@@ -1,6 +1,7 @@
 package org.jumpserver.chen.web.config;
 
 import lombok.extern.slf4j.Slf4j;
+import org.jumpserver.chen.framework.session.SessionManager;
 import org.jumpserver.chen.framework.ws.ConsoleWebSocketHandler;
 import org.jumpserver.chen.framework.ws.DBConsoleWebsocketHandler;
 import org.jumpserver.chen.framework.ws.SessionWebSocketHandler;
@@ -9,12 +10,12 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.ServerHttpRequest;
 import org.springframework.http.server.ServerHttpResponse;
+import org.springframework.http.server.ServletServerHttpRequest;
 import org.springframework.web.socket.WebSocketHandler;
-import org.springframework.web.socket.config.annotation.EnableWebSocket;
-import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
-import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;
 import org.springframework.web.socket.server.HandshakeInterceptor;
 import org.springframework.web.socket.server.standard.ServletServerContainerFactoryBean;
+import org.springframework.web.socket.server.support.WebSocketHandlerMapping;
+import org.springframework.web.socket.server.support.WebSocketHttpRequestHandler;
 
 import java.net.InetSocketAddress;
 import java.net.URI;
@@ -22,9 +23,8 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @Configuration
-@EnableWebSocket
 @Slf4j
-public class WebSocketConfig implements WebSocketConfigurer {
+public class WebSocketConfig {
 
 
     @Bean
@@ -38,14 +38,25 @@ public class WebSocketConfig implements WebSocketConfigurer {
     }
 
 
-    @Override
-    public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
-        registry
-                .addHandler(new ConsoleWebSocketHandler(), "/ws/console")
-                .addHandler(new SessionWebSocketHandler(), "/ws/session")
-                .addHandler(new DBConsoleWebsocketHandler(), "/ws/db-console")
-                .addInterceptors(new ServletWebSocketHandshakeInterceptor())
-                .setAllowedOrigins("*");
+    @Bean
+    public WebSocketHandlerMapping chenWebSocketHandlerMapping() {
+        var handlers = new LinkedHashMap<String, Object>();
+        handlers.put("/ws/session", createRequestHandler(new SessionWebSocketHandler()));
+        handlers.put("/ws/console", createRequestHandler(new ConsoleWebSocketHandler()));
+        handlers.put("/ws/db-console", createRequestHandler(new DBConsoleWebsocketHandler()));
+
+        var mapping = new WebSocketHandlerMapping();
+        // 与 Spring 默认 WebSocket 映射一致，确保 WS 请求优先于普通 MVC 映射处理。
+        mapping.setOrder(1);
+        mapping.setUrlMap(handlers);
+        return mapping;
+    }
+
+    private WebSocketHttpRequestHandler createRequestHandler(WebSocketHandler webSocketHandler) {
+        var requestHandler = new WebSocketHttpRequestHandler(webSocketHandler);
+        // 仅使用 Chen 的动态校验，避免 WebSocketHandlerRegistry 追加第二个 Origin 拦截器。
+        requestHandler.setHandshakeInterceptors(List.of(new ServletWebSocketHandshakeInterceptor()));
+        return requestHandler;
     }
 
     // 仅用于跨 Host 请求的精确白名单，格式为逗号分隔的 host 或 host:port。
@@ -146,6 +157,12 @@ public class WebSocketConfig implements WebSocketConfigurer {
 
             String origin = request.getHeaders().getOrigin();
             InetSocketAddress requestHost = request.getHeaders().getHost();
+            // 某些 Servlet 请求对象未填充 Host header，回退到容器解析到的主机和端口。
+            if (requestHost == null && request instanceof ServletServerHttpRequest servletRequest) {
+                requestHost = new InetSocketAddress(
+                        servletRequest.getServletRequest().getServerName(),
+                        servletRequest.getServletRequest().getServerPort());
+            }
 
             if (!checkOrigin(origin, requestHost, TRUSTED_DOMAINS)) {
                 log.warn("Reject WebSocket handshake: untrusted or invalid origin");
@@ -161,6 +178,21 @@ public class WebSocketConfig implements WebSocketConfigurer {
             }
 
             var token = protocols.get(0);
+            var session = SessionManager.getSession(token);
+            var servletRequest = request instanceof ServletServerHttpRequest servletRequestWrapper
+                    ? servletRequestWrapper.getServletRequest() : null;
+            var httpSession = servletRequest == null ? null : servletRequest.getSession(false);
+            var sessionBound = session != null && httpSession != null && Objects.equals(
+                    session.getAttribute(SessionManager.WEB_SESSION_ID_ATTRIBUTE), httpSession.getId());
+            // token 必须仍存活，且必须来自创建它的同一浏览器 HTTP session。
+            if (!sessionBound) {
+                // 仅输出校验维度，不记录 token、Cookie 或 HTTP session ID 等敏感信息。
+                log.warn("Reject WebSocket handshake: tokenExists={}, httpSessionExists={}, sessionBound={}",
+                        session != null, httpSession != null, sessionBound);
+                response.setStatusCode(HttpStatus.UNAUTHORIZED);
+                return false;
+            }
+            log.info("Accept WebSocket handshake: HTTP session binding verified");
             attributes.put("token", token);
             response.getHeaders().put("Sec-WebSocket-Protocol", protocols);
             return true;
