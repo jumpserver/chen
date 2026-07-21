@@ -6,6 +6,7 @@ import org.jumpserver.chen.framework.datasource.base.BaseSQLHintsHandler;
 import org.jumpserver.chen.framework.datasource.entity.resource.Field;
 import org.jumpserver.chen.framework.datasource.entity.resource.Table;
 import org.jumpserver.chen.framework.datasource.sql.SQL;
+import org.jumpserver.chen.framework.utils.SqlIdentifierUtils;
 import org.jumpserver.chen.framework.utils.TreeUtils;
 
 import java.sql.SQLException;
@@ -46,6 +47,9 @@ public class PostgresqlSQLHintsHandler extends BaseSQLHintsHandler {
 
         var db = TreeUtils.getValue(nodeKey, "database");
         if (StringUtils.isNotEmpty(db)) {
+            // nodeKey is client-controlled; reject URL metacharacters before it
+            // reaches the JDBC URL via setDatabaseContext.
+            SqlIdentifierUtils.validateDatabaseName(db);
             this.connectionManager.setDatabaseContext(db);
         }
 
