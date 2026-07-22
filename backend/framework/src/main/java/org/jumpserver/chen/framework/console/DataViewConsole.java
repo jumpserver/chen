@@ -1,6 +1,6 @@
 package org.jumpserver.chen.framework.console;
 
-import com.alibaba.fastjson.JSON;
+import com.google.gson.Gson;
 import org.apache.commons.lang3.StringUtils;
 import org.jumpserver.chen.framework.console.action.DataViewAction;
 import org.jumpserver.chen.framework.console.dataview.DataView;
@@ -22,6 +22,8 @@ import java.sql.SQLException;
 import java.util.Map;
 
 public class DataViewConsole extends AbstractConsole {
+
+    private static final Gson GSON = new Gson();
 
     private DataView tableDataView;
     private StateManager<State> stateManager;
@@ -69,7 +71,7 @@ public class DataViewConsole extends AbstractConsole {
         switch (packet.getType()) {
             case "ping" -> this.getPacketIO().sendPacket("pong", null);
             case Packet.TYPE_DATA_VIEW_ACTION -> {
-                var action = JSON.parseObject(JSON.toJSONString(packet.getData()), DataViewAction.class);
+                var action = GSON.fromJson(GSON.toJson(packet.getData()), DataViewAction.class);
                 this.onDataViewAction(action);
             }
         }

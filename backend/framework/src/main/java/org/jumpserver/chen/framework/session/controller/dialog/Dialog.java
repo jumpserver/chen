@@ -17,7 +17,7 @@ public class Dialog {
     private boolean showClose;
     private int delayCloseSeconds = -1;
 
-    private Map<String, Runnable> events = new ConcurrentHashMap<>();
+    private transient Map<String, Runnable> events = new ConcurrentHashMap<>();
     private List<Button> buttons = new ArrayList<>();
 
     public Dialog(String title) {

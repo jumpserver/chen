@@ -1,6 +1,6 @@
 package org.jumpserver.chen.framework.ws;
 
-import com.alibaba.fastjson.JSON;
+import com.google.gson.Gson;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.jumpserver.chen.framework.console.Console;
@@ -21,6 +21,8 @@ import java.util.concurrent.Executors;
 
 @Slf4j
 public class ConsoleWebSocketHandler extends TextWebSocketHandler {
+
+    private static final Gson GSON = new Gson();
 
 
     @Override
@@ -44,7 +46,7 @@ public class ConsoleWebSocketHandler extends TextWebSocketHandler {
                 var token = (String) session.getAttributes().get("token");
                 SessionManager.setContext(token);
 
-                var packet = JSON.parseObject(message.getPayload().toString(), Packet.class);
+                var packet = GSON.fromJson(message.getPayload().toString(), Packet.class);
                 if (StringUtils.equals(packet.getType(), Packet.TYPE_CONNECT)) {
                     onConnectPacket(session, packet);
                 } else {
@@ -68,7 +70,7 @@ public class ConsoleWebSocketHandler extends TextWebSocketHandler {
     }
 
     private void onConnectPacket(WebSocketSession session, Packet packet) {
-        Connect connect = JSON.parseObject(packet.getData().toString(), Connect.class);
+        Connect connect = parseConnect(packet.getData());
         Console console = null;
         var webSess = SessionManager.getCurrentSession();
 
@@ -89,6 +91,10 @@ public class ConsoleWebSocketHandler extends TextWebSocketHandler {
             console.onInit(connect);
             log.info("User {} open a console ", webSess.getUsername());
         }
+    }
+
+    private static Connect parseConnect(Object data) {
+        return GSON.fromJson(GSON.toJson(data), Connect.class);
     }
 
 

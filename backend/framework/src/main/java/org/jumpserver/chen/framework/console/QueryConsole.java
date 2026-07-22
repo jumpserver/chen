@@ -1,7 +1,7 @@
 package org.jumpserver.chen.framework.console;
 
 import com.alibaba.druid.sql.parser.ParserException;
-import com.alibaba.fastjson.JSON;
+import com.google.gson.Gson;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.jumpserver.chen.framework.console.action.DataViewAction;
@@ -38,6 +38,8 @@ import java.util.concurrent.TimeUnit;
 
 @Slf4j
 public class QueryConsole extends AbstractConsole {
+
+    private static final Gson GSON = new Gson();
 
     private final Datasource datasource;
     private Connection conn;
@@ -129,12 +131,12 @@ public class QueryConsole extends AbstractConsole {
             }
 
             case Packet.TYPE_QUERY_CONSOLE_ACTION -> {
-                var action = JSON.parseObject(JSON.toJSONString(packet.getData()), QueryConsoleAction.class);
+                var action = GSON.fromJson(GSON.toJson(packet.getData()), QueryConsoleAction.class);
                 this.onAction(action);
 
             }
             case Packet.TYPE_DATA_VIEW_ACTION -> {
-                var action = JSON.parseObject(JSON.toJSONString(packet.getData()), DataViewAction.class);
+                var action = GSON.fromJson(GSON.toJson(packet.getData()), DataViewAction.class);
                 this.onDataViewAction(action);
             }
             default -> log.warn("Unknown packet type {}", packet.getType());
