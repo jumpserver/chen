@@ -69,12 +69,26 @@ public class DataView extends SQLResult {
                 this.getStateManager().getState().setPinned(!this.getStateManager().getState().isPinned());
             }
             case DataViewAction.ACTION_CHANGE_LIMIT -> {
-                this.changeLimit((int) action.getData());
+                this.changeLimit(this.parseLimit(action.getData()));
             }
             case DataViewAction.ACTION_EXPORT -> {
                 this.export((String) action.getData());
             }
         }
+    }
+
+    private int parseLimit(Object data) throws SQLException {
+        if (!(data instanceof Number number)) {
+            throw new SQLException("Invalid data view limit: " + data);
+        }
+
+        double value = number.doubleValue();
+        int limit = number.intValue();
+        if (!Double.isFinite(value) || value != Math.rint(value) || value != limit ||
+                (limit != 50 && limit != 100 && limit != 200 && limit != 500)) {
+            throw new SQLException("Invalid data view limit: " + data);
+        }
+        return limit;
     }
 
     public void loadData() throws SQLException {
