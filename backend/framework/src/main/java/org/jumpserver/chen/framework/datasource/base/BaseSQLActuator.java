@@ -232,7 +232,11 @@ public abstract class BaseSQLActuator implements SQLActuator {
             return temporalValue;
         }
 
-        if (value instanceof Long || value instanceof BigDecimal || value instanceof BigInteger) {
+        if (value instanceof BigDecimal decimal) {
+            return decimal.toPlainString();
+        }
+
+        if (value instanceof Long || value instanceof BigInteger) {
             return value.toString();
         }
 
