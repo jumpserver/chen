@@ -84,15 +84,10 @@ public class QueryConsole extends AbstractConsole {
         try {
             var currentContext = this.getSqlActuator().getCurrentSchema();
 
-            if (StringUtils.isEmpty(currentContext) && !StringUtils.isEmpty(context)) {
+            if (!StringUtils.isEmpty(context) && !StringUtils.equals(currentContext, context)) {
                 this.getSqlActuator().changeSchema(context);
-                this.getState().setCurrentContext(context);
-            } else {
-                if (!StringUtils.isEmpty(context) && !currentContext.equals(context)) {
-                    this.getSqlActuator().changeSchema(context);
-                    this.getState().setCurrentContext(context);
-                }
             }
+            this.getState().setCurrentContext(StringUtils.defaultIfEmpty(context, currentContext));
 
             var schemas = this.getSqlActuator().getSchemas();
             this.getState().setContexts(schemas);

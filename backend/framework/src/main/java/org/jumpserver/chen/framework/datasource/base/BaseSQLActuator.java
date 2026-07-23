@@ -195,7 +195,7 @@ public abstract class BaseSQLActuator implements SQLActuator {
                     List<Object> fs = new ArrayList<>();
                     for (int i = 1; i <= columnCount; i++) {
                         try {
-                            fs.add(this.normalizeJdbcValue(resultSet.getObject(i)));
+                            fs.add(this.normalizeJdbcValue(resultSet, i));
                         } catch (NoClassDefFoundError e) {
                             log.error(e.getMessage());
                         }
@@ -222,9 +222,17 @@ public abstract class BaseSQLActuator implements SQLActuator {
         }
     }
 
+    protected Object normalizeJdbcValue(ResultSet resultSet, int columnIndex) throws SQLException {
+        return this.normalizeJdbcValue(resultSet.getObject(columnIndex));
+    }
+
     protected Object normalizeJdbcValue(Object value) throws SQLException {
         if (value == null) {
             return null;
+        }
+
+        if (value.getClass().getName().equals("oracle.sql.TIMESTAMPTZ")) {
+            return this.normalizeOracleTimestampWithTimeZone(value);
         }
 
         var temporalValue = this.formatTemporalValue(value);
@@ -257,9 +265,6 @@ public abstract class BaseSQLActuator implements SQLActuator {
         }
 
         if (value instanceof Blob blob) {
-            if (blob.getClass().getName().equals("oracle.sql.BLOB")) {
-                return blob.toString();
-            }
             return HexUtils.bytesToHex(blob.getBytes(1, (int) blob.length()));
         }
 
@@ -272,6 +277,19 @@ public abstract class BaseSQLActuator implements SQLActuator {
         }
 
         return value;
+    }
+
+    private String normalizeOracleTimestampWithTimeZone(Object value) throws SQLException {
+        try {
+            var offsetDateTime = value.getClass().getMethod("toOffsetDateTime").invoke(value);
+            return OFFSET_DATE_TIME_DISPLAY_FORMATTER.format((OffsetDateTime) offsetDateTime);
+        } catch (ReflectiveOperationException | ClassCastException e) {
+            var cause = e.getCause() == null ? e : e.getCause();
+            if (cause instanceof SQLException sqlException) {
+                throw sqlException;
+            }
+            throw new SQLException("normalize Oracle TIMESTAMP WITH TIME ZONE failed", cause);
+        }
     }
 
     private String formatTemporalValue(Object value) {
