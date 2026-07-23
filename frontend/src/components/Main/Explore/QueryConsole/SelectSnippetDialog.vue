@@ -5,20 +5,19 @@
       :visible.sync="iVisible"
       width="40%"
   >
-    <span>
-      <el-table :data="snippets">
+    <div>
+      <el-table class="snippet-table" :data="snippets">
         <el-table-column property="name" :label="$tc('common.name')" width="120px"/>
         <el-table-column show-overflow-tooltip property="args" :label="$tc('common.content')"/>
         <el-table-column width="80px" label="">
           <template slot-scope="scope">
-            <el-button type="text" size="small" @click="onSelectSnippet(scope.row)">{{
-                $tc('button.insert')
-              }}</el-button>
+            <el-button type="text" size="small" @click="onSelectSnippet(scope.row)">
+              {{ $tc('button.insert') }}
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
-
-    </span>
+    </div>
   </el-dialog>
 </template>
 
@@ -67,27 +66,21 @@ export default {
 </script>
 
 <style scoped>
-::v-deep .el-table tr {
-  background-color: #383a3c;
+::v-deep .snippet-table td.el-table__cell {
+  background: #383a3c;
+  border-bottom: 1px solid #7c7c7e;
 }
 
-::v-deep .el-table tr:hover {
-  background-color: #7c7c7e !important;
+::v-deep .snippet-table tr:hover td.el-table__cell {
+  background: #4a4d50;
 }
 
-::v-deep .el-table--enable-row-hover .el-table__body tr:hover > td.el-table__cell {
-  background-color: #7c7c7e !important;
+::v-deep .snippet-table th.el-table__cell {
+  background: #383a3c;
 }
 
-::v-deep .el-table td.el-table__cell, .el-table th.el-table__cell.is-leaf {
-  border-bottom: 1px solid #7c7c7e
-}
-
-::v-deep .el-table th.el-table__cell {
-  background-color: #383a3c;
-}
-
-.el-table {
+.snippet-table {
   color: #e9e9e9;
 }
+
 </style>
