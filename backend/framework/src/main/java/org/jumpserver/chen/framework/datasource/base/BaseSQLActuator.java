@@ -25,6 +25,17 @@ import java.io.Reader;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.sql.*;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.OffsetDateTime;
+import java.time.OffsetTime;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
+import java.time.temporal.ChronoField;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -41,6 +52,22 @@ public abstract class BaseSQLActuator implements SQLActuator {
     // Keep large JDBC text values bounded so one cell cannot fail or stall the whole result view.
     private static final int MAX_TEXT_DISPLAY_LENGTH = 1024 * 1024;
     private static final String TRUNCATED_SUFFIX = "...[truncated]";
+    private static final DateTimeFormatter LOCAL_DATE_TIME_DISPLAY_FORMATTER = new DateTimeFormatterBuilder()
+            .appendPattern("uuuu-MM-dd HH:mm:ss")
+            .appendFraction(ChronoField.NANO_OF_SECOND, 0, 9, true)
+            .toFormatter();
+    private static final DateTimeFormatter LOCAL_TIME_DISPLAY_FORMATTER = new DateTimeFormatterBuilder()
+            .appendPattern("HH:mm:ss")
+            .appendFraction(ChronoField.NANO_OF_SECOND, 0, 9, true)
+            .toFormatter();
+    private static final DateTimeFormatter OFFSET_DATE_TIME_DISPLAY_FORMATTER = new DateTimeFormatterBuilder()
+            .append(LOCAL_DATE_TIME_DISPLAY_FORMATTER)
+            .appendOffsetId()
+            .toFormatter();
+    private static final DateTimeFormatter OFFSET_TIME_DISPLAY_FORMATTER = new DateTimeFormatterBuilder()
+            .append(LOCAL_TIME_DISPLAY_FORMATTER)
+            .appendOffsetId()
+            .toFormatter();
     private ConnectionManager connectionManager;
     private Connection connection;
 
@@ -202,14 +229,15 @@ public abstract class BaseSQLActuator implements SQLActuator {
         }
     }
 
-    // Normalize JDBC driver objects before FastJSON sees them in update_data_view packets.
+    // Normalize JDBC driver objects before Gson sees them in update_data_view packets.
     protected Object normalizeJdbcValue(Object value) throws SQLException {
         if (value == null) {
             return null;
         }
 
-        if (value instanceof Timestamp timestamp) {
-            return new Date(timestamp.getTime());
+        var temporalValue = this.formatTemporalValue(value);
+        if (temporalValue != null) {
+            return temporalValue;
         }
 
         if (value instanceof Long || value instanceof BigDecimal || value instanceof BigInteger) {
@@ -241,6 +269,44 @@ public abstract class BaseSQLActuator implements SQLActuator {
         }
 
         return value;
+    }
+
+    private String formatTemporalValue(Object value) {
+        if (value instanceof Timestamp timestamp) {
+            return LOCAL_DATE_TIME_DISPLAY_FORMATTER.format(timestamp.toLocalDateTime());
+        }
+        if (value instanceof Date date) {
+            return date.toLocalDate().toString();
+        }
+        if (value instanceof Time time) {
+            return LOCAL_TIME_DISPLAY_FORMATTER.format(time.toLocalTime());
+        }
+        if (value instanceof LocalDateTime localDateTime) {
+            return LOCAL_DATE_TIME_DISPLAY_FORMATTER.format(localDateTime);
+        }
+        if (value instanceof LocalDate localDate) {
+            return localDate.toString();
+        }
+        if (value instanceof LocalTime localTime) {
+            return LOCAL_TIME_DISPLAY_FORMATTER.format(localTime);
+        }
+        if (value instanceof OffsetDateTime offsetDateTime) {
+            return OFFSET_DATE_TIME_DISPLAY_FORMATTER.format(offsetDateTime);
+        }
+        if (value instanceof OffsetTime offsetTime) {
+            return OFFSET_TIME_DISPLAY_FORMATTER.format(offsetTime);
+        }
+        if (value instanceof ZonedDateTime zonedDateTime) {
+            var formatted = OFFSET_DATE_TIME_DISPLAY_FORMATTER.format(zonedDateTime);
+            if (!(zonedDateTime.getZone() instanceof ZoneOffset)) {
+                formatted += "[" + zonedDateTime.getZone().getId() + "]";
+            }
+            return formatted;
+        }
+        if (value instanceof Instant instant) {
+            return instant.toString();
+        }
+        return null;
     }
 
     private String toDisplayArray(java.sql.Array jdbcArray) throws SQLException {
