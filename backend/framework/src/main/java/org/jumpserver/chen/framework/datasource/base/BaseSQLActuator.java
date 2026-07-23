@@ -19,18 +19,50 @@ import org.jumpserver.chen.framework.utils.HexUtils;
 import org.jumpserver.chen.framework.utils.PageUtils;
 import org.jumpserver.chen.framework.utils.ReflectUtils;
 
+import java.io.IOException;
+import java.io.Reader;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.sql.*;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.OffsetDateTime;
+import java.time.OffsetTime;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
+import java.time.temporal.ChronoField;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.StringJoiner;
 
 @Slf4j
 public abstract class BaseSQLActuator implements SQLActuator {
 
     @Getter
     private final DbType druidDbType;
+    private static final int MAX_TEXT_DISPLAY_LENGTH = 1024 * 1024;
+    private static final String TRUNCATED_SUFFIX = "...[truncated]";
+    private static final DateTimeFormatter LOCAL_DATE_TIME_DISPLAY_FORMATTER = new DateTimeFormatterBuilder()
+            .appendPattern("uuuu-MM-dd HH:mm:ss")
+            .appendFraction(ChronoField.NANO_OF_SECOND, 0, 9, true)
+            .toFormatter();
+    private static final DateTimeFormatter LOCAL_TIME_DISPLAY_FORMATTER = new DateTimeFormatterBuilder()
+            .appendPattern("HH:mm:ss")
+            .appendFraction(ChronoField.NANO_OF_SECOND, 0, 9, true)
+            .toFormatter();
+    private static final DateTimeFormatter OFFSET_DATE_TIME_DISPLAY_FORMATTER = new DateTimeFormatterBuilder()
+            .append(LOCAL_DATE_TIME_DISPLAY_FORMATTER)
+            .appendOffsetId()
+            .toFormatter();
+    private static final DateTimeFormatter OFFSET_TIME_DISPLAY_FORMATTER = new DateTimeFormatterBuilder()
+            .append(LOCAL_TIME_DISPLAY_FORMATTER)
+            .appendOffsetId()
+            .toFormatter();
     private ConnectionManager connectionManager;
     private Connection connection;
 
@@ -147,38 +179,23 @@ public abstract class BaseSQLActuator implements SQLActuator {
 
             if (hasResult) {
                 var resultSet = statement.getResultSet();
+                var metaData = resultSet.getMetaData();
+                var columnCount = metaData.getColumnCount();
 
-                for (int i = 1; i <= resultSet.getMetaData().getColumnCount(); i++) {
+                for (int i = 1; i <= columnCount; i++) {
                     Field field = new Field();
 
-                    var fieldName = StringUtils.isNotEmpty(resultSet.getMetaData().getColumnLabel(i)) ?
-                            resultSet.getMetaData().getColumnLabel(i) : resultSet.getMetaData().getColumnName(i);
+                    var fieldName = StringUtils.isNotEmpty(metaData.getColumnLabel(i)) ?
+                            metaData.getColumnLabel(i) : metaData.getColumnName(i);
                     field.setName(fieldName);
                     result.getFields().add(field);
                 }
 
                 while (resultSet.next()) {
                     List<Object> fs = new ArrayList<>();
-                    for (int i = 1; i <= resultSet.getMetaData().getColumnCount(); i++) {
+                    for (int i = 1; i <= columnCount; i++) {
                         try {
-                            var obj = resultSet.getObject(i);
-                            if (obj instanceof Timestamp timestamp) {
-                                fs.add(new Date(timestamp.getTime()));
-                            } else if (obj instanceof Long || obj instanceof BigDecimal || obj instanceof BigInteger) {
-                                fs.add(obj.toString());
-                            } else if (obj instanceof byte[]) {
-                                fs.add(HexUtils.bytesToHex((byte[]) obj));
-                            } else if (obj instanceof Blob) {
-                                if (obj.getClass().getName().equals("oracle.sql.BLOB")) {
-                                    fs.add(obj.toString());
-                                    continue;
-                                }
-                                fs.add(HexUtils.bytesToHex(((Blob) obj).getBytes(1, (int) ((Blob) obj).length())));
-                            } else if (obj != null && obj.getClass().getSimpleName().equalsIgnoreCase("pgobject")) {
-                                fs.add(obj.toString());
-                            } else {
-                                fs.add(obj);
-                            }
+                            fs.add(this.normalizeJdbcValue(resultSet.getObject(i)));
                         } catch (NoClassDefFoundError e) {
                             log.error(e.getMessage());
                         }
@@ -203,6 +220,200 @@ public abstract class BaseSQLActuator implements SQLActuator {
         } catch (Exception e) {
             throw new SQLException(e.getMessage());
         }
+    }
+
+    protected Object normalizeJdbcValue(Object value) throws SQLException {
+        if (value == null) {
+            return null;
+        }
+
+        var temporalValue = this.formatTemporalValue(value);
+        if (temporalValue != null) {
+            return temporalValue;
+        }
+
+        if (value instanceof Long || value instanceof BigDecimal || value instanceof BigInteger) {
+            return value.toString();
+        }
+
+        if (value instanceof java.sql.Array jdbcArray) {
+            return this.toDisplayArray(jdbcArray);
+        }
+
+        if (value instanceof Clob clob) {
+            return this.readClob(clob);
+        }
+
+        if (value instanceof SQLXML sqlxml) {
+            return this.readSqlXml(sqlxml);
+        }
+
+        if (value instanceof byte[] bytes) {
+            return HexUtils.bytesToHex(bytes);
+        }
+
+        if (value instanceof Blob blob) {
+            if (blob.getClass().getName().equals("oracle.sql.BLOB")) {
+                return blob.toString();
+            }
+            return HexUtils.bytesToHex(blob.getBytes(1, (int) blob.length()));
+        }
+
+        if (value.getClass().getSimpleName().equalsIgnoreCase("pgobject")) {
+            return value.toString();
+        }
+
+        return value;
+    }
+
+    private String formatTemporalValue(Object value) {
+        if (value instanceof Timestamp timestamp) {
+            return LOCAL_DATE_TIME_DISPLAY_FORMATTER.format(timestamp.toLocalDateTime());
+        }
+        if (value instanceof Date date) {
+            return date.toLocalDate().toString();
+        }
+        if (value instanceof Time time) {
+            return LOCAL_TIME_DISPLAY_FORMATTER.format(time.toLocalTime());
+        }
+        if (value instanceof LocalDateTime localDateTime) {
+            return LOCAL_DATE_TIME_DISPLAY_FORMATTER.format(localDateTime);
+        }
+        if (value instanceof LocalDate localDate) {
+            return localDate.toString();
+        }
+        if (value instanceof LocalTime localTime) {
+            return LOCAL_TIME_DISPLAY_FORMATTER.format(localTime);
+        }
+        if (value instanceof OffsetDateTime offsetDateTime) {
+            return OFFSET_DATE_TIME_DISPLAY_FORMATTER.format(offsetDateTime);
+        }
+        if (value instanceof OffsetTime offsetTime) {
+            return OFFSET_TIME_DISPLAY_FORMATTER.format(offsetTime);
+        }
+        if (value instanceof ZonedDateTime zonedDateTime) {
+            var formatted = OFFSET_DATE_TIME_DISPLAY_FORMATTER.format(zonedDateTime);
+            if (!(zonedDateTime.getZone() instanceof ZoneOffset)) {
+                formatted += "[" + zonedDateTime.getZone().getId() + "]";
+            }
+            return formatted;
+        }
+        if (value instanceof Instant instant) {
+            return instant.toString();
+        }
+        return null;
+    }
+
+    private String toDisplayArray(java.sql.Array jdbcArray) throws SQLException {
+        try {
+            var text = jdbcArray.toString();
+            if (StringUtils.isNotBlank(text) && !isDefaultObjectToString(jdbcArray, text)) {
+                return text;
+            }
+            return formatJdbcArray(jdbcArray.getArray());
+        } finally {
+            try {
+                jdbcArray.free();
+            } catch (SQLException e) {
+                log.debug("free jdbc array failed", e);
+            }
+        }
+    }
+
+    private String readClob(Clob clob) throws SQLException {
+        try (Reader reader = clob.getCharacterStream()) {
+            if (reader != null) {
+                return this.readDisplayText(reader);
+            }
+
+            long length = Math.min(clob.length(), MAX_TEXT_DISPLAY_LENGTH + 1L);
+            return this.truncateDisplayText(clob.getSubString(1, (int) length));
+        } catch (IOException e) {
+            throw new SQLException("read clob failed", e);
+        } finally {
+            try {
+                clob.free();
+            } catch (SQLException e) {
+                log.debug("free clob failed", e);
+            }
+        }
+    }
+
+    private String readSqlXml(SQLXML sqlxml) throws SQLException {
+        try (Reader reader = sqlxml.getCharacterStream()) {
+            if (reader != null) {
+                return this.readDisplayText(reader);
+            }
+
+            return this.truncateDisplayText(sqlxml.getString());
+        } catch (IOException e) {
+            throw new SQLException("read sqlxml failed", e);
+        } finally {
+            try {
+                sqlxml.free();
+            } catch (SQLException e) {
+                log.debug("free sqlxml failed", e);
+            }
+        }
+    }
+
+    private String formatJdbcArray(Object arrayValue) {
+        if (arrayValue == null) {
+            return null;
+        }
+        if (!arrayValue.getClass().isArray()) {
+            return arrayValue.toString();
+        }
+
+        int length = java.lang.reflect.Array.getLength(arrayValue);
+        StringJoiner joiner = new StringJoiner(",", "{", "}");
+        for (int i = 0; i < length; i++) {
+            var item = java.lang.reflect.Array.get(arrayValue, i);
+            if (item instanceof byte[] bytes) {
+                joiner.add(HexUtils.bytesToHex(bytes));
+            } else if (item != null && item.getClass().isArray()) {
+                joiner.add(formatJdbcArray(item));
+            } else if (item == null) {
+                joiner.add("NULL");
+            } else {
+                joiner.add(item.toString());
+            }
+        }
+        return joiner.toString();
+    }
+
+    private String readDisplayText(Reader reader) throws IOException {
+        StringBuilder builder = new StringBuilder();
+        char[] buffer = new char[8192];
+
+        int read;
+        while ((read = reader.read(buffer)) != -1) {
+            int remaining = MAX_TEXT_DISPLAY_LENGTH - builder.length();
+            if (read > remaining) {
+                builder.append(buffer, 0, remaining);
+                builder.append(TRUNCATED_SUFFIX);
+                return builder.toString();
+            }
+
+            builder.append(buffer, 0, read);
+            if (builder.length() == MAX_TEXT_DISPLAY_LENGTH && reader.read() != -1) {
+                builder.append(TRUNCATED_SUFFIX);
+                return builder.toString();
+            }
+        }
+
+        return builder.toString();
+    }
+
+    private String truncateDisplayText(String text) {
+        if (text == null || text.length() <= MAX_TEXT_DISPLAY_LENGTH) {
+            return text;
+        }
+        return text.substring(0, MAX_TEXT_DISPLAY_LENGTH) + TRUNCATED_SUFFIX;
+    }
+
+    private boolean isDefaultObjectToString(Object value, String text) {
+        return text.equals(value.getClass().getName() + "@" + Integer.toHexString(System.identityHashCode(value)));
     }
 
     @Override
