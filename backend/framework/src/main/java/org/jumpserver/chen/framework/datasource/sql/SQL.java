@@ -37,7 +37,7 @@ public class SQL {
 
     public static SQL of(String sql, Object... params) {
         for (Object param : params) {
-            sql = sql.replaceFirst("\\?", param.toString());
+            sql = sql.replaceFirst("\\?", Matcher.quoteReplacement(param.toString()));
         }
         return new SQL(sql);
     }
