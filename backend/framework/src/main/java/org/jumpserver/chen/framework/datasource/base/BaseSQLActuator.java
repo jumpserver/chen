@@ -263,6 +263,10 @@ public abstract class BaseSQLActuator implements SQLActuator {
             return value.toString();
         }
 
+        if (value.getClass().getName().equals("microsoft.sql.DateTimeOffset")) {
+            return value.toString();
+        }
+
         return value;
     }
 
