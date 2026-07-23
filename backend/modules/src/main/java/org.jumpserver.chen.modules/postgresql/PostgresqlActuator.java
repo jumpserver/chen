@@ -37,7 +37,8 @@ public class PostgresqlActuator extends BaseSQLActuator {
     @Override
     public void changeSchema(String schema) throws SQLException {
         var ss = schema.split("\\.");
-        this.execute(SQL.of("SET SEARCH_PATH TO '?';", ss[1]));
+        var schemaName = ss.length > 1 ? ss[1] : ss[0];
+        this.execute(SQL.of("SET SEARCH_PATH TO '?';", schemaName));
     }
 
     @Override
