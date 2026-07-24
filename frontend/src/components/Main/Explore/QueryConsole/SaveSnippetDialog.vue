@@ -6,7 +6,7 @@
     :modal="false"
     width="40%"
   >
-    <el-form ref="form" :model="form" label-width="80px">
+    <el-form ref="form" :model="form" label-width="80px" @submit.native.prevent="onSubmit">
       <el-form-item :label="$tc('Name')">
         <el-input v-model="form.name" />
       </el-form-item>
