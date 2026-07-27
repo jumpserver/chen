@@ -28,7 +28,7 @@ final class Db2TransactionStateProbe implements TransactionStateProbe {
         } catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException |
                  InvocationTargetException | SQLException | RuntimeException e) {
             log.debug("inspect DB2 transaction state failed", e);
-            return QueryTransactionState.UNKNOWN;
+            throw new TransactionStateProbeException(e);
         }
     }
 

@@ -17,12 +17,16 @@ import org.jumpserver.chen.framework.console.entity.response.SaveChangesPreviewR
 import org.jumpserver.chen.framework.console.entity.response.SaveChangesResult;
 import org.jumpserver.chen.framework.console.state.QueryConsoleState;
 import org.jumpserver.chen.framework.console.state.StateManager;
+import org.jumpserver.chen.framework.console.transaction.QueryTransactionProbeResult;
 import org.jumpserver.chen.framework.console.transaction.QueryTransactionState;
 import org.jumpserver.chen.framework.console.transaction.QueryTransactionStateTracker;
 import org.jumpserver.chen.framework.datasource.Datasource;
-import org.jumpserver.chen.framework.datasource.edit.TableBrowseSaveExecutionContext;
+import org.jumpserver.chen.framework.datasource.edit.ConnectionOwnership;
+import org.jumpserver.chen.framework.datasource.edit.SaveExecutionContext;
+import org.jumpserver.chen.framework.datasource.edit.ServiceManagedSaveExecutionContext;
 import org.jumpserver.chen.framework.datasource.edit.TableChangesPreviewService;
 import org.jumpserver.chen.framework.datasource.edit.TableChangesSaveService;
+import org.jumpserver.chen.framework.datasource.edit.UserManagedSaveExecutionContext;
 import org.jumpserver.chen.framework.datasource.sql.SQL;
 import org.jumpserver.chen.framework.datasource.sql.SQLActuator;
 import org.jumpserver.chen.framework.datasource.sql.SQLExecutePlan;
@@ -61,6 +65,12 @@ import java.util.concurrent.locks.ReentrantLock;
 public class QueryConsole extends AbstractConsole {
     private static final String PACKET_SAVE_CHANGES_PREVIEW_RESULT = "save_changes_preview_result";
     private static final String PACKET_SAVE_CHANGES_RESULT = "save_changes_result";
+    static final String QUERY_TRANSACTION_MANUAL_IDLE = "QUERY_TRANSACTION_MANUAL_IDLE";
+    static final String QUERY_TRANSACTION_FAILED = "QUERY_TRANSACTION_FAILED";
+    static final String QUERY_TRANSACTION_STATE_UNKNOWN = "QUERY_TRANSACTION_STATE_UNKNOWN";
+    static final String QUERY_TRANSACTION_PROBE_FAILED = "QUERY_TRANSACTION_PROBE_FAILED";
+    static final String QUERY_INSERT_NOT_SUPPORTED = "QUERY_INSERT_NOT_SUPPORTED";
+    static final String QUERY_DELETE_NOT_SUPPORTED = "QUERY_DELETE_NOT_SUPPORTED";
 
     private final Datasource datasource;
     private final TableChangesPreviewService tableChangesPreviewService = new TableChangesPreviewService();
@@ -354,6 +364,14 @@ public class QueryConsole extends AbstractConsole {
         }
         if (DataViewAction.ACTION_SAVE_CHANGES_PREVIEW.equals(action.getAction())) {
             var request = GSON.fromJson(GSON.toJson(action.getData()), SaveChangesRequest.class);
+            String unsupportedReason = unsupportedQueryMutation(request);
+            if (unsupportedReason != null) {
+                this.getPacketIO().sendPacket(
+                        PACKET_SAVE_CHANGES_PREVIEW_RESULT,
+                        this.rejectedPreview(dataView, unsupportedReason)
+                );
+                return;
+            }
             try {
                 var context = this.tableEditContextFactory.create(dataView, this.getDatasource().getDruidDbType());
                 var result = this.tableChangesPreviewService.preview(context, action.getDataView(), request);
@@ -365,20 +383,7 @@ public class QueryConsole extends AbstractConsole {
         }
         if (DataViewAction.ACTION_SAVE_CHANGES.equals(action.getAction())) {
             var request = GSON.fromJson(GSON.toJson(action.getData()), SaveChangesRequest.class);
-            SaveChangesResult result;
-            try {
-                var context = this.tableEditContextFactory.create(dataView, this.getDatasource().getDruidDbType());
-                result = this.tableChangesSaveService.save(
-                        context,
-                        action.getDataView(),
-                        request,
-                        // TODO: use the QueryConsole physical connection after USER_MANAGED transaction tracking is available.
-                        new TableBrowseSaveExecutionContext(this.getDatasource().getConnectionManager()),
-                        SessionManager.getCurrentSession()
-                );
-            } catch (IllegalArgumentException e) {
-                result = this.rejectedSave(dataView, e.getMessage());
-            }
+            SaveChangesResult result = this.saveQueryChanges(dataView, action.getDataView(), request);
             this.getPacketIO().sendPacket(PACKET_SAVE_CHANGES_RESULT, result);
             return;
         }
@@ -396,6 +401,91 @@ public class QueryConsole extends AbstractConsole {
             dataView.getStateManager().getState().setLoading(false);
             dataView.getStateManager().commit();
         }
+    }
+
+    private SaveChangesResult saveQueryChanges(
+            DataView dataView,
+            String actionDataView,
+            SaveChangesRequest request
+    ) {
+        String unsupportedReason = unsupportedQueryMutation(request);
+        if (unsupportedReason != null) {
+            return this.rejectedSave(dataView, unsupportedReason);
+        }
+
+        Connection connection;
+        QueryTransactionStateTracker tracker;
+        QueryTransactionProbeResult beforeSave;
+        try {
+            connection = this.getConnection();
+            tracker = this.transactionStateTracker;
+            if (tracker == null) {
+                return this.rejectedSave(dataView, QUERY_TRANSACTION_PROBE_FAILED);
+            }
+            beforeSave = tracker.probeNow();
+        } catch (RuntimeException e) {
+            log.warn("probe QueryConsole transaction state before DataView save failed", e);
+            return this.rejectedSave(dataView, QUERY_TRANSACTION_PROBE_FAILED);
+        }
+
+        if (beforeSave.probeFailed()) {
+            return this.rejectedSave(dataView, QUERY_TRANSACTION_PROBE_FAILED);
+        }
+
+        SaveExecutionContext executionContext;
+        switch (beforeSave.state()) {
+            case AUTO_COMMIT -> executionContext = new ServiceManagedSaveExecutionContext(
+                    connection,
+                    ConnectionOwnership.QUERY_CONSOLE
+            );
+            case TRANSACTION_ACTIVE -> executionContext = new UserManagedSaveExecutionContext(connection);
+            case MANUAL_COMMIT_IDLE -> {
+                return this.rejectedSave(dataView, QUERY_TRANSACTION_MANUAL_IDLE);
+            }
+            case TRANSACTION_FAILED -> {
+                return this.rejectedSave(dataView, QUERY_TRANSACTION_FAILED);
+            }
+            case UNKNOWN -> {
+                return this.rejectedSave(dataView, QUERY_TRANSACTION_STATE_UNKNOWN);
+            }
+            default -> {
+                return this.rejectedSave(dataView, QUERY_TRANSACTION_STATE_UNKNOWN);
+            }
+        }
+
+        try {
+            var context = this.tableEditContextFactory.create(
+                    dataView,
+                    this.getDatasource().getDruidDbType()
+            );
+            return this.tableChangesSaveService.save(
+                    context,
+                    actionDataView,
+                    request,
+                    executionContext,
+                    SessionManager.getCurrentSession()
+            );
+        } catch (IllegalArgumentException e) {
+            return this.rejectedSave(dataView, e.getMessage());
+        } finally {
+            QueryTransactionProbeResult afterSave = tracker.probeNow();
+            if (afterSave.probeFailed()) {
+                log.warn("probe QueryConsole transaction state after DataView save failed");
+            }
+        }
+    }
+
+    private static String unsupportedQueryMutation(SaveChangesRequest request) {
+        if (request == null) {
+            return null;
+        }
+        if (request.getInsertRows() != null && !request.getInsertRows().isEmpty()) {
+            return QUERY_INSERT_NOT_SUPPORTED;
+        }
+        if (request.getDeleteRows() != null && !request.getDeleteRows().isEmpty()) {
+            return QUERY_DELETE_NOT_SUPPORTED;
+        }
+        return null;
     }
 
     private SaveChangesPreviewResult rejectedPreview(DataView dataView, String reason) {

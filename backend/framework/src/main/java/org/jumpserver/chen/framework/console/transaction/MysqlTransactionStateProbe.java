@@ -25,7 +25,7 @@ final class MysqlTransactionStateProbe implements TransactionStateProbe {
                     : QueryTransactionState.MANUAL_COMMIT_IDLE;
         } catch (SQLException | RuntimeException e) {
             log.debug("inspect MySQL/MariaDB transaction state failed", e);
-            return QueryTransactionState.UNKNOWN;
+            throw new TransactionStateProbeException(e);
         }
     }
 }

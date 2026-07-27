@@ -40,12 +40,22 @@ public final class QueryTransactionStateTracker {
         this.databaseFamily = databaseFamily;
         this.connection = connection;
         this.probe = probe;
-        this.state = this.inspect();
+        this.state = this.probe.inspectResult(this.connection).state();
         this.manualCommit = this.state == QueryTransactionState.MANUAL_COMMIT_IDLE;
     }
 
     public QueryTransactionState currentState() {
         return this.state;
+    }
+
+    public synchronized QueryTransactionProbeResult probeNow() {
+        if (this.databaseFamily == DatabaseFamily.UNSUPPORTED) {
+            this.state = QueryTransactionState.UNKNOWN;
+            return QueryTransactionProbeResult.observed(this.state);
+        }
+        QueryTransactionProbeResult result = this.probe.inspectResult(this.connection);
+        this.applyObservedState(result.state());
+        return result;
     }
 
     public synchronized void afterExecution(SQLStatement statement, boolean successful) {
@@ -55,11 +65,15 @@ public final class QueryTransactionStateTracker {
         }
 
         this.state = this.transition(statement, successful);
-        QueryTransactionState observed = this.inspect();
+        QueryTransactionState observed = this.probe.inspectResult(this.connection).state();
         if (observed == QueryTransactionState.UNKNOWN) {
             this.state = QueryTransactionState.UNKNOWN;
             return;
         }
+        this.applyObservedState(observed);
+    }
+
+    private void applyObservedState(QueryTransactionState observed) {
         this.state = observed;
         this.manualCommit = observed == QueryTransactionState.MANUAL_COMMIT_IDLE
                 || (this.manualCommit && (observed == QueryTransactionState.TRANSACTION_ACTIVE
@@ -116,10 +130,6 @@ public final class QueryTransactionStateTracker {
         return this.manualCommit
                 ? QueryTransactionState.MANUAL_COMMIT_IDLE
                 : QueryTransactionState.AUTO_COMMIT;
-    }
-
-    private QueryTransactionState inspect() {
-        return this.probe.inspect(this.connection);
     }
 
     private static Boolean findAutoCommit(SQLSetStatement statement) {

@@ -26,7 +26,7 @@ final class OracleTransactionStateProbe implements TransactionStateProbe {
                     : QueryTransactionState.MANUAL_COMMIT_IDLE;
         } catch (SQLException | RuntimeException e) {
             log.debug("inspect Oracle transaction state failed", e);
-            return QueryTransactionState.UNKNOWN;
+            throw new TransactionStateProbeException(e);
         }
     }
 }

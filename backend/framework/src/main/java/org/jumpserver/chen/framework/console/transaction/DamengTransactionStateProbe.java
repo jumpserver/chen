@@ -42,7 +42,7 @@ final class DamengTransactionStateProbe implements TransactionStateProbe {
         } catch (ClassNotFoundException | NoSuchFieldException | IllegalAccessException |
                  SQLException | RuntimeException e) {
             log.debug("inspect Dameng transaction state failed", e);
-            return QueryTransactionState.UNKNOWN;
+            throw new TransactionStateProbeException(e);
         }
     }
 

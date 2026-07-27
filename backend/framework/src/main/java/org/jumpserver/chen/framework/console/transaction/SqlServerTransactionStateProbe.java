@@ -29,7 +29,7 @@ final class SqlServerTransactionStateProbe implements TransactionStateProbe {
         } catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException |
                  InvocationTargetException | SQLException | RuntimeException e) {
             log.debug("inspect SQL Server transaction state failed", e);
-            return QueryTransactionState.UNKNOWN;
+            throw new TransactionStateProbeException(e);
         }
     }
 

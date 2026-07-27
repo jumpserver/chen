@@ -26,7 +26,7 @@ final class PostgresqlTransactionStateProbe implements TransactionStateProbe {
         } catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException |
                  InvocationTargetException | SQLException | RuntimeException e) {
             log.debug("inspect PostgreSQL transaction state failed", e);
-            return QueryTransactionState.UNKNOWN;
+            throw new TransactionStateProbeException(e);
         }
     }
 
