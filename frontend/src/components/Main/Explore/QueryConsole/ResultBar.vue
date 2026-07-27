@@ -185,6 +185,15 @@ export default {
         ref.handleSaveChangesResult(result)
       }
     },
+    handleSaveChangesPreviewResult(result) {
+      if (!result || !result.dataView) {
+        return
+      }
+      const ref = this.getDataViewRef(result.dataView)
+      if (ref && typeof ref.handleSaveChangesPreviewResult === 'function') {
+        ref.handleSaveChangesPreviewResult(result)
+      }
+    },
     hasDirty() {
       return this.tabs.some((tab) => {
         const ref = this.getDataViewRef(tab.name)

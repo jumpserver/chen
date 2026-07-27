@@ -9,7 +9,8 @@ import java.util.OptionalInt;
 public record ACLCommandContext(
         Connection connection,
         ConnectionOwnership connectionOwnership,
-        OptionalInt affectedRows
+        OptionalInt affectedRows,
+        String reviewBatchSql
 ) {
     public ACLCommandContext {
         Objects.requireNonNull(connectionOwnership, "connectionOwnership");
@@ -19,11 +20,20 @@ public record ACLCommandContext(
         }
     }
 
+    public ACLCommandContext(
+            Connection connection,
+            ConnectionOwnership connectionOwnership,
+            OptionalInt affectedRows
+    ) {
+        this(connection, connectionOwnership, affectedRows, null);
+    }
+
     public static ACLCommandContext executionOwned(Connection connection) {
         return new ACLCommandContext(
                 connection,
                 ConnectionOwnership.EXECUTION_CONTEXT,
-                OptionalInt.empty()
+                OptionalInt.empty(),
+                null
         );
     }
 
@@ -31,7 +41,8 @@ public record ACLCommandContext(
         return new ACLCommandContext(
                 Objects.requireNonNull(connection, "connection"),
                 ConnectionOwnership.QUERY_CONSOLE,
-                OptionalInt.empty()
+                OptionalInt.empty(),
+                null
         );
     }
 
@@ -40,6 +51,20 @@ public record ACLCommandContext(
             ConnectionOwnership connectionOwnership,
             int affectedRows
     ) {
-        return new ACLCommandContext(connection, connectionOwnership, OptionalInt.of(affectedRows));
+        return planned(connection, connectionOwnership, affectedRows, null);
+    }
+
+    public static ACLCommandContext planned(
+            Connection connection,
+            ConnectionOwnership connectionOwnership,
+            int affectedRows,
+            String reviewBatchSql
+    ) {
+        return new ACLCommandContext(
+                connection,
+                connectionOwnership,
+                OptionalInt.of(affectedRows),
+                reviewBatchSql
+        );
     }
 }

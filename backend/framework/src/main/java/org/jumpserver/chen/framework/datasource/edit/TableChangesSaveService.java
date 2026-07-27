@@ -11,7 +11,6 @@ import org.jumpserver.chen.framework.datasource.edit.exception.OptimisticLockCon
 import org.jumpserver.chen.framework.datasource.edit.exception.RowNotFoundOrNotUniqueException;
 import org.jumpserver.chen.framework.datasource.edit.exception.UnexpectedAffectedRowsException;
 import org.jumpserver.chen.framework.datasource.sql.SQLQueryResult;
-import org.jumpserver.chen.framework.jms.ACLFilter;
 import org.jumpserver.chen.framework.jms.acl.ACLCommandContext;
 import org.jumpserver.chen.framework.jms.acl.ACLResult;
 import org.jumpserver.chen.framework.jms.exception.CommandRejectException;
@@ -339,26 +338,17 @@ public class TableChangesSaveService {
     ) {
         List<ACLResult> results = new ArrayList<>(plan.getAuditSqlList().size());
         boolean batch = plan.getAuditSqlList().size() > 1;
-        Object previousReviewBatchSql = null;
-        if (batch) {
-            previousReviewBatchSql = session.getAttribute(ACLFilter.REVIEW_BATCH_SQL_ATTRIBUTE);
-            session.setAttribute(ACLFilter.REVIEW_BATCH_SQL_ATTRIBUTE, plan.getAuditSql());
-        }
-        try {
-            for (String sql : plan.getAuditSqlList()) {
-                results.add(session.checkACLWithContext(
-                        sql,
-                        ACLCommandContext.planned(connection, connectionOwnership, plan.getChangeCount())
-                ));
-            }
-        } finally {
-            if (batch) {
-                if (previousReviewBatchSql == null) {
-                    session.removeAttribute(ACLFilter.REVIEW_BATCH_SQL_ATTRIBUTE);
-                } else {
-                    session.setAttribute(ACLFilter.REVIEW_BATCH_SQL_ATTRIBUTE, previousReviewBatchSql);
-                }
-            }
+        String reviewBatchSql = batch ? plan.getAuditSql() : null;
+        for (String sql : plan.getAuditSqlList()) {
+            results.add(session.checkACLWithContext(
+                    sql,
+                    ACLCommandContext.planned(
+                            connection,
+                            connectionOwnership,
+                            plan.getChangeCount(),
+                            reviewBatchSql
+                    )
+            ));
         }
         return aggregateACLResults(results);
     }

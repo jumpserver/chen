@@ -97,11 +97,12 @@ public class ConsoleWebSocketHandler extends TextWebSocketHandler {
             }
         } catch (Exception e) {
             log.error("handle message error", e);
-            var serialExecutor = this.sessionExecutors.get(session.getId());
+            var serialExecutor = this.sessionExecutors.remove(session.getId());
             if (serialExecutor != null) {
                 serialExecutor.shutdown();
             }
             this.closeConsole(token, session.getId());
+            this.closeWebSocket(session);
         }
     }
 
@@ -175,17 +176,15 @@ public class ConsoleWebSocketHandler extends TextWebSocketHandler {
     public void handleTransportError(WebSocketSession session, Throwable exception) throws Exception {
         log.error("websocket error", exception);
         this.closeSessionConsole(session);
-        this.sessionExecutors.remove(session.getId());
     }
 
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus closeStatus) throws Exception {
         this.closeSessionConsole(session);
-        this.sessionExecutors.remove(session.getId());
     }
 
     private void closeSessionConsole(WebSocketSession session) {
-        var serialExecutor = this.sessionExecutors.get(session.getId());
+        var serialExecutor = this.sessionExecutors.remove(session.getId());
         if (serialExecutor != null) {
             serialExecutor.shutdown();
         }
@@ -202,6 +201,16 @@ public class ConsoleWebSocketHandler extends TextWebSocketHandler {
         Console console = currentSession.getConsoles().remove(sessionId);
         if (console != null) {
             console.close();
+        }
+    }
+
+    private void closeWebSocket(WebSocketSession session) {
+        try {
+            if (session.isOpen()) {
+                session.close(CloseStatus.SERVER_ERROR);
+            }
+        } catch (Exception e) {
+            log.warn("close websocket session failed, sessionId={}", session.getId(), e);
         }
     }
 

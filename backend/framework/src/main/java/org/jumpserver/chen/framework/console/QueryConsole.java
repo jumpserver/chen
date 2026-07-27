@@ -55,9 +55,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -77,6 +75,7 @@ public class QueryConsole extends AbstractConsole {
     private final TableChangesSaveService tableChangesSaveService = new TableChangesSaveService();
     private final QueryDataViewTableEditContextFactory tableEditContextFactory = new QueryDataViewTableEditContextFactory();
     private final Object connectionMonitor = new Object();
+    // WebSocket messages are ordered by SerialExecutor; this lock is a lifecycle barrier for close().
     private final ReentrantLock executionLock = new ReentrantLock(true);
     private final AtomicBoolean closed = new AtomicBoolean(false);
     private final AtomicBoolean connectionClosed = new AtomicBoolean(false);
@@ -175,7 +174,7 @@ public class QueryConsole extends AbstractConsole {
                 try {
                     this.conn = this.getDatasource().getConnectionManager().getPhysicalConnection();
                     this.transactionStateTracker = QueryTransactionStateTracker.create(
-                            this.getDatasource().getName(),
+                            this.getDatasource().getDruidDbType(),
                             this.conn
                     );
                 } catch (SQLException e) {
@@ -294,8 +293,7 @@ public class QueryConsole extends AbstractConsole {
         }
     }
 
-    private final ConcurrentHashMap<Integer, String> sqlChunks = new ConcurrentHashMap<>();
-    private CountDownLatch latch;
+    private final Map<Integer, String> sqlChunks = new HashMap<>();
     private int expectedChunks = -1;
 
     private void handleSQLChunk(QueryConsoleAction action) {
@@ -304,16 +302,20 @@ public class QueryConsole extends AbstractConsole {
         var index = (Integer) data.get("index");
         var total = (Integer) data.get("total");
 
-        synchronized (this) {
-            if (expectedChunks == -1) {
-                expectedChunks = total;
-                latch = new CountDownLatch(total);
-            }
+        if (chunk == null || index == null || total == null || total <= 0) {
+            this.getConsoleLogger().error("invalid sql chunk");
+            this.resetSQLChunks();
+            return;
         }
-
-        if (sqlChunks.putIfAbsent(index, chunk) == null) {
-            latch.countDown();
+        if (expectedChunks == -1) {
+            expectedChunks = total;
         }
+        if (total != expectedChunks || index < 0 || index >= expectedChunks) {
+            this.getConsoleLogger().error("invalid sql chunk");
+            this.resetSQLChunks();
+            return;
+        }
+        sqlChunks.putIfAbsent(index, chunk);
     }
 
     /**
@@ -321,11 +323,7 @@ public class QueryConsole extends AbstractConsole {
      */
     private void handleSQLComplete() {
         try {
-
-            // 等待所有分段接收完成
-            boolean completed = latch.await(10, TimeUnit.SECONDS); // 超时10秒
-
-            if (!completed) {
+            if (expectedChunks <= 0 || sqlChunks.size() != expectedChunks) {
                 this.getConsoleLogger().error("read sql message timeout!！");
                 return;
             }
@@ -333,13 +331,15 @@ public class QueryConsole extends AbstractConsole {
             // 按照索引顺序合并所有分段
             StringBuilder sqlBuilder = new StringBuilder();
             for (int i = 0; i < expectedChunks; i++) {
-                sqlBuilder.append(sqlChunks.get(i));
+                String chunk = sqlChunks.get(i);
+                if (chunk == null) {
+                    this.getConsoleLogger().error("read sql message timeout!！");
+                    return;
+                }
+                sqlBuilder.append(chunk);
             }
 
-            // 合并完成后清理缓存
             var sql = sqlBuilder.toString();
-            sqlChunks.clear();
-            expectedChunks = -1;
 
             // 执行完整 SQL
             this.getState().setInQuery(true);
@@ -347,12 +347,16 @@ public class QueryConsole extends AbstractConsole {
 
             this.onSQL(sql);
 
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
         } finally {
+            this.resetSQLChunks();
             this.getState().setInQuery(false);
             this.stateManager.commit();
         }
+    }
+
+    private void resetSQLChunks() {
+        this.sqlChunks.clear();
+        this.expectedChunks = -1;
     }
 
     private void onDataViewAction(DataViewAction action) {

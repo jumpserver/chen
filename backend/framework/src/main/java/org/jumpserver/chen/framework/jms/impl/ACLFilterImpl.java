@@ -115,7 +115,7 @@ public class ACLFilterImpl implements ACLFilter {
     private void createAndWaitTicket(String command, Common.CommandACL commandACL, ACLCommandContext context) {
         OptionalInt affectedRows = this.estimateAffectedRows(command, context);
 
-        var input = reviewTicketCommand(command);
+        var input = reviewTicketCommand(command, context);
         String affectedRowsValue = affectedRows.isPresent()
                 ? Integer.toString(affectedRows.getAsInt())
                 : "unknown";
@@ -158,12 +158,12 @@ public class ACLFilterImpl implements ACLFilter {
         }
     }
 
-    private String reviewTicketCommand(String command) {
-        Object batchSql = SessionManager.getCurrentSession().getAttribute(ACLFilter.REVIEW_BATCH_SQL_ATTRIBUTE);
-        if (!(batchSql instanceof String sql) || sql.isBlank() || sql.equals(command)) {
+    private String reviewTicketCommand(String command, ACLCommandContext context) {
+        String batchSql = context.reviewBatchSql();
+        if (batchSql == null || batchSql.isBlank() || batchSql.equals(command)) {
             return command;
         }
-        return String.format("Batch SQL:\n%s\n\nReview-triggering SQL:\n%s", sql, command);
+        return String.format("Batch SQL:\n%s\n\nReview-triggering SQL:\n%s", batchSql, command);
     }
 
 
