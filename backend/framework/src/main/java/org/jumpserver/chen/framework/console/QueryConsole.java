@@ -17,6 +17,8 @@ import org.jumpserver.chen.framework.console.entity.response.SaveChangesPreviewR
 import org.jumpserver.chen.framework.console.entity.response.SaveChangesResult;
 import org.jumpserver.chen.framework.console.state.QueryConsoleState;
 import org.jumpserver.chen.framework.console.state.StateManager;
+import org.jumpserver.chen.framework.console.transaction.QueryTransactionState;
+import org.jumpserver.chen.framework.console.transaction.QueryTransactionStateTracker;
 import org.jumpserver.chen.framework.datasource.Datasource;
 import org.jumpserver.chen.framework.datasource.edit.TableBrowseSaveExecutionContext;
 import org.jumpserver.chen.framework.datasource.edit.TableChangesPreviewService;
@@ -64,6 +66,7 @@ public class QueryConsole extends AbstractConsole {
     private final TableChangesSaveService tableChangesSaveService = new TableChangesSaveService();
     private final QueryDataViewTableEditContextFactory tableEditContextFactory = new QueryDataViewTableEditContextFactory();
     private Connection conn;
+    private volatile QueryTransactionStateTracker transactionStateTracker;
     private volatile SQLExecutePlan currentPlan;
     private StateManager<QueryConsoleState> stateManager;
     private final Map<String, DataView> dataViews = new HashMap<>();
@@ -144,11 +147,20 @@ public class QueryConsole extends AbstractConsole {
         if (this.conn == null) {
             try {
                 this.conn = this.getDatasource().getConnectionManager().getPhysicalConnection();
+                this.transactionStateTracker = QueryTransactionStateTracker.create(
+                        this.getDatasource().getName(),
+                        this.conn
+                );
             } catch (SQLException e) {
                 throw new RuntimeException(e);
             }
         }
         return this.conn;
+    }
+
+    public QueryTransactionState getTransactionState() {
+        QueryTransactionStateTracker tracker = this.transactionStateTracker;
+        return tracker == null ? QueryTransactionState.UNKNOWN : tracker.currentState();
     }
 
 
@@ -605,6 +617,10 @@ public class QueryConsole extends AbstractConsole {
             plan.setAclResult(aclResult);
             plan.setSqlQueryParams(sqlQueryParams);
             plan.generateTargetSQL();
+            var transactionStatement = plan.getTargetSQLStatement();
+            var tracker = this.transactionStateTracker;
+            plan.setExecutionObserver(successful ->
+                    tracker.afterExecution(transactionStatement, successful));
 
             this.getConsoleLogger().info("execute sql: %s", plan.getTargetSQL());
 

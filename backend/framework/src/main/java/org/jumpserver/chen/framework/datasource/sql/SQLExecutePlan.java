@@ -15,6 +15,7 @@ import org.jumpserver.chen.framework.utils.PageUtils;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.function.Consumer;
 
 
 @Setter
@@ -29,6 +30,9 @@ public class SQLExecutePlan {
     private Statement statement;
     private Connection connection;
     private ACLResult aclResult;
+    private Consumer<Boolean> executionObserver;
+    private boolean executionAttempted;
+    private boolean executionSuccessful;
 
 
     private boolean counted;
@@ -94,6 +98,20 @@ public class SQLExecutePlan {
 
     public SQLStatement getTargetSQLStatement() {
         return SQLUtils.parseSingleStatement(this.targetSQL, this.druidDbType.name());
+    }
+
+    public void executionStarted() {
+        this.executionAttempted = true;
+    }
+
+    public void executionSucceeded() {
+        this.executionSuccessful = true;
+    }
+
+    public void notifyExecutionObserver() {
+        if (this.executionAttempted && this.executionObserver != null) {
+            this.executionObserver.accept(this.executionSuccessful);
+        }
     }
 
     public void cancel() throws SQLException {

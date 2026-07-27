@@ -140,6 +140,7 @@ public abstract class BaseSQLActuator implements SQLActuator {
             Statement statement = plan.createStatement();
             this.executeStatement(plan, statement, result);
         } finally {
+            plan.notifyExecutionObserver();
             if (plan.getConnection() instanceof DruidPooledConnection) {
                 plan.getConnection().close();
             }
@@ -151,7 +152,9 @@ public abstract class BaseSQLActuator implements SQLActuator {
         try (statement) {
             result.setStartTime(new Time(System.currentTimeMillis()));
 
+            plan.executionStarted();
             var hasResult = statement.execute(plan.getTargetSQL());
+            plan.executionSucceeded();
             result.setHasResultSet(hasResult);
 
             result.setQueryFinishedTime(new Time(System.currentTimeMillis()));
