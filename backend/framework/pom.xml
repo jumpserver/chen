@@ -21,7 +21,7 @@
         <dependency>
             <groupId>com.alibaba</groupId>
             <artifactId>druid</artifactId>
-            <version>1.2.18</version>
+            <version>1.2.28-jms.1</version>
         </dependency>
 
         <dependency>
