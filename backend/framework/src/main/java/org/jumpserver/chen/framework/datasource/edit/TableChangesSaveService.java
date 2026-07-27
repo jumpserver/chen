@@ -3,7 +3,6 @@ package org.jumpserver.chen.framework.datasource.edit;
 import lombok.extern.slf4j.Slf4j;
 import org.jumpserver.chen.framework.console.entity.request.SaveChangesRequest;
 import org.jumpserver.chen.framework.console.entity.response.SaveChangesResult;
-import org.jumpserver.chen.framework.datasource.ConnectionManager;
 import org.jumpserver.chen.framework.datasource.edit.bind.PreparedStatementBinder;
 import org.jumpserver.chen.framework.datasource.edit.command.PreparedTableChangeCommand;
 import org.jumpserver.chen.framework.datasource.edit.exception.CommitFailedException;
@@ -36,6 +35,7 @@ public class TableChangesSaveService {
 
     private final TableChangesPlanBuilder planBuilder;
     private final PreparedStatementBinder binder;
+    private final ServiceManagedTransactionBoundary transactionBoundary;
 
     public TableChangesSaveService() {
         this(new TableChangesPlanBuilder(), new PreparedStatementBinder());
@@ -44,13 +44,14 @@ public class TableChangesSaveService {
     TableChangesSaveService(TableChangesPlanBuilder planBuilder, PreparedStatementBinder binder) {
         this.planBuilder = planBuilder;
         this.binder = binder;
+        this.transactionBoundary = new ServiceManagedTransactionBoundary();
     }
 
     public SaveChangesResult save(
             TableEditContext context,
             String actionDataView,
             SaveChangesRequest request,
-            ConnectionManager connectionManager,
+            SaveExecutionContext executionContext,
             Session session
     ) {
         SaveChangesResult result = baseResult(context);
@@ -74,7 +75,11 @@ public class TableChangesSaveService {
 
         log.info("save_changes auditSql:\n{}", plan.getAuditSql());
 
-        try (Connection connection = connectionManager.getConnection()) {
+        try (executionContext) {
+            if (executionContext.transactionMode() != TransactionMode.SERVICE_MANAGED) {
+                throw new IllegalArgumentException("USER_MANAGED save transactions are not implemented");
+            }
+            Connection connection = executionContext.connection();
             log.debug(
                     "save changes plan accepted, dataView={}, table={}.{}, changeCount={}",
                     plan.getDataView(),
@@ -204,45 +209,12 @@ public class TableChangesSaveService {
     }
 
     SQLQueryResult executeTransaction(Connection connection, TableChangesPlan plan, ACLResult aclResult) throws SQLException {
-        boolean originalAutoCommit = connection.getAutoCommit();
-        try {
-            connection.setAutoCommit(false);
+        return this.transactionBoundary.execute(connection, plan, () -> {
             for (int i = 0; i < plan.getCommands().size(); i++) {
                 executeCommand(connection, plan, plan.getCommands().get(i), i);
             }
-            commitTransaction(connection, plan);
             return successQueryResult(plan, aclResult);
-        } catch (SQLException e) {
-            if (!isExpectedSaveException(e)) {
-                log.warn(
-                        "save changes transaction failed, table={}.{}, sqlState={}, vendorCode={}, message={}",
-                        plan.getSchema(),
-                        plan.getTable(),
-                        e.getSQLState(),
-                        e.getErrorCode(),
-                        e.getMessage(),
-                        e
-                );
-                rollbackQuietly(connection, plan);
-            }
-            throw e;
-        } finally {
-            try {
-                connection.setAutoCommit(originalAutoCommit);
-            } catch (SQLException e) {
-                log.warn(
-                        "restore save changes connection autoCommit failed, table={}.{}, originalAutoCommit={}, sqlState={}, vendorCode={}, message={}",
-                        plan.getSchema(),
-                        plan.getTable(),
-                        originalAutoCommit,
-                        e.getSQLState(),
-                        e.getErrorCode(),
-                        e.getMessage(),
-                        e
-                );
-                throw e;
-            }
-        }
+        });
     }
 
     private void executeCommand(
@@ -295,7 +267,6 @@ public class TableChangesSaveService {
                     command.getSourceColumn(),
                     command.getPkColumn()
             );
-            rollbackQuietly(connection, plan);
             if (command.getOperation() == PreparedTableChangeCommand.Operation.DELETE) {
                 throw new RowNotFoundOrNotUniqueException(changeIndex);
             }
@@ -315,26 +286,7 @@ public class TableChangesSaveService {
                     command.getPkColumn(),
                     affectedRows
             );
-            rollbackQuietly(connection, plan);
             throw new UnexpectedAffectedRowsException(changeIndex, affectedRows);
-        }
-    }
-
-    private void commitTransaction(Connection connection, TableChangesPlan plan) throws SQLException {
-        try {
-            connection.commit();
-        } catch (SQLException e) {
-            log.error(
-                    "save changes commit failed, table={}.{}, sqlState={}, vendorCode={}, message={}",
-                    plan.getSchema(),
-                    plan.getTable(),
-                    e.getSQLState(),
-                    e.getErrorCode(),
-                    e.getMessage(),
-                    e
-            );
-            rollbackQuietly(connection, plan);
-            throw new CommitFailedException(e);
         }
     }
 
@@ -344,13 +296,6 @@ public class TableChangesSaveService {
         result.setUpdateCount(plan.getChangeCount());
         result.setAclResult(aclResult);
         return result;
-    }
-
-    private boolean isExpectedSaveException(SQLException e) {
-        return e instanceof OptimisticLockConflictException ||
-                e instanceof RowNotFoundOrNotUniqueException ||
-                e instanceof UnexpectedAffectedRowsException ||
-                e instanceof CommitFailedException;
     }
 
     private boolean isRejected(ACLResult aclResult) {
@@ -433,22 +378,6 @@ public class TableChangesSaveService {
         result.setCmdGroupId(source.getCmdGroupId());
         result.setNotify(source.isNotify());
         return result;
-    }
-
-    private void rollbackQuietly(Connection connection, TableChangesPlan plan) {
-        try {
-            connection.rollback();
-        } catch (SQLException e) {
-            log.warn(
-                    "rollback save changes transaction failed, table={}.{}, sqlState={}, vendorCode={}, message={}",
-                    plan != null ? plan.getSchema() : null,
-                    plan != null ? plan.getTable() : null,
-                    e.getSQLState(),
-                    e.getErrorCode(),
-                    e.getMessage(),
-                    e
-            );
-        }
     }
 
     private SaveChangesResult baseResult(TableEditContext context) {

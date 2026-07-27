@@ -18,6 +18,7 @@ import org.jumpserver.chen.framework.console.entity.response.SaveChangesResult;
 import org.jumpserver.chen.framework.console.state.QueryConsoleState;
 import org.jumpserver.chen.framework.console.state.StateManager;
 import org.jumpserver.chen.framework.datasource.Datasource;
+import org.jumpserver.chen.framework.datasource.edit.TableBrowseSaveExecutionContext;
 import org.jumpserver.chen.framework.datasource.edit.TableChangesPreviewService;
 import org.jumpserver.chen.framework.datasource.edit.TableChangesSaveService;
 import org.jumpserver.chen.framework.datasource.sql.SQL;
@@ -306,7 +307,8 @@ public class QueryConsole extends AbstractConsole {
                         context,
                         action.getDataView(),
                         request,
-                        this.getDatasource().getConnectionManager(),
+                        // TODO: use the QueryConsole physical connection after USER_MANAGED transaction tracking is available.
+                        new TableBrowseSaveExecutionContext(this.getDatasource().getConnectionManager()),
                         SessionManager.getCurrentSession()
                 );
             } catch (IllegalArgumentException e) {

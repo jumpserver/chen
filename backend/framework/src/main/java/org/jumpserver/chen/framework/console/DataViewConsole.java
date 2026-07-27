@@ -12,6 +12,7 @@ import org.jumpserver.chen.framework.console.entity.response.Message;
 import org.jumpserver.chen.framework.console.state.State;
 import org.jumpserver.chen.framework.console.state.StateManager;
 import org.jumpserver.chen.framework.datasource.Datasource;
+import org.jumpserver.chen.framework.datasource.edit.TableBrowseSaveExecutionContext;
 import org.jumpserver.chen.framework.datasource.edit.TableChangesPreviewService;
 import org.jumpserver.chen.framework.datasource.edit.TableChangesSaveService;
 import org.jumpserver.chen.framework.datasource.edit.TableEditContext;
@@ -217,7 +218,7 @@ public class DataViewConsole extends AbstractConsole {
                     context,
                     action.getDataView(),
                     request,
-                    this.getDatasource().getConnectionManager(),
+                    new TableBrowseSaveExecutionContext(this.getDatasource().getConnectionManager()),
                     SessionManager.getCurrentSession()
             );
             this.getPacketIO().sendPacket(PACKET_SAVE_CHANGES_RESULT, result);
