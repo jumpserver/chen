@@ -7,8 +7,9 @@ import java.sql.Connection;
 import java.sql.SQLException;
 
 @Slf4j
-final class ServiceManagedTransactionBoundary {
-    <T> T execute(Connection connection, TableChangesPlan plan, TransactionWork<T> work) throws SQLException {
+final class ServiceManagedTransactionBoundary implements TransactionBoundary {
+    @Override
+    public <T> T execute(Connection connection, TableChangesPlan plan, TransactionWork<T> work) throws SQLException {
         boolean originalAutoCommit = connection.getAutoCommit();
         if (!originalAutoCommit) {
             throw new SQLException("SERVICE_MANAGED transaction requires autoCommit=true");
@@ -101,8 +102,4 @@ final class ServiceManagedTransactionBoundary {
         }
     }
 
-    @FunctionalInterface
-    interface TransactionWork<T> {
-        T execute() throws SQLException;
-    }
 }
