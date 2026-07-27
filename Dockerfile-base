@@ -24,7 +24,7 @@ RUN set -ex \
     && dpkg -i check_linux_${TARGETARCH}.deb \
     && rm -f check_linux_${TARGETARCH}.deb
 
-ARG WISP_VERSION=v0.2.13
+ARG WISP_VERSION=v0.2.14
 RUN set -ex \
     && wget https://github.com/jumpserver/wisp/releases/download/${WISP_VERSION}/wisp_linux_${TARGETARCH}.deb \
     && dpkg -i wisp_linux_${TARGETARCH}.deb \
