@@ -125,9 +125,9 @@ public class ACLFilterImpl implements ACLFilter {
             log.error("get affected rows failed", e);
         }
 
-        var input = command;
+        var input = reviewTicketCommand(command);
         if (affectRows != -1) {
-            input = String.format("Affected rows: %d\n%s", affectRows, command);
+            input = String.format("Affected rows: %d\n%s", affectRows, input);
         }
 
 
@@ -142,6 +142,14 @@ public class ACLFilterImpl implements ACLFilter {
             throw new RuntimeException("create command ticket failed: " + resp.getStatus().getErr());
         }
         this.waitForTicketStatusChange(command, resp.getInfo());
+    }
+
+    private String reviewTicketCommand(String command) {
+        Object batchSql = SessionManager.getCurrentSession().getAttribute(ACLFilter.REVIEW_BATCH_SQL_ATTRIBUTE);
+        if (!(batchSql instanceof String sql) || sql.isBlank() || sql.equals(command)) {
+            return command;
+        }
+        return String.format("Batch SQL:\n%s\n\nReview-triggering SQL:\n%s", sql, command);
     }
 
 

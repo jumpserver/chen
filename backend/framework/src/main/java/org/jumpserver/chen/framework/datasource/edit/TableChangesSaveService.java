@@ -11,6 +11,7 @@ import org.jumpserver.chen.framework.datasource.edit.exception.OptimisticLockCon
 import org.jumpserver.chen.framework.datasource.edit.exception.RowNotFoundOrNotUniqueException;
 import org.jumpserver.chen.framework.datasource.edit.exception.UnexpectedAffectedRowsException;
 import org.jumpserver.chen.framework.datasource.sql.SQLQueryResult;
+import org.jumpserver.chen.framework.jms.ACLFilter;
 import org.jumpserver.chen.framework.jms.acl.ACLResult;
 import org.jumpserver.chen.framework.jms.exception.CommandRejectException;
 import org.jumpserver.chen.framework.session.Session;
@@ -19,10 +20,13 @@ import org.jumpserver.wisp.Common;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 
 @Slf4j
 public class TableChangesSaveService {
     public static final String ACL_REJECTED = "ACL_REJECTED";
+    public static final String ACL_RISK_LEVEL_UNRECOGNIZED = "ACL_RISK_LEVEL_UNRECOGNIZED";
     public static final String OPTIMISTIC_LOCK_CONFLICT = "OPTIMISTIC_LOCK_CONFLICT";
     public static final String ROW_NOT_FOUND_OR_NOT_UNIQUE = "ROW_NOT_FOUND_OR_NOT_UNIQUE";
     public static final String AFFECTED_ROWS_UNEXPECTED = "AFFECTED_ROWS_UNEXPECTED";
@@ -79,7 +83,16 @@ public class TableChangesSaveService {
                     plan.getChangeCount()
             );
 
-            ACLResult aclResult = session.checkACL(plan.getAclSql(), connection);
+            ACLResult aclResult = checkBatchACL(plan, session, connection);
+            if (aclResult.getRiskLevel() == Common.RiskLevel.UNRECOGNIZED) {
+                log.error(
+                        "save changes acl returned unrecognized risk level, dataView={}, table={}.{}",
+                        plan.getDataView(),
+                        plan.getSchema(),
+                        plan.getTable()
+                );
+                return reject(result, ACL_RISK_LEVEL_UNRECOGNIZED, null, null);
+            }
             if (isRejected(aclResult)) {
                 log.warn(
                         "save changes acl rejected, dataView={}, table={}.{}, riskLevel={}",
@@ -343,7 +356,83 @@ public class TableChangesSaveService {
     private boolean isRejected(ACLResult aclResult) {
         return aclResult != null &&
                 (aclResult.getRiskLevel() == Common.RiskLevel.Reject ||
-                        aclResult.getRiskLevel() == Common.RiskLevel.ReviewReject);
+                        aclResult.getRiskLevel() == Common.RiskLevel.ReviewReject ||
+                        aclResult.getRiskLevel() == Common.RiskLevel.ReviewCancel);
+    }
+
+    private ACLResult checkBatchACL(TableChangesPlan plan, Session session, Connection connection) {
+        List<ACLResult> results = new ArrayList<>(plan.getAuditSqlList().size());
+        boolean batch = plan.getAuditSqlList().size() > 1;
+        Object previousReviewBatchSql = null;
+        if (batch) {
+            previousReviewBatchSql = session.getAttribute(ACLFilter.REVIEW_BATCH_SQL_ATTRIBUTE);
+            session.setAttribute(ACLFilter.REVIEW_BATCH_SQL_ATTRIBUTE, plan.getAuditSql());
+        }
+        try {
+            for (String sql : plan.getAuditSqlList()) {
+                results.add(session.checkACL(sql, connection));
+            }
+        } finally {
+            if (batch) {
+                if (previousReviewBatchSql == null) {
+                    session.removeAttribute(ACLFilter.REVIEW_BATCH_SQL_ATTRIBUTE);
+                } else {
+                    session.setAttribute(ACLFilter.REVIEW_BATCH_SQL_ATTRIBUTE, previousReviewBatchSql);
+                }
+            }
+        }
+        return aggregateACLResults(results);
+    }
+
+    static ACLResult aggregateACLResults(List<ACLResult> results) {
+        ACLResult aggregate = normalACLResult();
+        boolean notify = false;
+        boolean hasEffectiveResult = false;
+        for (ACLResult result : results) {
+            if (result == null) {
+                continue;
+            }
+            notify |= result.isNotify();
+            int resultPriority = riskPriority(result.getRiskLevel());
+            int aggregatePriority = riskPriority(aggregate.getRiskLevel());
+            if (!hasEffectiveResult || resultPriority > aggregatePriority ||
+                    (resultPriority == aggregatePriority && result.isNotify() && !aggregate.isNotify())) {
+                aggregate = copyACLResult(result);
+                hasEffectiveResult = true;
+            }
+        }
+        aggregate.setNotify(notify);
+        return aggregate;
+    }
+
+    private static int riskPriority(Common.RiskLevel riskLevel) {
+        if (riskLevel == null) {
+            return 0;
+        }
+        return switch (riskLevel) {
+            case UNRECOGNIZED -> 7;
+            case ReviewReject -> 6;
+            case ReviewCancel -> 5;
+            case Reject -> 4;
+            case ReviewAccept -> 3;
+            case Warning -> 2;
+            case Normal -> 1;
+        };
+    }
+
+    private static ACLResult normalACLResult() {
+        ACLResult result = new ACLResult();
+        result.setRiskLevel(Common.RiskLevel.Normal);
+        return result;
+    }
+
+    private static ACLResult copyACLResult(ACLResult source) {
+        ACLResult result = new ACLResult();
+        result.setRiskLevel(source.getRiskLevel());
+        result.setCmdAclId(source.getCmdAclId());
+        result.setCmdGroupId(source.getCmdGroupId());
+        result.setNotify(source.isNotify());
+        return result;
     }
 
     private void rollbackQuietly(Connection connection, TableChangesPlan plan) {

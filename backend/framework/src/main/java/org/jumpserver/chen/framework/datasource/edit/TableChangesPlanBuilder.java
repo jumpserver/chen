@@ -120,9 +120,8 @@ public class TableChangesPlanBuilder {
             return insertResult.failure();
         }
 
-        String aclSql = String.join("\n", renderedSqlList);
-        plan.setAclSql(aclSql);
-        plan.setAuditSql(aclSql);
+        plan.setAuditSqlList(List.copyOf(renderedSqlList));
+        plan.setAuditSql(String.join("\n", renderedSqlList));
         return TableChangesPlanBuildResult.success(plan);
     }
 

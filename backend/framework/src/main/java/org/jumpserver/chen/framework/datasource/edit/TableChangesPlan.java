@@ -16,6 +16,6 @@ public class TableChangesPlan {
     private int insertCount;
     private int deleteCount;
     private List<PreparedTableChangeCommand> commands = new ArrayList<>();
-    private String aclSql;
+    private List<String> auditSqlList = new ArrayList<>();
     private String auditSql;
 }
