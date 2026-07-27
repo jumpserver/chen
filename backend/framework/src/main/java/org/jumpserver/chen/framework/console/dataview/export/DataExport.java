@@ -157,8 +157,8 @@ class DataExportCSV implements DataExportInterface {
     private static void writeString(BufferedWriter writer, Object object) throws IOException {
         var str = object.toString();
 
-        if (str.contains(",")) {
-            str = "\"" + str + "\"";
+        if (str.contains("\"") || str.contains(",")) {
+            str = "\"" + str.replace("\"", "\"\"") + "\"";
         }
         writer.write(str);
     }
