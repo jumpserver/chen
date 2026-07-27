@@ -71,6 +71,7 @@ export default {
         newResultSubject: new Subject(),
         updateResultSubject: new Subject(),
         deleteResultSubject: new Subject(),
+        saveChangesPreviewResultSubject: new Subject(),
         saveChangesResultSubject: new Subject(),
         eventSubject: new Subject(),
         stateSubject: new Subject()
@@ -128,6 +129,9 @@ export default {
           break
         case 'save_changes_result':
           this.subjects.saveChangesResultSubject.next(pkt.data)
+          break
+        case 'save_changes_preview_result':
+          this.subjects.saveChangesPreviewResultSubject.next(pkt.data)
           break
         case 'message':
           this.subjects.messageSubject.next(pkt.data)

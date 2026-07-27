@@ -687,10 +687,7 @@ export default {
     },
     handleSaveChangesPreviewResult(result) {
       const request = this.requestState.activeRequest
-      const responseSequence = result && result.clientRequestSequence
-        ? result.clientRequestSequence
-        : request && request.sequence
-      if (!request || !this.requestState.isCurrent(responseSequence, 'preview')) {
+      if (!request || !this.requestState.isCurrent(request.sequence, 'preview')) {
         return false
       }
       if (!result || !result.success) {
@@ -742,10 +739,7 @@ export default {
     },
     handleSaveChangesResult(result) {
       const request = this.requestState.activeRequest
-      const responseSequence = result && result.clientRequestSequence
-        ? result.clientRequestSequence
-        : request && request.sequence
-      if (!request || !this.requestState.isCurrent(responseSequence, 'save')) {
+      if (!request || !this.requestState.isCurrent(request.sequence, 'save')) {
         return false
       }
       if (!result || !result.success) {
@@ -927,13 +921,12 @@ export default {
       })
       return true
     },
-    acceptDataResponse(requestSequence) {
+    acceptDataResponse() {
       const request = this.requestState.activeRequest
       if (!request) {
         return true
       }
-      const responseSequence = requestSequence || request.sequence
-      if (!this.requestState.finish(responseSequence, 'data')) {
+      if (!this.requestState.finish(request.sequence, 'data')) {
         return false
       }
       this.resetDataSelection()

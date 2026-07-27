@@ -29,6 +29,7 @@
         :meta="item.meta"
         :data="item.data"
         :editable="true"
+        :preview-before-save="true"
         :state-subject="subjects.stateSubject"
         :update-subject="subjects.updateResultSubject"
         :tool-bar-items="item.extraToolBarItems"
@@ -96,7 +97,7 @@ export default {
       this.tabs.forEach((tab) => {
         if (tab.name === data.title) {
           const ref = this.getDataViewRef(tab.name)
-          if (ref && !ref.acceptDataResponse(data.clientRequestSequence)) {
+          if (ref && !ref.acceptDataResponse()) {
             return
           }
           tab.data = data.data
@@ -119,6 +120,9 @@ export default {
     })
     this.subjects.saveChangesResultSubject.subscribe((data) => {
       this.handleSaveChangesResult(data)
+    })
+    this.subjects.saveChangesPreviewResultSubject.subscribe((data) => {
+      this.handleSaveChangesPreviewResult(data)
     })
   },
   methods: {
@@ -144,8 +148,10 @@ export default {
       this.emitDataViewAction(dataView, action)
     },
     emitDataViewAction(dataView, action) {
+      const request = { ...action }
+      delete request.clientRequestSequence
       this.$emit('dataViewAction', {
-        ...action,
+        ...request,
         dataView
       })
     },

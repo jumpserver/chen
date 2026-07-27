@@ -75,8 +75,6 @@ public class TableChangesSaveService {
         TableChangesPlan plan = buildResult.getPlan();
         fillPlanResult(result, plan);
 
-        log.info("save_changes auditSql:\n{}", plan.getAuditSql());
-
         try {
             TransactionBoundary transactionBoundary = transactionBoundary(executionContext, context.getDbType());
             if (executionContext.transactionMode() == TransactionMode.SERVICE_MANAGED) {
@@ -199,11 +197,6 @@ public class TableChangesSaveService {
             );
             return reject(result, ACL_REJECTED, null, null);
         }
-        if (aclResult == null) {
-            aclResult = new ACLResult();
-            aclResult.setRiskLevel(Common.RiskLevel.Normal);
-        }
-
         ACLResult finalAclResult = aclResult;
         SQLQueryResult queryResult = session.withAudit(
                 plan.getAuditSql(),

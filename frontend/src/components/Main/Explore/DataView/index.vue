@@ -131,7 +131,7 @@ export default {
           this.viewMeta = pkt.data
           break
         case 'update_data_view':
-          if (!this.$refs.dataView || this.$refs.dataView.acceptDataResponse(pkt.data.clientRequestSequence)) {
+          if (!this.$refs.dataView || this.$refs.dataView.acceptDataResponse()) {
             this.data = pkt.data.data
           }
           break
@@ -182,7 +182,9 @@ export default {
       this.sendDataViewAction(action)
     },
     sendDataViewAction(action) {
-      this.ws.send(JSON.stringify({ type: 'data_view_action', data: action }))
+      const request = { ...action }
+      delete request.clientRequestSequence
+      this.ws.send(JSON.stringify({ type: 'data_view_action', data: request }))
     },
     shouldGuardDirty(action) {
       return ['first_page', 'prev_page', 'next_page', 'last_page', 'refresh', 'change_limit'].includes(action.action)

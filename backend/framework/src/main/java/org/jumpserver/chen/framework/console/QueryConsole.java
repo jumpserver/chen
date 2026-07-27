@@ -191,7 +191,6 @@ public class QueryConsole extends AbstractConsole {
         return tracker == null ? QueryTransactionState.UNKNOWN : tracker.currentState();
     }
 
-
     @Override
     public void handle(Packet packet) {
         if (this.isCancelPacket(packet)) {
@@ -761,11 +760,6 @@ public class QueryConsole extends AbstractConsole {
             plan.setAclResult(aclResult);
             plan.setSqlQueryParams(sqlQueryParams);
             plan.generateTargetSQL();
-            var transactionStatement = plan.getTargetSQLStatement();
-            var tracker = this.transactionStateTracker;
-            plan.setExecutionObserver(successful ->
-                    tracker.afterExecution(transactionStatement, successful));
-
             this.getConsoleLogger().info("execute sql: %s", plan.getTargetSQL());
 
             this.currentPlan = plan;
