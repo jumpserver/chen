@@ -55,6 +55,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.ReentrantLock;
 
 @Slf4j
 public class QueryConsole extends AbstractConsole {
@@ -65,6 +66,10 @@ public class QueryConsole extends AbstractConsole {
     private final TableChangesPreviewService tableChangesPreviewService = new TableChangesPreviewService();
     private final TableChangesSaveService tableChangesSaveService = new TableChangesSaveService();
     private final QueryDataViewTableEditContextFactory tableEditContextFactory = new QueryDataViewTableEditContextFactory();
+    private final Object connectionMonitor = new Object();
+    private final ReentrantLock executionLock = new ReentrantLock(true);
+    private final AtomicBoolean closed = new AtomicBoolean(false);
+    private final AtomicBoolean connectionClosed = new AtomicBoolean(false);
     private Connection conn;
     private volatile QueryTransactionStateTracker transactionStateTracker;
     private volatile SQLExecutePlan currentPlan;
@@ -97,8 +102,15 @@ public class QueryConsole extends AbstractConsole {
 
     @Override
     public void onInit(Connect connect) {
-        super.onInit(connect);
-        this.onConnect(connect);
+        if (!this.beginExecution()) {
+            return;
+        }
+        try {
+            super.onInit(connect);
+            this.onConnect(connect);
+        } finally {
+            this.executionLock.unlock();
+        }
     }
 
     public void onConnect(Connect connect) {
@@ -129,6 +141,7 @@ public class QueryConsole extends AbstractConsole {
 
         } catch (SQLException e) {
             this.getConsoleLogger().error(MessageUtils.get("ConnectError") + ": %s", e.getMessage());
+            throw new IllegalStateException("Failed to initialize query console", e);
         }
 
         this.getState().setLoading(false);
@@ -143,19 +156,24 @@ public class QueryConsole extends AbstractConsole {
                 : this.getContext().schema();
     }
 
-    private Connection getConnection() {
-        if (this.conn == null) {
-            try {
-                this.conn = this.getDatasource().getConnectionManager().getPhysicalConnection();
-                this.transactionStateTracker = QueryTransactionStateTracker.create(
-                        this.getDatasource().getName(),
-                        this.conn
-                );
-            } catch (SQLException e) {
-                throw new RuntimeException(e);
+    Connection getConnection() {
+        synchronized (this.connectionMonitor) {
+            if (this.closed.get()) {
+                throw new IllegalStateException("Query console is closed");
             }
+            if (this.conn == null) {
+                try {
+                    this.conn = this.getDatasource().getConnectionManager().getPhysicalConnection();
+                    this.transactionStateTracker = QueryTransactionStateTracker.create(
+                            this.getDatasource().getName(),
+                            this.conn
+                    );
+                } catch (SQLException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+            return this.conn;
         }
-        return this.conn;
     }
 
     public QueryTransactionState getTransactionState() {
@@ -166,6 +184,21 @@ public class QueryConsole extends AbstractConsole {
 
     @Override
     public void handle(Packet packet) {
+        if (this.isCancelPacket(packet)) {
+            this.onCancel();
+            return;
+        }
+        if (!this.beginExecution()) {
+            return;
+        }
+        try {
+            this.handleSerialPacket(packet);
+        } finally {
+            this.executionLock.unlock();
+        }
+    }
+
+    private void handleSerialPacket(Packet packet) {
 
         switch (packet.getType()) {
             case "ping" -> this.getPacketIO().sendPacket("pong", null);
@@ -186,6 +219,26 @@ public class QueryConsole extends AbstractConsole {
             }
             default -> log.warn("Unknown packet type {}", packet.getType());
         }
+    }
+
+    private boolean isCancelPacket(Packet packet) {
+        if (!StringUtils.equals(packet.getType(), Packet.TYPE_QUERY_CONSOLE_ACTION)) {
+            return false;
+        }
+        var action = GSON.fromJson(GSON.toJson(packet.getData()), QueryConsoleAction.class);
+        return StringUtils.equals(action.getAction(), QueryConsoleAction.ACTION_CANCEL);
+    }
+
+    private boolean beginExecution() {
+        if (this.closed.get()) {
+            return false;
+        }
+        this.executionLock.lock();
+        if (this.closed.get()) {
+            this.executionLock.unlock();
+            return false;
+        }
+        return true;
     }
 
 
@@ -365,11 +418,12 @@ public class QueryConsole extends AbstractConsole {
 
     public void onCancel() {
         try {
-            if (this.currentPlan != null) {
-                this.currentPlan.cancel();
-                this.getConsoleLogger().error("cancel query: %s", this.currentPlan.getTargetSQL());
+            var plan = this.currentPlan;
+            if (plan != null && plan.getStatement() != null) {
+                plan.cancel();
+                this.getConsoleLogger().error("cancel query: %s", plan.getTargetSQL());
             }
-        } catch (SQLException e) {
+        } catch (SQLException | RuntimeException e) {
             log.error("cancel failed ", e);
         }
     }
@@ -671,14 +725,46 @@ public class QueryConsole extends AbstractConsole {
 
     @Override
     public void close() {
-        if (this.currentPlan != null) {
-            // flush
-            var session = SessionManager.getCurrentSession();
-            var lastCmd = this.currentPlan.getTargetSQL();
-            var cmdRecord = new CommandRecord(lastCmd);
-            cmdRecord.setError("Abnormal exit");
-            session.recordCommand(cmdRecord);
+        if (!this.closed.compareAndSet(false, true)) {
+            return;
+        }
+
+        var plan = this.currentPlan;
+        if (plan != null) {
+            try {
+                // flush
+                var session = SessionManager.getCurrentSession();
+                var lastCmd = plan.getTargetSQL();
+                var cmdRecord = new CommandRecord(lastCmd);
+                cmdRecord.setError("Abnormal exit");
+                if (session != null) {
+                    session.recordCommand(cmdRecord);
+                }
+            } catch (RuntimeException e) {
+                log.warn("record interrupted query failed", e);
+            }
+        }
+        this.onCancel();
+
+        this.executionLock.lock();
+        try {
+            this.closeConnection();
+        } finally {
+            this.executionLock.unlock();
         }
         log.info("console closed");
+    }
+
+    private void closeConnection() {
+        synchronized (this.connectionMonitor) {
+            if (!this.connectionClosed.compareAndSet(false, true) || this.conn == null) {
+                return;
+            }
+            try {
+                this.conn.close();
+            } catch (SQLException | RuntimeException e) {
+                log.warn("close query console connection failed", e);
+            }
+        }
     }
 }

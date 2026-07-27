@@ -6,6 +6,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.jumpserver.chen.framework.console.Console;
 import org.jumpserver.chen.framework.console.DataViewConsole;
 import org.jumpserver.chen.framework.console.QueryConsole;
+import org.jumpserver.chen.framework.console.action.QueryConsoleAction;
 import org.jumpserver.chen.framework.console.context.ConsoleContext;
 import org.jumpserver.chen.framework.console.context.ConsoleContextResolutionException;
 import org.jumpserver.chen.framework.console.context.ConsoleContextResolver;
@@ -21,6 +22,10 @@ import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.adapter.NativeWebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
+import java.util.ArrayDeque;
+import java.util.Map;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -40,35 +45,87 @@ public class ConsoleWebSocketHandler extends TextWebSocketHandler {
 
 
     private final ExecutorService executorService = Executors.newFixedThreadPool(10);
+    private final Map<String, SerialExecutor> sessionExecutors = new ConcurrentHashMap<>();
 
     @Override
     public void handleMessage(WebSocketSession session, WebSocketMessage<?> message) throws Exception {
+        var token = (String) session.getAttributes().get("token");
+        var packet = GSON.fromJson(message.getPayload().toString(), Packet.class);
 
-        executorService.submit(() -> {
-            try {
-                var token = (String) session.getAttributes().get("token");
-                SessionManager.setContext(token);
+        if (this.isQueryConsoleCancel(token, session.getId(), packet)) {
+            this.cancelQueryConsole(token, session.getId());
+            return;
+        }
 
-                var packet = GSON.fromJson(message.getPayload().toString(), Packet.class);
-                if (StringUtils.equals(packet.getType(), Packet.TYPE_CONNECT)) {
-                    onConnectPacket(session, packet);
-                } else {
-                    var console = SessionManager
-                            .getCurrentSession()
-                            .getConsoles()
-                            .get(session.getId());
+        if (this.isQueryConsoleMessage(token, session.getId(), packet)) {
+            this.sessionExecutors
+                    .computeIfAbsent(session.getId(), ignored -> new SerialExecutor(this.executorService))
+                    .execute(() -> this.processMessage(session, token, packet));
+        } else {
+            this.executorService.submit(() -> this.processMessage(session, token, packet));
+        }
+    }
 
-                    if (console != null) {
-                        this.setDatabaseContext(console);
+    private boolean isQueryConsoleMessage(String token, String sessionId, Packet packet) {
+        if (this.sessionExecutors.containsKey(sessionId)) {
+            return true;
+        }
+        if (StringUtils.equals(packet.getType(), Packet.TYPE_CONNECT)) {
+            var connect = GSON.fromJson(GSON.toJson(packet.getData()), Connect.class);
+            return StringUtils.equals(connect.getType(), Connect.CONSOLE_TYPE_QUERY);
+        }
+        var currentSession = SessionManager.getSession(token);
+        return currentSession != null && currentSession.getConsoles().get(sessionId) instanceof QueryConsole;
+    }
 
-                        var handler = SessionManager.getCurrentSession().getConsoles().get(session.getId());
-                        handler.handle(packet);
-                    }
-                }
-            } catch (Exception e) {
-                log.error("handle message error", e);
+    private void processMessage(WebSocketSession session, String token, Packet packet) {
+        try {
+            SessionManager.setContext(token);
+            if (StringUtils.equals(packet.getType(), Packet.TYPE_CONNECT)) {
+                onConnectPacket(session, packet);
+                return;
             }
-        });
+
+            var currentSession = SessionManager.getCurrentSession();
+            if (currentSession == null) {
+                return;
+            }
+            var console = currentSession.getConsoles().get(session.getId());
+            if (console != null) {
+                this.setDatabaseContext(console);
+                console.handle(packet);
+            }
+        } catch (Exception e) {
+            log.error("handle message error", e);
+            var serialExecutor = this.sessionExecutors.get(session.getId());
+            if (serialExecutor != null) {
+                serialExecutor.shutdown();
+            }
+            this.closeConsole(token, session.getId());
+        }
+    }
+
+    private boolean isQueryConsoleCancel(String token, String sessionId, Packet packet) {
+        if (!StringUtils.equals(packet.getType(), Packet.TYPE_QUERY_CONSOLE_ACTION)) {
+            return false;
+        }
+        var action = GSON.fromJson(GSON.toJson(packet.getData()), QueryConsoleAction.class);
+        if (!StringUtils.equals(action.getAction(), QueryConsoleAction.ACTION_CANCEL)) {
+            return false;
+        }
+        var currentSession = SessionManager.getSession(token);
+        return currentSession != null && currentSession.getConsoles().get(sessionId) instanceof QueryConsole;
+    }
+
+    private void cancelQueryConsole(String token, String sessionId) {
+        var currentSession = SessionManager.getSession(token);
+        if (currentSession == null) {
+            return;
+        }
+        var console = currentSession.getConsoles().get(sessionId);
+        if (console instanceof QueryConsole queryConsole) {
+            queryConsole.onCancel();
+        }
     }
 
     private void onConnectPacket(WebSocketSession session, Packet packet) {
@@ -117,23 +174,73 @@ public class ConsoleWebSocketHandler extends TextWebSocketHandler {
     @Override
     public void handleTransportError(WebSocketSession session, Throwable exception) throws Exception {
         log.error("websocket error", exception);
+        this.closeSessionConsole(session);
+        this.sessionExecutors.remove(session.getId());
     }
 
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus closeStatus) throws Exception {
+        this.closeSessionConsole(session);
+        this.sessionExecutors.remove(session.getId());
+    }
+
+    private void closeSessionConsole(WebSocketSession session) {
+        var serialExecutor = this.sessionExecutors.get(session.getId());
+        if (serialExecutor != null) {
+            serialExecutor.shutdown();
+        }
         var token = (String) session.getAttributes().get("token");
+        this.closeConsole(token, session.getId());
+    }
+
+    private void closeConsole(String token, String sessionId) {
         SessionManager.setContext(token);
-        var sess = SessionManager.getCurrentSession();
-        if (sess == null) {
+        var currentSession = SessionManager.getCurrentSession();
+        if (currentSession == null) {
             return;
         }
-        Console console = SessionManager
-                .getCurrentSession()
-                .getConsoles()
-                .get(session.getId());
+        Console console = currentSession.getConsoles().remove(sessionId);
         if (console != null) {
             console.close();
         }
-        SessionManager.getCurrentSession().getConsoles().remove(session.getId());
+    }
+
+    private static final class SerialExecutor {
+        private final ExecutorService executor;
+        private final Queue<Runnable> tasks = new ArrayDeque<>();
+        private Runnable active;
+        private boolean accepting = true;
+
+        private SerialExecutor(ExecutorService executor) {
+            this.executor = executor;
+        }
+
+        private synchronized void execute(Runnable task) {
+            if (!this.accepting) {
+                return;
+            }
+            this.tasks.offer(() -> {
+                try {
+                    task.run();
+                } finally {
+                    this.scheduleNext();
+                }
+            });
+            if (this.active == null) {
+                this.scheduleNext();
+            }
+        }
+
+        private synchronized void scheduleNext() {
+            this.active = this.tasks.poll();
+            if (this.active != null) {
+                this.executor.submit(this.active);
+            }
+        }
+
+        private synchronized void shutdown() {
+            this.accepting = false;
+            this.tasks.clear();
+        }
     }
 }

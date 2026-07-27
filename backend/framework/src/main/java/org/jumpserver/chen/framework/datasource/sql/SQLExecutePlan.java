@@ -27,7 +27,7 @@ public class SQLExecutePlan {
     private SQLActuator sqlActuator;
     private String targetSQL;
     private final DbType druidDbType;
-    private Statement statement;
+    private volatile Statement statement;
     private Connection connection;
     private ACLResult aclResult;
     private Consumer<Boolean> executionObserver;
