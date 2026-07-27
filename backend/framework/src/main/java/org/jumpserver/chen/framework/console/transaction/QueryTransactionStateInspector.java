@@ -11,7 +11,8 @@ public final class QueryTransactionStateInspector {
     public static QueryTransactionStateInspector create(DbType dbType, Connection connection) {
         TransactionStateProbe probe = switch (dbType) {
             case postgresql -> new PostgresqlTransactionStateProbe();
-            case mysql, mariadb -> new MysqlTransactionStateProbe();
+            case mysql -> new MysqlDriverTransactionStateProbe();
+            case mariadb -> new MysqlTransactionStateProbe();
             case oracle -> new OracleTransactionStateProbe();
             case sqlserver -> new SqlServerTransactionStateProbe();
             case dm -> new DamengTransactionStateProbe();
