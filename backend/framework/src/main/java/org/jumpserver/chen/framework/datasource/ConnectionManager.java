@@ -30,7 +30,11 @@ public interface ConnectionManager {
 
     SQLActuator getSqlActuator();
 
+    // 对象树/编辑器当前上下文使用的 key，例如 schema。
     String getContextKey();
+
+    // JDBC URL/连接池默认库使用的 key，不能和对象树上下文混用。
+    String getDatabaseContextKey();
 
     void close();
 }

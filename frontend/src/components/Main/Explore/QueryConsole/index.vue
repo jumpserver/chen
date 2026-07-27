@@ -16,6 +16,7 @@
               <Message :subject="subjects.messageSubject" />
             </div>
             <ResultBar
+              ref="resultBar"
               :subjects="subjects"
               @closeDataView="onCloseDataView"
               @dataViewAction="onDataViewAction"
@@ -70,6 +71,7 @@ export default {
         newResultSubject: new Subject(),
         updateResultSubject: new Subject(),
         deleteResultSubject: new Subject(),
+        saveChangesResultSubject: new Subject(),
         eventSubject: new Subject(),
         stateSubject: new Subject()
       }
@@ -124,6 +126,9 @@ export default {
         case 'close_data_view':
           this.subjects.deleteResultSubject.next(pkt.data)
           break
+        case 'save_changes_result':
+          this.subjects.saveChangesResultSubject.next(pkt.data)
+          break
         case 'message':
           this.subjects.messageSubject.next(pkt.data)
           break
@@ -157,6 +162,14 @@ export default {
     },
     onLimitChange(limit) {
       this.ws.send(JSON.stringify({ type: 'limit', data: limit }))
+    },
+    hasDirty() {
+      return !!(this.$refs.resultBar && this.$refs.resultBar.hasDirty())
+    },
+    clearDirty() {
+      if (this.$refs.resultBar && typeof this.$refs.resultBar.clearDirty === 'function') {
+        this.$refs.resultBar.clearDirty()
+      }
     }
   }
 }

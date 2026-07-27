@@ -8,10 +8,14 @@
   >
     <RightMenu ref="rightMenu" :menus="menus" />
     <ExportDataDialog :visible.sync="exportDataDialogVisible" @submit="onExportSubmit" />
-    <Toolbar :items="iToolBarItems" />
+    <Toolbar :key="toolbarKey" :items="iToolBarItems" />
     <ResultGrid
+      ref="resultGrid"
       :row-data="rowData"
       :column-defs="colDefs"
+      :editable="resultEditable"
+      @cell-value-changed="onCellValueChanged"
+      @cell-clicked="onCellClicked"
       @cell-context-menu="showContextMenu"
     />
   </div>
@@ -55,12 +59,30 @@ export default {
     toolBarItems: {
       type: Object,
       default: () => ({})
+    },
+    editable: {
+      type: Boolean,
+      default: false
+    },
+    rowEditActionsEnabled: {
+      type: Boolean,
+      default: false
+    },
+    previewBeforeSave: {
+      type: Boolean,
+      default: false
     }
   },
   data() {
     return {
       rowData: [],
       colDefs: [],
+      dirtyCells: {},
+      insertRows: [],
+      deletedRows: {},
+      dirtyVersion: 0,
+      nextInsertRowId: 1,
+      pendingSavePayload: null,
 
       exportDataDialogVisible: false,
       state: {
@@ -154,6 +176,53 @@ export default {
           icon: 'iconfont icon-chen-reload1',
           onClick: this.onRefresh
         },
+        addRow: {
+          split: true,
+          type: 'button',
+          icon: 'iconfont icon-chen-plus',
+          name: () => 'Add',
+          hidden: () => {
+            return !this.resultEditable || !this.rowEditActionsEnabled
+          },
+          onClick: this.onAddRow
+        },
+        deleteRow: {
+          type: 'button',
+          icon: 'iconfont icon-chen-minus',
+          name: () => 'Delete',
+          hidden: () => {
+            return !this.resultEditable || !this.rowEditActionsEnabled
+          },
+          disabled: () => {
+            return !this.currentRow
+          },
+          onClick: this.onDeleteRows
+        },
+        saveChanges: {
+          split: true,
+          type: 'button',
+          icon: 'iconfont icon-chen-save',
+          name: () => 'Save',
+          hidden: () => {
+            return !this.resultEditable
+          },
+          disabled: () => {
+            return !this.hasDirty()
+          },
+          onClick: this.onSaveChanges
+        },
+        cancelChanges: {
+          type: 'button',
+          icon: 'el-icon-close',
+          name: () => 'Cancel',
+          hidden: () => {
+            return !this.resultEditable
+          },
+          disabled: () => {
+            return !this.hasDirty()
+          },
+          onClick: this.onCancelChanges
+        },
         export: {
           split: true,
           type: 'button',
@@ -188,11 +257,21 @@ export default {
     }
   },
   computed: {
+    resultEditable() {
+      const fields = this.data && Array.isArray(this.data.fields) ? this.data.fields : []
+      return this.editable &&
+        this.data &&
+        this.data.editable === true &&
+        fields.some((field) => field && field.editable === true)
+    },
     isStatePaged() {
       return this.state.paged
     },
     iToolBarItems() {
       return Object.assign(this.defaultToolBarItems, this.toolBarItems)
+    },
+    toolbarKey() {
+      return `toolbar-${this.dirtyVersion}`
     }
   },
   watch: {
@@ -216,12 +295,26 @@ export default {
       return this.state
     },
     reloadTable() {
-      this.rowData = this.data.data
+      const rows = this.data && this.data.data ? this.data.data.map((row) => this.normalizeRowData(row)) : []
+      rows.forEach((row) => {
+        if (this.isExistingRowDeleted(row)) {
+          row.__chenDeleted = true
+        }
+      })
+      this.rowData = rows.concat(this.insertRows.map((row) => row.data))
     },
     initTable() {
       const headers = this.data.fields.map((item) => {
         return {
-          field: item.name
+          field: item.name,
+          fieldMeta: item,
+          editable: (params) => this.isCellEditable(params, item),
+          valueParser: (params) => this.parseCellValue(params.newValue, item),
+          cellClassRules: {
+            'chen-dirty-cell': (params) => this.isDirtyCell(params),
+            'chen-insert-row': (params) => this.isInsertRow(params.data),
+            'chen-delete-row': (params) => this.isDeleteRow(params.data)
+          }
         }
       })
 
@@ -229,6 +322,450 @@ export default {
 
       this.reloadTable()
       this.init = true
+    },
+    getPrimaryKeyField() {
+      if (!this.data || !this.data.fields) {
+        return null
+      }
+      return this.data.fields.find((field) => field.primaryKey === true || field.isPrimaryKey === true)
+    },
+    getValueIsNull(value) {
+      return value === null || value === undefined
+    },
+    valuesEqual(left, right) {
+      return left === right
+    },
+    buildDirtyKey(pkValue, sourceColumn) {
+      return `${JSON.stringify(pkValue)}::${sourceColumn}`
+    },
+    buildDeleteKey(pkValue) {
+      return JSON.stringify(pkValue)
+    },
+    buildInsertKey(id, sourceColumn) {
+      return `insert:${id}::${sourceColumn}`
+    },
+    hasDirty() {
+      return Object.keys(this.dirtyCells).length > 0 ||
+        this.insertRows.length > 0 ||
+        Object.keys(this.deletedRows).length > 0
+    },
+    clearDirty() {
+      this.dirtyCells = {}
+      this.insertRows = []
+      this.deletedRows = {}
+      this.pendingSavePayload = null
+      this.dirtyVersion += 1
+      this.reloadTable()
+      this.refreshDirtyCells()
+    },
+    setObjectValue(targetName, key, value) {
+      this[targetName] = {
+        ...this[targetName],
+        [key]: value
+      }
+    },
+    deleteObjectValue(targetName, key) {
+      const nextValue = { ...this[targetName] }
+      delete nextValue[key]
+      this[targetName] = nextValue
+    },
+    isDirtyCell(params) {
+      if (!params || !params.data || !params.colDef || !params.colDef.fieldMeta) {
+        return false
+      }
+      if (this.isInsertRow(params.data)) {
+        const sourceColumn = params.colDef.fieldMeta.sourceColumn
+        return !!(sourceColumn && params.data.__chenValues && params.data.__chenValues[sourceColumn])
+      }
+      const primaryKeyField = this.getPrimaryKeyField()
+      const sourceColumn = params.colDef.fieldMeta.sourceColumn
+      if (!primaryKeyField || !sourceColumn) {
+        return false
+      }
+      const pkValue = params.data[primaryKeyField.name]
+      if (this.getValueIsNull(pkValue)) {
+        return false
+      }
+      return !!this.dirtyCells[this.buildDirtyKey(pkValue, sourceColumn)]
+    },
+    isInsertRow(row) {
+      return !!(row && row.__chenInsertId)
+    },
+    isDeleteRow(row) {
+      return !!(row && row.__chenDeleted)
+    },
+    isExistingRowDeleted(row) {
+      const primaryKeyField = this.getPrimaryKeyField()
+      if (!row || !primaryKeyField) {
+        return false
+      }
+      const pkValue = row[primaryKeyField.name]
+      return !!this.deletedRows[this.buildDeleteKey(pkValue)]
+    },
+    isCellEditable(params, fieldMeta) {
+      if (!this.resultEditable || !fieldMeta || !fieldMeta.sourceColumn) {
+        return false
+      }
+      const row = params ? params.data : null
+      if (this.isDeleteRow(row)) {
+        return false
+      }
+      if (this.isInsertRow(row)) {
+        return fieldMeta.insertable === true
+      }
+      return fieldMeta.editable === true
+    },
+    refreshDirtyCells() {
+      const grid = this.$refs.resultGrid
+      if (grid && grid.gridApi && typeof grid.gridApi.refreshCells === 'function') {
+        grid.gridApi.refreshCells({ force: true })
+      }
+    },
+    onCellValueChanged(params) {
+      if (!this.resultEditable || !params || !params.colDef || !params.colDef.fieldMeta || !params.data) {
+        return
+      }
+
+      const fieldMeta = params.colDef.fieldMeta
+      if (!this.isCellEditable(params, fieldMeta)) {
+        return
+      }
+      if (this.isInsertRow(params.data)) {
+        this.onInsertCellValueChanged(params, fieldMeta)
+        return
+      }
+
+      const primaryKeyField = this.getPrimaryKeyField()
+      if (!primaryKeyField || !primaryKeyField.sourceColumn || !fieldMeta.sourceColumn) {
+        return
+      }
+
+      const pkValue = params.data[primaryKeyField.name]
+      if (this.getValueIsNull(pkValue)) {
+        this.$message.warning('Primary key value is empty, cannot edit this row')
+        return
+      }
+
+      const sourceColumn = fieldMeta.sourceColumn
+      const key = this.buildDirtyKey(pkValue, sourceColumn)
+      const fallbackOldValue = Object.prototype.hasOwnProperty.call(params, 'oldValue')
+        ? params.oldValue
+        : params.data[params.colDef.field]
+      const oldValue = this.dirtyCells[key]
+        ? this.dirtyCells[key].oldValue
+        : this.normalizeCellValue(fallbackOldValue, fieldMeta)
+      const oldValueIsNull = this.dirtyCells[key]
+        ? this.dirtyCells[key].oldValueIsNull
+        : this.getValueIsNull(fallbackOldValue)
+      const newValue = this.normalizeCellValue(params.newValue, fieldMeta)
+      const newValueIsNull = this.getValueIsNull(newValue)
+
+      if (oldValueIsNull === newValueIsNull && this.valuesEqual(oldValue, newValue)) {
+        this.deleteObjectValue('dirtyCells', key)
+        this.dirtyVersion += 1
+        this.refreshDirtyCells()
+        return
+      }
+
+      this.setObjectValue('dirtyCells', key, {
+        pkColumn: primaryKeyField.sourceColumn,
+        pkValue,
+        pkValueIsNull: this.getValueIsNull(pkValue),
+        sourceColumn,
+        oldValue,
+        oldValueIsNull,
+        newValue,
+        newValueIsNull
+      })
+      this.dirtyVersion += 1
+      this.refreshDirtyCells()
+    },
+    onInsertCellValueChanged(params, fieldMeta) {
+      const sourceColumn = fieldMeta.sourceColumn
+      const row = this.insertRows.find((item) => item.id === params.data.__chenInsertId)
+      if (!row || !sourceColumn) {
+        return
+      }
+      if (params.newValue === undefined) {
+        this.$delete(row.values, sourceColumn)
+        this.$delete(row.data.__chenValues, sourceColumn)
+      } else {
+        const newValue = this.normalizeCellValue(params.newValue, fieldMeta)
+        this.$set(row.values, sourceColumn, {
+          value: newValue,
+          valueIsNull: this.getValueIsNull(newValue)
+        })
+        this.$set(row.data.__chenValues, sourceColumn, true)
+      }
+      this.dirtyVersion += 1
+      this.refreshDirtyCells()
+    },
+    normalizeRowData(row) {
+      const normalized = { ...row }
+      const fields = this.data && Array.isArray(this.data.fields) ? this.data.fields : []
+      fields.forEach((field) => {
+        if (field && Object.prototype.hasOwnProperty.call(normalized, field.name)) {
+          normalized[field.name] = this.normalizeCellValue(normalized[field.name], field)
+        }
+      })
+      return normalized
+    },
+    parseCellValue(value, fieldMeta) {
+      return this.normalizeCellValue(value, fieldMeta)
+    },
+    normalizeCellValue(value, fieldMeta) {
+      if (value === null || value === undefined || !fieldMeta) {
+        return value
+      }
+      const type = this.normalizeFieldType(fieldMeta.type)
+      if (this.isDateType(type)) {
+        return this.normalizeDateValue(value)
+      }
+      if (this.isTimeType(type)) {
+        return this.normalizeTimeValue(value)
+      }
+      if (this.isTimestampType(type)) {
+        return this.normalizeTimestampValue(value, this.isOffsetTimestampType(type))
+      }
+      return value
+    },
+    normalizeFieldType(type) {
+      if (!type) {
+        return ''
+      }
+      let normalized = String(type).trim().toLowerCase()
+      let changed = true
+      while (changed) {
+        changed = false
+        if (normalized.startsWith('nullable(') && normalized.endsWith(')')) {
+          normalized = normalized.substring('nullable('.length, normalized.length - 1).trim()
+          changed = true
+        }
+        if (normalized.startsWith('lowcardinality(') && normalized.endsWith(')')) {
+          normalized = normalized.substring('lowcardinality('.length, normalized.length - 1).trim()
+          changed = true
+        }
+      }
+      const bracketIndex = normalized.indexOf('(')
+      if (bracketIndex > -1) {
+        normalized = normalized.substring(0, bracketIndex).trim()
+      }
+      return normalized
+    },
+    isDateType(type) {
+      return type === 'date'
+    },
+    isTimeType(type) {
+      return type === 'time' || type === 'time without time zone'
+    },
+    isTimestampType(type) {
+      return this.isOffsetTimestampType(type) ||
+        ['timestamp', 'timestamp without time zone', 'datetime', 'datetime2', 'smalldatetime'].includes(type)
+    },
+    isOffsetTimestampType(type) {
+      return ['timestamptz', 'timestamp with time zone', 'datetimeoffset'].includes(type)
+    },
+    normalizeDateValue(value) {
+      if (value instanceof Date) {
+        return this.formatDateParts(value.getFullYear(), value.getMonth() + 1, value.getDate())
+      }
+      const text = String(value).trim()
+      const match = text.match(/^(\d{4}-\d{2}-\d{2})/)
+      return match ? match[1] : value
+    },
+    normalizeTimeValue(value) {
+      if (value instanceof Date) {
+        return this.formatTimeParts(value.getHours(), value.getMinutes(), value.getSeconds())
+      }
+      const text = String(value).trim()
+      const localized = text.match(/^(\d{1,2}):(\d{2}):(\d{2})(\.\d{1,9})?\s*(上午|下午|AM|PM)$/i)
+      if (localized) {
+        let hour = Number(localized[1])
+        const meridiem = localized[5].toUpperCase()
+        if ((meridiem === '下午' || meridiem === 'PM') && hour < 12) {
+          hour += 12
+        }
+        if ((meridiem === '上午' || meridiem === 'AM') && hour === 12) {
+          hour = 0
+        }
+        return `${this.pad2(hour)}:${localized[2]}:${localized[3]}${localized[4] || ''}`
+      }
+      const canonical = text.match(/^(\d{1,2}):(\d{2}):(\d{2})(\.\d{1,9})?$/)
+      if (canonical) {
+        return `${this.pad2(Number(canonical[1]))}:${canonical[2]}:${canonical[3]}${canonical[4] || ''}`
+      }
+      const isoTime = text.match(/[T\s](\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?)/)
+      return isoTime ? isoTime[1] : value
+    },
+    normalizeTimestampValue(value, keepOffset) {
+      if (value instanceof Date) {
+        return `${this.formatDateParts(value.getFullYear(), value.getMonth() + 1, value.getDate())} ${this.formatTimeParts(value.getHours(), value.getMinutes(), value.getSeconds())}`
+      }
+      const text = String(value).trim()
+      if (keepOffset) {
+        return text
+      }
+      const match = text.match(/^(\d{4}-\d{2}-\d{2})[T\s](\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?)/)
+      return match ? `${match[1]} ${match[2]}` : value
+    },
+    formatDateParts(year, month, day) {
+      return `${year}-${this.pad2(month)}-${this.pad2(day)}`
+    },
+    formatTimeParts(hour, minute, second) {
+      return `${this.pad2(hour)}:${this.pad2(minute)}:${this.pad2(second)}`
+    },
+    pad2(value) {
+      return String(value).padStart(2, '0')
+    },
+    buildSaveChangesPayload() {
+      return {
+        schema: this.resolveSaveSchema(),
+        table: this.resolveSaveTable(),
+        changes: Object.values(this.dirtyCells),
+        insertRows: this.insertRows
+          .filter((row) => Object.keys(row.values).length > 0)
+          .map((row) => ({ values: row.values })),
+        deleteRows: Object.values(this.deletedRows)
+      }
+    },
+    resolveSaveSchema() {
+      if (this.meta && Object.prototype.hasOwnProperty.call(this.meta, 'schema')) {
+        return this.meta.schema
+      }
+      const field = this.getEditableSourceField()
+      return field ? field.sourceSchema : undefined
+    },
+    resolveSaveTable() {
+      if (this.meta && Object.prototype.hasOwnProperty.call(this.meta, 'table')) {
+        return this.meta.table
+      }
+      const field = this.getEditableSourceField()
+      return field ? field.sourceTable : undefined
+    },
+    getEditableSourceField() {
+      if (!this.data || !this.data.fields) {
+        return null
+      }
+      return this.data.fields.find((field) => field && field.editable === true && field.sourceTable && field.sourceColumn)
+    },
+    onSaveChanges() {
+      if (!this.hasDirty()) {
+        return
+      }
+
+      const payload = this.buildSaveChangesPayload()
+      this.pendingSavePayload = payload
+      const action = {
+        action: this.previewBeforeSave ? 'save_changes_preview' : 'save_changes',
+        dataView: this.meta.title,
+        data: payload
+      }
+
+      this.$emit('action', action)
+    },
+    handleSaveChangesPreviewResult(result) {
+      if (!result || !result.success) {
+        const reason = result && result.reason ? result.reason : 'Preview failed'
+        const index = result && result.failedChangeIndex !== undefined && result.failedChangeIndex !== null
+          ? `, failedChangeIndex=${result.failedChangeIndex}`
+          : ''
+        this.$message.error(`${reason}${index}`)
+        return
+      }
+      const updateCount = result.updateCount || 0
+      const insertCount = result.insertCount || 0
+      const deleteCount = result.deleteCount || 0
+      this.$confirm(
+        `Preview: ${updateCount} updates, ${insertCount} inserts, ${deleteCount} deletes. Continue?`,
+        'Save changes',
+        {
+          confirmButtonText: 'Save',
+          cancelButtonText: 'Cancel',
+          type: 'warning'
+        }
+      ).then(() => {
+        this.$emit('action', {
+          action: 'save_changes',
+          dataView: this.meta.title,
+          data: this.pendingSavePayload || this.buildSaveChangesPayload()
+        })
+      }).catch(() => {})
+    },
+    onCancelChanges() {
+      this.clearDirty()
+      this.onRefresh()
+    },
+    onAddRow() {
+      const id = this.nextInsertRowId++
+      const data = {
+        __chenInsertId: id,
+        __chenValues: {}
+      }
+      this.insertRows.push({
+        id,
+        data,
+        values: {}
+      })
+      this.reloadTable()
+      this.dirtyVersion += 1
+      this.refreshDirtyCells()
+    },
+    onDeleteRows() {
+      const rows = this.getRowsForDelete()
+      if (rows.length === 0) {
+        return
+      }
+      rows.forEach((row) => this.markRowDeleted(row))
+      this.reloadTable()
+      this.dirtyVersion += 1
+      this.refreshDirtyCells()
+    },
+    getRowsForDelete() {
+      const grid = this.$refs.resultGrid
+      if (grid && typeof grid.getRangeRowData === 'function') {
+        const rows = grid.getRangeRowData()
+        if (rows.length > 0) {
+          return rows
+        }
+      }
+      return this.currentRow ? [this.currentRow] : []
+    },
+    markRowDeleted(row) {
+      if (!row) {
+        return
+      }
+      if (this.isInsertRow(row)) {
+        this.insertRows = this.insertRows.filter((item) => item.id !== row.__chenInsertId)
+        if (this.currentRow === row) {
+          this.currentRow = null
+        }
+        return
+      }
+      const primaryKeyField = this.getPrimaryKeyField()
+      if (!primaryKeyField || !primaryKeyField.sourceColumn) {
+        this.$message.warning('Primary key is missing, cannot delete this row')
+        return
+      }
+      const pkValue = row[primaryKeyField.name]
+      if (this.getValueIsNull(pkValue)) {
+        this.$message.warning('Primary key value is empty, cannot delete this row')
+        return
+      }
+      this.clearRowUpdates(pkValue)
+      this.setObjectValue('deletedRows', this.buildDeleteKey(pkValue), {
+        pkColumn: primaryKeyField.sourceColumn,
+        pkValue,
+        pkValueIsNull: false
+      })
+    },
+    clearRowUpdates(pkValue) {
+      const nextDirtyCells = { ...this.dirtyCells }
+      Object.keys(nextDirtyCells).forEach((key) => {
+        if (key.startsWith(`${JSON.stringify(pkValue)}::`)) {
+          delete nextDirtyCells[key]
+        }
+      })
+      this.dirtyCells = nextDirtyCells
     },
     fallbackWriteClipboardText(text, originalError) {
       const textarea = document.createElement('textarea')
@@ -272,6 +809,10 @@ export default {
     onExportSubmit(scope) {
       this.exportDataDialogVisible = false
       this.$emit('action', { action: 'export', data: scope })
+    },
+    onCellClicked(params) {
+      this.currentRow = params ? params.data : null
+      this.dirtyVersion += 1
     },
     showContextMenu(params) {
       this.currentRow = params.data
@@ -343,5 +884,19 @@ export default {
   box-sizing: border-box;
   padding-bottom: 26px;
   background: #2B2B2B;
+}
+
+.data-view ::v-deep .chen-dirty-cell {
+  background-color: rgba(3, 157, 0, 0.28) !important;
+}
+
+.data-view ::v-deep .chen-insert-row {
+  background-color: rgba(47, 101, 202, 0.24) !important;
+}
+
+.data-view ::v-deep .chen-delete-row {
+  background-color: rgba(190, 66, 66, 0.26) !important;
+  color: #b8b8b8;
+  text-decoration: line-through;
 }
 </style>

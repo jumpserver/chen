@@ -6,23 +6,21 @@ import org.apache.commons.lang3.StringUtils;
 import org.jumpserver.chen.framework.console.Console;
 import org.jumpserver.chen.framework.console.DataViewConsole;
 import org.jumpserver.chen.framework.console.QueryConsole;
+import org.jumpserver.chen.framework.console.context.ConsoleContext;
+import org.jumpserver.chen.framework.console.context.ConsoleContextResolutionException;
+import org.jumpserver.chen.framework.console.context.ConsoleContextResolver;
 import org.jumpserver.chen.framework.console.entity.request.Connect;
-import org.jumpserver.chen.framework.datasource.ResourceBrowser;
-import org.jumpserver.chen.framework.datasource.entity.resource.TreeNode;
 import org.jumpserver.chen.framework.session.SessionManager;
 import org.jumpserver.chen.framework.session.controller.message.Message;
 import org.jumpserver.chen.framework.session.controller.message.MessageLevel;
 import org.jumpserver.chen.framework.ws.io.Packet;
 import org.jumpserver.chen.framework.ws.io.PacketIO;
-import org.jumpserver.chen.framework.utils.TreeUtils;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.WebSocketMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.adapter.NativeWebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
-import java.sql.SQLException;
-import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -30,11 +28,6 @@ import java.util.concurrent.Executors;
 public class ConsoleWebSocketHandler extends TextWebSocketHandler {
 
     private static final Gson GSON = new Gson();
-    private static final Set<String> QUERY_NODE_TYPES =
-            Set.of("datasource", "database", "schema", "table");
-    private static final Set<String> DATA_VIEW_NODE_TYPES = Set.of("table", "view");
-
-
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
         if (session instanceof NativeWebSocketSession ns) {
@@ -66,8 +59,7 @@ public class ConsoleWebSocketHandler extends TextWebSocketHandler {
                             .get(session.getId());
 
                     if (console != null) {
-                        var db = TreeUtils.getValue(console.getNodeKey(), "database");
-                        SessionManager.getCurrentSession().getDatasource().getConnectionManager().setDatabaseContext(db);
+                        this.setDatabaseContext(console);
 
                         var handler = SessionManager.getCurrentSession().getConsoles().get(session.getId());
                         handler.handle(packet);
@@ -82,12 +74,11 @@ public class ConsoleWebSocketHandler extends TextWebSocketHandler {
     private void onConnectPacket(WebSocketSession session, Packet packet) {
         Connect connect = GSON.fromJson(GSON.toJson(packet.getData()), Connect.class);
         var webSess = SessionManager.getCurrentSession();
-        var node = this.resolveNode(
-                webSess.getDatasource().getResourceBrowser(),
-                connect.getNodeKey(),
-                connect.getType()
-        );
-        if (node == null) {
+        ConsoleContext context;
+        try {
+            context = new ConsoleContextResolver(webSess.getDatasource().getResourceBrowser())
+                    .resolve(connect.getNodeKey(), connect.getType());
+        } catch (ConsoleContextResolutionException e) {
             new PacketIO(session).sendPacket(
                     "show_message",
                     new Message(MessageLevel.ERROR, "Invalid console context")
@@ -95,46 +86,33 @@ public class ConsoleWebSocketHandler extends TextWebSocketHandler {
             return;
         }
 
-        connect.setNodeKey(node.getKey());
-        Console console = switch (connect.getType()) {
-            case Connect.CONSOLE_TYPE_QUERY ->
-                    new QueryConsole(webSess.getDatasource(), session, node.getKey());
-            case Connect.CONSOLE_TYPE_DATA_VIEW ->
-                    new DataViewConsole(webSess.getDatasource(), session, node.getKey());
-            default -> null;
-        };
+        connect.setNodeKey(context.nodeKey());
+        Console console = this.createConsole(connect.getType(), webSess.getDatasource(), session, context);
         if (console != null) {
+            this.setDatabaseContext(console);
             webSess.getConsoles().put(session.getId(), console);
-
-            var db = TreeUtils.getValue(console.getNodeKey(), "database");
-            SessionManager.getCurrentSession().getDatasource().getConnectionManager().setDatabaseContext(db);
-
             console.onInit(connect);
             log.info("User {} open a console ", webSess.getUsername());
         }
     }
 
-    TreeNode resolveNode(ResourceBrowser resourceBrowser, String nodeKey, String consoleType) {
-        if (resourceBrowser == null || StringUtils.isBlank(nodeKey) || StringUtils.isBlank(consoleType)) {
-            return null;
-        }
-        TreeNode node;
-        try {
-            var root = resourceBrowser.getTree();
-            node = root == null ? null : TreeUtils.getNode(root, nodeKey);
-        } catch (SQLException e) {
-            return null;
-        }
-        if (node == null) {
-            return null;
-        }
-        var allowedTypes = switch (consoleType) {
-            case Connect.CONSOLE_TYPE_QUERY -> QUERY_NODE_TYPES;
-            case Connect.CONSOLE_TYPE_DATA_VIEW -> DATA_VIEW_NODE_TYPES;
-            default -> Set.<String>of();
+    protected Console createConsole(String type, org.jumpserver.chen.framework.datasource.Datasource datasource,
+                                    WebSocketSession session, ConsoleContext context) {
+        return switch (type) {
+            case Connect.CONSOLE_TYPE_QUERY -> new QueryConsole(datasource, session, context);
+            case Connect.CONSOLE_TYPE_DATA_VIEW -> new DataViewConsole(datasource, session, context);
+            default -> null;
         };
-        return allowedTypes.contains(node.getType()) ? node : null;
     }
+
+    private void setDatabaseContext(Console console) {
+        var connectionManager = SessionManager.getCurrentSession().getDatasource().getConnectionManager();
+        var db = console.getContext().database();
+        if (StringUtils.isNotBlank(db)) {
+            connectionManager.setDatabaseContext(db);
+        }
+    }
+
 
     @Override
     public void handleTransportError(WebSocketSession session, Throwable exception) throws Exception {

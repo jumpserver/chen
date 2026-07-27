@@ -1,21 +1,25 @@
 package org.jumpserver.chen.framework.console;
 
 import com.google.gson.Gson;
-import org.apache.commons.lang3.StringUtils;
+import lombok.Getter;
 import org.jumpserver.chen.framework.console.action.DataViewAction;
+import org.jumpserver.chen.framework.console.context.ConsoleContext;
 import org.jumpserver.chen.framework.console.dataview.DataView;
 import org.jumpserver.chen.framework.console.dataview.UpdateDataView;
 import org.jumpserver.chen.framework.console.entity.request.Connect;
+import org.jumpserver.chen.framework.console.entity.request.SaveChangesRequest;
 import org.jumpserver.chen.framework.console.entity.response.Message;
 import org.jumpserver.chen.framework.console.state.State;
 import org.jumpserver.chen.framework.console.state.StateManager;
 import org.jumpserver.chen.framework.datasource.Datasource;
+import org.jumpserver.chen.framework.datasource.edit.TableChangesPreviewService;
+import org.jumpserver.chen.framework.datasource.edit.TableChangesSaveService;
+import org.jumpserver.chen.framework.datasource.edit.TableEditContext;
 import org.jumpserver.chen.framework.i18n.MessageUtils;
 import org.jumpserver.chen.framework.jms.entity.CommandRecord;
 import org.jumpserver.chen.framework.session.SessionManager;
 import org.jumpserver.chen.framework.session.controller.dialog.Button;
 import org.jumpserver.chen.framework.session.controller.dialog.Dialog;
-import org.jumpserver.chen.framework.utils.TreeUtils;
 import org.jumpserver.chen.framework.ws.io.Packet;
 import org.jumpserver.wisp.Common;
 import org.springframework.web.socket.WebSocketSession;
@@ -26,26 +30,30 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class DataViewConsole extends AbstractConsole {
+    private static final String PACKET_SAVE_CHANGES_PREVIEW_RESULT = "save_changes_preview_result";
+    private static final String PACKET_SAVE_CHANGES_RESULT = "save_changes_result";
+    private final TableChangesPreviewService tableChangesPreviewService = new TableChangesPreviewService();
+    private final TableChangesSaveService tableChangesSaveService = new TableChangesSaveService();
 
     private DataView tableDataView;
     private StateManager<State> stateManager;
 
-    private String schema;
-    private String table;
+    @Getter
+    private final String schema;
+    @Getter
+    private final String table;
 
     private static final Gson GSON = new Gson();
 
-    public DataViewConsole(Datasource datasource, WebSocketSession ws, String nodeKey) {
-        super(datasource, ws, nodeKey);
+    public DataViewConsole(Datasource datasource, WebSocketSession ws, ConsoleContext context) {
+        super(datasource, ws, context);
+        this.schema = context.schema();
+        this.table = context.table();
     }
 
 
     @Override
     public void onInit(Connect connect) {
-        this.schema = TreeUtils.getValue(connect.getNodeKey(), "schema");
-        this.table = StringUtils.isEmpty(TreeUtils.getValue(connect.getNodeKey(), "table")) ?
-                TreeUtils.getValue(connect.getNodeKey(), "view") : TreeUtils.getValue(connect.getNodeKey(), "table");
-
         var title = "";
         try {
             title = this.generateConsoleName();
@@ -181,6 +189,41 @@ public class DataViewConsole extends AbstractConsole {
 
 
     public void onDataViewAction(DataViewAction action) {
+        if (DataViewAction.ACTION_SAVE_CHANGES_PREVIEW.equals(action.getAction())) {
+            var request = GSON.fromJson(GSON.toJson(action.getData()), SaveChangesRequest.class);
+            var context = new TableEditContext(
+                    this.tableDataView.getTitle(),
+                    this.schema,
+                    this.table,
+                    this.tableDataView.getData().getFields(),
+                    this.getDatasource().getDruidDbType(),
+                    true
+            );
+            var result = this.tableChangesPreviewService.preview(context, action.getDataView(), request);
+            this.getPacketIO().sendPacket(PACKET_SAVE_CHANGES_PREVIEW_RESULT, result);
+            return;
+        }
+        if (DataViewAction.ACTION_SAVE_CHANGES.equals(action.getAction())) {
+            var request = GSON.fromJson(GSON.toJson(action.getData()), SaveChangesRequest.class);
+            var context = new TableEditContext(
+                    this.tableDataView.getTitle(),
+                    this.schema,
+                    this.table,
+                    this.tableDataView.getData().getFields(),
+                    this.getDatasource().getDruidDbType(),
+                    true
+            );
+            var result = this.tableChangesSaveService.save(
+                    context,
+                    action.getDataView(),
+                    request,
+                    this.getDatasource().getConnectionManager(),
+                    SessionManager.getCurrentSession()
+            );
+            this.getPacketIO().sendPacket(PACKET_SAVE_CHANGES_RESULT, result);
+            return;
+        }
+
         try {
             this.tableDataView.getStateManager().getState().setLoading(true);
             this.tableDataView.getStateManager().commit();

@@ -7,6 +7,7 @@
     :default-col-def="defaultColDef"
     :grid-options="gridOptions"
     @grid-ready="onGridReady"
+    @cell-value-changed="onCellValueChanged"
     @cell-mouse-down="onCellMouseDown"
     @cell-mouse-over="onCellMouseOver"
     @cell-clicked="onCellClicked"
@@ -31,6 +32,10 @@ export default {
     columnDefs: {
       type: Array,
       default: () => []
+    },
+    editable: {
+      type: Boolean,
+      default: false
     }
   },
   data() {
@@ -80,6 +85,9 @@ export default {
     },
     onCellContextMenu(params) {
       this.$emit('cell-context-menu', params)
+    },
+    onCellValueChanged(params) {
+      this.$emit('cell-value-changed', params)
     },
     getCellRef(params) {
       if (
@@ -136,6 +144,7 @@ export default {
       document.removeEventListener('mouseup', this.onDocumentMouseUp)
     },
     onCellClicked(params) {
+      this.$emit('cell-clicked', params)
       const cell = this.getCellRef(params)
       if (!cell) {
         return
@@ -245,6 +254,22 @@ export default {
         current: null
       }
       this.refreshRangeCells()
+    },
+    getRangeRowData() {
+      const bounds = this.getRangeBounds()
+      if (!bounds || !this.gridApi) {
+        return []
+      }
+      const rows = []
+      const seen = new Set()
+      for (let rowIndex = bounds.minRow; rowIndex <= bounds.maxRow; rowIndex++) {
+        const rowNode = this.gridApi.getDisplayedRowAtIndex(rowIndex)
+        if (rowNode && rowNode.data && !seen.has(rowNode.data)) {
+          seen.add(rowNode.data)
+          rows.push(rowNode.data)
+        }
+      }
+      return rows
     },
     onDocumentKeyDown(event) {
       if ((!event.ctrlKey && !event.metaKey) || event.key.toLowerCase() !== 'c') {

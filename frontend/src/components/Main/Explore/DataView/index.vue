@@ -1,33 +1,36 @@
 <template>
   <div
-      v-loading="state.loading"
-      class="container"
+    v-loading="state.loading"
+    class="container"
   >
-    <Message :subject="messageSubject"/>
+    <Message :subject="messageSubject" />
     <SplitPane :default-percent="40" :min-percent="20" split="horizontal">
       <template slot="paneL">
         <DataView
-            v-if="viewMeta"
-            ref="dataView"
-            :data="data"
-            :meta="viewMeta"
-            :message-subject="messageSubject"
-            :state-subject="stateSubject"
-            :tool-bar-items="toolBarItems"
-            @action="onAction"
+          v-if="viewMeta"
+          ref="dataView"
+          :data="data"
+          :editable="true"
+          :meta="viewMeta"
+          :preview-before-save="true"
+          :row-edit-actions-enabled="true"
+          :message-subject="messageSubject"
+          :state-subject="stateSubject"
+          :tool-bar-items="toolBarItems"
+          @action="onAction"
         />
       </template>
       <template slot="paneR">
         <el-tabs v-model="activeTab" type="card">
           <el-tab-pane
-              :closable="false"
-              name="log"
+            :closable="false"
+            name="log"
           >
             <span slot="label">
-              <i class="el-icon-tickets"/>
+              <i class="el-icon-tickets" />
               {{ $tc('LogOutput') }}
             </span>
-            <Log :subject="logSubject" style="padding: 5px"/>
+            <Log :subject="logSubject" style="padding: 5px" />
           </el-tab-pane>
         </el-tabs>
       </template>
@@ -130,6 +133,12 @@ export default {
         case 'update_data_view':
           this.data = pkt.data.data
           break
+        case 'save_changes_result':
+          this.handleSaveChangesResult(pkt.data)
+          break
+        case 'save_changes_preview_result':
+          this.handleSaveChangesPreviewResult(pkt.data)
+          break
         case 'message':
           this.messageSubject.next(pkt.data)
           break
@@ -144,7 +153,7 @@ export default {
           this.$emit('changeTab', pkt.data)
           break
         case 'close':
-          this.$emit('close', this.tab.name, true)
+          this.$emit('close', this.tab.name, true, false)
       }
     },
     startHeartBeat() {
@@ -155,7 +164,55 @@ export default {
       }, 1000 * 10)
     },
     onAction(action) {
+      if (this.shouldGuardDirty(action) && this.$refs.dataView && this.$refs.dataView.hasDirty()) {
+        this.$confirm('There are unsaved changes. Discard them and continue?', 'Warning', {
+          confirmButtonText: 'Confirm',
+          cancelButtonText: 'Cancel',
+          type: 'warning'
+        }).then(() => {
+          this.$refs.dataView.clearDirty()
+          this.sendDataViewAction(action)
+        }).catch(() => {})
+        return
+      }
+      this.sendDataViewAction(action)
+    },
+    sendDataViewAction(action) {
       this.ws.send(JSON.stringify({ type: 'data_view_action', data: action }))
+    },
+    shouldGuardDirty(action) {
+      return ['first_page', 'prev_page', 'next_page', 'last_page', 'refresh', 'change_limit'].includes(action.action)
+    },
+    hasDirty() {
+      return !!(this.$refs.dataView && this.$refs.dataView.hasDirty())
+    },
+    clearDirty() {
+      if (this.$refs.dataView && typeof this.$refs.dataView.clearDirty === 'function') {
+        this.$refs.dataView.clearDirty()
+      }
+    },
+    handleSaveChangesResult(result) {
+      if (result && result.success) {
+        this.$message.success('Save succeeded')
+        if (this.$refs.dataView) {
+          this.$refs.dataView.clearDirty()
+        }
+        this.sendDataViewAction({ action: 'refresh' })
+      } else {
+        const reason = result && result.reason ? result.reason : 'Save failed'
+        const index = result && result.failedChangeIndex !== undefined && result.failedChangeIndex !== null
+          ? `, failedChangeIndex=${result.failedChangeIndex}`
+          : ''
+        this.$message.error(`${reason}${index}`)
+      }
+      if (this.$refs.dataView) {
+        this.$refs.dataView.pendingSavePayload = null
+      }
+    },
+    handleSaveChangesPreviewResult(result) {
+      if (this.$refs.dataView && typeof this.$refs.dataView.handleSaveChangesPreviewResult === 'function') {
+        this.$refs.dataView.handleSaveChangesPreviewResult(result)
+      }
     }
   }
 }

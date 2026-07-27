@@ -25,6 +25,8 @@ public interface ResourceBrowser {
 
     List<Field> getFields(SQL sql) throws SQLException;
 
+    ResourceNodeSnapshot getIndexedNode(String key);
+
     SQLActuator getSQLActuator();
     SQLHintsHandler getSQLHintsHandler();
 }

@@ -7,12 +7,19 @@ import org.apache.commons.lang3.StringUtils;
 import org.jumpserver.chen.framework.console.action.DataViewAction;
 import org.jumpserver.chen.framework.console.action.QueryConsoleAction;
 import org.jumpserver.chen.framework.console.dataview.DataView;
+import org.jumpserver.chen.framework.console.dataview.QueryDataViewTableEditContextFactory;
 import org.jumpserver.chen.framework.console.dataview.UpdateDataView;
+import org.jumpserver.chen.framework.console.context.ConsoleContext;
 import org.jumpserver.chen.framework.console.entity.request.Connect;
+import org.jumpserver.chen.framework.console.entity.request.SaveChangesRequest;
 import org.jumpserver.chen.framework.console.entity.response.Message;
+import org.jumpserver.chen.framework.console.entity.response.SaveChangesPreviewResult;
+import org.jumpserver.chen.framework.console.entity.response.SaveChangesResult;
 import org.jumpserver.chen.framework.console.state.QueryConsoleState;
 import org.jumpserver.chen.framework.console.state.StateManager;
 import org.jumpserver.chen.framework.datasource.Datasource;
+import org.jumpserver.chen.framework.datasource.edit.TableChangesPreviewService;
+import org.jumpserver.chen.framework.datasource.edit.TableChangesSaveService;
 import org.jumpserver.chen.framework.datasource.sql.SQL;
 import org.jumpserver.chen.framework.datasource.sql.SQLActuator;
 import org.jumpserver.chen.framework.datasource.sql.SQLExecutePlan;
@@ -22,13 +29,17 @@ import org.jumpserver.chen.framework.jms.entity.CommandRecord;
 import org.jumpserver.chen.framework.session.SessionManager;
 import org.jumpserver.chen.framework.session.controller.dialog.Button;
 import org.jumpserver.chen.framework.session.controller.dialog.Dialog;
-import org.jumpserver.chen.framework.utils.TreeUtils;
 import org.jumpserver.chen.framework.ws.io.Packet;
 import org.jumpserver.wisp.Common;
 import org.springframework.web.socket.WebSocketSession;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
+import java.nio.file.LinkOption;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -44,18 +55,24 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 @Slf4j
 public class QueryConsole extends AbstractConsole {
+    private static final String PACKET_SAVE_CHANGES_PREVIEW_RESULT = "save_changes_preview_result";
+    private static final String PACKET_SAVE_CHANGES_RESULT = "save_changes_result";
 
     private final Datasource datasource;
+    private final TableChangesPreviewService tableChangesPreviewService = new TableChangesPreviewService();
+    private final TableChangesSaveService tableChangesSaveService = new TableChangesSaveService();
+    private final QueryDataViewTableEditContextFactory tableEditContextFactory = new QueryDataViewTableEditContextFactory();
     private Connection conn;
     private volatile SQLExecutePlan currentPlan;
     private StateManager<QueryConsoleState> stateManager;
     private final Map<String, DataView> dataViews = new HashMap<>();
+    // Manual context changes remain restricted to values returned by the current server-side actuator.
     private volatile Map<String, String> allowedContexts = Map.of();
 
     private static final Gson GSON = new Gson();
 
-    public QueryConsole(Datasource datasource, WebSocketSession ws, String nodeKey) {
-        super(datasource, ws, nodeKey);
+    public QueryConsole(Datasource datasource, WebSocketSession ws, ConsoleContext context) {
+        super(datasource, ws, context);
         this.setTitle(String.format(MessageUtils.get("Query") + "-%d", generateConsoleName()));
         this.datasource = datasource;
     }
@@ -88,7 +105,7 @@ public class QueryConsole extends AbstractConsole {
         this.getState().setLoading(true);
         this.stateManager.commit();
 
-        var context = TreeUtils.getValue(connect.getNodeKey(), this.getDatasource().getConnectionManager().getContextKey());
+        var context = this.getInitialContext();
         try {
             var currentContext = this.getSqlActuator().getCurrentSchema();
 
@@ -113,6 +130,13 @@ public class QueryConsole extends AbstractConsole {
         this.getState().setLoading(false);
         this.stateManager.commit();
 
+    }
+
+    String getInitialContext() {
+        var contextKey = this.getDatasource().getConnectionManager().getContextKey();
+        return StringUtils.equals(contextKey, "database")
+                ? this.getContext().database()
+                : this.getContext().schema();
     }
 
     private Connection getConnection() {
@@ -262,6 +286,35 @@ public class QueryConsole extends AbstractConsole {
             log.error("data view {} not found", action.getDataView());
             return;
         }
+        if (DataViewAction.ACTION_SAVE_CHANGES_PREVIEW.equals(action.getAction())) {
+            var request = GSON.fromJson(GSON.toJson(action.getData()), SaveChangesRequest.class);
+            try {
+                var context = this.tableEditContextFactory.create(dataView, this.getDatasource().getDruidDbType());
+                var result = this.tableChangesPreviewService.preview(context, action.getDataView(), request);
+                this.getPacketIO().sendPacket(PACKET_SAVE_CHANGES_PREVIEW_RESULT, result);
+            } catch (IllegalArgumentException e) {
+                this.getPacketIO().sendPacket(PACKET_SAVE_CHANGES_PREVIEW_RESULT, this.rejectedPreview(dataView, e.getMessage()));
+            }
+            return;
+        }
+        if (DataViewAction.ACTION_SAVE_CHANGES.equals(action.getAction())) {
+            var request = GSON.fromJson(GSON.toJson(action.getData()), SaveChangesRequest.class);
+            SaveChangesResult result;
+            try {
+                var context = this.tableEditContextFactory.create(dataView, this.getDatasource().getDruidDbType());
+                result = this.tableChangesSaveService.save(
+                        context,
+                        action.getDataView(),
+                        request,
+                        this.getDatasource().getConnectionManager(),
+                        SessionManager.getCurrentSession()
+                );
+            } catch (IllegalArgumentException e) {
+                result = this.rejectedSave(dataView, e.getMessage());
+            }
+            this.getPacketIO().sendPacket(PACKET_SAVE_CHANGES_RESULT, result);
+            return;
+        }
         try {
             dataView.getStateManager().getState().setLoading(true);
             dataView.getStateManager().commit();
@@ -276,6 +329,24 @@ public class QueryConsole extends AbstractConsole {
             dataView.getStateManager().getState().setLoading(false);
             dataView.getStateManager().commit();
         }
+    }
+
+    private SaveChangesPreviewResult rejectedPreview(DataView dataView, String reason) {
+        SaveChangesPreviewResult result = new SaveChangesPreviewResult();
+        result.setSuccess(false);
+        result.setAllowed(false);
+        result.setReason(reason);
+        result.setDataView(dataView.getTitle());
+        return result;
+    }
+
+    private SaveChangesResult rejectedSave(DataView dataView, String reason) {
+        SaveChangesResult result = new SaveChangesResult();
+        result.setSuccess(false);
+        result.setAllowed(false);
+        result.setReason(reason);
+        result.setDataView(dataView.getTitle());
+        return result;
     }
 
     public void onCancel() {
@@ -302,6 +373,12 @@ public class QueryConsole extends AbstractConsole {
             this.stateManager.commit();
 
             this.getSqlActuator().changeSchema(allowedContext);
+            var connectionManager = this.getDatasource().getConnectionManager();
+            // 只有当前 UI 上下文本身就是 JDBC database 时，才同步连接池上下文，避免 PostgreSQL schema 被当 database。
+            if (StringUtils.isNotBlank(allowedContext) &&
+                    StringUtils.equals(connectionManager.getContextKey(), connectionManager.getDatabaseContextKey())) {
+                connectionManager.setDatabaseContext(allowedContext);
+            }
             this.getState().setCurrentContext(allowedContext);
 
         } catch (SQLException e) {
@@ -330,36 +407,73 @@ public class QueryConsole extends AbstractConsole {
     }
 
     public void onSQLFile(String filename) {
-        if (StringUtils.isBlank(filename)
-                || filename.contains("/")
-                || filename.contains("\\")
-                || filename.contains("..")) {
+        var filePath = this.resolveSQLFileInSessionTemp(filename);
+        if (filePath == null) {
             log.warn("Rejected invalid SQL file name");
             return;
         }
-        var filePath = SessionManager.getCurrentSession().getTempPath().resolve(filename);
-        var file = filePath.toFile();
-
-        if (!file.exists()) {
+        if (!Files.exists(filePath, LinkOption.NOFOLLOW_LINKS)) {
             this.getConsoleLogger().error("%s: %s", MessageUtils.get("msg.error.file_not_found"), filename);
             return;
         }
-        if (!file.isFile()) {
+        if (!Files.isRegularFile(filePath, LinkOption.NOFOLLOW_LINKS)) {
             this.getConsoleLogger().error("%s: %s", MessageUtils.get("msg.error.file_not_file"), filename);
             return;
         }
-        if (!file.canRead()) {
+        if (!Files.isReadable(filePath)) {
             this.getConsoleLogger().error("%s: %s", MessageUtils.get("msg.error.file_not_readable"), filename);
             return;
         }
 
+        var shouldDelete = false;
         try {
-            var sql = Files.readString(file.toPath());
+            shouldDelete = true;
+            String sql;
+            try {
+                try (var inputStream = Files.newInputStream(
+                        filePath, StandardOpenOption.READ, LinkOption.NOFOLLOW_LINKS)) {
+                    sql = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+                }
+            } catch (IOException | SecurityException e) {
+                this.getConsoleLogger().error("%s: %s", MessageUtils.get("msg.error.file_read_error"), e.getMessage());
+                return;
+            }
             this.onSQL(sql);
-        } catch (IOException e) {
-            this.getConsoleLogger().error("%s: %s", MessageUtils.get("msg.error.file_read_error"), e.getMessage());
         } finally {
-            file.delete();
+            if (shouldDelete) {
+                try {
+                    Files.deleteIfExists(filePath);
+                } catch (IOException | SecurityException e) {
+                    log.warn("Failed to delete session SQL file", e);
+                }
+            }
+        }
+    }
+
+    private Path resolveSQLFileInSessionTemp(String filename) {
+        if (StringUtils.isBlank(filename)
+                || StringUtils.equalsAny(filename, ".", "..")
+                || filename.contains("..")
+                || filename.contains("/")
+                || filename.contains("\\")) {
+            return null;
+        }
+
+        try {
+            var requested = Path.of(filename);
+            if (requested.isAbsolute()
+                    || requested.getNameCount() != 1
+                    || !requested.equals(requested.getFileName())) {
+                return null;
+            }
+
+            var basePath = SessionManager.getCurrentSession().getTempPath()
+                    .toAbsolutePath()
+                    .normalize();
+            var resolvedPath = basePath.resolve(requested.getFileName()).normalize();
+            return resolvedPath.startsWith(basePath) ? resolvedPath : null;
+        } catch (InvalidPathException | SecurityException e) {
+            return null;
         }
     }
 
@@ -474,19 +588,19 @@ public class QueryConsole extends AbstractConsole {
 
     private DataView runSingleSQL(String sql, ACLResult aclResult) throws SQLException {
 
-        SQLExecutePlan plan = this.datasource
-                .getConnectionManager()
-                .getSqlActuator()
-                .withConnection(this.getConnection())
-                .createPlan(SQL.of(sql));
-
-        plan.setAclResult(aclResult);
-        DataView dataView = new DataView(plan.getSourceSQL(), this.getPacketIO(), this.getConsoleLogger());
-        dataView.setSql(plan.getSourceSQL());
+        String sourceSQL = sql;
+        DataView dataView = new DataView(sourceSQL, this.getPacketIO(), this.getConsoleLogger());
+        dataView.setSql(sourceSQL);
 
         dataView.setLoadDataInterface((sqlQueryParams) -> {
             sqlQueryParams.setTimeout(this.getState().getTimeout());
 
+            SQLExecutePlan plan = this.datasource
+                    .getConnectionManager()
+                    .getSqlActuator()
+                    .withConnection(this.getConnection())
+                    .createPlan(SQL.of(sourceSQL));
+            plan.setAclResult(aclResult);
             plan.setSqlQueryParams(sqlQueryParams);
             plan.generateTargetSQL();
 
@@ -497,18 +611,19 @@ public class QueryConsole extends AbstractConsole {
             this.getState().setCanCancel(true);
             this.stateManager.commit();
 
-            var result = plan.executeWithAudit();
-            this.currentPlan = null;
-
-            this.getConsoleLogger().success(result);
-            return result;
+            try {
+                var result = plan.executeWithAudit();
+                this.getConsoleLogger().success(result);
+                return result;
+            } finally {
+                this.currentPlan = null;
+                this.getState().setCanCancel(false);
+                this.stateManager.commit();
+            }
         });
 
 
         dataView.loadData();
-
-        this.getState().setCanCancel(false);
-        this.stateManager.commit();
 
         return dataView;
     }

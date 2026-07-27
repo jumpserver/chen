@@ -28,6 +28,7 @@
         :ref="item.name"
         :meta="item.meta"
         :data="item.data"
+        :editable="true"
         :state-subject="subjects.stateSubject"
         :update-subject="subjects.updateResultSubject"
         :tool-bar-items="item.extraToolBarItems"
@@ -97,30 +98,103 @@ export default {
     })
     this.subjects.deleteResultSubject.subscribe((data) => {
       if (data instanceof String) {
-        this.onTabClose(data, false)
+        this.onTabClose(data, false, false)
       }
       if (data instanceof Array) {
         data.forEach((item) => {
-          this.onTabClose(item, false)
+          this.onTabClose(item, false, false)
         })
       }
       if (data instanceof Object) {
-        this.onTabClose(data.sql, false)
+        this.onTabClose(data.sql, false, false)
       }
+    })
+    this.subjects.saveChangesResultSubject.subscribe((data) => {
+      this.handleSaveChangesResult(data)
     })
   },
   methods: {
     onAction(dataView, action) {
+      const ref = this.getDataViewRef(dataView)
+      if (this.shouldGuardDirty(action) && ref && ref.hasDirty()) {
+        this.$confirm('There are unsaved changes. Discard them and continue?', 'Warning', {
+          confirmButtonText: 'Confirm',
+          cancelButtonText: 'Cancel',
+          type: 'warning'
+        }).then(() => {
+          ref.clearDirty()
+          this.emitDataViewAction(dataView, action)
+        }).catch(() => {})
+        return
+      }
+      this.emitDataViewAction(dataView, action)
+    },
+    emitDataViewAction(dataView, action) {
       action.dataView = dataView
       this.$emit('dataViewAction', action)
+    },
+    shouldGuardDirty(action) {
+      return action && ['first_page', 'prev_page', 'next_page', 'last_page', 'refresh', 'change_limit'].includes(action.action)
+    },
+    getDataViewRef(dataView) {
+      const ref = this.$refs[dataView]
+      return Array.isArray(ref) ? ref[0] : ref
     },
     onLimitChange(limit) {
       this.$emit('limitChange', limit)
     },
-    onTabClose(name, send = true) {
+    handleSaveChangesResult(result) {
+      if (result && result.success) {
+        this.$message.success('Save succeeded')
+        if (!result || !result.dataView) {
+          return
+        }
+        const ref = this.getDataViewRef(result.dataView)
+        if (ref) {
+          ref.clearDirty()
+        }
+        this.onAction(result.dataView, { action: 'refresh' })
+      } else {
+        const reason = result && result.reason ? result.reason : 'Save failed'
+        const index = result && result.failedChangeIndex !== undefined && result.failedChangeIndex !== null
+          ? `, failedChangeIndex=${result.failedChangeIndex}`
+          : ''
+        this.$message.error(`${reason}${index}`)
+      }
+    },
+    hasDirty() {
+      return this.tabs.some((tab) => {
+        const ref = this.getDataViewRef(tab.name)
+        return ref && typeof ref.hasDirty === 'function' && ref.hasDirty()
+      })
+    },
+    clearDirty() {
+      this.tabs.forEach((tab) => {
+        const ref = this.getDataViewRef(tab.name)
+        if (ref && typeof ref.clearDirty === 'function') {
+          ref.clearDirty()
+        }
+      })
+    },
+    onTabClose(name, send = true, guardDirty = true) {
       if (name === 'log') {
         return
       }
+      const ref = this.getDataViewRef(name)
+      if (guardDirty && ref && typeof ref.hasDirty === 'function' && ref.hasDirty()) {
+        this.$confirm('There are unsaved changes. Discard them and close?', 'Warning', {
+          confirmButtonText: 'Confirm',
+          cancelButtonText: 'Cancel',
+          type: 'warning'
+        }).then(() => {
+          ref.clearDirty()
+          this.closeTab(name, send)
+        }).catch(() => {})
+        return
+      }
+      this.closeTab(name, send)
+    },
+    closeTab(name, send = true) {
       this.tabs = this.tabs.filter((tab) => {
         return tab.name !== name
       })
