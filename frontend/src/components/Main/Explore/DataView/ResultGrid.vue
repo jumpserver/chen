@@ -68,7 +68,12 @@ export default {
   },
   watch: {
     rowData() {
-      this.clearRangeSelection()
+      this.clearSelection()
+    },
+    editable(value) {
+      if (!value && this.gridApi && typeof this.gridApi.stopEditing === 'function') {
+        this.gridApi.stopEditing()
+      }
     }
   },
   mounted() {
@@ -254,6 +259,15 @@ export default {
         current: null
       }
       this.refreshRangeCells()
+    },
+    clearSelection() {
+      this.clearRangeSelection()
+      if (this.gridApi && typeof this.gridApi.clearFocusedCell === 'function') {
+        this.gridApi.clearFocusedCell()
+      }
+      if (this.gridApi && typeof this.gridApi.deselectAll === 'function') {
+        this.gridApi.deselectAll()
+      }
     },
     getRangeRowData() {
       const bounds = this.getRangeBounds()

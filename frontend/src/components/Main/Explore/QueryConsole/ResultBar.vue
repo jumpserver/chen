@@ -79,6 +79,10 @@ export default {
               }
               return 'icon-chen-pin-fill'
             },
+            disabled: () => {
+              const ref = this.getDataViewRef(data.title)
+              return !!(ref && ref.requestBusy)
+            },
             onClick: () => {
               this.onAction(data.title, { action: 'toggle_pinned' })
             }
@@ -91,6 +95,10 @@ export default {
     this.subjects.updateResultSubject.subscribe((data) => {
       this.tabs.forEach((tab) => {
         if (tab.name === data.title) {
+          const ref = this.getDataViewRef(tab.name)
+          if (ref && !ref.acceptDataResponse(data.clientRequestSequence)) {
+            return
+          }
           tab.data = data.data
           this.activeTab = data.title
         }
@@ -116,6 +124,10 @@ export default {
   methods: {
     onAction(dataView, action) {
       const ref = this.getDataViewRef(dataView)
+      if (this.isDataRequestAction(action) && ref && !action.clientRequestSequence) {
+        ref.startDataRequest(action)
+        return
+      }
       if (this.shouldGuardDirty(action) && ref && ref.hasDirty()) {
         this.$confirm('There are unsaved changes. Discard them and continue?', 'Warning', {
           confirmButtonText: 'Confirm',
@@ -124,17 +136,32 @@ export default {
         }).then(() => {
           ref.clearDirty()
           this.emitDataViewAction(dataView, action)
-        }).catch(() => {})
+        }).catch(() => {
+          ref.cancelClientRequest(action.clientRequestSequence)
+        })
         return
       }
       this.emitDataViewAction(dataView, action)
     },
     emitDataViewAction(dataView, action) {
-      action.dataView = dataView
-      this.$emit('dataViewAction', action)
+      this.$emit('dataViewAction', {
+        ...action,
+        dataView
+      })
     },
     shouldGuardDirty(action) {
       return action && ['first_page', 'prev_page', 'next_page', 'last_page', 'refresh', 'change_limit'].includes(action.action)
+    },
+    isDataRequestAction(action) {
+      return action && [
+        'first_page',
+        'prev_page',
+        'next_page',
+        'last_page',
+        'refresh',
+        'change_limit',
+        'toggle_pinned'
+      ].includes(action.action)
     },
     getDataViewRef(dataView) {
       const ref = this.$refs[dataView]
@@ -144,22 +171,12 @@ export default {
       this.$emit('limitChange', limit)
     },
     handleSaveChangesResult(result) {
-      if (result && result.success) {
-        this.$message.success('Save succeeded')
-        if (!result || !result.dataView) {
-          return
-        }
-        const ref = this.getDataViewRef(result.dataView)
-        if (ref) {
-          ref.clearDirty()
-        }
-        this.onAction(result.dataView, { action: 'refresh' })
-      } else {
-        const reason = result && result.reason ? result.reason : 'Save failed'
-        const index = result && result.failedChangeIndex !== undefined && result.failedChangeIndex !== null
-          ? `, failedChangeIndex=${result.failedChangeIndex}`
-          : ''
-        this.$message.error(`${reason}${index}`)
+      if (!result || !result.dataView) {
+        return
+      }
+      const ref = this.getDataViewRef(result.dataView)
+      if (ref && typeof ref.handleSaveChangesResult === 'function') {
+        ref.handleSaveChangesResult(result)
       }
     },
     hasDirty() {

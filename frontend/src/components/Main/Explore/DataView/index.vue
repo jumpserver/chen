@@ -131,7 +131,9 @@ export default {
           this.viewMeta = pkt.data
           break
         case 'update_data_view':
-          this.data = pkt.data.data
+          if (!this.$refs.dataView || this.$refs.dataView.acceptDataResponse(pkt.data.clientRequestSequence)) {
+            this.data = pkt.data.data
+          }
           break
         case 'save_changes_result':
           this.handleSaveChangesResult(pkt.data)
@@ -172,7 +174,9 @@ export default {
         }).then(() => {
           this.$refs.dataView.clearDirty()
           this.sendDataViewAction(action)
-        }).catch(() => {})
+        }).catch(() => {
+          this.$refs.dataView.cancelClientRequest(action.clientRequestSequence)
+        })
         return
       }
       this.sendDataViewAction(action)
@@ -192,21 +196,8 @@ export default {
       }
     },
     handleSaveChangesResult(result) {
-      if (result && result.success) {
-        this.$message.success('Save succeeded')
-        if (this.$refs.dataView) {
-          this.$refs.dataView.clearDirty()
-        }
-        this.sendDataViewAction({ action: 'refresh' })
-      } else {
-        const reason = result && result.reason ? result.reason : 'Save failed'
-        const index = result && result.failedChangeIndex !== undefined && result.failedChangeIndex !== null
-          ? `, failedChangeIndex=${result.failedChangeIndex}`
-          : ''
-        this.$message.error(`${reason}${index}`)
-      }
-      if (this.$refs.dataView) {
-        this.$refs.dataView.pendingSavePayload = null
+      if (this.$refs.dataView && typeof this.$refs.dataView.handleSaveChangesResult === 'function') {
+        this.$refs.dataView.handleSaveChangesResult(result)
       }
     },
     handleSaveChangesPreviewResult(result) {

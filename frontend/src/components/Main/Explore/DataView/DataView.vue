@@ -13,7 +13,7 @@
       ref="resultGrid"
       :row-data="rowData"
       :column-defs="colDefs"
-      :editable="resultEditable"
+      :editable="resultEditable && !requestBusy"
       @cell-value-changed="onCellValueChanged"
       @cell-clicked="onCellClicked"
       @cell-context-menu="showContextMenu"
@@ -31,6 +31,7 @@ import RightMenu from '@/components/Main/Explore/DataView/RightMenu.vue'
 import { SpecialCharacters, GeneralInsertSQL, GeneralUpdateSQL } from './const'
 
 import ResultGrid from '@/components/Main/Explore/DataView/ResultGrid.vue'
+import { DataViewRequestState } from './requestState'
 
 export default {
   name: 'DataView',
@@ -80,9 +81,8 @@ export default {
       dirtyCells: {},
       insertRows: [],
       deletedRows: {},
-      dirtyVersion: 0,
+      requestState: new DataViewRequestState(),
       nextInsertRowId: 1,
-      pendingSavePayload: null,
 
       exportDataDialogVisible: false,
       state: {
@@ -97,6 +97,7 @@ export default {
           type: 'button',
           icon: 'iconfont icon-chen-first_page',
           onClick: this.onFirstPage,
+          disabled: () => this.requestBusy,
           hidden: () => {
             return !this.state.paged
           }
@@ -105,6 +106,7 @@ export default {
           type: 'button',
           icon: 'iconfont icon-chen-icon_paging_left',
           onClick: this.onPrevPage,
+          disabled: () => this.requestBusy,
           hidden: () => {
             return !this.state.paged
           }
@@ -143,8 +145,9 @@ export default {
             }
           ],
           onCommand: (command) => {
-            this.$emit('action', { action: 'change_limit', data: command })
+            this.startDataRequest({ action: 'change_limit', data: command })
           },
+          disabled: () => this.requestBusy,
           customDisplayContent: () => {
             let content = ''
             if (this.isStatePaged) {
@@ -158,6 +161,7 @@ export default {
           type: 'button',
           icon: 'iconfont icon-chen-icon_paging_right',
           onClick: this.onNextPage,
+          disabled: () => this.requestBusy,
           hidden: () => {
             return !this.state.paged
           }
@@ -166,6 +170,7 @@ export default {
           type: 'button',
           icon: 'iconfont icon-chen-last-page',
           onClick: this.onLastPage,
+          disabled: () => this.requestBusy,
           hidden: () => {
             return !this.state.paged
           }
@@ -174,7 +179,8 @@ export default {
           split: true,
           type: 'button',
           icon: 'iconfont icon-chen-reload1',
-          onClick: this.onRefresh
+          onClick: this.onRefresh,
+          disabled: () => this.requestBusy
         },
         addRow: {
           split: true,
@@ -184,6 +190,7 @@ export default {
           hidden: () => {
             return !this.resultEditable || !this.rowEditActionsEnabled
           },
+          disabled: () => this.requestBusy,
           onClick: this.onAddRow
         },
         deleteRow: {
@@ -194,7 +201,7 @@ export default {
             return !this.resultEditable || !this.rowEditActionsEnabled
           },
           disabled: () => {
-            return !this.currentRow
+            return this.requestBusy || !this.currentRow
           },
           onClick: this.onDeleteRows
         },
@@ -207,7 +214,7 @@ export default {
             return !this.resultEditable
           },
           disabled: () => {
-            return !this.hasDirty()
+            return this.requestBusy || !this.hasDirty()
           },
           onClick: this.onSaveChanges
         },
@@ -219,7 +226,7 @@ export default {
             return !this.resultEditable
           },
           disabled: () => {
-            return !this.hasDirty()
+            return this.requestBusy || !this.hasDirty()
           },
           onClick: this.onCancelChanges
         },
@@ -257,6 +264,12 @@ export default {
     }
   },
   computed: {
+    dirtyVersion() {
+      return this.requestState.dirtyVersion
+    },
+    requestBusy() {
+      return !!this.requestState.activeRequest
+    },
     resultEditable() {
       const fields = this.data && Array.isArray(this.data.fields) ? this.data.fields : []
       return this.editable &&
@@ -271,11 +284,12 @@ export default {
       return Object.assign(this.defaultToolBarItems, this.toolBarItems)
     },
     toolbarKey() {
-      return `toolbar-${this.dirtyVersion}`
+      return `toolbar-${this.dirtyVersion}-${this.requestState.requestSequence}-${this.requestBusy}`
     }
   },
   watch: {
     data() {
+      this.resetDataSelection()
       if (!this.init) {
         this.initTable()
       } else {
@@ -287,6 +301,9 @@ export default {
     this.stateSubject.subscribe((state) => {
       if (state.title === this.meta.title) {
         this.state = state
+        if (!state.loading) {
+          this.finishDataRequestWithoutResult()
+        }
       }
     })
   },
@@ -353,8 +370,8 @@ export default {
       this.dirtyCells = {}
       this.insertRows = []
       this.deletedRows = {}
-      this.pendingSavePayload = null
-      this.dirtyVersion += 1
+      this.requestState.markDirty()
+      this.resetDataSelection()
       this.reloadTable()
       this.refreshDirtyCells()
     },
@@ -403,7 +420,7 @@ export default {
       return !!this.deletedRows[this.buildDeleteKey(pkValue)]
     },
     isCellEditable(params, fieldMeta) {
-      if (!this.resultEditable || !fieldMeta || !fieldMeta.sourceColumn) {
+      if (this.requestBusy || !this.resultEditable || !fieldMeta || !fieldMeta.sourceColumn) {
         return false
       }
       const row = params ? params.data : null
@@ -422,7 +439,7 @@ export default {
       }
     },
     onCellValueChanged(params) {
-      if (!this.resultEditable || !params || !params.colDef || !params.colDef.fieldMeta || !params.data) {
+      if (this.requestBusy || !this.resultEditable || !params || !params.colDef || !params.colDef.fieldMeta || !params.data) {
         return
       }
 
@@ -462,7 +479,7 @@ export default {
 
       if (oldValueIsNull === newValueIsNull && this.valuesEqual(oldValue, newValue)) {
         this.deleteObjectValue('dirtyCells', key)
-        this.dirtyVersion += 1
+        this.requestState.markDirty()
         this.refreshDirtyCells()
         return
       }
@@ -477,7 +494,7 @@ export default {
         newValue,
         newValueIsNull
       })
-      this.dirtyVersion += 1
+      this.requestState.markDirty()
       this.refreshDirtyCells()
     },
     onInsertCellValueChanged(params, fieldMeta) {
@@ -497,7 +514,7 @@ export default {
         })
         this.$set(row.data.__chenValues, sourceColumn, true)
       }
-      this.dirtyVersion += 1
+      this.requestState.markDirty()
       this.refreshDirtyCells()
     },
     normalizeRowData(row) {
@@ -649,32 +666,51 @@ export default {
       return this.data.fields.find((field) => field && field.editable === true && field.sourceTable && field.sourceColumn)
     },
     onSaveChanges() {
-      if (!this.hasDirty()) {
+      if (this.requestBusy || !this.hasDirty()) {
         return
       }
 
-      const payload = this.buildSaveChangesPayload()
-      this.pendingSavePayload = payload
+      this.stopGridEditing()
+      const kind = this.previewBeforeSave ? 'preview' : 'save'
+      const request = this.requestState.begin(kind, this.buildSaveChangesPayload())
+      if (!request) {
+        return
+      }
       const action = {
         action: this.previewBeforeSave ? 'save_changes_preview' : 'save_changes',
         dataView: this.meta.title,
-        data: payload
+        data: request.payload,
+        clientRequestSequence: request.sequence
       }
 
       this.$emit('action', action)
     },
     handleSaveChangesPreviewResult(result) {
+      const request = this.requestState.activeRequest
+      const responseSequence = result && result.clientRequestSequence
+        ? result.clientRequestSequence
+        : request && request.sequence
+      if (!request || !this.requestState.isCurrent(responseSequence, 'preview')) {
+        return false
+      }
       if (!result || !result.success) {
+        this.requestState.finish(request.sequence, 'preview')
         const reason = result && result.reason ? result.reason : 'Preview failed'
         const index = result && result.failedChangeIndex !== undefined && result.failedChangeIndex !== null
           ? `, failedChangeIndex=${result.failedChangeIndex}`
           : ''
         this.$message.error(`${reason}${index}`)
-        return
+        return true
+      }
+      if (!this.requestState.hasCurrentDirtyVersion(request.sequence)) {
+        this.requestState.finish(request.sequence, 'preview')
+        this.$message.warning('The data changed after preview started. Please preview again.')
+        return true
       }
       const updateCount = result.updateCount || 0
       const insertCount = result.insertCount || 0
       const deleteCount = result.deleteCount || 0
+      const confirmingRequest = this.requestState.setKind(request.sequence, 'preview', 'confirm')
       this.$confirm(
         `Preview: ${updateCount} updates, ${insertCount} inserts, ${deleteCount} deletes. Continue?`,
         'Save changes',
@@ -684,18 +720,65 @@ export default {
           type: 'warning'
         }
       ).then(() => {
+        if (!this.requestState.hasCurrentDirtyVersion(confirmingRequest.sequence)) {
+          this.requestState.finish(confirmingRequest.sequence, 'confirm')
+          this.$message.warning('The data changed after preview. Please preview again.')
+          return
+        }
+        const saveRequest = this.requestState.transition(confirmingRequest.sequence, 'confirm', 'save')
+        if (!saveRequest) {
+          return
+        }
         this.$emit('action', {
           action: 'save_changes',
           dataView: this.meta.title,
-          data: this.pendingSavePayload || this.buildSaveChangesPayload()
+          data: saveRequest.payload,
+          clientRequestSequence: saveRequest.sequence
         })
-      }).catch(() => {})
+      }).catch(() => {
+        this.requestState.finish(confirmingRequest.sequence, 'confirm')
+      })
+      return true
+    },
+    handleSaveChangesResult(result) {
+      const request = this.requestState.activeRequest
+      const responseSequence = result && result.clientRequestSequence
+        ? result.clientRequestSequence
+        : request && request.sequence
+      if (!request || !this.requestState.isCurrent(responseSequence, 'save')) {
+        return false
+      }
+      if (!result || !result.success) {
+        this.requestState.finish(request.sequence, 'save')
+        const reason = result && result.reason ? result.reason : 'Save failed'
+        const index = result && result.failedChangeIndex !== undefined && result.failedChangeIndex !== null
+          ? `, failedChangeIndex=${result.failedChangeIndex}`
+          : ''
+        this.$message.error(`${reason}${index}`)
+        return true
+      }
+      if (!this.requestState.hasCurrentDirtyVersion(request.sequence)) {
+        this.requestState.finish(request.sequence, 'save')
+        this.$message.warning('Save succeeded, but newer local changes were kept. Refresh was skipped.')
+        return true
+      }
+      this.requestState.finish(request.sequence, 'save')
+      this.clearDirty()
+      this.$message.success('Save succeeded')
+      this.startDataRequest({ action: 'refresh' })
+      return true
     },
     onCancelChanges() {
+      if (this.requestBusy) {
+        return
+      }
       this.clearDirty()
       this.onRefresh()
     },
     onAddRow() {
+      if (this.requestBusy) {
+        return
+      }
       const id = this.nextInsertRowId++
       const data = {
         __chenInsertId: id,
@@ -707,17 +790,20 @@ export default {
         values: {}
       })
       this.reloadTable()
-      this.dirtyVersion += 1
+      this.requestState.markDirty()
       this.refreshDirtyCells()
     },
     onDeleteRows() {
+      if (this.requestBusy) {
+        return
+      }
       const rows = this.getRowsForDelete()
       if (rows.length === 0) {
         return
       }
       rows.forEach((row) => this.markRowDeleted(row))
       this.reloadTable()
-      this.dirtyVersion += 1
+      this.requestState.markDirty()
       this.refreshDirtyCells()
     },
     getRowsForDelete() {
@@ -789,19 +875,19 @@ export default {
       }
     },
     onNextPage() {
-      this.$emit('action', { action: 'next_page' })
+      this.startDataRequest({ action: 'next_page' })
     },
     onPrevPage() {
-      this.$emit('action', { action: 'prev_page' })
+      this.startDataRequest({ action: 'prev_page' })
     },
     onFirstPage() {
-      this.$emit('action', { action: 'first_page' })
+      this.startDataRequest({ action: 'first_page' })
     },
     onLastPage() {
-      this.$emit('action', { action: 'last_page' })
+      this.startDataRequest({ action: 'last_page' })
     },
     onRefresh() {
-      this.$emit('action', { action: 'refresh' })
+      this.startDataRequest({ action: 'refresh' })
     },
     onExport() {
       this.exportDataDialogVisible = true
@@ -811,15 +897,73 @@ export default {
       this.$emit('action', { action: 'export', data: scope })
     },
     onCellClicked(params) {
+      if (this.requestBusy) {
+        return
+      }
       this.currentRow = params ? params.data : null
-      this.dirtyVersion += 1
     },
     showContextMenu(params) {
+      if (this.requestBusy) {
+        return
+      }
       this.currentRow = params.data
       this.$refs.rightMenu.show(params.event)
     },
     preventDefaultContextMenu(event) {
       event.preventDefault()
+    },
+    startDataRequest(action) {
+      if (this.requestBusy) {
+        return false
+      }
+      this.stopGridEditing()
+      const request = this.requestState.begin('data')
+      if (!request) {
+        return false
+      }
+      this.$emit('action', {
+        ...action,
+        clientRequestSequence: request.sequence
+      })
+      return true
+    },
+    acceptDataResponse(requestSequence) {
+      const request = this.requestState.activeRequest
+      if (!request) {
+        return true
+      }
+      const responseSequence = requestSequence || request.sequence
+      if (!this.requestState.finish(responseSequence, 'data')) {
+        return false
+      }
+      this.resetDataSelection()
+      return true
+    },
+    cancelClientRequest(requestSequence) {
+      const request = this.requestState.activeRequest
+      if (!request || request.sequence !== requestSequence) {
+        return false
+      }
+      return this.requestState.finish(request.sequence, request.kind)
+    },
+    finishDataRequestWithoutResult() {
+      const request = this.requestState.activeRequest
+      if (request && request.kind === 'data') {
+        this.requestState.finish(request.sequence, 'data')
+      }
+    },
+    stopGridEditing() {
+      const grid = this.$refs.resultGrid
+      if (grid && grid.gridApi && typeof grid.gridApi.stopEditing === 'function') {
+        grid.gridApi.stopEditing()
+      }
+    },
+    resetDataSelection() {
+      this.currentRow = null
+      const grid = this.$refs.resultGrid
+      if (grid && typeof grid.clearSelection === 'function') {
+        grid.clearSelection()
+      }
     },
     wrap(str, specChar) {
       const result = str ? str.trim() : ''
