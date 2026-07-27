@@ -9,6 +9,7 @@ import org.jumpserver.chen.framework.i18n.MessageUtils;
 import org.jumpserver.chen.framework.jms.ACLFilter;
 import org.jumpserver.chen.framework.jms.CommandHandler;
 import org.jumpserver.chen.framework.jms.ReplayHandler;
+import org.jumpserver.chen.framework.jms.acl.ACLCommandContext;
 import org.jumpserver.chen.framework.jms.acl.ACLResult;
 import org.jumpserver.chen.framework.jms.entity.CommandRecord;
 import org.jumpserver.chen.framework.jms.exception.CommandRejectException;
@@ -150,11 +151,16 @@ public class JMSSession extends BaseSession {
 
     @Override
     public ACLResult checkACL(String command) {
-        return this.aclFilter.commandACLFilter(command, null);
+        return this.aclFilter.commandACLFilterWithContext(command, ACLCommandContext.executionOwned(null));
     }
 
     public ACLResult checkACL(String command, Connection connection) {
-        return this.aclFilter.commandACLFilter(command, connection);
+        return this.aclFilter.commandACLFilterWithContext(command, ACLCommandContext.queryConsoleOwned(connection));
+    }
+
+    @Override
+    public ACLResult checkACLWithContext(String command, ACLCommandContext context) {
+        return this.aclFilter.commandACLFilterWithContext(command, context);
     }
 
     @Override

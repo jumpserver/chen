@@ -3,6 +3,7 @@ package org.jumpserver.chen.framework.session;
 import org.jumpserver.chen.framework.console.Console;
 import org.jumpserver.chen.framework.datasource.Datasource;
 import org.jumpserver.chen.framework.datasource.sql.SQLQueryResult;
+import org.jumpserver.chen.framework.jms.acl.ACLCommandContext;
 import org.jumpserver.chen.framework.jms.acl.ACLResult;
 import org.jumpserver.chen.framework.jms.entity.CommandRecord;
 import org.jumpserver.chen.framework.jms.exception.CommandRejectException;
@@ -93,6 +94,10 @@ public interface Session {
     ACLResult checkACL(String command);
 
     ACLResult checkACL(String command, Connection connection);
+
+    default ACLResult checkACLWithContext(String command, ACLCommandContext context) {
+        return this.checkACL(command, context.connection());
+    }
 
     boolean enableAutoComplete();
 

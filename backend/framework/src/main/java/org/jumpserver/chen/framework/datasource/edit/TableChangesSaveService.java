@@ -1,5 +1,6 @@
 package org.jumpserver.chen.framework.datasource.edit;
 
+import com.alibaba.druid.DbType;
 import lombok.extern.slf4j.Slf4j;
 import org.jumpserver.chen.framework.console.entity.request.SaveChangesRequest;
 import org.jumpserver.chen.framework.console.entity.response.SaveChangesResult;
@@ -11,6 +12,7 @@ import org.jumpserver.chen.framework.datasource.edit.exception.RowNotFoundOrNotU
 import org.jumpserver.chen.framework.datasource.edit.exception.UnexpectedAffectedRowsException;
 import org.jumpserver.chen.framework.datasource.sql.SQLQueryResult;
 import org.jumpserver.chen.framework.jms.ACLFilter;
+import org.jumpserver.chen.framework.jms.acl.ACLCommandContext;
 import org.jumpserver.chen.framework.jms.acl.ACLResult;
 import org.jumpserver.chen.framework.jms.exception.CommandRejectException;
 import org.jumpserver.chen.framework.session.Session;
@@ -35,7 +37,7 @@ public class TableChangesSaveService {
 
     private final TableChangesPlanBuilder planBuilder;
     private final PreparedStatementBinder binder;
-    private final ServiceManagedTransactionBoundary transactionBoundary;
+    private final ServiceManagedTransactionBoundary serviceManagedTransactionBoundary;
 
     public TableChangesSaveService() {
         this(new TableChangesPlanBuilder(), new PreparedStatementBinder());
@@ -44,7 +46,7 @@ public class TableChangesSaveService {
     TableChangesSaveService(TableChangesPlanBuilder planBuilder, PreparedStatementBinder binder) {
         this.planBuilder = planBuilder;
         this.binder = binder;
-        this.transactionBoundary = new ServiceManagedTransactionBoundary();
+        this.serviceManagedTransactionBoundary = new ServiceManagedTransactionBoundary();
     }
 
     public SaveChangesResult save(
@@ -75,63 +77,16 @@ public class TableChangesSaveService {
 
         log.info("save_changes auditSql:\n{}", plan.getAuditSql());
 
-        try (executionContext) {
-            if (executionContext.transactionMode() != TransactionMode.SERVICE_MANAGED) {
-                throw new IllegalArgumentException("USER_MANAGED save transactions are not implemented");
+        try {
+            TransactionBoundary transactionBoundary = transactionBoundary(executionContext, context.getDbType());
+            if (executionContext.transactionMode() == TransactionMode.SERVICE_MANAGED) {
+                try (executionContext) {
+                    return executeAcceptedSave(result, plan, executionContext.connection(),
+                            executionContext.connectionOwnership(), session, transactionBoundary);
+                }
             }
-            Connection connection = executionContext.connection();
-            log.debug(
-                    "save changes plan accepted, dataView={}, table={}.{}, changeCount={}",
-                    plan.getDataView(),
-                    plan.getSchema(),
-                    plan.getTable(),
-                    plan.getChangeCount()
-            );
-
-            ACLResult aclResult = checkBatchACL(plan, session, connection);
-            if (aclResult.getRiskLevel() == Common.RiskLevel.UNRECOGNIZED) {
-                log.error(
-                        "save changes acl returned unrecognized risk level, dataView={}, table={}.{}",
-                        plan.getDataView(),
-                        plan.getSchema(),
-                        plan.getTable()
-                );
-                return reject(result, ACL_RISK_LEVEL_UNRECOGNIZED, null, null);
-            }
-            if (isRejected(aclResult)) {
-                log.warn(
-                        "save changes acl rejected, dataView={}, table={}.{}, riskLevel={}",
-                        plan.getDataView(),
-                        plan.getSchema(),
-                        plan.getTable(),
-                        aclResult.getRiskLevel()
-                );
-                return reject(result, ACL_REJECTED, null, null);
-            }
-            if (aclResult == null) {
-                aclResult = new ACLResult();
-                aclResult.setRiskLevel(Common.RiskLevel.Normal);
-            }
-
-            ACLResult finalAclResult = aclResult;
-            SQLQueryResult queryResult = session.withAudit(
-                    plan.getAuditSql(),
-                    () -> executeTransaction(connection, plan, finalAclResult)
-            );
-            result.setSuccess(true);
-            result.setAllowed(true);
-            result.setChangeCount(queryResult.getUpdateCount());
-            // executeTransaction has already verified every command affected exactly one row.
-            result.getStatements().forEach(item -> item.setAffectedRows(1));
-
-            log.info(
-                    "save changes succeeded, dataView={}, table={}.{}, changeCount={}",
-                    plan.getDataView(),
-                    plan.getSchema(),
-                    plan.getTable(),
-                    plan.getChangeCount()
-            );
-            return result;
+            return executeAcceptedSave(result, plan, executionContext.connection(),
+                    executionContext.connectionOwnership(), session, transactionBoundary);
         } catch (OptimisticLockConflictException e) {
             PreparedTableChangeCommand command = commandAt(plan, e.getChangeIndex());
             log.warn(
@@ -208,8 +163,86 @@ public class TableChangesSaveService {
         }
     }
 
-    SQLQueryResult executeTransaction(Connection connection, TableChangesPlan plan, ACLResult aclResult) throws SQLException {
-        return this.transactionBoundary.execute(connection, plan, () -> {
+    private SaveChangesResult executeAcceptedSave(
+            SaveChangesResult result,
+            TableChangesPlan plan,
+            Connection connection,
+            ConnectionOwnership connectionOwnership,
+            Session session,
+            TransactionBoundary transactionBoundary
+    ) throws SQLException, CommandRejectException {
+        log.debug(
+                "save changes plan accepted, dataView={}, table={}.{}, changeCount={}",
+                plan.getDataView(),
+                plan.getSchema(),
+                plan.getTable(),
+                plan.getChangeCount()
+        );
+
+        ACLResult aclResult = checkBatchACL(plan, session, connection, connectionOwnership);
+        if (aclResult.getRiskLevel() == Common.RiskLevel.UNRECOGNIZED) {
+            log.error(
+                    "save changes acl returned unrecognized risk level, dataView={}, table={}.{}",
+                    plan.getDataView(),
+                    plan.getSchema(),
+                    plan.getTable()
+            );
+            return reject(result, ACL_RISK_LEVEL_UNRECOGNIZED, null, null);
+        }
+        if (isRejected(aclResult)) {
+            log.warn(
+                    "save changes acl rejected, dataView={}, table={}.{}, riskLevel={}",
+                    plan.getDataView(),
+                    plan.getSchema(),
+                    plan.getTable(),
+                    aclResult.getRiskLevel()
+            );
+            return reject(result, ACL_REJECTED, null, null);
+        }
+        if (aclResult == null) {
+            aclResult = new ACLResult();
+            aclResult.setRiskLevel(Common.RiskLevel.Normal);
+        }
+
+        ACLResult finalAclResult = aclResult;
+        SQLQueryResult queryResult = session.withAudit(
+                plan.getAuditSql(),
+                () -> executeTransaction(connection, plan, finalAclResult, transactionBoundary)
+        );
+        result.setSuccess(true);
+        result.setAllowed(true);
+        result.setChangeCount(queryResult.getUpdateCount());
+        // executeTransaction has already verified every command affected exactly one row.
+        result.getStatements().forEach(item -> item.setAffectedRows(1));
+
+        log.info(
+                "save changes succeeded, dataView={}, table={}.{}, changeCount={}",
+                plan.getDataView(),
+                plan.getSchema(),
+                plan.getTable(),
+                plan.getChangeCount()
+        );
+        return result;
+    }
+
+    private TransactionBoundary transactionBoundary(SaveExecutionContext executionContext, DbType dbType) {
+        if (executionContext.transactionMode() == TransactionMode.SERVICE_MANAGED) {
+            return this.serviceManagedTransactionBoundary;
+        }
+        if (executionContext.transactionMode() != TransactionMode.USER_MANAGED ||
+                executionContext.connectionOwnership() != ConnectionOwnership.QUERY_CONSOLE) {
+            throw new IllegalArgumentException("USER_MANAGED transactions require QUERY_CONSOLE connection ownership");
+        }
+        return new UserManagedTransactionBoundary(SavepointControllers.forDbType(dbType));
+    }
+
+    SQLQueryResult executeTransaction(
+            Connection connection,
+            TableChangesPlan plan,
+            ACLResult aclResult,
+            TransactionBoundary transactionBoundary
+    ) throws SQLException {
+        return transactionBoundary.execute(connection, plan, () -> {
             for (int i = 0; i < plan.getCommands().size(); i++) {
                 executeCommand(connection, plan, plan.getCommands().get(i), i);
             }
@@ -305,7 +338,12 @@ public class TableChangesSaveService {
                         aclResult.getRiskLevel() == Common.RiskLevel.ReviewCancel);
     }
 
-    private ACLResult checkBatchACL(TableChangesPlan plan, Session session, Connection connection) {
+    private ACLResult checkBatchACL(
+            TableChangesPlan plan,
+            Session session,
+            Connection connection,
+            ConnectionOwnership connectionOwnership
+    ) {
         List<ACLResult> results = new ArrayList<>(plan.getAuditSqlList().size());
         boolean batch = plan.getAuditSqlList().size() > 1;
         Object previousReviewBatchSql = null;
@@ -315,7 +353,10 @@ public class TableChangesSaveService {
         }
         try {
             for (String sql : plan.getAuditSqlList()) {
-                results.add(session.checkACL(sql, connection));
+                results.add(session.checkACLWithContext(
+                        sql,
+                        ACLCommandContext.planned(connection, connectionOwnership, plan.getChangeCount())
+                ));
             }
         } finally {
             if (batch) {

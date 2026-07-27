@@ -1,5 +1,6 @@
 package org.jumpserver.chen.framework.jms;
 
+import org.jumpserver.chen.framework.jms.acl.ACLCommandContext;
 import org.jumpserver.chen.framework.jms.acl.ACLResult;
 
 import java.sql.Connection;
@@ -7,5 +8,12 @@ import java.sql.Connection;
 public interface ACLFilter {
     String REVIEW_BATCH_SQL_ATTRIBUTE = ACLFilter.class.getName() + ".reviewBatchSql";
 
-    ACLResult commandACLFilter(String command, Connection connection);
+    default ACLResult commandACLFilter(String command, Connection connection) {
+        ACLCommandContext context = connection == null
+                ? ACLCommandContext.executionOwned(null)
+                : ACLCommandContext.queryConsoleOwned(connection);
+        return this.commandACLFilterWithContext(command, context);
+    }
+
+    ACLResult commandACLFilterWithContext(String command, ACLCommandContext context);
 }

@@ -1,9 +1,11 @@
 package org.jumpserver.chen.framework.jms.impl;
 
 import lombok.extern.slf4j.Slf4j;
+import org.jumpserver.chen.framework.datasource.edit.ConnectionOwnership;
 import org.jumpserver.chen.framework.datasource.sql.SQL;
 import org.jumpserver.chen.framework.i18n.MessageUtils;
 import org.jumpserver.chen.framework.jms.ACLFilter;
+import org.jumpserver.chen.framework.jms.acl.ACLCommandContext;
 import org.jumpserver.chen.framework.jms.acl.ACLResult;
 import org.jumpserver.chen.framework.session.SessionManager;
 import org.jumpserver.chen.framework.session.controller.dialog.Button;
@@ -12,8 +14,8 @@ import org.jumpserver.wisp.Common;
 import org.jumpserver.wisp.ServiceGrpc;
 import org.jumpserver.wisp.ServiceOuterClass;
 
-import java.sql.Connection;
 import java.util.List;
+import java.util.OptionalInt;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.CountDownLatch;
@@ -39,7 +41,7 @@ public class ACLFilterImpl implements ACLFilter {
     private static final String REJECT_MESSAGE = "reject by acl rule";
 
     @Override
-    public ACLResult commandACLFilter(String command, Connection connection) {
+    public ACLResult commandACLFilterWithContext(String command, ACLCommandContext context) {
         var result = new ACLResult();
         var acl = this.matchRule(command, result);
 
@@ -75,7 +77,7 @@ public class ACLFilterImpl implements ACLFilter {
                     new Thread(() -> {
                         SessionManager.setContext(token);
                         try {
-                            this.createAndWaitTicket(command, acl, connection);
+                            this.createAndWaitTicket(command, acl, context);
                         } catch (Exception e) {
                             exception.set(e);
                         } finally {
@@ -110,26 +112,14 @@ public class ACLFilterImpl implements ACLFilter {
     }
 
 
-    private void createAndWaitTicket(String command, Common.CommandACL commandACL, Connection connection) {
-        var affectRows = 0;
-        try {
-            var sqlActuator = SessionManager.getCurrentSession()
-                    .getDatasource()
-                    .getConnectionManager()
-                    .getSqlActuator();
-            if (connection != null) {
-                sqlActuator = sqlActuator.withConnection(connection);
-            }
-            affectRows = sqlActuator.getAffectedRows(SQL.of(command));
-        } catch (Exception e) {
-            log.error("get affected rows failed", e);
-        }
+    private void createAndWaitTicket(String command, Common.CommandACL commandACL, ACLCommandContext context) {
+        OptionalInt affectedRows = this.estimateAffectedRows(command, context);
 
         var input = reviewTicketCommand(command);
-        if (affectRows != -1) {
-            input = String.format("Affected rows: %d\n%s", affectRows, input);
-        }
-
+        String affectedRowsValue = affectedRows.isPresent()
+                ? Integer.toString(affectedRows.getAsInt())
+                : "unknown";
+        input = String.format("Affected rows: %s\n%s", affectedRowsValue, input);
 
         var req = ServiceOuterClass.CommandConfirmRequest
                 .newBuilder()
@@ -142,6 +132,30 @@ public class ACLFilterImpl implements ACLFilter {
             throw new RuntimeException("create command ticket failed: " + resp.getStatus().getErr());
         }
         this.waitForTicketStatusChange(command, resp.getInfo());
+    }
+
+    OptionalInt estimateAffectedRows(String command, ACLCommandContext context) {
+        if (context.affectedRows().isPresent()) {
+            return context.affectedRows();
+        }
+        if (context.connectionOwnership() == ConnectionOwnership.QUERY_CONSOLE) {
+            return OptionalInt.empty();
+        }
+
+        try {
+            var sqlActuator = SessionManager.getCurrentSession()
+                    .getDatasource()
+                    .getConnectionManager()
+                    .getSqlActuator();
+            if (context.connection() != null) {
+                sqlActuator = sqlActuator.withConnection(context.connection());
+            }
+            int affectedRows = sqlActuator.getAffectedRows(SQL.of(command));
+            return affectedRows < 0 ? OptionalInt.empty() : OptionalInt.of(affectedRows);
+        } catch (Exception e) {
+            log.warn("get affected rows failed: {}", e.getClass().getSimpleName());
+            return OptionalInt.empty();
+        }
     }
 
     private String reviewTicketCommand(String command) {
