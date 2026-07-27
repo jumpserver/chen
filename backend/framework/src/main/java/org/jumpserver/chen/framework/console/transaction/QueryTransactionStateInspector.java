@@ -4,12 +4,11 @@ import com.alibaba.druid.DbType;
 
 import java.sql.Connection;
 
-public final class QueryTransactionStateTracker {
+public final class QueryTransactionStateInspector {
     private final Connection connection;
     private final TransactionStateProbe probe;
-    private volatile QueryTransactionState state;
 
-    public static QueryTransactionStateTracker create(DbType dbType, Connection connection) {
+    public static QueryTransactionStateInspector create(DbType dbType, Connection connection) {
         TransactionStateProbe probe = switch (dbType) {
             case postgresql -> new PostgresqlTransactionStateProbe();
             case mysql, mariadb -> new MysqlTransactionStateProbe();
@@ -19,27 +18,15 @@ public final class QueryTransactionStateTracker {
             case db2 -> new Db2TransactionStateProbe();
             default -> ignored -> QueryTransactionState.UNKNOWN;
         };
-        return new QueryTransactionStateTracker(connection, probe);
+        return new QueryTransactionStateInspector(connection, probe);
     }
 
-    QueryTransactionStateTracker(Connection connection,
-                                 TransactionStateProbe probe) {
+    QueryTransactionStateInspector(Connection connection, TransactionStateProbe probe) {
         this.connection = connection;
         this.probe = probe;
-        this.state = this.inspect().state();
     }
 
-    public QueryTransactionState currentState() {
-        return this.state;
-    }
-
-    public synchronized QueryTransactionProbeResult probeNow() {
-        QueryTransactionProbeResult result = this.inspect();
-        this.state = result.state();
-        return result;
-    }
-
-    private QueryTransactionProbeResult inspect() {
+    public QueryTransactionProbeResult probeNow() {
         return this.probe.inspectResult(this.connection);
     }
 }

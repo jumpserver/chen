@@ -106,15 +106,13 @@ export default {
       })
     })
     this.subjects.deleteResultSubject.subscribe((data) => {
-      if (data instanceof String) {
+      if (typeof data === 'string') {
         this.onTabClose(data, false, false)
-      }
-      if (data instanceof Array) {
+      } else if (Array.isArray(data)) {
         data.forEach((item) => {
           this.onTabClose(item, false, false)
         })
-      }
-      if (data instanceof Object) {
+      } else if (data && typeof data === 'object' && data.sql) {
         this.onTabClose(data.sql, false, false)
       }
     })

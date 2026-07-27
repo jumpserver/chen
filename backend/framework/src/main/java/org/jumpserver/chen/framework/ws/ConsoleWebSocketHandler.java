@@ -141,6 +141,8 @@ public class ConsoleWebSocketHandler extends TextWebSocketHandler {
                     "show_message",
                     new Message(MessageLevel.ERROR, "Invalid console context")
             );
+            this.closeSessionConsole(session);
+            this.closeWebSocket(session);
             return;
         }
 

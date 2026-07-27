@@ -18,8 +18,7 @@ import org.jumpserver.chen.framework.console.entity.response.SaveChangesResult;
 import org.jumpserver.chen.framework.console.state.QueryConsoleState;
 import org.jumpserver.chen.framework.console.state.StateManager;
 import org.jumpserver.chen.framework.console.transaction.QueryTransactionProbeResult;
-import org.jumpserver.chen.framework.console.transaction.QueryTransactionState;
-import org.jumpserver.chen.framework.console.transaction.QueryTransactionStateTracker;
+import org.jumpserver.chen.framework.console.transaction.QueryTransactionStateInspector;
 import org.jumpserver.chen.framework.datasource.Datasource;
 import org.jumpserver.chen.framework.datasource.edit.ConnectionOwnership;
 import org.jumpserver.chen.framework.datasource.edit.SaveExecutionContext;
@@ -80,7 +79,7 @@ public class QueryConsole extends AbstractConsole {
     private final AtomicBoolean closed = new AtomicBoolean(false);
     private final AtomicBoolean connectionClosed = new AtomicBoolean(false);
     private Connection conn;
-    private volatile QueryTransactionStateTracker transactionStateTracker;
+    private volatile QueryTransactionStateInspector transactionStateInspector;
     private volatile SQLExecutePlan currentPlan;
     private StateManager<QueryConsoleState> stateManager;
     private final Map<String, DataView> dataViews = new HashMap<>();
@@ -173,7 +172,7 @@ public class QueryConsole extends AbstractConsole {
             if (this.conn == null) {
                 try {
                     this.conn = this.getDatasource().getConnectionManager().getPhysicalConnection();
-                    this.transactionStateTracker = QueryTransactionStateTracker.create(
+                    this.transactionStateInspector = QueryTransactionStateInspector.create(
                             this.getDatasource().getDruidDbType(),
                             this.conn
                     );
@@ -183,11 +182,6 @@ public class QueryConsole extends AbstractConsole {
             }
             return this.conn;
         }
-    }
-
-    public QueryTransactionState getTransactionState() {
-        QueryTransactionStateTracker tracker = this.transactionStateTracker;
-        return tracker == null ? QueryTransactionState.UNKNOWN : tracker.currentState();
     }
 
     @Override
@@ -417,15 +411,15 @@ public class QueryConsole extends AbstractConsole {
         }
 
         Connection connection;
-        QueryTransactionStateTracker tracker;
+        QueryTransactionStateInspector inspector;
         QueryTransactionProbeResult beforeSave;
         try {
             connection = this.getConnection();
-            tracker = this.transactionStateTracker;
-            if (tracker == null) {
+            inspector = this.transactionStateInspector;
+            if (inspector == null) {
                 return this.rejectedSave(dataView, QUERY_TRANSACTION_PROBE_FAILED);
             }
-            beforeSave = tracker.probeNow();
+            beforeSave = inspector.probeNow();
         } catch (RuntimeException e) {
             log.warn("probe QueryConsole transaction state before DataView save failed", e);
             return this.rejectedSave(dataView, QUERY_TRANSACTION_PROBE_FAILED);
@@ -471,7 +465,7 @@ public class QueryConsole extends AbstractConsole {
         } catch (IllegalArgumentException e) {
             return this.rejectedSave(dataView, e.getMessage());
         } finally {
-            QueryTransactionProbeResult afterSave = tracker.probeNow();
+            QueryTransactionProbeResult afterSave = inspector.probeNow();
             if (afterSave.probeFailed()) {
                 log.warn("probe QueryConsole transaction state after DataView save failed");
             }
