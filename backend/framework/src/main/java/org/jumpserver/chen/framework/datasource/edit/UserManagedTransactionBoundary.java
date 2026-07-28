@@ -1,6 +1,7 @@
 package org.jumpserver.chen.framework.datasource.edit;
 
 import lombok.extern.slf4j.Slf4j;
+import org.jumpserver.chen.framework.datasource.edit.exception.SavepointRollbackFailedException;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -35,7 +36,7 @@ final class UserManagedTransactionBoundary implements TransactionBoundary {
             TableChangesPlan plan,
             String savepointName,
             Throwable primaryException
-    ) {
+    ) throws SavepointRollbackFailedException {
         try {
             this.savepointController.rollbackTo(connection, savepointName);
         } catch (SQLException rollbackException) {
@@ -49,7 +50,16 @@ final class UserManagedTransactionBoundary implements TransactionBoundary {
                     rollbackException.getMessage(),
                     rollbackException
             );
-            primaryException.addSuppressed(rollbackException);
+            SavepointRollbackFailedException failure =
+                    new SavepointRollbackFailedException(rollbackException, primaryException);
+            if (connection != null) {
+                try {
+                    connection.close();
+                } catch (SQLException | RuntimeException closeException) {
+                    failure.addSuppressed(closeException);
+                }
+            }
+            throw failure;
         }
     }
 }

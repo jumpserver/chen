@@ -2,6 +2,7 @@ package org.jumpserver.chen.framework.datasource.edit;
 
 import lombok.extern.slf4j.Slf4j;
 import org.jumpserver.chen.framework.datasource.edit.exception.CommitFailedException;
+import org.jumpserver.chen.framework.datasource.edit.exception.RollbackFailedException;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -16,6 +17,7 @@ final class ServiceManagedTransactionBoundary implements TransactionBoundary {
         }
 
         Throwable primaryException = null;
+        boolean restoreAutoCommit = true;
         try {
             connection.setAutoCommit(false);
             T result = work.execute();
@@ -32,7 +34,12 @@ final class ServiceManagedTransactionBoundary implements TransactionBoundary {
                     e.getMessage(),
                     e
             );
-            this.rollback(connection, plan, e);
+            try {
+                this.rollback(connection, plan, e);
+            } catch (RollbackFailedException rollbackFailedException) {
+                restoreAutoCommit = false;
+                throw rollbackFailedException;
+            }
             throw e;
         } catch (RuntimeException e) {
             primaryException = e;
@@ -43,26 +50,33 @@ final class ServiceManagedTransactionBoundary implements TransactionBoundary {
                     e.getMessage(),
                     e
             );
-            this.rollback(connection, plan, e);
+            try {
+                this.rollback(connection, plan, e);
+            } catch (RollbackFailedException rollbackFailedException) {
+                restoreAutoCommit = false;
+                throw rollbackFailedException;
+            }
             throw e;
         } finally {
-            try {
-                connection.setAutoCommit(originalAutoCommit);
-            } catch (SQLException e) {
-                log.warn(
-                        "restore save changes connection autoCommit failed, table={}.{}, originalAutoCommit={}, sqlState={}, vendorCode={}, message={}",
-                        plan.getSchema(),
-                        plan.getTable(),
-                        originalAutoCommit,
-                        e.getSQLState(),
-                        e.getErrorCode(),
-                        e.getMessage(),
-                        e
-                );
-                if (primaryException != null) {
-                    primaryException.addSuppressed(e);
-                } else {
-                    throw e;
+            if (restoreAutoCommit) {
+                try {
+                    connection.setAutoCommit(originalAutoCommit);
+                } catch (SQLException e) {
+                    log.warn(
+                            "restore save changes connection autoCommit failed, table={}.{}, originalAutoCommit={}, sqlState={}, vendorCode={}, message={}",
+                            plan.getSchema(),
+                            plan.getTable(),
+                            originalAutoCommit,
+                            e.getSQLState(),
+                            e.getErrorCode(),
+                            e.getMessage(),
+                            e
+                    );
+                    if (primaryException != null) {
+                        primaryException.addSuppressed(e);
+                    } else {
+                        throw e;
+                    }
                 }
             }
         }
@@ -85,7 +99,8 @@ final class ServiceManagedTransactionBoundary implements TransactionBoundary {
         }
     }
 
-    private void rollback(Connection connection, TableChangesPlan plan, Throwable primaryException) {
+    private void rollback(Connection connection, TableChangesPlan plan, Throwable primaryException)
+            throws RollbackFailedException {
         try {
             connection.rollback();
         } catch (SQLException e) {
@@ -98,7 +113,13 @@ final class ServiceManagedTransactionBoundary implements TransactionBoundary {
                     e.getMessage(),
                     e
             );
-            primaryException.addSuppressed(e);
+            RollbackFailedException failure = new RollbackFailedException(e, primaryException);
+            try {
+                connection.close();
+            } catch (SQLException | RuntimeException closeException) {
+                failure.addSuppressed(closeException);
+            }
+            throw failure;
         }
     }
 

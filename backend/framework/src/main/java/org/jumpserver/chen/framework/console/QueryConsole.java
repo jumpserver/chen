@@ -78,6 +78,8 @@ public class QueryConsole extends AbstractConsole {
     private final ReentrantLock executionLock = new ReentrantLock(true);
     private final AtomicBoolean closed = new AtomicBoolean(false);
     private final AtomicBoolean connectionClosed = new AtomicBoolean(false);
+    private final AtomicBoolean connectionPoisoned = new AtomicBoolean(false);
+    private volatile String connectionPoisonReason;
     private Connection conn;
     private volatile QueryTransactionStateInspector transactionStateInspector;
     private volatile SQLExecutePlan currentPlan;
@@ -168,6 +170,11 @@ public class QueryConsole extends AbstractConsole {
         synchronized (this.connectionMonitor) {
             if (this.closed.get()) {
                 throw new IllegalStateException("Query console is closed");
+            }
+            if (this.connectionPoisoned.get()) {
+                throw new IllegalStateException(
+                        "Query console connection is unusable: " + this.connectionPoisonReason
+                );
             }
             if (this.conn == null) {
                 try {
@@ -455,21 +462,41 @@ public class QueryConsole extends AbstractConsole {
                     dataView,
                     this.getDatasource().getDruidDbType()
             );
-            return this.tableChangesSaveService.save(
+            SaveChangesResult result = this.tableChangesSaveService.save(
                     context,
                     actionDataView,
                     request,
                     executionContext,
                     SessionManager.getCurrentSession()
             );
+            if (invalidatesQueryConsoleConnection(result.getReason())) {
+                this.markConnectionPoisoned(result.getReason());
+            }
+            return result;
         } catch (IllegalArgumentException e) {
             return this.rejectedSave(dataView, e.getMessage());
         } finally {
-            QueryTransactionProbeResult afterSave = inspector.probeNow();
-            if (afterSave.probeFailed()) {
-                log.warn("probe QueryConsole transaction state after DataView save failed");
+            if (!this.connectionPoisoned.get()) {
+                QueryTransactionProbeResult afterSave = inspector.probeNow();
+                if (afterSave.probeFailed()) {
+                    log.warn("probe QueryConsole transaction state after DataView save failed");
+                }
             }
         }
+    }
+
+    private static boolean invalidatesQueryConsoleConnection(String reason) {
+        return StringUtils.equalsAny(
+                reason,
+                TableChangesSaveService.SAVE_CHANGES_ROLLBACK_FAILED,
+                TableChangesSaveService.SAVE_CHANGES_SAVEPOINT_ROLLBACK_FAILED
+        );
+    }
+
+    private void markConnectionPoisoned(String reason) {
+        this.connectionPoisonReason = reason;
+        this.connectionPoisoned.set(true);
+        log.error("QueryConsole connection marked unusable, reason={}", reason);
     }
 
     private static String unsupportedQueryMutation(SaveChangesRequest request) {
