@@ -85,13 +85,34 @@ export default {
         }
       })
     },
-    onCloseTab(name, changeTab = true) {
+    onCloseTab(name, changeTab = true, guardDirty = true) {
+      const tabRef = this.getTabRef(name)
+      if (guardDirty && tabRef && typeof tabRef.hasDirty === 'function' && tabRef.hasDirty()) {
+        this.$confirm('There are unsaved changes. Discard them and close?', 'Warning', {
+          confirmButtonText: 'Confirm',
+          cancelButtonText: 'Cancel',
+          type: 'warning'
+        }).then(() => {
+          if (typeof tabRef.clearDirty === 'function') {
+            tabRef.clearDirty()
+          }
+          this.closeTab(name, changeTab)
+        }).catch(() => {})
+        return
+      }
+      this.closeTab(name, changeTab)
+    },
+    closeTab(name, changeTab = true) {
       this.tabs = this.tabs.filter(item => item.name !== name)
       if (this.tabs.length > 0) {
         if (changeTab) {
           this.activeTab = this.tabs[this.tabs.length - 1].name
         }
       }
+    },
+    getTabRef(name) {
+      const ref = this.$refs[name]
+      return Array.isArray(ref) ? ref[0] : ref
     },
     watchEventBus() {
       this.$bus.$on('new_form', (data) => {

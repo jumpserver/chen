@@ -16,6 +16,7 @@
               <Message :subject="subjects.messageSubject" />
             </div>
             <ResultBar
+              ref="resultBar"
               :subjects="subjects"
               @closeDataView="onCloseDataView"
               @dataViewAction="onDataViewAction"
@@ -57,6 +58,8 @@ export default {
     return {
       heartBeatInterval: 0,
       ws: null,
+      pendingEditorActions: [],
+      editorDirtyGuardOpen: false,
       state: {
         loading: false,
         inQuery: false,
@@ -70,6 +73,8 @@ export default {
         newResultSubject: new Subject(),
         updateResultSubject: new Subject(),
         deleteResultSubject: new Subject(),
+        saveChangesPreviewResultSubject: new Subject(),
+        saveChangesResultSubject: new Subject(),
         eventSubject: new Subject(),
         stateSubject: new Subject()
       }
@@ -124,6 +129,12 @@ export default {
         case 'close_data_view':
           this.subjects.deleteResultSubject.next(pkt.data)
           break
+        case 'save_changes_result':
+          this.subjects.saveChangesResultSubject.next(pkt.data)
+          break
+        case 'save_changes_preview_result':
+          this.subjects.saveChangesPreviewResultSubject.next(pkt.data)
+          break
         case 'message':
           this.subjects.messageSubject.next(pkt.data)
           break
@@ -147,6 +158,51 @@ export default {
       }, 1000 * 10)
     },
     onEditorAction(action) {
+      if (!this.isSqlExecutionAction(action)) {
+        this.sendEditorAction(action)
+        return
+      }
+      if (this.editorDirtyGuardOpen) {
+        return
+      }
+      if (this.pendingEditorActions.length > 0) {
+        this.pendingEditorActions.push(action)
+        if (action.action === 'run_sql_complete') {
+          this.confirmPendingEditorActions()
+        }
+        return
+      }
+      if (!this.hasDirty()) {
+        this.sendEditorAction(action)
+        return
+      }
+
+      this.pendingEditorActions.push(action)
+      if (action.action !== 'run_sql_chunk') {
+        this.confirmPendingEditorActions()
+      }
+    },
+    isSqlExecutionAction(action) {
+      return action && ['run_sql', 'run_sql_chunk', 'run_sql_complete', 'run_sql_file'].includes(action.action)
+    },
+    confirmPendingEditorActions() {
+      this.editorDirtyGuardOpen = true
+      this.$confirm('There are unsaved changes. Discard them and run new SQL?', 'Warning', {
+        confirmButtonText: 'Confirm',
+        cancelButtonText: 'Cancel',
+        type: 'warning'
+      }).then(() => {
+        const actions = this.pendingEditorActions.splice(0)
+        this.clearDirty()
+        this.editorDirtyGuardOpen = false
+        actions.forEach(action => this.sendEditorAction(action))
+      }).catch(() => {
+        this.pendingEditorActions = []
+        this.editorDirtyGuardOpen = false
+        this.state.inQuery = false
+      })
+    },
+    sendEditorAction(action) {
       this.ws.send(JSON.stringify({ type: 'query_console_action', data: action }))
     },
     onDataViewAction(action) {
@@ -157,6 +213,14 @@ export default {
     },
     onLimitChange(limit) {
       this.ws.send(JSON.stringify({ type: 'limit', data: limit }))
+    },
+    hasDirty() {
+      return !!(this.$refs.resultBar && this.$refs.resultBar.hasDirty())
+    },
+    clearDirty() {
+      if (this.$refs.resultBar && typeof this.$refs.resultBar.clearDirty === 'function') {
+        this.$refs.resultBar.clearDirty()
+      }
     }
   }
 }

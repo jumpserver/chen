@@ -85,6 +85,12 @@ public abstract class BaseConnectionManager implements ConnectionManager {
     }
 
     @Override
+    public String getDatabaseContextKey() {
+        // 大多数数据库的连接上下文是 database；MySQL/MariaDB 会覆盖为 schema。
+        return "database";
+    }
+
+    @Override
     public DBConnectInfo getConnectInfo() {
         return this.connectInfo;
     }

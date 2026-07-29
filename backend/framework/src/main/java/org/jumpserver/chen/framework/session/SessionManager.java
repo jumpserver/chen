@@ -48,7 +48,8 @@ public class SessionManager {
     }
 
     public static Session getCurrentSession() {
-        return instance.store.get(token.get());
+        String currentToken = token.get();
+        return currentToken == null ? null : instance.store.get(currentToken);
     }
 
     public static Map<String, Session> getStore() {

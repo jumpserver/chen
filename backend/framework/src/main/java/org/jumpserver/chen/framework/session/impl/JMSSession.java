@@ -9,6 +9,7 @@ import org.jumpserver.chen.framework.i18n.MessageUtils;
 import org.jumpserver.chen.framework.jms.ACLFilter;
 import org.jumpserver.chen.framework.jms.CommandHandler;
 import org.jumpserver.chen.framework.jms.ReplayHandler;
+import org.jumpserver.chen.framework.jms.acl.ACLCommandContext;
 import org.jumpserver.chen.framework.jms.acl.ACLResult;
 import org.jumpserver.chen.framework.jms.entity.CommandRecord;
 import org.jumpserver.chen.framework.jms.exception.CommandRejectException;
@@ -150,11 +151,16 @@ public class JMSSession extends BaseSession {
 
     @Override
     public ACLResult checkACL(String command) {
-        return this.aclFilter.commandACLFilter(command, null);
+        return this.aclFilter.commandACLFilterWithContext(command, ACLCommandContext.executionOwned(null));
     }
 
     public ACLResult checkACL(String command, Connection connection) {
-        return this.aclFilter.commandACLFilter(command, connection);
+        return this.aclFilter.commandACLFilterWithContext(command, ACLCommandContext.queryConsoleOwned(connection));
+    }
+
+    @Override
+    public ACLResult checkACLWithContext(String command, ACLCommandContext context) {
+        return this.aclFilter.commandACLFilterWithContext(command, context);
     }
 
     @Override
@@ -261,6 +267,9 @@ public class JMSSession extends BaseSession {
 
     @Override
     public void close() {
+        if (this.getController() != null) {
+            this.getController().cancelAllDialogs();
+        }
         try {
             this.replayHandler.release();
             this.finishedJmsSession();
@@ -328,6 +337,7 @@ public class JMSSession extends BaseSession {
         }
 
         CommandRecord commandRecord = new CommandRecord(command);
+        Throwable primaryFailure = null;
 
         try {
             this.replayHandler.writeInput(commandRecord.getInput());
@@ -342,12 +352,29 @@ public class JMSSession extends BaseSession {
             this.replayHandler.writeOutput(result.getOutput());
             return result;
 
-        } catch (SQLException e) {
+        } catch (SQLException | RuntimeException e) {
+            primaryFailure = e;
             commandRecord.setError(e.getMessage());
-            this.replayHandler.writeOutput(e.getMessage());
+            this.writeReplayFailure(e.getMessage(), e);
             throw e;
         } finally {
-            this.commandHandler.recordCommand(commandRecord);
+            try {
+                this.commandHandler.recordCommand(commandRecord);
+            } catch (RuntimeException auditFailure) {
+                if (primaryFailure != null) {
+                    primaryFailure.addSuppressed(auditFailure);
+                } else {
+                    throw auditFailure;
+                }
+            }
+        }
+    }
+
+    private void writeReplayFailure(String output, Throwable primaryFailure) {
+        try {
+            this.replayHandler.writeOutput(output);
+        } catch (RuntimeException replayFailure) {
+            primaryFailure.addSuppressed(replayFailure);
         }
     }
 }

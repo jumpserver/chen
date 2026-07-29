@@ -13,6 +13,9 @@ import org.apache.commons.lang3.StringUtils;
 import org.jumpserver.chen.framework.datasource.ConnectionManager;
 import org.jumpserver.chen.framework.datasource.entity.resource.Field;
 import org.jumpserver.chen.framework.datasource.sql.*;
+import org.jumpserver.chen.framework.datasource.edit.analyzer.EditabilityReason;
+import org.jumpserver.chen.framework.datasource.edit.pk.JdbcPrimaryKeyResolver;
+import org.jumpserver.chen.framework.datasource.edit.analyzer.QueryResultEditabilityAnalyzer;
 import org.jumpserver.chen.framework.jms.exception.CommandRejectException;
 import org.jumpserver.chen.framework.session.SessionManager;
 import org.jumpserver.chen.framework.utils.HexUtils;
@@ -25,6 +28,7 @@ import java.io.Reader;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.sql.*;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -158,14 +162,7 @@ public abstract class BaseSQLActuator implements SQLActuator {
                 var columnCount = metaData.getColumnCount();
 
                 for (int i = 1; i <= columnCount; i++) {
-                    Field field = new Field();
-
-                    var fieldName = StringUtils.isNotEmpty(metaData.getColumnLabel(i)) ?
-                            metaData.getColumnLabel(i) : metaData.getColumnName(i);
-                    field.setName(fieldName);
-                    field.setColumnName(metaData.getColumnName(i));
-                    field.setLabel(metaData.getColumnLabel(i));
-                    result.getFields().add(field);
+                    result.getFields().add(buildField(metaData, i));
                 }
 
                 while (resultSet.next()) {
@@ -180,7 +177,9 @@ public abstract class BaseSQLActuator implements SQLActuator {
                     result.getData().add(fs);
                 }
                 resultSet.close();
+                markGeneratedColumns(plan.getConnection(), this.getDruidDbType(), result.getFields());
                 result.setFetchFinishedTime(new Time(System.currentTimeMillis()));
+                this.analyzeResultEditability(plan, result);
 
                 // 数据脱敏
                 this.handleDataMasking(result);
@@ -202,14 +201,86 @@ public abstract class BaseSQLActuator implements SQLActuator {
         }
     }
 
-    // Normalize JDBC driver objects before FastJSON sees them in update_data_view packets.
-    protected Object normalizeJdbcValue(Object value) throws SQLException {
-        if (value == null) {
-            return null;
+    private void analyzeResultEditability(SQLExecutePlan plan, SQLQueryResult result) {
+        var analyzer = new QueryResultEditabilityAnalyzer(
+                this.getDruidDbType(),
+                new JdbcPrimaryKeyResolver(plan.getConnection(), this.getDruidDbType())
+        );
+        analyzer.analyze(plan.getSourceSQL(), result.getFields());
+    }
+
+    static Field buildField(ResultSetMetaData metaData, int columnIndex) throws SQLException {
+        Field field = new Field();
+
+        String columnLabel = metaData.getColumnLabel(columnIndex);
+        String columnName = metaData.getColumnName(columnIndex);
+        String fieldName = StringUtils.isNotEmpty(columnLabel) ? columnLabel : columnName;
+        field.setName(fieldName);
+        field.setColumnName(columnName);
+        field.setLabel(columnLabel);
+        fillOptionalFieldMetadata(field, metaData, columnIndex);
+        return field;
+    }
+
+    private static void fillOptionalFieldMetadata(Field field, ResultSetMetaData metaData, int columnIndex) {
+        //后续还要靠 SQL AST 和主键解析再判断
+        field.setSchema(getNullableMetadataValue(() -> metaData.getSchemaName(columnIndex), "schema", columnIndex));
+        field.setTable(getNullableMetadataValue(() -> metaData.getTableName(columnIndex), "table", columnIndex));
+        field.setType(getNullableMetadataValue(() -> metaData.getColumnTypeName(columnIndex), "type", columnIndex));
+        try {
+            field.setJdbcType(metaData.getColumnType(columnIndex));
+        } catch (SQLException e) {
+            log.debug("read result set jdbc type metadata failed for column {}", columnIndex, e);
         }
 
-        if (value instanceof Timestamp timestamp) {
-            return new Date(timestamp.getTime());
+        try {
+            // Field.nullable is boolean, so failed/unknown nullable metadata remains false.
+            field.setNullable(metaData.isNullable(columnIndex) == ResultSetMetaData.columnNullable);
+        } catch (SQLException e) {
+            log.debug("read result set nullable metadata failed for column {}", columnIndex, e);
+        }
+        try {
+            field.setAutoIncrement(metaData.isAutoIncrement(columnIndex));
+        } catch (Exception e) {
+            log.debug("read result set auto increment metadata failed for column {}", columnIndex, e);
+        }
+        try {
+            field.setReadOnly(metaData.isReadOnly(columnIndex));
+        } catch (Exception e) {
+            log.debug("read result set read only metadata failed for column {}", columnIndex, e);
+        }
+        try {
+            if (!metaData.isWritable(columnIndex)) {
+                field.setReadOnly(true);
+            }
+        } catch (Exception e) {
+            log.debug("read result set writable metadata failed for column {}", columnIndex, e);
+        }
+    }
+
+    private static String getNullableMetadataValue(MetadataValueReader reader, String name, int columnIndex) {
+        try {
+            String value = reader.read();
+            return StringUtils.isNotBlank(value) ? value : null;
+        } catch (SQLException e) {
+            log.debug("read result set {} metadata failed for column {}", name, columnIndex, e);
+            return null;
+        }
+    }
+
+    @FunctionalInterface
+    private interface MetadataValueReader {
+        String read() throws SQLException;
+    }
+
+    // Normalize JDBC driver objects before FastJSON sees them in update_data_view packets.
+    protected Object normalizeJdbcValue(Object value) throws SQLException {
+        Object normalized = normalizeJdbcDisplayValue(value);
+        if (normalized != value) {
+            return normalized;
+        }
+        if (value == null) {
+            return null;
         }
 
         if (value instanceof Long || value instanceof BigDecimal || value instanceof BigInteger) {
@@ -241,6 +312,69 @@ public abstract class BaseSQLActuator implements SQLActuator {
         }
 
         return value;
+    }
+
+    static Object normalizeJdbcDisplayValue(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Timestamp timestamp) {
+            var localDateTime = timestamp.toLocalDateTime();
+            if (timestamp.getNanos() == 0) {
+                return localDateTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+            }
+            return localDateTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.n"));
+        }
+        if (value instanceof Time time) {
+            return time.toLocalTime().toString();
+        }
+        if (value instanceof Date date) {
+            return date.toLocalDate().toString();
+        }
+        return value;
+    }
+
+    static void markGeneratedColumns(Connection connection, DbType dbType, List<Field> fields) {
+        if (dbType != DbType.postgresql || connection == null || fields == null || fields.isEmpty()) {
+            return;
+        }
+        String sql = """
+                SELECT is_generated, generation_expression
+                FROM information_schema.columns
+                WHERE table_schema = ?
+                  AND table_name = ?
+                  AND column_name = ?
+                """;
+        for (Field field : fields) {
+            if (field == null ||
+                    StringUtils.isBlank(field.getSchema()) ||
+                    StringUtils.isBlank(field.getTable()) ||
+                    StringUtils.isBlank(field.getColumnName())) {
+                continue;
+            }
+            try (PreparedStatement statement = connection.prepareStatement(sql)) {
+                statement.setString(1, field.getSchema());
+                statement.setString(2, field.getTable());
+                statement.setString(3, field.getColumnName());
+                try (ResultSet resultSet = statement.executeQuery()) {
+                    if (!resultSet.next()) {
+                        continue;
+                    }
+                    String isGenerated = resultSet.getString("is_generated");
+                    String generationExpression = resultSet.getString("generation_expression");
+                    if ("ALWAYS".equalsIgnoreCase(isGenerated) || StringUtils.isNotBlank(generationExpression)) {
+                        field.setGenerated(true);
+                        field.setReadOnly(true);
+                    }
+                }
+            } catch (SQLException e) {
+                log.debug("read postgresql generated column metadata failed for {}.{}.{}",
+                        field.getSchema(),
+                        field.getTable(),
+                        field.getColumnName(),
+                        e);
+            }
+        }
     }
 
     private String toDisplayArray(java.sql.Array jdbcArray) throws SQLException {
@@ -362,8 +496,14 @@ public abstract class BaseSQLActuator implements SQLActuator {
         var maskIndexes = new ArrayList<>();
         var maskRules = new HashMap<Integer, Common.DataMaskingRule>();
         for (var i = 0; i < result.getFields().size(); i++) {
+            var field = result.getFields().get(i);
             for (Common.DataMaskingRule rule : rules) {
-                if (this.matchField(result.getFields().get(i), rule.getFieldsPattern())) {
+                if (this.matchField(field, rule.getFieldsPattern())) {
+                    field.setMasked(true);
+                    field.setEditable(false);
+                    field.setEditReason(EditabilityReason.DATA_MASKED);
+                    field.setInsertable(false);
+                    field.setInsertReason(EditabilityReason.DATA_MASKED);
                     maskIndexes.add(i);
                     maskRules.put(i, rule);
                 }

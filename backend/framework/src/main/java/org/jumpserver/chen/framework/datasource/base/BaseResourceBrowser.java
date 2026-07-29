@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 
 
 @Slf4j
@@ -27,6 +28,7 @@ public abstract class BaseResourceBrowser implements ResourceBrowser {
     private final ConnectionManager connectionManager;
 
     private final SQLHintsHandler sqlHintsHandler;
+    private final ConcurrentHashMap<String, ResourceNodeSnapshot> nodeIndex = new ConcurrentHashMap<>();
 
 
     @Override
@@ -44,7 +46,7 @@ public abstract class BaseResourceBrowser implements ResourceBrowser {
         var root = new Root();
 
         root.setName(SessionManager.getCurrentSession().getDatasourceName());
-        this.root = root.toResourceNode(null);
+        this.resetNodeIndex(root.toResourceNode(null));
 
         var parents = List.of(this.root);
         while (!parents.isEmpty()) {
@@ -86,8 +88,9 @@ public abstract class BaseResourceBrowser implements ResourceBrowser {
                 return n.getChildren();
             }
         }
+        var cachedNode = TreeUtils.getNode(this.root, node.getKey());
         var children = this.getChildNodes(node);
-        if (!children.isEmpty()) {
+        if (!children.isEmpty() || cachedNode != null && cachedNode.getChildren() != null) {
             this.saveTreeNode(node, children);
         }
         return children;
@@ -142,11 +145,72 @@ public abstract class BaseResourceBrowser implements ResourceBrowser {
         };
     }
 
-    public void saveTreeNode(TreeNode node, List<TreeNode> children) {
+    public synchronized void saveTreeNode(TreeNode node, List<TreeNode> children) {
         var n = TreeUtils.getNode(this.root, node.getKey());
         if (n != null) {
             n.setChildren(children);
+            this.removeIndexedDescendants(n.getKey());
+            var parent = this.nodeIndex.get(n.getKey());
+            for (var child : children) {
+                this.registerNode(child, parent);
+            }
         }
+    }
+
+    protected synchronized void resetNodeIndex(TreeNode root) {
+        this.root = root;
+        this.nodeIndex.clear();
+        this.registerNode(root, null);
+    }
+
+    @Override
+    public synchronized ResourceNodeSnapshot getIndexedNode(String key) {
+        return key == null ? null : this.nodeIndex.get(key);
+    }
+
+    private void registerNode(TreeNode node, ResourceNodeSnapshot parent) {
+        String database = parent == null ? null : parent.database();
+        String schema = parent == null ? null : parent.schema();
+        String table = parent == null ? null : parent.table();
+
+        switch (node.getType()) {
+            case "database" -> {
+                database = node.getLabel();
+                schema = null;
+                table = null;
+            }
+            case "schema" -> {
+                schema = node.getLabel();
+                if (this.connectionManager != null &&
+                        Objects.equals(this.connectionManager.getDatabaseContextKey(), "schema")) {
+                    database = node.getLabel();
+                }
+                table = null;
+            }
+            case "table", "view" -> table = node.getLabel();
+            default -> {
+            }
+        }
+
+        this.nodeIndex.put(node.getKey(), new ResourceNodeSnapshot(
+                node.getKey(),
+                node.getType(),
+                database,
+                schema,
+                table,
+                node.getLabel()
+        ));
+        if (node.getChildren() != null) {
+            var snapshot = this.nodeIndex.get(node.getKey());
+            for (var child : node.getChildren()) {
+                this.registerNode(child, snapshot);
+            }
+        }
+    }
+
+    private void removeIndexedDescendants(String parentKey) {
+        String prefix = parentKey + ",";
+        this.nodeIndex.keySet().removeIf(key -> key.startsWith(prefix));
     }
 
     public abstract List<Schema> getSchemas() throws SQLException;

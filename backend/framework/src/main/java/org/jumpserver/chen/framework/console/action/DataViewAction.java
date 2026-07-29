@@ -15,5 +15,7 @@ public class DataViewAction extends Action {
     public static final String ACTION_TOGGLE_PINNED = "toggle_pinned";
     public static final String ACTION_CHANGE_LIMIT = "change_limit";
     public static final String ACTION_EXPORT = "export";
+    public static final String ACTION_SAVE_CHANGES_PREVIEW = "save_changes_preview";
+    public static final String ACTION_SAVE_CHANGES = "save_changes";
 
 }

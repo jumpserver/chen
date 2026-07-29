@@ -39,6 +39,7 @@ export default {
       dialogVisible: false,
       ws: null,
       dialogOptions: {
+        id: null,
         title: '',
         showClose: false,
         width: '30%',
@@ -164,7 +165,10 @@ export default {
     },
 
     onDialogEvent(event) {
-      this.sendPacket('dialog_event', event)
+      this.sendPacket('dialog_event', {
+        dialogId: this.dialogOptions.id,
+        event
+      })
     },
     sendPacket(type, data) {
       const msg = { type: type, data: data }

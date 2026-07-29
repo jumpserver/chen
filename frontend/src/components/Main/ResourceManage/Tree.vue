@@ -109,7 +109,7 @@ export default {
         }
       })
     },
-    handleNodeClick(data) {
+    async handleNodeClick(data, treeNode) {
       this.treeClickCount++
       window.clearTimeout(this.treeClickTimer)
       this.treeClickTimer = window.setTimeout(() => {
@@ -117,18 +117,36 @@ export default {
       }, 440)
       if (this.treeClickCount > 2) return
       if (this.treeClickCount === 2) {
-        doAction(data, 'show').then(resp => {
-          switch (resp.event) {
-            case 'view_data':
-              this.$bus.$emit('view_data', resp.data)
-              break
-            default:
-              this.expandedNodes = []
-              this.expandedNodes.push(data.key)
-              break
+        try {
+          if (['database', 'schema', 'folder'].includes(data.type)) {
+            if (treeNode.expanded) {
+              treeNode.collapse()
+            } else {
+              treeNode.expand()
+            }
+            return
           }
-        })
+
+          if (['table', 'view'].includes(data.type)) {
+            const resp = await doAction(data, 'view_data')
+            if (resp.event === 'view_data') {
+              this.$bus.$emit('view_data', resp.data)
+            }
+          }
+        } catch (error) {
+          this.showActionError(error)
+        }
       }
+    },
+    showActionError(error) {
+      let message = 'Failed to open resource'
+      if (error && error.response && error.response.data) {
+        const data = error.response.data
+        message = typeof data === 'string' ? data : data.message || message
+      } else if (error && error.message) {
+        message = error.message
+      }
+      this.$message.error(message)
     },
     onOpenTableView(databaseId, tableId) {
       this.$emit('onOpenTableView', { databaseId, tableId })

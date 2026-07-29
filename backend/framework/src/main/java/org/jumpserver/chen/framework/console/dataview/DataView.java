@@ -8,6 +8,7 @@ import org.jumpserver.chen.framework.console.dataview.export.DataExport;
 import org.jumpserver.chen.framework.console.entity.response.SQLResult;
 import org.jumpserver.chen.framework.console.state.DataViewState;
 import org.jumpserver.chen.framework.console.state.StateManager;
+import org.jumpserver.chen.framework.datasource.entity.resource.Field;
 import org.jumpserver.chen.framework.datasource.sql.SQLQueryParams;
 import org.jumpserver.chen.framework.datasource.sql.SQLQueryResult;
 import org.jumpserver.chen.framework.i18n.MessageUtils;
@@ -120,7 +121,11 @@ public class DataView extends SQLResult {
 
     private void fullDataViewData(DataViewData viewData, SQLQueryResult result) {
 
-        viewData.setFields(result.getFields());
+        List<Field> fields = result.getFields();
+        boolean editable = fields.stream()
+                .anyMatch(Field::isEditable);
+        viewData.setEditable(editable);
+        viewData.setFields(fields);
 
         Map<String, Integer> fieldNumMap = new HashMap<>();
 
