@@ -8,6 +8,7 @@ import org.jumpserver.chen.framework.jms.ACLFilter;
 import org.jumpserver.chen.framework.jms.acl.ACLCommandContext;
 import org.jumpserver.chen.framework.jms.acl.ACLResult;
 import org.jumpserver.chen.framework.session.SessionManager;
+import org.jumpserver.chen.framework.session.controller.DialogHandle;
 import org.jumpserver.chen.framework.session.controller.dialog.Button;
 import org.jumpserver.chen.framework.session.controller.dialog.Dialog;
 import org.jumpserver.wisp.Common;
@@ -19,6 +20,7 @@ import java.util.OptionalInt;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
@@ -26,6 +28,8 @@ import java.util.regex.PatternSyntaxException;
 
 @Slf4j
 public class ACLFilterImpl implements ACLFilter {
+    private static final long REVIEW_DECISION_TIMEOUT_SECONDS = 300;
+    private static final long REVIEW_RPC_TIMEOUT_SECONDS = 30;
 
     private final ServiceGrpc.ServiceBlockingStub serviceBlockingStub;
     private final List<Common.CommandACL> commandACLs;
@@ -65,44 +69,85 @@ public class ACLFilterImpl implements ACLFilter {
                 result.setRiskLevel(Common.RiskLevel.Reject);
             }
             case Review -> {
-                var countDownLatch = new CountDownLatch(1);
+                var decisionLatch = new CountDownLatch(1);
+                var resultLatch = new CountDownLatch(1);
                 AtomicReference<Exception> exception = new AtomicReference<>(null);
+                AtomicBoolean submitted = new AtomicBoolean(false);
+                AtomicReference<DialogHandle> dialogHandle = new AtomicReference<>(DialogHandle.NOOP);
+                var controller = SessionManager.getCurrentSession().getController();
+                String dialogOwner = controller.getDialogOwner();
 
                 var dialog = new Dialog(MessageUtils.get("CommandReview"));
                 dialog.setBody(MessageUtils.get("CommandReviewMessage"));
 
                 dialog.addButton(new Button(MessageUtils.get("Submit"), "submit", () -> {
-
+                    if (!submitted.compareAndSet(false, true)) {
+                        return;
+                    }
+                    dialogHandle.get().close();
                     var token = SessionManager.getContextToken();
                     new Thread(() -> {
                         SessionManager.setContext(token);
+                        controller.bindDialogOwner(dialogOwner);
                         try {
+                            if (controller.isDialogOwnerCancelled(dialogOwner)) {
+                                throw new RuntimeException(MessageUtils.get("UserCancelCommandReviewError"));
+                            }
                             this.createAndWaitTicket(command, acl, context);
                         } catch (Exception e) {
                             exception.set(e);
                         } finally {
-                            countDownLatch.countDown();
+                            resultLatch.countDown();
+                            controller.clearDialogOwner();
                         }
                     }).start();
+                    decisionLatch.countDown();
                 }));
                 dialog.addButton(new Button(MessageUtils.get("Cancel"), "cancel", () -> {
-                    exception.set(new RuntimeException(MessageUtils.get("UserCancelCommandReviewError")));
-                    countDownLatch.countDown();
+                    exception.compareAndSet(
+                            null,
+                            new RuntimeException(MessageUtils.get("UserCancelCommandReviewError"))
+                    );
+                    decisionLatch.countDown();
+                    resultLatch.countDown();
                 }));
 
-                SessionManager.getCurrentSession().getController().showDialog(dialog);
+                dialogHandle.set(controller.showDialog(dialog, () -> {
+                    exception.compareAndSet(
+                            null,
+                            new RuntimeException(MessageUtils.get("UserCancelCommandReviewError"))
+                    );
+                    decisionLatch.countDown();
+                    resultLatch.countDown();
+                }));
 
                 try {
-                    countDownLatch.await();
-                    if (exception.get() != null) {
+                    if (!decisionLatch.await(REVIEW_DECISION_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+                        exception.compareAndSet(
+                                null,
+                                new RuntimeException(MessageUtils.get("CommandReviewTimeoutError"))
+                        );
+                        dialogHandle.get().cancel();
+                    }
+                    if (submitted.get() && exception.get() == null &&
+                            !resultLatch.await(WAIT_TICKET_TIMEOUT, TimeUnit.MILLISECONDS)) {
+                        exception.compareAndSet(
+                                null,
+                                new RuntimeException(MessageUtils.get("CommandReviewTimeoutError"))
+                        );
+                        controller.cancelCurrentDialog(dialogOwner);
+                    }
+                    if (!submitted.get() || exception.get() != null) {
                         result.setRiskLevel(Common.RiskLevel.ReviewReject);
                     } else {
                         result.setRiskLevel(Common.RiskLevel.ReviewAccept);
                     }
                 } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
+                    Thread.currentThread().interrupt();
+                    controller.cancelCurrentDialog(dialogOwner);
+                    result.setRiskLevel(Common.RiskLevel.ReviewReject);
                 } finally {
-                    SessionManager.getCurrentSession().getController().closeDialog();
+                    dialogHandle.get().close();
                 }
             }
         }
@@ -127,11 +172,13 @@ public class ACLFilterImpl implements ACLFilter {
                 .setSessionId(this.session.getId())
                 .setCmdAclId(commandACL.getId())
                 .build();
-        var resp = this.serviceBlockingStub.createCommandTicket(req);
+        var resp = this.serviceBlockingStub
+                .withDeadlineAfter(REVIEW_RPC_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                .createCommandTicket(req);
         if (!resp.getStatus().getOk()) {
             throw new RuntimeException("create command ticket failed: " + resp.getStatus().getErr());
         }
-        this.waitForTicketStatusChange(command, resp.getInfo());
+        this.waitForTicketStatusChange(resp.getInfo());
     }
 
     OptionalInt estimateAffectedRows(String command, ACLCommandContext context) {
@@ -167,27 +214,19 @@ public class ACLFilterImpl implements ACLFilter {
     }
 
 
-    private void openCommandReviewEvent(Runnable cancel, String command, long startTIme, long endTime) {
+    private DialogHandle openCommandReviewEvent(Runnable cancel) {
         var dialog = new Dialog(MessageUtils.get("CommandReview"));
         dialog.setBody(MessageUtils.get("WaitCommandReviewMessage"));
         dialog.addButton(new Button(MessageUtils.get("Cancel"), "cancel", () -> {
             cancel.run();
-            SessionManager.getCurrentSession().getController().closeDialog();
         }));
-        SessionManager.getCurrentSession().getController().showDialog(dialog);
-    }
-
-    private void closeCommandReviewEvent() {
-        SessionManager.getCurrentSession().getController().closeDialog();
+        return SessionManager.getCurrentSession().getController().showDialog(dialog, cancel);
     }
 
     private static final long WAIT_TICKET_TIMEOUT = 30 * 60 * 1000;
     private static final long WAIT_TICKET_INTERVAL = 5 * 1000;
 
-    private void waitForTicketStatusChange(String cmd, ServiceOuterClass.TicketInfo ticketInfo) {
-
-        long startTime = System.currentTimeMillis();
-        long endTime = startTime + WAIT_TICKET_TIMEOUT;
+    private void waitForTicketStatusChange(ServiceOuterClass.TicketInfo ticketInfo) {
 
         CountDownLatch cdl = new CountDownLatch(1);
         Timer timer = new Timer();
@@ -195,12 +234,11 @@ public class ACLFilterImpl implements ACLFilter {
         final AtomicBoolean ticketClosed = new AtomicBoolean(false);
         AtomicReference<RuntimeException> exception = new AtomicReference<>(null);
 
-        this.openCommandReviewEvent(() -> {
+        DialogHandle dialogHandle = this.openCommandReviewEvent(() -> {
             exception.set(new RuntimeException(MessageUtils.get("UserCancelCommandReviewError")));
             cdl.countDown();
             timer.cancel();
-
-        }, cmd, startTime, endTime);
+        });
 
         try {
             var stub = this.serviceBlockingStub;
@@ -211,49 +249,63 @@ public class ACLFilterImpl implements ACLFilter {
                 public void run() {
                     SessionManager.setContext(token);
 
-                    if (System.currentTimeMillis() > endTime) {
-                        exception.set(new RuntimeException(MessageUtils.get("CommandReviewTimeoutError")));
-                        timer.cancel();
-                        cdl.countDown();
-                    }
-
                     var checkRequest = ServiceOuterClass
                             .TicketRequest.newBuilder()
                             .setReq(ticketInfo.getCheckReq())
                             .build();
 
-                    var checkResponse = stub.checkTicketState(checkRequest);
+                    try {
+                        var checkResponse = stub
+                                .withDeadlineAfter(REVIEW_RPC_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                                .checkTicketState(checkRequest);
 
-                    if (!checkResponse.getStatus().getOk()) {
-                        throw new RuntimeException("Failed to check ticket status: " + checkResponse.getStatus().getErr());
-                    }
+                        if (!checkResponse.getStatus().getOk()) {
+                            throw new RuntimeException(
+                                    "Failed to check ticket status: " + checkResponse.getStatus().getErr()
+                            );
+                        }
 
-                    switch (checkResponse.getData().getState()) {
-                        case Approved -> {
-                            ticketClosed.set(true);
-                            timer.cancel();
-                            cdl.countDown();
+                        switch (checkResponse.getData().getState()) {
+                            case Approved -> {
+                                ticketClosed.set(true);
+                                timer.cancel();
+                                cdl.countDown();
+                            }
+                            case Rejected, Closed -> {
+                                ticketClosed.set(true);
+                                exception.set(new RuntimeException(MessageUtils.get(
+                                        "CommandReviewRejectBy",
+                                        checkResponse.getData().getProcessor()
+                                )));
+                                timer.cancel();
+                                cdl.countDown();
+                            }
                         }
-                        case Rejected, Closed -> {
-                            ticketClosed.set(true);
-                            exception.set(new RuntimeException(MessageUtils.get("CommandReviewRejectBy", checkResponse.getData().getProcessor())));
-                            timer.cancel();
-                            cdl.countDown();
-                        }
+                    } catch (RuntimeException e) {
+                        exception.compareAndSet(null, e);
+                        timer.cancel();
+                        cdl.countDown();
                     }
                 }
             }, 0, WAIT_TICKET_INTERVAL);
 
             try {
-                cdl.await();
+                if (!cdl.await(WAIT_TICKET_TIMEOUT, TimeUnit.MILLISECONDS)) {
+                    exception.compareAndSet(
+                            null,
+                            new RuntimeException(MessageUtils.get("CommandReviewTimeoutError"))
+                    );
+                }
                 if (exception.get() != null) {
                     throw exception.get();
                 }
             } catch (InterruptedException e) {
-                log.error("wait for ticket status change failed: {}", e.getMessage());
+                Thread.currentThread().interrupt();
+                throw new RuntimeException(e);
             }
         } finally {
-            this.closeCommandReviewEvent();
+            timer.cancel();
+            dialogHandle.close();
             if (!ticketClosed.get()) {
                 this.closeTicket(ticketInfo);
             }
@@ -264,7 +316,9 @@ public class ACLFilterImpl implements ACLFilter {
         var cancelRequest = ServiceOuterClass.TicketRequest.newBuilder()
                 .setReq(ticketInfo.getCancelReq())
                 .build();
-        var cancelResponse = this.serviceBlockingStub.cancelTicket(cancelRequest);
+        var cancelResponse = this.serviceBlockingStub
+                .withDeadlineAfter(REVIEW_RPC_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                .cancelTicket(cancelRequest);
         if (!cancelResponse.getStatus().getOk()) {
             log.error("close ticket failed: {}", cancelResponse.getStatus().getErr());
         }

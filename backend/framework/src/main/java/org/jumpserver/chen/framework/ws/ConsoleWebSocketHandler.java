@@ -57,39 +57,26 @@ public class ConsoleWebSocketHandler extends TextWebSocketHandler {
             return;
         }
 
-        if (this.isQueryConsoleMessage(token, session.getId(), packet)) {
-            this.sessionExecutors
-                    .computeIfAbsent(session.getId(), ignored -> new SerialExecutor(this.executorService))
-                    .execute(() -> this.processMessage(session, token, packet));
-        } else {
-            this.executorService.submit(() -> this.processMessage(session, token, packet));
-        }
-    }
-
-    private boolean isQueryConsoleMessage(String token, String sessionId, Packet packet) {
-        if (this.sessionExecutors.containsKey(sessionId)) {
-            return true;
-        }
-        if (StringUtils.equals(packet.getType(), Packet.TYPE_CONNECT)) {
-            var connect = GSON.fromJson(GSON.toJson(packet.getData()), Connect.class);
-            return StringUtils.equals(connect.getType(), Connect.CONSOLE_TYPE_QUERY);
-        }
-        var currentSession = SessionManager.getSession(token);
-        return currentSession != null && currentSession.getConsoles().get(sessionId) instanceof QueryConsole;
+        this.sessionExecutors
+                .computeIfAbsent(session.getId(), ignored -> new SerialExecutor(this.executorService))
+                .execute(() -> this.processMessage(session, token, packet));
     }
 
     private void processMessage(WebSocketSession session, String token, Packet packet) {
         try {
             SessionManager.setContext(token);
+            var currentSession = SessionManager.getCurrentSession();
+            if (currentSession == null) {
+                return;
+            }
+            if (currentSession.getController() != null) {
+                currentSession.getController().bindDialogOwner(session.getId());
+            }
             if (StringUtils.equals(packet.getType(), Packet.TYPE_CONNECT)) {
                 onConnectPacket(session, packet);
                 return;
             }
 
-            var currentSession = SessionManager.getCurrentSession();
-            if (currentSession == null) {
-                return;
-            }
             var console = currentSession.getConsoles().get(session.getId());
             if (console != null) {
                 this.setDatabaseContext(console);
@@ -103,6 +90,11 @@ public class ConsoleWebSocketHandler extends TextWebSocketHandler {
             }
             this.closeConsole(token, session.getId());
             this.closeWebSocket(session);
+        } finally {
+            var currentSession = SessionManager.getSession(token);
+            if (currentSession != null && currentSession.getController() != null) {
+                currentSession.getController().clearDialogOwner();
+            }
         }
     }
 
@@ -199,6 +191,9 @@ public class ConsoleWebSocketHandler extends TextWebSocketHandler {
         var currentSession = SessionManager.getCurrentSession();
         if (currentSession == null) {
             return;
+        }
+        if (currentSession.getController() != null) {
+            currentSession.getController().cancelDialogs(sessionId);
         }
         Console console = currentSession.getConsoles().remove(sessionId);
         if (console != null) {

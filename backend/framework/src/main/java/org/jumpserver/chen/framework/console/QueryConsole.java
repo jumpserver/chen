@@ -33,6 +33,7 @@ import org.jumpserver.chen.framework.i18n.MessageUtils;
 import org.jumpserver.chen.framework.jms.acl.ACLResult;
 import org.jumpserver.chen.framework.jms.entity.CommandRecord;
 import org.jumpserver.chen.framework.session.SessionManager;
+import org.jumpserver.chen.framework.session.controller.DialogHandle;
 import org.jumpserver.chen.framework.session.controller.dialog.Button;
 import org.jumpserver.chen.framework.session.controller.dialog.Dialog;
 import org.jumpserver.chen.framework.ws.io.Packet;
@@ -55,6 +56,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -62,6 +64,7 @@ import java.util.concurrent.locks.ReentrantLock;
 public class QueryConsole extends AbstractConsole {
     private static final String PACKET_SAVE_CHANGES_PREVIEW_RESULT = "save_changes_preview_result";
     private static final String PACKET_SAVE_CHANGES_RESULT = "save_changes_result";
+    private static final long WARNING_DIALOG_TIMEOUT_SECONDS = 300;
     static final String QUERY_CONSOLE_CONNECTION_UNAVAILABLE = "QUERY_CONSOLE_CONNECTION_UNAVAILABLE";
     static final String QUERY_TRANSACTION_MANUAL_IDLE = "QUERY_TRANSACTION_MANUAL_IDLE";
     static final String QUERY_TRANSACTION_FAILED = "QUERY_TRANSACTION_FAILED";
@@ -207,9 +210,12 @@ public class QueryConsole extends AbstractConsole {
             this.conn = candidate;
             this.transactionStateInspector = candidateInspector;
             return candidate;
-        } catch (SQLException | RuntimeException e) {
+        } catch (SQLException e) {
             closeQuietly(candidate);
             throw new QueryConsoleConnectionUnavailableException(e);
+        } catch (RuntimeException e) {
+            closeQuietly(candidate);
+            throw e;
         }
     }
 
@@ -722,10 +728,18 @@ public class QueryConsole extends AbstractConsole {
                     this.getConsoleLogger().warn(MessageUtils.get("ExecutionCanceled"));
                 }));
 
-                SessionManager.getCurrentSession().getController().showDialog(dialog);
+                var controller = SessionManager.getCurrentSession().getController();
+                DialogHandle dialogHandle = controller.showDialog(dialog, () -> {
+                    hasNext.set(false);
+                    countDownLatch.countDown();
+                });
 
                 try {
-                    countDownLatch.await();
+                    if (!countDownLatch.await(WARNING_DIALOG_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+                        hasNext.set(false);
+                        dialogHandle.cancel();
+                        this.getConsoleLogger().warn(MessageUtils.get("ExecutionCanceled"));
+                    }
 
                     if (!hasNext.get()) {
                         this.getState().setInQuery(false);
@@ -734,12 +748,15 @@ public class QueryConsole extends AbstractConsole {
                     }
 
                 } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    hasNext.set(false);
                     this.getState().setInQuery(false);
                     this.stateManager.commit();
 
                     this.getConsoleLogger().error("获取结果失败!");
+                    return;
                 } finally {
-                    SessionManager.getCurrentSession().getController().closeDialog();
+                    dialogHandle.close();
                 }
             }
         }
@@ -866,6 +883,17 @@ public class QueryConsole extends AbstractConsole {
     public void close() {
         if (!this.closed.compareAndSet(false, true)) {
             return;
+        }
+
+        var currentSession = SessionManager.getCurrentSession();
+        if (currentSession == null && this.getPacketIO().getWsSession().getAttributes() != null) {
+            Object token = this.getPacketIO().getWsSession().getAttributes().get("token");
+            if (token instanceof String sessionToken) {
+                currentSession = SessionManager.getSession(sessionToken);
+            }
+        }
+        if (currentSession != null && currentSession.getController() != null) {
+            currentSession.getController().cancelDialogs(this.getPacketIO().getWsSession().getId());
         }
 
         var plan = this.currentPlan;

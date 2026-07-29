@@ -19,6 +19,7 @@ import org.jumpserver.chen.framework.datasource.edit.TableEditContext;
 import org.jumpserver.chen.framework.i18n.MessageUtils;
 import org.jumpserver.chen.framework.jms.entity.CommandRecord;
 import org.jumpserver.chen.framework.session.SessionManager;
+import org.jumpserver.chen.framework.session.controller.DialogHandle;
 import org.jumpserver.chen.framework.session.controller.dialog.Button;
 import org.jumpserver.chen.framework.session.controller.dialog.Dialog;
 import org.jumpserver.chen.framework.ws.io.Packet;
@@ -28,16 +29,21 @@ import org.springframework.web.socket.WebSocketSession;
 import java.sql.SQLException;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class DataViewConsole extends AbstractConsole {
     private static final String PACKET_SAVE_CHANGES_PREVIEW_RESULT = "save_changes_preview_result";
     private static final String PACKET_SAVE_CHANGES_RESULT = "save_changes_result";
+    private static final long WARNING_DIALOG_TIMEOUT_SECONDS = 300;
     private final TableChangesPreviewService tableChangesPreviewService = new TableChangesPreviewService();
     private final TableChangesSaveService tableChangesSaveService = new TableChangesSaveService();
 
     private DataView tableDataView;
     private StateManager<State> stateManager;
+    private final AtomicBoolean closed = new AtomicBoolean(false);
+    private final ReentrantLock executionLock = new ReentrantLock();
 
     @Getter
     private final String schema;
@@ -55,6 +61,17 @@ public class DataViewConsole extends AbstractConsole {
 
     @Override
     public void onInit(Connect connect) {
+        if (!this.beginExecution()) {
+            return;
+        }
+        try {
+            this.initialize(connect);
+        } finally {
+            this.executionLock.unlock();
+        }
+    }
+
+    private void initialize(Connect connect) {
         var title = "";
         try {
             title = this.generateConsoleName();
@@ -81,13 +98,32 @@ public class DataViewConsole extends AbstractConsole {
 
     @Override
     public void handle(Packet packet) {
-        switch (packet.getType()) {
-            case "ping" -> this.getPacketIO().sendPacket("pong", null);
-            case Packet.TYPE_DATA_VIEW_ACTION -> {
-                var action = GSON.fromJson(GSON.toJson(packet.getData()), DataViewAction.class);
-                this.onDataViewAction(action);
-            }
+        if (!this.beginExecution()) {
+            return;
         }
+        try {
+            switch (packet.getType()) {
+                case "ping" -> this.getPacketIO().sendPacket("pong", null);
+                case Packet.TYPE_DATA_VIEW_ACTION -> {
+                    var action = GSON.fromJson(GSON.toJson(packet.getData()), DataViewAction.class);
+                    this.onDataViewAction(action);
+                }
+            }
+        } finally {
+            this.executionLock.unlock();
+        }
+    }
+
+    private boolean beginExecution() {
+        if (this.closed.get()) {
+            return false;
+        }
+        this.executionLock.lock();
+        if (this.closed.get()) {
+            this.executionLock.unlock();
+            return false;
+        }
+        return true;
     }
 
     public void onConnect(Connect connect) {
@@ -154,21 +190,31 @@ public class DataViewConsole extends AbstractConsole {
                     this.getConsoleLogger().warn(MessageUtils.get("ExecutionCanceled"));
                 }));
 
-                SessionManager.getCurrentSession().getController().showDialog(dialog);
+                var controller = SessionManager.getCurrentSession().getController();
+                DialogHandle dialogHandle = controller.showDialog(dialog, () -> {
+                    hasNext.set(false);
+                    countDownLatch.countDown();
+                });
 
                 try {
-                    countDownLatch.await();
+                    if (!countDownLatch.await(WARNING_DIALOG_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+                        hasNext.set(false);
+                        dialogHandle.cancel();
+                    }
 
                     if (!hasNext.get()) {
                         throw new SQLException(MessageUtils.get("ExecutionCanceled"));
                     }
 
                 } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    hasNext.set(false);
                     this.stateManager.commit();
 
                     this.getConsoleLogger().error("get result error");
+                    throw new SQLException(MessageUtils.get("ExecutionCanceled"), e);
                 } finally {
-                    SessionManager.getCurrentSession().getController().closeDialog();
+                    dialogHandle.close();
                 }
             }
 
@@ -243,5 +289,24 @@ public class DataViewConsole extends AbstractConsole {
 
     @Override
     public void close() {
+        if (!this.closed.compareAndSet(false, true)) {
+            return;
+        }
+        var currentSession = SessionManager.getCurrentSession();
+        if (currentSession == null && this.getPacketIO().getWsSession().getAttributes() != null) {
+            Object token = this.getPacketIO().getWsSession().getAttributes().get("token");
+            if (token instanceof String sessionToken) {
+                currentSession = SessionManager.getSession(sessionToken);
+            }
+        }
+        if (currentSession != null && currentSession.getController() != null) {
+            currentSession.getController().cancelDialogs(this.getPacketIO().getWsSession().getId());
+        }
+        this.executionLock.lock();
+        try {
+            // Wait for admitted work to observe cancellation and leave the execution section.
+        } finally {
+            this.executionLock.unlock();
+        }
     }
 }

@@ -201,6 +201,9 @@ public class BaseSession implements Session {
 
     @Override
     public void close() {
+        if (this.getController() != null) {
+            this.getController().cancelAllDialogs();
+        }
         SessionManager.unregisterSession(this.getWebToken());
         this.getDatasource().close();
         this.getPacketIO().close();
