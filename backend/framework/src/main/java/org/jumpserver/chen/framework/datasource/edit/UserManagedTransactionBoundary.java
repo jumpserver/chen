@@ -18,13 +18,17 @@ final class UserManagedTransactionBoundary implements TransactionBoundary {
     }
 
     @Override
-    public <T> T execute(Connection connection, TableChangesPlan plan, TransactionWork<T> work) throws SQLException {
+    public <T> TransactionOutcome<T> execute(
+            Connection connection,
+            TableChangesPlan plan,
+            TransactionWork<T> work
+    ) throws SQLException {
         String savepointName = "chen_dataview_" + SAVEPOINT_SEQUENCE.incrementAndGet();
         this.savepointController.create(connection, savepointName);
         try {
             T result = work.execute();
             this.savepointController.release(connection, savepointName);
-            return result;
+            return TransactionOutcome.success(result, false);
         } catch (SQLException | RuntimeException e) {
             rollbackToSavepoint(connection, plan, savepointName, e);
             throw e;

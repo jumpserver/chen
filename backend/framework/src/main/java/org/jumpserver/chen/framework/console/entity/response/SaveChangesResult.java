@@ -13,6 +13,7 @@ public class SaveChangesResult {
     private boolean databaseChangesApplied;
     private boolean databaseCommitted;
     private boolean auditSucceeded;
+    private boolean connectionInvalidated;
     private String reason;
     private Integer failedChangeIndex;
     private SaveChangesRequest.ChangeItem failedChange;

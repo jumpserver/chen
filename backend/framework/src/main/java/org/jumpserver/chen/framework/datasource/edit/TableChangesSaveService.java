@@ -6,9 +6,10 @@ import org.jumpserver.chen.framework.console.entity.request.SaveChangesRequest;
 import org.jumpserver.chen.framework.console.entity.response.SaveChangesResult;
 import org.jumpserver.chen.framework.datasource.edit.bind.PreparedStatementBinder;
 import org.jumpserver.chen.framework.datasource.edit.command.PreparedTableChangeCommand;
-import org.jumpserver.chen.framework.datasource.edit.exception.CommitFailedException;
+import org.jumpserver.chen.framework.datasource.edit.exception.CommitOutcomeUnknownException;
 import org.jumpserver.chen.framework.datasource.edit.exception.OptimisticLockConflictException;
 import org.jumpserver.chen.framework.datasource.edit.exception.RollbackFailedException;
+import org.jumpserver.chen.framework.datasource.edit.exception.RolledBackConnectionUnavailableException;
 import org.jumpserver.chen.framework.datasource.edit.exception.RowNotFoundOrNotUniqueException;
 import org.jumpserver.chen.framework.datasource.edit.exception.SavepointRollbackFailedException;
 import org.jumpserver.chen.framework.datasource.edit.exception.UnexpectedAffectedRowsException;
@@ -25,7 +26,7 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 @Slf4j
 public class TableChangesSaveService {
@@ -36,6 +37,10 @@ public class TableChangesSaveService {
     public static final String AFFECTED_ROWS_UNEXPECTED = "AFFECTED_ROWS_UNEXPECTED";
     public static final String SAVE_CHANGES_EXECUTE_FAILED = "SAVE_CHANGES_EXECUTE_FAILED";
     public static final String SAVE_CHANGES_COMMIT_OUTCOME_UNKNOWN = "SAVE_CHANGES_COMMIT_OUTCOME_UNKNOWN";
+    public static final String SAVE_CHANGES_COMMITTED_CONNECTION_UNAVAILABLE =
+            "SAVE_CHANGES_COMMITTED_CONNECTION_UNAVAILABLE";
+    public static final String SAVE_CHANGES_ROLLED_BACK_CONNECTION_UNAVAILABLE =
+            "SAVE_CHANGES_ROLLED_BACK_CONNECTION_UNAVAILABLE";
     public static final String SAVE_CHANGES_ROLLBACK_FAILED = "SAVE_CHANGES_ROLLBACK_FAILED";
     public static final String SAVE_CHANGES_SAVEPOINT_ROLLBACK_FAILED = "SAVE_CHANGES_SAVEPOINT_ROLLBACK_FAILED";
     public static final String SAVE_CHANGES_AUDIT_REJECTED = "SAVE_CHANGES_AUDIT_REJECTED";
@@ -87,12 +92,12 @@ public class TableChangesSaveService {
             if (executionContext.transactionMode() == TransactionMode.SERVICE_MANAGED) {
                 try (executionContext) {
                     return executeAcceptedSave(result, plan, executionContext.connection(),
-                            executionContext.connectionOwnership(), executionContext.transactionMode(),
+                            executionContext.connectionOwnership(),
                             session, transactionBoundary);
                 }
             }
             return executeAcceptedSave(result, plan, executionContext.connection(),
-                    executionContext.connectionOwnership(), executionContext.transactionMode(),
+                    executionContext.connectionOwnership(),
                     session, transactionBoundary);
         } catch (OptimisticLockConflictException e) {
             PreparedTableChangeCommand command = commandAt(plan, e.getChangeIndex());
@@ -142,7 +147,7 @@ public class TableChangesSaveService {
                     plan.getTable(),
                     e
             );
-            return reject(result, SAVE_CHANGES_ROLLBACK_FAILED, null, null);
+            return rejectWithInvalidatedConnection(result, SAVE_CHANGES_ROLLBACK_FAILED);
         } catch (SavepointRollbackFailedException e) {
             log.error(
                     "save changes rollback to savepoint failed and connection was invalidated, dataView={}, table={}.{}",
@@ -151,8 +156,20 @@ public class TableChangesSaveService {
                     plan.getTable(),
                     e
             );
-            return reject(result, SAVE_CHANGES_SAVEPOINT_ROLLBACK_FAILED, null, null);
-        } catch (CommitFailedException e) {
+            return rejectWithInvalidatedConnection(result, SAVE_CHANGES_SAVEPOINT_ROLLBACK_FAILED);
+        } catch (RolledBackConnectionUnavailableException e) {
+            log.error(
+                    "save changes rolled back but connection could not be restored, dataView={}, table={}.{}",
+                    plan.getDataView(),
+                    plan.getSchema(),
+                    plan.getTable(),
+                    e
+            );
+            return rejectWithInvalidatedConnection(
+                    result,
+                    SAVE_CHANGES_ROLLED_BACK_CONNECTION_UNAVAILABLE
+            );
+        } catch (CommitOutcomeUnknownException e) {
             // A commit failure is an unknown outcome: the database may have committed despite
             // the client error. The connection has already been discarded by the boundary; the
             // caller must not let the user treat this as a retriable failure.
@@ -162,7 +179,7 @@ public class TableChangesSaveService {
                     plan.getSchema(),
                     plan.getTable()
             );
-            return reject(result, SAVE_CHANGES_COMMIT_OUTCOME_UNKNOWN, null, null);
+            return rejectWithInvalidatedConnection(result, SAVE_CHANGES_COMMIT_OUTCOME_UNKNOWN);
         } catch (CommandRejectException e) {
             log.warn(
                     "save changes audit rejected, dataView={}, table={}.{}, message={}",
@@ -195,7 +212,6 @@ public class TableChangesSaveService {
             TableChangesPlan plan,
             Connection connection,
             ConnectionOwnership connectionOwnership,
-            TransactionMode transactionMode,
             Session session,
             TransactionBoundary transactionBoundary
     ) throws SQLException, CommandRejectException {
@@ -229,50 +245,55 @@ public class TableChangesSaveService {
             return reject(result, ACL_REJECTED, null, null);
         }
         ACLResult finalAclResult = aclResult;
-        AtomicBoolean databaseChangesApplied = new AtomicBoolean(false);
+        AtomicReference<TransactionOutcome<SQLQueryResult>> outcomeRef = new AtomicReference<>();
         try {
             session.withAudit(
                     plan.getAuditSql(),
                     () -> {
-                        SQLQueryResult executed = executeTransaction(
+                        TransactionOutcome<SQLQueryResult> outcome = executeTransaction(
                                 connection,
                                 plan,
                                 finalAclResult,
                                 transactionBoundary
                         );
-                        databaseChangesApplied.set(true);
-                        return executed;
+                        outcomeRef.set(outcome);
+                        return outcome.value();
                     }
             );
         } catch (RuntimeException auditFailure) {
-            if (!databaseChangesApplied.get()) {
+            TransactionOutcome<SQLQueryResult> outcome = outcomeRef.get();
+            if (outcome == null) {
                 throw auditFailure;
             }
-            boolean databaseCommitted = transactionMode == TransactionMode.SERVICE_MANAGED;
             log.error(
                     "save changes database work completed but audit failed, dataView={}, table={}.{}, databaseCommitted={}",
                     plan.getDataView(),
                     plan.getSchema(),
                     plan.getTable(),
-                    databaseCommitted,
+                    outcome.databaseCommitted(),
                     auditFailure
             );
             return appliedResult(
                     result,
                     plan,
-                    databaseCommitted,
+                    outcome.databaseCommitted(),
                     false,
-                    databaseCommitted
-                            ? SAVE_CHANGES_AUDIT_FAILED_AFTER_COMMIT
-                            : SAVE_CHANGES_AUDIT_FAILED_AFTER_APPLY
+                    outcome.connectionInvalidated(),
+                    outcome.reason() != null
+                            ? outcome.reason()
+                            : outcome.databaseCommitted()
+                                    ? SAVE_CHANGES_AUDIT_FAILED_AFTER_COMMIT
+                                    : SAVE_CHANGES_AUDIT_FAILED_AFTER_APPLY
             );
         }
+        TransactionOutcome<SQLQueryResult> outcome = outcomeRef.get();
         return appliedResult(
                 result,
                 plan,
-                transactionMode == TransactionMode.SERVICE_MANAGED,
+                outcome.databaseCommitted(),
                 true,
-                null
+                outcome.connectionInvalidated(),
+                outcome.reason()
         );
     }
 
@@ -281,6 +302,7 @@ public class TableChangesSaveService {
             TableChangesPlan plan,
             boolean databaseCommitted,
             boolean auditSucceeded,
+            boolean connectionInvalidated,
             String reason
     ) {
         result.setSuccess(true);
@@ -288,6 +310,7 @@ public class TableChangesSaveService {
         result.setDatabaseChangesApplied(true);
         result.setDatabaseCommitted(databaseCommitted);
         result.setAuditSucceeded(auditSucceeded);
+        result.setConnectionInvalidated(connectionInvalidated);
         result.setReason(reason);
         result.setChangeCount(plan.getChangeCount());
         // executeTransaction has already verified every command affected exactly one row.
@@ -336,7 +359,7 @@ public class TableChangesSaveService {
         return new UserManagedTransactionBoundary(SavepointControllers.forDbType(dbType));
     }
 
-    SQLQueryResult executeTransaction(
+    TransactionOutcome<SQLQueryResult> executeTransaction(
             Connection connection,
             TableChangesPlan plan,
             ACLResult aclResult,
@@ -348,6 +371,14 @@ public class TableChangesSaveService {
             }
             return successQueryResult(plan, aclResult);
         });
+    }
+
+    private SaveChangesResult rejectWithInvalidatedConnection(
+            SaveChangesResult result,
+            String reason
+    ) {
+        result.setConnectionInvalidated(true);
+        return reject(result, reason, null, null);
     }
 
     private void executeCommand(

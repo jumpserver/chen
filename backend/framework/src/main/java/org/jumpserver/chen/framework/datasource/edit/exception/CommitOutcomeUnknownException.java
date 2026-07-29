@@ -4,8 +4,8 @@ import org.jumpserver.chen.framework.datasource.edit.TableChangesSaveService;
 
 import java.sql.SQLException;
 
-public class CommitFailedException extends TableEditException {
-    public CommitFailedException(SQLException cause) {
+public class CommitOutcomeUnknownException extends TableEditException {
+    public CommitOutcomeUnknownException(SQLException cause) {
         super(TableChangesSaveService.SAVE_CHANGES_COMMIT_OUTCOME_UNKNOWN, cause);
     }
 }

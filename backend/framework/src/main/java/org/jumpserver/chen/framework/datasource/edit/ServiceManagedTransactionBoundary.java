@@ -1,8 +1,9 @@
 package org.jumpserver.chen.framework.datasource.edit;
 
 import lombok.extern.slf4j.Slf4j;
-import org.jumpserver.chen.framework.datasource.edit.exception.CommitFailedException;
+import org.jumpserver.chen.framework.datasource.edit.exception.CommitOutcomeUnknownException;
 import org.jumpserver.chen.framework.datasource.edit.exception.RollbackFailedException;
+import org.jumpserver.chen.framework.datasource.edit.exception.RolledBackConnectionUnavailableException;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -20,37 +21,55 @@ import java.sql.SQLException;
 @Slf4j
 final class ServiceManagedTransactionBoundary implements TransactionBoundary {
     @Override
-    public <T> T execute(Connection connection, TableChangesPlan plan, TransactionWork<T> work) throws SQLException {
+    public <T> TransactionOutcome<T> execute(
+            Connection connection,
+            TableChangesPlan plan,
+            TransactionWork<T> work
+    ) throws SQLException {
         boolean originalAutoCommit = connection.getAutoCommit();
         if (!originalAutoCommit) {
             throw new SQLException("SERVICE_MANAGED transaction requires autoCommit=true");
         }
 
         connection.setAutoCommit(false);
-        Throwable primaryException = null;
-        boolean connectionDiscarded = false;
+        T result;
         try {
-            T result = work.execute();
-            this.commit(connection, plan);
-            return result;
-        } catch (CommitFailedException e) {
-            primaryException = e;
-            connectionDiscarded = true;
-            this.discardConnection(connection, e);
-            throw e;
+            result = work.execute();
         } catch (SQLException | RuntimeException e) {
-            primaryException = e;
             try {
                 this.rollback(connection, plan, e);
             } catch (RollbackFailedException rollbackFailure) {
-                connectionDiscarded = true;
                 throw rollbackFailure;
             }
-            throw e;
-        } finally {
-            if (!connectionDiscarded) {
-                this.restoreAutoCommit(connection, plan, originalAutoCommit, primaryException);
+            try {
+                this.restoreAutoCommit(connection, plan, originalAutoCommit);
+            } catch (SQLException restoreFailure) {
+                RolledBackConnectionUnavailableException failure =
+                        new RolledBackConnectionUnavailableException(restoreFailure, e);
+                this.discardConnection(connection, failure);
+                throw failure;
             }
+            throw e;
+        }
+
+        try {
+            this.commit(connection, plan);
+        } catch (CommitOutcomeUnknownException e) {
+            this.discardConnection(connection, e);
+            throw e;
+        }
+
+        try {
+            this.restoreAutoCommit(connection, plan, originalAutoCommit);
+            return TransactionOutcome.success(result, true);
+        } catch (SQLException restoreFailure) {
+            this.discardConnection(connection, restoreFailure);
+            return new TransactionOutcome<>(
+                    result,
+                    true,
+                    true,
+                    TableChangesSaveService.SAVE_CHANGES_COMMITTED_CONNECTION_UNAVAILABLE
+            );
         }
     }
 
@@ -67,7 +86,7 @@ final class ServiceManagedTransactionBoundary implements TransactionBoundary {
                     e.getMessage(),
                     e
             );
-            throw new CommitFailedException(e);
+            throw new CommitOutcomeUnknownException(e);
         }
     }
 
@@ -94,8 +113,7 @@ final class ServiceManagedTransactionBoundary implements TransactionBoundary {
     private void restoreAutoCommit(
             Connection connection,
             TableChangesPlan plan,
-            boolean originalAutoCommit,
-            Throwable primaryException
+            boolean originalAutoCommit
     ) throws SQLException {
         try {
             connection.setAutoCommit(originalAutoCommit);
@@ -110,11 +128,7 @@ final class ServiceManagedTransactionBoundary implements TransactionBoundary {
                     e.getMessage(),
                     e
             );
-            if (primaryException != null) {
-                primaryException.addSuppressed(e);
-            } else {
-                throw e;
-            }
+            throw e;
         }
     }
 

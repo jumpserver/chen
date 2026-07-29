@@ -74,13 +74,11 @@ public class QueryConsole extends AbstractConsole {
     private final TableChangesPreviewService tableChangesPreviewService = new TableChangesPreviewService();
     private final TableChangesSaveService tableChangesSaveService = new TableChangesSaveService();
     private final QueryDataViewTableEditContextFactory tableEditContextFactory = new QueryDataViewTableEditContextFactory();
-    // Single lifecycle lock: serializes close() against in-flight message handling. WebSocket
-    // messages are already ordered by the handler's SerialExecutor; this lock only barriers
-    // close()/getConnection() against the handler thread. Reentrant so getConnection() can be
-    // called from handlers that already hold it.
+    // Single lifecycle lock: beginExecution() admits work before it can access the connection,
+    // and close() waits for admitted work to finish. Reentrancy lets the admitted handler call
+    // getConnection() throughout its execution without observing closed=true midway through.
     private final ReentrantLock executionLock = new ReentrantLock();
     private final AtomicBoolean closed = new AtomicBoolean(false);
-    private volatile boolean connectionPoisoned;
     private Connection conn;
     // Driver-specific transaction probe created alongside the physical connection. The driver's
     // cached autoCommit flag does not reflect explicit BEGIN/START TRANSACTION on MySQL, Oracle,
@@ -171,30 +169,55 @@ public class QueryConsole extends AbstractConsole {
                 : this.getContext().schema();
     }
 
-    Connection getConnection() {
-        this.executionLock.lock();
-        try {
-            if (this.closed.get()) {
-                throw new IllegalStateException("Query console is closed");
-            }
-            if (this.connectionPoisoned) {
-                throw new IllegalStateException("Query console connection is unusable");
-            }
-            if (this.conn == null) {
-                try {
-                    this.conn = this.getDatasource().getConnectionManager().getPhysicalConnection();
-                    this.transactionStateInspector = QueryTransactionStateInspector.create(
-                            this.getDatasource().getDruidDbType(),
-                            this.conn
-                    );
-                } catch (SQLException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-            return this.conn;
-        } finally {
-            this.executionLock.unlock();
+    private Connection getConnection() {
+        if (!this.executionLock.isHeldByCurrentThread()) {
+            throw new IllegalStateException("Connection access requires admitted execution");
         }
+        return this.getOrCreateConnection();
+    }
+
+    private Connection getOrCreateConnection() {
+        if (this.conn != null) {
+            return this.conn;
+        }
+
+        Connection candidate = null;
+        try {
+            var connectionManager = this.getDatasource().getConnectionManager();
+            String currentContext = this.currentConnectionContext();
+            if (StringUtils.isNotBlank(currentContext) &&
+                    StringUtils.equals(
+                            connectionManager.getContextKey(),
+                            connectionManager.getDatabaseContextKey()
+                    )) {
+                connectionManager.setDatabaseContext(currentContext);
+            }
+
+            candidate = connectionManager.getPhysicalConnection();
+            if (StringUtils.isNotBlank(currentContext)) {
+                connectionManager.getSqlActuator()
+                        .withConnection(candidate)
+                        .changeSchema(currentContext);
+            }
+            QueryTransactionStateInspector candidateInspector = QueryTransactionStateInspector.create(
+                    this.getDatasource().getDruidDbType(),
+                    candidate
+            );
+
+            this.conn = candidate;
+            this.transactionStateInspector = candidateInspector;
+            return candidate;
+        } catch (SQLException | RuntimeException e) {
+            closeQuietly(candidate);
+            throw new QueryConsoleConnectionUnavailableException(e);
+        }
+    }
+
+    private String currentConnectionContext() {
+        if (this.stateManager == null) {
+            return null;
+        }
+        return this.getState().getCurrentContext();
     }
 
     @Override
@@ -208,6 +231,12 @@ public class QueryConsole extends AbstractConsole {
         }
         try {
             this.handleSerialPacket(packet);
+        } catch (QueryConsoleConnectionUnavailableException e) {
+            log.warn("query console connection unavailable", e);
+            this.getMessager().send(Message.error(
+                    MessageUtils.get("FetchError"),
+                    QUERY_CONSOLE_CONNECTION_UNAVAILABLE
+            ));
         } finally {
             this.executionLock.unlock();
         }
@@ -468,8 +497,8 @@ public class QueryConsole extends AbstractConsole {
                     executionContext,
                     SessionManager.getCurrentSession()
             );
-            if (invalidatesQueryConsoleConnection(result.getReason())) {
-                this.markConnectionPoisoned(result.getReason());
+            if (result.isConnectionInvalidated()) {
+                this.invalidateConnection(result.getReason());
             }
             return result;
         } catch (IllegalArgumentException e) {
@@ -477,18 +506,27 @@ public class QueryConsole extends AbstractConsole {
         }
     }
 
-    private static boolean invalidatesQueryConsoleConnection(String reason) {
-        return StringUtils.equalsAny(
-                reason,
-                TableChangesSaveService.SAVE_CHANGES_ROLLBACK_FAILED,
-                TableChangesSaveService.SAVE_CHANGES_SAVEPOINT_ROLLBACK_FAILED,
-                TableChangesSaveService.SAVE_CHANGES_COMMIT_OUTCOME_UNKNOWN
-        );
+    private void invalidateConnection(String reason) {
+        closeQuietly(this.detachConnection());
+        log.warn("QueryConsole connection invalidated, reason={}", reason);
     }
 
-    private void markConnectionPoisoned(String reason) {
-        this.connectionPoisoned = true;
-        log.error("QueryConsole connection marked unusable, reason={}", reason);
+    private Connection detachConnection() {
+        Connection old = this.conn;
+        this.conn = null;
+        this.transactionStateInspector = null;
+        return old;
+    }
+
+    private static void closeQuietly(Connection connection) {
+        if (connection == null) {
+            return;
+        }
+        try {
+            connection.close();
+        } catch (SQLException | RuntimeException e) {
+            log.warn("close query console connection failed", e);
+        }
     }
 
     private static String unsupportedQueryMutation(SaveChangesRequest request) {
@@ -847,19 +885,9 @@ public class QueryConsole extends AbstractConsole {
         }
         this.onCancel();
 
-        // The closed CAS above makes close() run once; the connection is owned only by this
-        // console, so closing it under executionLock (the same lock getConnection() takes) is
-        // sufficient. JDBC Connection.close() is idempotent, so a connection already discarded
-        // by a poisoned save is harmlessly re-closed here.
         this.executionLock.lock();
         try {
-            if (this.conn != null) {
-                try {
-                    this.conn.close();
-                } catch (SQLException | RuntimeException e) {
-                    log.warn("close query console connection failed", e);
-                }
-            }
+            closeQuietly(this.detachConnection());
         } finally {
             this.executionLock.unlock();
         }
