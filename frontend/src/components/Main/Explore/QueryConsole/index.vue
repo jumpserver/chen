@@ -58,6 +58,8 @@ export default {
     return {
       heartBeatInterval: 0,
       ws: null,
+      pendingEditorActions: [],
+      editorDirtyGuardOpen: false,
       state: {
         loading: false,
         inQuery: false,
@@ -156,6 +158,51 @@ export default {
       }, 1000 * 10)
     },
     onEditorAction(action) {
+      if (!this.isSqlExecutionAction(action)) {
+        this.sendEditorAction(action)
+        return
+      }
+      if (this.editorDirtyGuardOpen) {
+        return
+      }
+      if (this.pendingEditorActions.length > 0) {
+        this.pendingEditorActions.push(action)
+        if (action.action === 'run_sql_complete') {
+          this.confirmPendingEditorActions()
+        }
+        return
+      }
+      if (!this.hasDirty()) {
+        this.sendEditorAction(action)
+        return
+      }
+
+      this.pendingEditorActions.push(action)
+      if (action.action !== 'run_sql_chunk') {
+        this.confirmPendingEditorActions()
+      }
+    },
+    isSqlExecutionAction(action) {
+      return action && ['run_sql', 'run_sql_chunk', 'run_sql_complete', 'run_sql_file'].includes(action.action)
+    },
+    confirmPendingEditorActions() {
+      this.editorDirtyGuardOpen = true
+      this.$confirm('There are unsaved changes. Discard them and run new SQL?', 'Warning', {
+        confirmButtonText: 'Confirm',
+        cancelButtonText: 'Cancel',
+        type: 'warning'
+      }).then(() => {
+        const actions = this.pendingEditorActions.splice(0)
+        this.clearDirty()
+        this.editorDirtyGuardOpen = false
+        actions.forEach(action => this.sendEditorAction(action))
+      }).catch(() => {
+        this.pendingEditorActions = []
+        this.editorDirtyGuardOpen = false
+        this.state.inQuery = false
+      })
+    },
+    sendEditorAction(action) {
       this.ws.send(JSON.stringify({ type: 'query_console_action', data: action }))
     },
     onDataViewAction(action) {

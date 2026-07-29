@@ -1,12 +1,9 @@
 package org.jumpserver.chen.framework.console.transaction;
 
-import lombok.extern.slf4j.Slf4j;
-
 import java.lang.reflect.InvocationTargetException;
 import java.sql.Connection;
 import java.sql.SQLException;
 
-@Slf4j
 final class MysqlDriverTransactionStateProbe implements TransactionStateProbe {
     private static final String JDBC_CONNECTION = "com.mysql.cj.jdbc.JdbcConnection";
     private static final String SESSION = "com.mysql.cj.Session";
@@ -29,8 +26,7 @@ final class MysqlDriverTransactionStateProbe implements TransactionStateProbe {
                     .invoke(serverSession);
             return map(inTransaction, connection.getAutoCommit());
         } catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException |
-                 InvocationTargetException | SQLException | RuntimeException e) {
-            log.debug("inspect MySQL transaction state failed", e);
+                 InvocationTargetException | SQLException e) {
             throw new TransactionStateProbeException(e);
         }
     }

@@ -35,7 +35,7 @@ public class TableChangesSaveService {
     public static final String ROW_NOT_FOUND_OR_NOT_UNIQUE = "ROW_NOT_FOUND_OR_NOT_UNIQUE";
     public static final String AFFECTED_ROWS_UNEXPECTED = "AFFECTED_ROWS_UNEXPECTED";
     public static final String SAVE_CHANGES_EXECUTE_FAILED = "SAVE_CHANGES_EXECUTE_FAILED";
-    public static final String SAVE_CHANGES_COMMIT_FAILED = "SAVE_CHANGES_COMMIT_FAILED";
+    public static final String SAVE_CHANGES_COMMIT_OUTCOME_UNKNOWN = "SAVE_CHANGES_COMMIT_OUTCOME_UNKNOWN";
     public static final String SAVE_CHANGES_ROLLBACK_FAILED = "SAVE_CHANGES_ROLLBACK_FAILED";
     public static final String SAVE_CHANGES_SAVEPOINT_ROLLBACK_FAILED = "SAVE_CHANGES_SAVEPOINT_ROLLBACK_FAILED";
     public static final String SAVE_CHANGES_AUDIT_REJECTED = "SAVE_CHANGES_AUDIT_REJECTED";
@@ -153,15 +153,16 @@ public class TableChangesSaveService {
             );
             return reject(result, SAVE_CHANGES_SAVEPOINT_ROLLBACK_FAILED, null, null);
         } catch (CommitFailedException e) {
+            // A commit failure is an unknown outcome: the database may have committed despite
+            // the client error. The connection has already been discarded by the boundary; the
+            // caller must not let the user treat this as a retriable failure.
             log.error(
-                    "save changes commit failed, dataView={}, table={}.{}, message={}",
+                    "save changes commit outcome unknown, dataView={}, table={}.{}",
                     plan.getDataView(),
                     plan.getSchema(),
-                    plan.getTable(),
-                    e.getMessage(),
-                    e
+                    plan.getTable()
             );
-            return reject(result, SAVE_CHANGES_COMMIT_FAILED, null, null);
+            return reject(result, SAVE_CHANGES_COMMIT_OUTCOME_UNKNOWN, null, null);
         } catch (CommandRejectException e) {
             log.warn(
                     "save changes audit rejected, dataView={}, table={}.{}, message={}",
@@ -173,6 +174,8 @@ public class TableChangesSaveService {
             );
             return reject(result, SAVE_CHANGES_AUDIT_REJECTED, null, null);
         } catch (SQLException e) {
+            // Statement-level detail (changeIndex, columns, sqlState) was already logged by
+            // executeCommand; record only the save-level summary here.
             log.warn(
                     "save changes failed, reason={}, dataView={}, table={}.{}, sqlState={}, vendorCode={}, message={}",
                     SAVE_CHANGES_EXECUTE_FAILED,
@@ -181,8 +184,7 @@ public class TableChangesSaveService {
                     plan.getTable(),
                     e.getSQLState(),
                     e.getErrorCode(),
-                    e.getMessage(),
-                    e
+                    e.getMessage()
             );
             return reject(result, SAVE_CHANGES_EXECUTE_FAILED, null, null);
         }
@@ -540,7 +542,7 @@ public class TableChangesSaveService {
     }
 
     private PreparedTableChangeCommand commandAt(TableChangesPlan plan, int index) {
-        if (plan == null || plan.getCommands() == null || index < 0 || index >= plan.getCommands().size()) {
+        if (index < 0 || index >= plan.getCommands().size()) {
             return null;
         }
         return plan.getCommands().get(index);

@@ -1,9 +1,11 @@
 package org.jumpserver.chen.framework.console.transaction;
 
 import com.alibaba.druid.DbType;
+import lombok.extern.slf4j.Slf4j;
 
 import java.sql.Connection;
 
+@Slf4j
 public final class QueryTransactionStateInspector {
     private final Connection connection;
     private final TransactionStateProbe probe;
@@ -28,6 +30,14 @@ public final class QueryTransactionStateInspector {
     }
 
     public QueryTransactionProbeResult probeNow() {
-        return this.probe.inspectResult(this.connection);
+        try {
+            return QueryTransactionProbeResult.observed(this.probe.inspect(this.connection));
+        } catch (TransactionStateProbeException e) {
+            // Only explicit probe failures (SQLException / driver-compat reflection errors wrapped
+            // by the probe) become a probeFailed result. Program errors such as NPE,
+            // ClassCastException or IllegalStateException are NOT caught here and must propagate.
+            log.debug("probe transaction state failed", e);
+            return QueryTransactionProbeResult.failed();
+        }
     }
 }

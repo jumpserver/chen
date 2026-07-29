@@ -1,12 +1,9 @@
 package org.jumpserver.chen.framework.console.transaction;
 
-import lombok.extern.slf4j.Slf4j;
-
 import java.lang.reflect.InvocationTargetException;
 import java.sql.Connection;
 import java.sql.SQLException;
 
-@Slf4j
 final class SqlServerTransactionStateProbe implements TransactionStateProbe {
     private static final String DRIVER_CONNECTION = "com.microsoft.sqlserver.jdbc.SQLServerConnection";
     private static final String STATE_SQL = "SELECT XACT_STATE()";
@@ -27,8 +24,7 @@ final class SqlServerTransactionStateProbe implements TransactionStateProbe {
                 return mapXactState(resultSet.getInt(1));
             }
         } catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException |
-                 InvocationTargetException | SQLException | RuntimeException e) {
-            log.debug("inspect SQL Server transaction state failed", e);
+                 InvocationTargetException | SQLException e) {
             throw new TransactionStateProbeException(e);
         }
     }

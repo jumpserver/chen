@@ -1,12 +1,9 @@
 package org.jumpserver.chen.framework.console.transaction;
 
-import lombok.extern.slf4j.Slf4j;
-
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Locale;
 
-@Slf4j
 final class DamengTransactionStateProbe implements TransactionStateProbe {
     private static final String DRIVER_CONNECTION = "dm.jdbc.driver.DmdbConnection";
     private static final int STATE_MASK = 0x0FFF;
@@ -40,8 +37,7 @@ final class DamengTransactionStateProbe implements TransactionStateProbe {
                 return mapServerStatus(resultSet.getString(1));
             }
         } catch (ClassNotFoundException | NoSuchFieldException | IllegalAccessException |
-                 SQLException | RuntimeException e) {
-            log.debug("inspect Dameng transaction state failed", e);
+                 SQLException e) {
             throw new TransactionStateProbeException(e);
         }
     }

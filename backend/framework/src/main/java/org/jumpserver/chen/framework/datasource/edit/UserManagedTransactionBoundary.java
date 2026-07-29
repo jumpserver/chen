@@ -52,12 +52,10 @@ final class UserManagedTransactionBoundary implements TransactionBoundary {
             );
             SavepointRollbackFailedException failure =
                     new SavepointRollbackFailedException(rollbackException, primaryException);
-            if (connection != null) {
-                try {
-                    connection.close();
-                } catch (SQLException | RuntimeException closeException) {
-                    failure.addSuppressed(closeException);
-                }
+            try {
+                connection.close();
+            } catch (SQLException | RuntimeException closeException) {
+                failure.addSuppressed(closeException);
             }
             throw failure;
         }

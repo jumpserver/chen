@@ -1,12 +1,9 @@
 package org.jumpserver.chen.framework.console.transaction;
 
-import lombok.extern.slf4j.Slf4j;
-
 import java.lang.reflect.InvocationTargetException;
 import java.sql.Connection;
 import java.sql.SQLException;
 
-@Slf4j
 final class PostgresqlTransactionStateProbe implements TransactionStateProbe {
     private static final String BASE_CONNECTION = "org.postgresql.core.BaseConnection";
 
@@ -24,8 +21,7 @@ final class PostgresqlTransactionStateProbe implements TransactionStateProbe {
 
             return map(transactionState.toString(), connection.getAutoCommit());
         } catch (ClassNotFoundException | NoSuchMethodException | IllegalAccessException |
-                 InvocationTargetException | SQLException | RuntimeException e) {
-            log.debug("inspect PostgreSQL transaction state failed", e);
+                 InvocationTargetException | SQLException e) {
             throw new TransactionStateProbeException(e);
         }
     }

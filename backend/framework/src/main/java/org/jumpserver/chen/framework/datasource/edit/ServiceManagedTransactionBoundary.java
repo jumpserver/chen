@@ -7,6 +7,16 @@ import org.jumpserver.chen.framework.datasource.edit.exception.RollbackFailedExc
 import java.sql.Connection;
 import java.sql.SQLException;
 
+/**
+ * Runs a DataView save batch on a connection the service owns (autoCommit=true at entry).
+ *
+ * A commit failure is treated as an unknown outcome: the database may have committed despite
+ * the client never receiving the acknowledgement. Rolling back would either mask a real commit
+ * or fail meaninglessly, so the connection is discarded and the caller reports the uncertainty
+ * rather than pretending the batch was rolled back. Failures that occur before commit (a
+ * statement error, a runtime bug in binding, etc.) have committed nothing and are rolled back
+ * normally.
+ */
 @Slf4j
 final class ServiceManagedTransactionBoundary implements TransactionBoundary {
     @Override
@@ -16,68 +26,30 @@ final class ServiceManagedTransactionBoundary implements TransactionBoundary {
             throw new SQLException("SERVICE_MANAGED transaction requires autoCommit=true");
         }
 
+        connection.setAutoCommit(false);
         Throwable primaryException = null;
-        boolean restoreAutoCommit = true;
+        boolean connectionDiscarded = false;
         try {
-            connection.setAutoCommit(false);
             T result = work.execute();
             this.commit(connection, plan);
             return result;
-        } catch (SQLException e) {
+        } catch (CommitFailedException e) {
             primaryException = e;
-            log.warn(
-                    "save changes transaction failed, table={}.{}, sqlState={}, vendorCode={}, message={}",
-                    plan.getSchema(),
-                    plan.getTable(),
-                    e.getSQLState(),
-                    e.getErrorCode(),
-                    e.getMessage(),
-                    e
-            );
-            try {
-                this.rollback(connection, plan, e);
-            } catch (RollbackFailedException rollbackFailedException) {
-                restoreAutoCommit = false;
-                throw rollbackFailedException;
-            }
+            connectionDiscarded = true;
+            this.discardConnection(connection, e);
             throw e;
-        } catch (RuntimeException e) {
+        } catch (SQLException | RuntimeException e) {
             primaryException = e;
-            log.warn(
-                    "save changes transaction failed, table={}.{}, message={}",
-                    plan.getSchema(),
-                    plan.getTable(),
-                    e.getMessage(),
-                    e
-            );
             try {
                 this.rollback(connection, plan, e);
-            } catch (RollbackFailedException rollbackFailedException) {
-                restoreAutoCommit = false;
-                throw rollbackFailedException;
+            } catch (RollbackFailedException rollbackFailure) {
+                connectionDiscarded = true;
+                throw rollbackFailure;
             }
             throw e;
         } finally {
-            if (restoreAutoCommit) {
-                try {
-                    connection.setAutoCommit(originalAutoCommit);
-                } catch (SQLException e) {
-                    log.warn(
-                            "restore save changes connection autoCommit failed, table={}.{}, originalAutoCommit={}, sqlState={}, vendorCode={}, message={}",
-                            plan.getSchema(),
-                            plan.getTable(),
-                            originalAutoCommit,
-                            e.getSQLState(),
-                            e.getErrorCode(),
-                            e.getMessage(),
-                            e
-                    );
-                    if (primaryException != null) {
-                        primaryException.addSuppressed(e);
-                    } else {
-                        throw e;
-                    }
-                }
+            if (!connectionDiscarded) {
+                this.restoreAutoCommit(connection, plan, originalAutoCommit, primaryException);
             }
         }
     }
@@ -114,13 +86,43 @@ final class ServiceManagedTransactionBoundary implements TransactionBoundary {
                     e
             );
             RollbackFailedException failure = new RollbackFailedException(e, primaryException);
-            try {
-                connection.close();
-            } catch (SQLException | RuntimeException closeException) {
-                failure.addSuppressed(closeException);
-            }
+            this.discardConnection(connection, failure);
             throw failure;
         }
     }
 
+    private void restoreAutoCommit(
+            Connection connection,
+            TableChangesPlan plan,
+            boolean originalAutoCommit,
+            Throwable primaryException
+    ) throws SQLException {
+        try {
+            connection.setAutoCommit(originalAutoCommit);
+        } catch (SQLException e) {
+            log.warn(
+                    "restore save changes connection autoCommit failed, table={}.{}, originalAutoCommit={}, sqlState={}, vendorCode={}, message={}",
+                    plan.getSchema(),
+                    plan.getTable(),
+                    originalAutoCommit,
+                    e.getSQLState(),
+                    e.getErrorCode(),
+                    e.getMessage(),
+                    e
+            );
+            if (primaryException != null) {
+                primaryException.addSuppressed(e);
+            } else {
+                throw e;
+            }
+        }
+    }
+
+    private void discardConnection(Connection connection, Throwable failure) {
+        try {
+            connection.close();
+        } catch (SQLException | RuntimeException e) {
+            failure.addSuppressed(e);
+        }
+    }
 }

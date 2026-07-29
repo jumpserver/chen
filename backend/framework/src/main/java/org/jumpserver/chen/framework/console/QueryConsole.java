@@ -62,6 +62,7 @@ import java.util.concurrent.locks.ReentrantLock;
 public class QueryConsole extends AbstractConsole {
     private static final String PACKET_SAVE_CHANGES_PREVIEW_RESULT = "save_changes_preview_result";
     private static final String PACKET_SAVE_CHANGES_RESULT = "save_changes_result";
+    static final String QUERY_CONSOLE_CONNECTION_UNAVAILABLE = "QUERY_CONSOLE_CONNECTION_UNAVAILABLE";
     static final String QUERY_TRANSACTION_MANUAL_IDLE = "QUERY_TRANSACTION_MANUAL_IDLE";
     static final String QUERY_TRANSACTION_FAILED = "QUERY_TRANSACTION_FAILED";
     static final String QUERY_TRANSACTION_STATE_UNKNOWN = "QUERY_TRANSACTION_STATE_UNKNOWN";
@@ -73,14 +74,18 @@ public class QueryConsole extends AbstractConsole {
     private final TableChangesPreviewService tableChangesPreviewService = new TableChangesPreviewService();
     private final TableChangesSaveService tableChangesSaveService = new TableChangesSaveService();
     private final QueryDataViewTableEditContextFactory tableEditContextFactory = new QueryDataViewTableEditContextFactory();
-    private final Object connectionMonitor = new Object();
-    // WebSocket messages are ordered by SerialExecutor; this lock is a lifecycle barrier for close().
-    private final ReentrantLock executionLock = new ReentrantLock(true);
+    // Single lifecycle lock: serializes close() against in-flight message handling. WebSocket
+    // messages are already ordered by the handler's SerialExecutor; this lock only barriers
+    // close()/getConnection() against the handler thread. Reentrant so getConnection() can be
+    // called from handlers that already hold it.
+    private final ReentrantLock executionLock = new ReentrantLock();
     private final AtomicBoolean closed = new AtomicBoolean(false);
-    private final AtomicBoolean connectionClosed = new AtomicBoolean(false);
-    private final AtomicBoolean connectionPoisoned = new AtomicBoolean(false);
-    private volatile String connectionPoisonReason;
+    private volatile boolean connectionPoisoned;
     private Connection conn;
+    // Driver-specific transaction probe created alongside the physical connection. The driver's
+    // cached autoCommit flag does not reflect explicit BEGIN/START TRANSACTION on MySQL, Oracle,
+    // SQL Server, Dameng or DB2, so the server-side probe is the real source of truth for whether
+    // a user transaction is open before a DataView save commits or stages behind a savepoint.
     private volatile QueryTransactionStateInspector transactionStateInspector;
     private volatile SQLExecutePlan currentPlan;
     private StateManager<QueryConsoleState> stateManager;
@@ -167,14 +172,13 @@ public class QueryConsole extends AbstractConsole {
     }
 
     Connection getConnection() {
-        synchronized (this.connectionMonitor) {
+        this.executionLock.lock();
+        try {
             if (this.closed.get()) {
                 throw new IllegalStateException("Query console is closed");
             }
-            if (this.connectionPoisoned.get()) {
-                throw new IllegalStateException(
-                        "Query console connection is unusable: " + this.connectionPoisonReason
-                );
+            if (this.connectionPoisoned) {
+                throw new IllegalStateException("Query console connection is unusable");
             }
             if (this.conn == null) {
                 try {
@@ -188,6 +192,8 @@ public class QueryConsole extends AbstractConsole {
                 }
             }
             return this.conn;
+        } finally {
+            this.executionLock.unlock();
         }
     }
 
@@ -281,12 +287,6 @@ public class QueryConsole extends AbstractConsole {
                 this.stateManager.commit();
             }
 
-
-            case QueryConsoleAction.ACTION_CANCEL -> {
-                this.onCancel();
-                this.getState().setInQuery(false);
-                this.stateManager.commit();
-            }
             case QueryConsoleAction.ACTION_CHANGE_CURRENT_CONTEXT -> {
                 var schema = (String) action.getData();
                 this.onManualChangeContext(schema);
@@ -417,27 +417,26 @@ public class QueryConsole extends AbstractConsole {
             return this.rejectedSave(dataView, unsupportedReason);
         }
 
-        Connection connection;
-        QueryTransactionStateInspector inspector;
-        QueryTransactionProbeResult beforeSave;
-        try {
-            connection = this.getConnection();
-            inspector = this.transactionStateInspector;
-            if (inspector == null) {
-                return this.rejectedSave(dataView, QUERY_TRANSACTION_PROBE_FAILED);
-            }
-            beforeSave = inspector.probeNow();
-        } catch (RuntimeException e) {
-            log.warn("probe QueryConsole transaction state before DataView save failed", e);
-            return this.rejectedSave(dataView, QUERY_TRANSACTION_PROBE_FAILED);
+        // Probe the driver-side transaction state before touching the connection. The cached
+        // autoCommit flag is unreliable on MySQL/Oracle/SQL Server/Dameng/DB2 (it does not flip on
+        // explicit BEGIN), so the server-side probe is the source of truth:
+        //   AUTO_COMMIT            -> no user tx open; service-managed transaction committed for the user
+        //   TRANSACTION_ACTIVE     -> user owns the tx; batch staged behind a savepoint, outer tx never committed
+        //   MANUAL_COMMIT_IDLE     -> reject; Chen does not start a user transaction implicitly
+        //   TRANSACTION_FAILED     -> reject; the user must rollback the failed tx first
+        //   UNKNOWN / probeFailed  -> fail closed; never risk committing or staging on an uncertain connection
+        Connection connection = this.getConnection();
+        QueryTransactionStateInspector inspector = this.transactionStateInspector;
+        if (inspector == null) {
+            return this.rejectedSave(dataView, QUERY_CONSOLE_CONNECTION_UNAVAILABLE);
         }
-
-        if (beforeSave.probeFailed()) {
+        QueryTransactionProbeResult probeResult = inspector.probeNow();
+        if (probeResult.probeFailed()) {
             return this.rejectedSave(dataView, QUERY_TRANSACTION_PROBE_FAILED);
         }
 
         SaveExecutionContext executionContext;
-        switch (beforeSave.state()) {
+        switch (probeResult.state()) {
             case AUTO_COMMIT -> executionContext = new ServiceManagedSaveExecutionContext(
                     connection,
                     ConnectionOwnership.QUERY_CONSOLE
@@ -475,13 +474,6 @@ public class QueryConsole extends AbstractConsole {
             return result;
         } catch (IllegalArgumentException e) {
             return this.rejectedSave(dataView, e.getMessage());
-        } finally {
-            if (!this.connectionPoisoned.get()) {
-                QueryTransactionProbeResult afterSave = inspector.probeNow();
-                if (afterSave.probeFailed()) {
-                    log.warn("probe QueryConsole transaction state after DataView save failed");
-                }
-            }
         }
     }
 
@@ -489,13 +481,13 @@ public class QueryConsole extends AbstractConsole {
         return StringUtils.equalsAny(
                 reason,
                 TableChangesSaveService.SAVE_CHANGES_ROLLBACK_FAILED,
-                TableChangesSaveService.SAVE_CHANGES_SAVEPOINT_ROLLBACK_FAILED
+                TableChangesSaveService.SAVE_CHANGES_SAVEPOINT_ROLLBACK_FAILED,
+                TableChangesSaveService.SAVE_CHANGES_COMMIT_OUTCOME_UNKNOWN
         );
     }
 
     private void markConnectionPoisoned(String reason) {
-        this.connectionPoisonReason = reason;
-        this.connectionPoisoned.set(true);
+        this.connectionPoisoned = true;
         log.error("QueryConsole connection marked unusable, reason={}", reason);
     }
 
@@ -855,25 +847,22 @@ public class QueryConsole extends AbstractConsole {
         }
         this.onCancel();
 
+        // The closed CAS above makes close() run once; the connection is owned only by this
+        // console, so closing it under executionLock (the same lock getConnection() takes) is
+        // sufficient. JDBC Connection.close() is idempotent, so a connection already discarded
+        // by a poisoned save is harmlessly re-closed here.
         this.executionLock.lock();
         try {
-            this.closeConnection();
+            if (this.conn != null) {
+                try {
+                    this.conn.close();
+                } catch (SQLException | RuntimeException e) {
+                    log.warn("close query console connection failed", e);
+                }
+            }
         } finally {
             this.executionLock.unlock();
         }
         log.info("console closed");
-    }
-
-    private void closeConnection() {
-        synchronized (this.connectionMonitor) {
-            if (!this.connectionClosed.compareAndSet(false, true) || this.conn == null) {
-                return;
-            }
-            try {
-                this.conn.close();
-            } catch (SQLException | RuntimeException e) {
-                log.warn("close query console connection failed", e);
-            }
-        }
     }
 }

@@ -6,6 +6,6 @@ import java.sql.SQLException;
 
 public class CommitFailedException extends TableEditException {
     public CommitFailedException(SQLException cause) {
-        super(TableChangesSaveService.SAVE_CHANGES_COMMIT_FAILED, cause);
+        super(TableChangesSaveService.SAVE_CHANGES_COMMIT_OUTCOME_UNKNOWN, cause);
     }
 }

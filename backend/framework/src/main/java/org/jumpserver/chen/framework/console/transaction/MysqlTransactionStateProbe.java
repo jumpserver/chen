@@ -1,11 +1,8 @@
 package org.jumpserver.chen.framework.console.transaction;
 
-import lombok.extern.slf4j.Slf4j;
-
 import java.sql.Connection;
 import java.sql.SQLException;
 
-@Slf4j
 final class MysqlTransactionStateProbe implements TransactionStateProbe {
     private static final String STATE_SQL =
             "SELECT @@session.autocommit, @@session.in_transaction";
@@ -23,8 +20,7 @@ final class MysqlTransactionStateProbe implements TransactionStateProbe {
             return resultSet.getBoolean(1)
                     ? QueryTransactionState.AUTO_COMMIT
                     : QueryTransactionState.MANUAL_COMMIT_IDLE;
-        } catch (SQLException | RuntimeException e) {
-            log.debug("inspect MySQL/MariaDB transaction state failed", e);
+        } catch (SQLException e) {
             throw new TransactionStateProbeException(e);
         }
     }

@@ -83,6 +83,11 @@ export default {
       deletedRows: {},
       requestState: new DataViewRequestState(),
       nextInsertRowId: 1,
+      // Set when a save returned SAVE_CHANGES_COMMIT_OUTCOME_UNKNOWN: the commit may or may not
+      // have landed, so the connection was reset. While true, save/preview are blocked and the
+      // user must refresh to see the real database state before retrying. Cleared once fresh data
+      // is loaded (refresh/reload). Deliberately a single flag, not a state machine.
+      commitOutcomeUnknown: false,
 
       exportDataDialogVisible: false,
       state: {
@@ -666,6 +671,10 @@ export default {
       return this.data.fields.find((field) => field && field.editable === true && field.sourceTable && field.sourceColumn)
     },
     onSaveChanges() {
+      if (this.commitOutcomeUnknown) {
+        this.$message.warning('A previous save had an unknown commit outcome. Refresh to verify the actual database state before retrying.')
+        return
+      }
       if (this.requestBusy || !this.hasDirty()) {
         return
       }
@@ -742,6 +751,18 @@ export default {
       if (!request || !this.requestState.isCurrent(request.sequence, 'save')) {
         return false
       }
+      if (result && result.reason === 'SAVE_CHANGES_COMMIT_OUTCOME_UNKNOWN') {
+        this.requestState.finish(request.sequence, 'save')
+        // The commit failed with an unknown outcome: the database may have committed despite the
+        // client error, and the backend has already discarded the connection. Keep the local dirty
+        // state so the user can refresh to see the actual database state before deciding whether
+        // to retry; do not auto-refresh, because the save result is genuinely uncertain and a
+        // refresh would silently discard the user's in-grid edits. Block further save/preview until
+        // the user refreshes, so a retry cannot double-apply a change that may already be committed.
+        this.commitOutcomeUnknown = true
+        this.$message.warning('Save commit failed and the outcome is unknown. The connection has been reset. Refresh to verify the actual state before retrying.')
+        return true
+      }
       if (!result || !result.success) {
         this.requestState.finish(request.sequence, 'save')
         const reason = result && result.reason ? result.reason : 'Save failed'
@@ -758,7 +779,14 @@ export default {
       }
       this.requestState.finish(request.sequence, 'save')
       this.clearDirty()
-      this.$message.success('Save succeeded')
+      if (result.auditSucceeded === false) {
+        const message = result.databaseCommitted
+          ? 'Save committed, but audit recording failed. Do not retry the save.'
+          : 'Save applied to the current transaction, but audit recording failed. Do not retry the save.'
+        this.$message.warning(message)
+      } else {
+        this.$message.success('Save succeeded')
+      }
       this.startDataRequest({ action: 'refresh' })
       return true
     },
@@ -929,6 +957,9 @@ export default {
       if (!this.requestState.finish(request.sequence, 'data')) {
         return false
       }
+      // Fresh data has arrived from the server: any prior commit-outcome-unknown uncertainty is
+      // resolved, so lift the save/preview block. The user can now retry against verified state.
+      this.commitOutcomeUnknown = false
       this.resetDataSelection()
       return true
     },
