@@ -19,9 +19,9 @@
         </dependency>
 
         <dependency>
-            <groupId>com.alibaba</groupId>
+            <groupId>com.jumpserver</groupId>
             <artifactId>druid</artifactId>
-            <version>1.2.18</version>
+            <version>${druid.version}</version>
         </dependency>
 
         <dependency>
