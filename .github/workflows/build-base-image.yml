@@ -27,6 +27,15 @@ jobs:
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.branch || github.ref }}
 
+      - name: Prepare Maven authentication
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+          server-id: github
+          server-username: GITHUB_PACKAGES_USERNAME
+          server-password: GITHUB_PACKAGES_TOKEN
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
@@ -55,6 +64,11 @@ jobs:
           file: Dockerfile-base
           tags: jumpserver/${{ env.REPO }}-base:${{ env.IMAGE_TAG }}
           context: .
+          secret-files: |
+            maven_settings=/home/runner/.m2/settings.xml
+          secrets: |
+            github_packages_username=${{ vars.ZXC4WONDER_DRUID_JMS }}
+            github_packages_token=${{ secrets.ZXC4WONDER_DRUID_JMS }}
 
       - name: Update Dockerfile
         run: |

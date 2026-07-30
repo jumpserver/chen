@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1
+
 FROM node:20-trixie
 ARG TARGETARCH
 
@@ -54,7 +56,10 @@ COPY backend/web/pom.xml  backend/web/
 COPY backend/wisp/pom.xml  backend/wisp/
 COPY backend/modules/pom.xml  backend/modules/
 
-RUN set -ex \
+RUN --mount=type=secret,id=maven_settings,required=true \
+    --mount=type=secret,id=github_packages_username,env=GITHUB_PACKAGES_USERNAME,required=true \
+    --mount=type=secret,id=github_packages_token,env=GITHUB_PACKAGES_TOKEN,required=true \
+    set -ex \
     && mkdir -p /usr/share/maven /usr/share/maven/ref \
     && curl -fsSL -o /tmp/apache-maven.tar.gz ${BASE_URL}/apache-maven-${MAVEN_VERSION}-bin.tar.gz \
     && tar -xzf /tmp/apache-maven.tar.gz -C /usr/share/maven --strip-components=1 \
@@ -64,4 +69,4 @@ RUN set -ex \
     && mkdir -p /opt/chen/frontend/dist \
     && sed -i "s@https://repo.maven.apache.org/maven2@${MAVEN_MIRROR}@g" settings.xml \
     && cp -f settings.xml /root/.m2/ \
-    && mvn clean install
+    && mvn --settings /run/secrets/maven_settings clean install

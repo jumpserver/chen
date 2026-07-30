@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        java_version: [ '17' ]
+        java_version: [ '21' ]
         node_version: [ '20' ]
     outputs:
       upload_url: ${{ steps.create_release.outputs.upload_url }}
@@ -51,6 +51,9 @@ jobs:
         with:
           distribution: 'oracle'
           java-version: ${{ matrix.java_version }}
+          server-id: github
+          server-username: GITHUB_PACKAGES_USERNAME
+          server-password: GITHUB_PACKAGES_TOKEN
       
       - name: Build web
         run: |
@@ -59,8 +62,11 @@ jobs:
           yarn build
 
       - name: Build chen
+        env:
+          GITHUB_PACKAGES_USERNAME: ${{ vars.ZXC4WONDER_DRUID_JMS }}
+          GITHUB_PACKAGES_TOKEN: ${{ secrets.ZXC4WONDER_DRUID_JMS }}
         run: |
-          mvn clean package -DskipTests
+          mvn clean package -Dmaven.test.skip=true
           mkdir -p build chen-${{ steps.get_version.outputs.TAG }}
           rm -f config/application-dev.yml
           mv README.md chen-${{ steps.get_version.outputs.TAG }}/README.md
