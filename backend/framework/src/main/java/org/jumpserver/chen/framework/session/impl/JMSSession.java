@@ -267,6 +267,13 @@ public class JMSSession extends BaseSession {
 
     @Override
     public void close() {
+        if (!this.beginClose()) {
+            return;
+        }
+        this.closeJmsSessionResources();
+    }
+
+    private void closeJmsSessionResources() {
         if (this.getController() != null) {
             this.getController().cancelAllDialogs();
         }
@@ -279,23 +286,27 @@ public class JMSSession extends BaseSession {
             }
 
         } finally {
-            super.close();
+            super.closeSessionResources();
         }
     }
 
     public void close(String message, String reason, Object... args) {
+        if (!this.beginClose()) {
+            return;
+        }
         SessionManager.setContext(this.getWebToken());
+        try {
+            this.getPacketIO().sendPacket("session_close", null);
 
-        this.getPacketIO().sendPacket("session_close", null);
+            var dialog = new Dialog(MessageUtils.get("SessionFinished"));
+            dialog.setBody(MessageUtils.get(message, args));
+            this.getController().showDialog(dialog);
 
-        var dialog = new Dialog(MessageUtils.get("SessionFinished"));
-        dialog.setBody(MessageUtils.get(message, args));
-        this.getController().showDialog(dialog);
-
-        this.recordLifecycle(ServiceOuterClass.SessionLifecycleLogRequest.EventType.AssetConnectFinished, reason);
-        this.closed = true;
-
-        this.close();
+            this.recordLifecycle(ServiceOuterClass.SessionLifecycleLogRequest.EventType.AssetConnectFinished, reason);
+            this.closed = true;
+        } finally {
+            this.closeJmsSessionResources();
+        }
     }
 
     private void finishedJmsSession() {

@@ -32,6 +32,7 @@ import org.jumpserver.chen.framework.datasource.sql.SQLExecutePlan;
 import org.jumpserver.chen.framework.i18n.MessageUtils;
 import org.jumpserver.chen.framework.jms.acl.ACLResult;
 import org.jumpserver.chen.framework.jms.entity.CommandRecord;
+import org.jumpserver.chen.framework.session.Session;
 import org.jumpserver.chen.framework.session.SessionManager;
 import org.jumpserver.chen.framework.session.controller.DialogHandle;
 import org.jumpserver.chen.framework.session.controller.dialog.Button;
@@ -55,6 +56,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -72,8 +74,11 @@ public class QueryConsole extends AbstractConsole {
     static final String QUERY_TRANSACTION_PROBE_FAILED = "QUERY_TRANSACTION_PROBE_FAILED";
     static final String QUERY_INSERT_NOT_SUPPORTED = "QUERY_INSERT_NOT_SUPPORTED";
     static final String QUERY_DELETE_NOT_SUPPORTED = "QUERY_DELETE_NOT_SUPPORTED";
+    static final String CONSOLE_DATA_VIEW_EDIT_NOT_SUPPORTED = "CONSOLE_DATA_VIEW_EDIT_NOT_SUPPORTED";
 
     private final Datasource datasource;
+    private final boolean consoleMode;
+    private final int titleSequence;
     private final TableChangesPreviewService tableChangesPreviewService = new TableChangesPreviewService();
     private final TableChangesSaveService tableChangesSaveService = new TableChangesSaveService();
     private final QueryDataViewTableEditContextFactory tableEditContextFactory = new QueryDataViewTableEditContextFactory();
@@ -90,27 +95,41 @@ public class QueryConsole extends AbstractConsole {
     private volatile QueryTransactionStateInspector transactionStateInspector;
     private volatile SQLExecutePlan currentPlan;
     private StateManager<QueryConsoleState> stateManager;
-    private final Map<String, DataView> dataViews = new HashMap<>();
+    private final Map<String, DataView> dataViews = new LinkedHashMap<>();
     // Manual context changes remain restricted to values returned by the current server-side actuator.
     private volatile Map<String, String> allowedContexts = Map.of();
 
     private static final Gson GSON = new Gson();
 
     public QueryConsole(Datasource datasource, WebSocketSession ws, ConsoleContext context) {
+        this(datasource, ws, context, false);
+    }
+
+    public QueryConsole(
+            Datasource datasource,
+            WebSocketSession ws,
+            ConsoleContext context,
+            boolean consoleMode
+    ) {
         super(datasource, ws, context);
-        this.setTitle(String.format(MessageUtils.get("Query") + "-%d", generateConsoleName()));
+        this.consoleMode = consoleMode;
+        this.titleSequence = generateConsoleName(consoleMode);
+        this.setTitle(String.format(
+                MessageUtils.get(consoleMode ? "Console" : "Query") + "-%d",
+                this.titleSequence
+        ));
         this.datasource = datasource;
     }
 
-    private static int generateConsoleName() {
+    private static int generateConsoleName(boolean consoleMode) {
         int num = 1;
         var consoles = SessionManager
                 .getCurrentSession()
                 .getConsoles();
 
         for (var console : consoles.values()) {
-            if (console instanceof QueryConsole) {
-                ++num;
+            if (console instanceof QueryConsole queryConsole && queryConsole.consoleMode == consoleMode) {
+                num = Math.max(num, queryConsole.titleSequence + 1);
             }
         }
         return num;
@@ -253,9 +272,12 @@ public class QueryConsole extends AbstractConsole {
         switch (packet.getType()) {
             case "ping" -> this.getPacketIO().sendPacket("pong", null);
             case "close_data_view" -> {
-                var name = (String) packet.getData();
-                this.dataViews.remove(name);
-                log.info("close data view {}", name);
+                var reference = (String) packet.getData();
+                var dataView = this.findDataView(reference);
+                if (dataView != null) {
+                    this.dataViews.remove(dataView.getId());
+                }
+                log.info("close data view {}", reference);
             }
 
             case Packet.TYPE_QUERY_CONSOLE_ACTION -> {
@@ -396,7 +418,25 @@ public class QueryConsole extends AbstractConsole {
     }
 
     private void onDataViewAction(DataViewAction action) {
-        var dataView = this.dataViews.get(action.getDataView());
+        if (this.consoleMode && DataViewAction.ACTION_SAVE_CHANGES_PREVIEW.equals(action.getAction())) {
+            this.getPacketIO().sendPacket(PACKET_SAVE_CHANGES_PREVIEW_RESULT, Map.of(
+                    "success", false,
+                    "allowed", false,
+                    "reason", CONSOLE_DATA_VIEW_EDIT_NOT_SUPPORTED,
+                    "dataView", action.getDataView()
+            ));
+            return;
+        }
+        if (this.consoleMode && DataViewAction.ACTION_SAVE_CHANGES.equals(action.getAction())) {
+            this.getPacketIO().sendPacket(PACKET_SAVE_CHANGES_RESULT, Map.of(
+                    "success", false,
+                    "allowed", false,
+                    "reason", CONSOLE_DATA_VIEW_EDIT_NOT_SUPPORTED,
+                    "dataView", action.getDataView()
+            ));
+            return;
+        }
+        var dataView = this.findDataView(action.getDataView());
         if (dataView == null) {
             log.error("data view {} not found", action.getDataView());
             return;
@@ -432,7 +472,10 @@ public class QueryConsole extends AbstractConsole {
 
             dataView.doAction(action);
 
-            this.getPacketIO().sendPacket("update_data_view", new UpdateDataView(action.getDataView(), dataView.getData()));
+            this.getPacketIO().sendPacket(
+                    "update_data_view",
+                    new UpdateDataView(dataView.getId(), dataView.getTitle(), dataView.getData())
+            );
 
         } catch (SQLException e) {
             this.getMessager().send(Message.error(MessageUtils.get("FetchError"), e.getMessage()));
@@ -553,7 +596,7 @@ public class QueryConsole extends AbstractConsole {
         result.setSuccess(false);
         result.setAllowed(false);
         result.setReason(reason);
-        result.setDataView(dataView.getTitle());
+        result.setDataView(dataView.getId());
         return result;
     }
 
@@ -562,7 +605,7 @@ public class QueryConsole extends AbstractConsole {
         result.setSuccess(false);
         result.setAllowed(false);
         result.setReason(reason);
-        result.setDataView(dataView.getTitle());
+        result.setDataView(dataView.getId());
         return result;
     }
 
@@ -700,72 +743,14 @@ public class QueryConsole extends AbstractConsole {
         this.stateManager.commit();
         var session = SessionManager.getCurrentSession();
 
-        var aclResult = session.checkACL(sql, this.getConnection());
-        if (aclResult != null) {
-            if (aclResult.getRiskLevel() == Common.RiskLevel.Reject || aclResult.getRiskLevel() == Common.RiskLevel.ReviewReject) {
-                this.getConsoleLogger().error("%s", MessageUtils.get("ACLRejectError"));
-                CommandRecord commandRecord = new CommandRecord(sql);
-                commandRecord.setRiskLevel(aclResult.getRiskLevel());
-                session.recordCommand(commandRecord);
-
-                this.getState().setInQuery(false);
-                this.stateManager.commit();
-                return;
-            }
-
-            if (aclResult.isNotify()) {
-
-                var dialog = new Dialog(MessageUtils.get("Warning"));
-                dialog.setBody(MessageUtils.get("CommandWarningDialogMessage"));
-                var countDownLatch = new CountDownLatch(1);
-                AtomicBoolean hasNext = new AtomicBoolean(true);
-
-                dialog.addButton(new Button(MessageUtils.get("Submit"), "submit", countDownLatch::countDown));
-
-                dialog.addButton(new Button(MessageUtils.get("Cancel"), "cancel", () -> {
-                    hasNext.set(false);
-                    countDownLatch.countDown();
-                    this.getConsoleLogger().warn(MessageUtils.get("ExecutionCanceled"));
-                }));
-
-                var controller = SessionManager.getCurrentSession().getController();
-                DialogHandle dialogHandle = controller.showDialog(dialog, () -> {
-                    hasNext.set(false);
-                    countDownLatch.countDown();
-                });
-
-                try {
-                    if (!countDownLatch.await(WARNING_DIALOG_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
-                        hasNext.set(false);
-                        dialogHandle.cancel();
-                        this.getConsoleLogger().warn(MessageUtils.get("ExecutionCanceled"));
-                    }
-
-                    if (!hasNext.get()) {
-                        this.getState().setInQuery(false);
-                        this.stateManager.commit();
-                        return;
-                    }
-
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    hasNext.set(false);
-                    this.getState().setInQuery(false);
-                    this.stateManager.commit();
-
-                    this.getConsoleLogger().error("获取结果失败!");
-                    return;
-                } finally {
-                    dialogHandle.close();
-                }
-            }
-        }
-
-
         try {
             var stmts = this.getSqlActuator().parseSQL(SQL.of(sql));
             var clearOthers = true;
             for (String stmt : stmts) {
+                var aclResult = session.checkACL(stmt, this.getConnection());
+                if (!this.canExecuteStatement(session, stmt, aclResult)) {
+                    break;
+                }
                 var dataView = this.runSingleSQL(stmt, aclResult);
                 if (!dataView.isHasTable()) {
                     this.getConsoleLogger().success("%s , %s: %d",
@@ -787,6 +772,57 @@ public class QueryConsole extends AbstractConsole {
             this.getState().setInQuery(false);
             this.getState().setCanCancel(false);
             this.stateManager.commit();
+        }
+    }
+
+    private boolean canExecuteStatement(Session session, String sql, ACLResult aclResult) {
+        if (aclResult == null) {
+            return true;
+        }
+        if (aclResult.getRiskLevel() == Common.RiskLevel.Reject ||
+                aclResult.getRiskLevel() == Common.RiskLevel.ReviewReject ||
+                aclResult.getRiskLevel() == Common.RiskLevel.ReviewCancel) {
+            this.getConsoleLogger().error("%s", MessageUtils.get("ACLRejectError"));
+            CommandRecord commandRecord = new CommandRecord(sql);
+            commandRecord.setRiskLevel(aclResult.getRiskLevel());
+            session.recordCommand(commandRecord);
+            return false;
+        }
+        return !aclResult.isNotify() || this.confirmStatementWarning(session);
+    }
+
+    private boolean confirmStatementWarning(Session session) {
+        var dialog = new Dialog(MessageUtils.get("Warning"));
+        dialog.setBody(MessageUtils.get("CommandWarningDialogMessage"));
+        var countDownLatch = new CountDownLatch(1);
+        AtomicBoolean hasNext = new AtomicBoolean(true);
+
+        dialog.addButton(new Button(MessageUtils.get("Submit"), "submit", countDownLatch::countDown));
+        dialog.addButton(new Button(MessageUtils.get("Cancel"), "cancel", () -> {
+            hasNext.set(false);
+            countDownLatch.countDown();
+            this.getConsoleLogger().warn(MessageUtils.get("ExecutionCanceled"));
+        }));
+
+        var controller = session.getController();
+        DialogHandle dialogHandle = controller.showDialog(dialog, () -> {
+            hasNext.set(false);
+            countDownLatch.countDown();
+        });
+
+        try {
+            if (!countDownLatch.await(WARNING_DIALOG_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+                hasNext.set(false);
+                dialogHandle.cancel();
+                this.getConsoleLogger().warn(MessageUtils.get("ExecutionCanceled"));
+            }
+            return hasNext.get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            this.getConsoleLogger().error("获取结果失败!");
+            return false;
+        } finally {
+            dialogHandle.close();
         }
     }
 
@@ -818,7 +854,12 @@ public class QueryConsole extends AbstractConsole {
     private DataView runSingleSQL(String sql, ACLResult aclResult) throws SQLException {
 
         String sourceSQL = sql;
-        DataView dataView = new DataView(sourceSQL, this.getPacketIO(), this.getConsoleLogger());
+        DataView dataView = new DataView(
+                UUID.randomUUID().toString(),
+                sourceSQL,
+                this.getPacketIO(),
+                this.getConsoleLogger()
+        );
         dataView.setSql(sourceSQL);
 
         dataView.setLoadDataInterface((sqlQueryParams) -> {
@@ -858,24 +899,52 @@ public class QueryConsole extends AbstractConsole {
 
 
     private void sendDataView(DataView dataView, boolean clearOthers) {
+        if (this.consoleMode) {
+            this.getPacketIO().sendPacket("console_result", Map.of(
+                    "id", dataView.getId(),
+                    "title", dataView.getTitle(),
+                    "data", dataView.getData(),
+                    "state", dataView.getStateManager().getState()
+            ));
+            return;
+        }
+
         if (clearOthers) {
-            var forDeleteDataViewTitles = new ArrayList<String>();
-            for (var title : this.dataViews.keySet()) {
-                if (!dataView.getTitle().equals(title) && !this.dataViews.get(title).getStateManager().getState().isPinned()) {
-                    forDeleteDataViewTitles.add(title);
+            var forDeleteDataViewIds = new ArrayList<String>();
+            for (var entry : this.dataViews.entrySet()) {
+                if (!entry.getValue().getStateManager().getState().isPinned()) {
+                    forDeleteDataViewIds.add(entry.getKey());
                 }
             }
-            forDeleteDataViewTitles.forEach(this.dataViews.keySet()::remove);
-            this.getPacketIO().sendPacket("close_data_view", forDeleteDataViewTitles);
+            forDeleteDataViewIds.forEach(this.dataViews.keySet()::remove);
+            this.getPacketIO().sendPacket("close_data_view", forDeleteDataViewIds);
         }
 
-        if (!this.dataViews.containsKey(dataView.getTitle())) {
-            this.getPacketIO().sendPacket("new_data_view", Map.of("title", dataView.getTitle()));
-        }
+        this.getPacketIO().sendPacket(
+                "new_data_view",
+                Map.of("id", dataView.getId(), "title", dataView.getTitle())
+        );
 
-        this.dataViews.put(dataView.getTitle(), dataView);
-        this.getPacketIO().sendPacket("update_data_view", new UpdateDataView(dataView.getTitle(), dataView.getData()));
+        this.dataViews.put(dataView.getId(), dataView);
+        this.getPacketIO().sendPacket(
+                "update_data_view",
+                new UpdateDataView(dataView.getId(), dataView.getTitle(), dataView.getData())
+        );
         dataView.getStateManager().commit();
+    }
+
+    private DataView findDataView(String reference) {
+        var dataView = this.dataViews.get(reference);
+        if (dataView != null) {
+            return dataView;
+        }
+        DataView matched = null;
+        for (var candidate : this.dataViews.values()) {
+            if (StringUtils.equals(candidate.getTitle(), reference)) {
+                matched = candidate;
+            }
+        }
+        return matched;
     }
 
 

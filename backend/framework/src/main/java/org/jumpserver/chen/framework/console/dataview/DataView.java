@@ -26,6 +26,7 @@ import java.util.Map;
 @EqualsAndHashCode(callSuper = true)
 @Data
 public class DataView extends SQLResult {
+    private final String id;
     private final String title;
     private final StateManager<DataViewState> stateManager;
     private LoadDataInterface loadDataInterface;
@@ -38,8 +39,13 @@ public class DataView extends SQLResult {
     private Logger consoleLogger;
 
     public DataView(String title, PacketIO packetIO, Logger logger) {
+        this(title, title, packetIO, logger);
+    }
+
+    public DataView(String id, String title, PacketIO packetIO, Logger logger) {
+        this.id = id;
         this.title = title;
-        this.state = new DataViewState(title);
+        this.state = new DataViewState(this.id, title);
         this.stateManager = new StateManager<>(this.state, packetIO);
         this.consoleLogger = logger;
     }

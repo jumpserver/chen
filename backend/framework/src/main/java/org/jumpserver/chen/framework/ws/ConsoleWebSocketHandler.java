@@ -142,7 +142,12 @@ public class ConsoleWebSocketHandler extends TextWebSocketHandler {
         Console console = this.createConsole(connect.getType(), webSess.getDatasource(), session, context);
         if (console != null) {
             this.setDatabaseContext(console);
-            webSess.getConsoles().put(session.getId(), console);
+            var token = (String) session.getAttributes().get("token");
+            if (!SessionManager.registerConsole(token, session.getId(), console)) {
+                console.close();
+                this.closeWebSocket(session);
+                return;
+            }
             console.onInit(connect);
             log.info("User {} open a console ", webSess.getUsername());
         }
@@ -152,6 +157,7 @@ public class ConsoleWebSocketHandler extends TextWebSocketHandler {
                                     WebSocketSession session, ConsoleContext context) {
         return switch (type) {
             case Connect.CONSOLE_TYPE_QUERY -> new QueryConsole(datasource, session, context);
+            case Connect.CONSOLE_TYPE_CONSOLE -> new QueryConsole(datasource, session, context, true);
             case Connect.CONSOLE_TYPE_DATA_VIEW -> new DataViewConsole(datasource, session, context);
             default -> null;
         };

@@ -1,6 +1,7 @@
 package org.jumpserver.chen.framework.session;
 
 import lombok.extern.slf4j.Slf4j;
+import org.jumpserver.chen.framework.console.Console;
 
 import java.util.Map;
 import java.util.UUID;
@@ -29,6 +30,13 @@ public class SessionManager {
         instance.store.remove(token);
         instance.primaryWebSockets.remove(token);
         log.info("session {} unregistered, current session count {}", token, instance.getCurrentSessionCount());
+    }
+
+    public static boolean registerConsole(String token, String consoleId, Console console) {
+        return instance.store.computeIfPresent(token, (ignored, session) -> {
+            session.getConsoles().put(consoleId, console);
+            return session;
+        }) != null;
     }
 
     public int getCurrentSessionCount() {
