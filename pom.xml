@@ -21,6 +21,7 @@
 
     <properties>
         <revision>0.0.1</revision>
+        <druid.version>1.2.28-jms.1</druid.version>
         <java.version>21</java.version>
         <maven-compiler-plugin.version>3.9.0</maven-compiler-plugin.version>
         <maven.compiler.source>21</maven.compiler.source>
@@ -34,6 +35,20 @@
         <grpc.version>1.75.0</grpc.version>
         <netty.version>4.1.135.Final</netty.version>
     </properties>
+
+    <repositories>
+        <repository>
+            <id>fit2cloud-public</id>
+            <name>FIT2CLOUD Public Repository</name>
+            <url>https://repository.fit2cloud.com/repository/public/</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+    </repositories>
 
     <build>
         <plugins>
