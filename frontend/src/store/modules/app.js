@@ -39,8 +39,9 @@ const mutations = {
       document.addEventListener('paste', (e) => {
         Message.error(i18n.t('msg.copy_not_allowed'))
         e.preventDefault()
+        e.stopPropagation()
         navigator.clipboard.writeText('').then(r => {})
-      })
+      }, true)
     }
   }
 }
