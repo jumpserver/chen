@@ -8,6 +8,7 @@ import org.jumpserver.chen.framework.utils.SqlIdentifierUtils;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -15,8 +16,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 public class SqlMetadataCatalog {
     public static final int DEFAULT_RELATION_LIMIT = 100;
@@ -35,7 +34,14 @@ public class SqlMetadataCatalog {
 
     public RelationMetadataPage listRelations(ResourceNodeSnapshot node, String context, String prefix, Integer limit)
             throws SQLException {
-        var scope = this.resolveScope(node, context);
+        var scope = connectionManager.withDatabaseContext(null, () -> this.resolveScope(node, context));
+        return connectionManager.withDatabaseContext(
+                scope.catalog(),
+                () -> this.listRelations(scope, prefix, limit)
+        );
+    }
+
+    private RelationMetadataPage listRelations(MetadataScope scope, String prefix, Integer limit) throws SQLException {
         var schemas = this.resolveSchemas(scope.schema());
         var relations = new ArrayList<QualifiedRelation>();
 
@@ -80,20 +86,29 @@ public class SqlMetadataCatalog {
             throw new IllegalArgumentException("Too many relations in one metadata request");
         }
 
-        var scope = this.resolveScope(node, context);
+        var scope = connectionManager.withDatabaseContext(null, () -> this.resolveScope(node, context));
+        return connectionManager.withDatabaseContext(
+                scope.catalog(),
+                () -> this.listColumns(scope, requestedRelations)
+        );
+    }
+
+    private List<RelationColumnsMetadata> listColumns(
+            MetadataScope scope,
+            List<QualifiedRelation> requestedRelations
+    ) throws SQLException {
         var availableSchemas = this.resolveSchemas(null);
-        var canonicalSchemas = availableSchemas.stream()
-                .collect(Collectors.toMap(Function.identity(), Function.identity(), (left, right) -> left));
         var relationsBySchema = new LinkedHashMap<String, Map<RelationKey, QualifiedRelation>>();
         var canonicalRequests = new LinkedHashMap<RelationKey, QualifiedRelation>();
 
         for (var requested : requestedRelations) {
             this.validateRequestedRelation(requested, scope.catalog());
             var requestedSchema = StringUtils.defaultIfBlank(requested.schema(), scope.schema());
-            var canonicalSchema = canonicalSchemas.get(requestedSchema);
-            if (canonicalSchema == null) {
-                throw new IllegalArgumentException("Unknown relation schema");
-            }
+            var canonicalSchema = this.resolveCanonicalIdentifier(
+                    availableSchemas,
+                    requestedSchema,
+                    "Unknown relation schema"
+            );
 
             var availableRelations = relationsBySchema.get(canonicalSchema);
             if (availableRelations == null) {
@@ -103,9 +118,18 @@ public class SqlMetadataCatalog {
             var key = new RelationKey(canonicalSchema, requested.name(), requested.kind());
             var canonical = availableRelations.get(key);
             if (canonical == null) {
-                throw new IllegalArgumentException("Unknown relation");
+                var canonicalName = this.resolveCanonicalIdentifier(
+                        availableRelations.values().stream()
+                                .filter(relation -> relation.kind().equals(requested.kind()))
+                                .map(QualifiedRelation::name)
+                                .toList(),
+                        requested.name(),
+                        "Unknown relation"
+                );
+                canonical = availableRelations.get(new RelationKey(canonicalSchema, canonicalName, requested.kind()));
             }
-            canonicalRequests.putIfAbsent(key, canonical);
+            var canonicalKey = new RelationKey(canonical.schema(), canonical.name(), canonical.kind());
+            canonicalRequests.putIfAbsent(canonicalKey, canonical);
         }
 
         var result = new ArrayList<RelationColumnsMetadata>();
@@ -136,10 +160,7 @@ public class SqlMetadataCatalog {
             }
             catalog = currentContext;
         }
-        if (StringUtils.isNotBlank(catalog)) {
-            SqlIdentifierUtils.validateDatabaseName(catalog);
-            connectionManager.setDatabaseContext(catalog);
-        }
+        SqlIdentifierUtils.validateDatabaseName(catalog);
 
         String schema = null;
         if (StringUtils.equals(contextKey, "schema")) {
@@ -158,11 +179,58 @@ public class SqlMetadataCatalog {
         if (StringUtils.isBlank(requestedSchema)) {
             return schemas;
         }
-        return schemas.stream()
-                .filter(schema -> schema.equals(requestedSchema))
-                .findFirst()
-                .map(List::of)
-                .orElseThrow(() -> new IllegalArgumentException("Unknown metadata schema"));
+        return List.of(this.resolveCanonicalIdentifier(schemas, requestedSchema, "Unknown metadata schema"));
+    }
+
+    private String resolveCanonicalIdentifier(
+            Collection<String> candidates,
+            String requested,
+            String unknownMessage
+    ) {
+        if (StringUtils.isBlank(requested)) {
+            throw new IllegalArgumentException(unknownMessage);
+        }
+
+        var exactMatches = candidates.stream().filter(requested::equals).distinct().toList();
+        if (exactMatches.size() == 1) {
+            return exactMatches.get(0);
+        }
+
+        var caseRule = this.identifierCaseRule();
+        if (caseRule == IdentifierCaseRule.LOWER || caseRule == IdentifierCaseRule.UPPER) {
+            var normalizedRequested = caseRule.normalize(requested);
+            var normalizedMatches = candidates.stream()
+                    .filter(candidate -> candidate.equals(caseRule.normalize(candidate)))
+                    .filter(candidate -> candidate.equals(normalizedRequested))
+                    .distinct()
+                    .toList();
+            if (normalizedMatches.size() == 1) {
+                return normalizedMatches.get(0);
+            }
+            throw new IllegalArgumentException(unknownMessage);
+        }
+
+        if (caseRule == IdentifierCaseRule.INSENSITIVE) {
+            var insensitiveMatches = candidates.stream()
+                    .filter(candidate -> candidate.equalsIgnoreCase(requested))
+                    .distinct()
+                    .toList();
+            if (insensitiveMatches.size() == 1) {
+                return insensitiveMatches.get(0);
+            }
+        }
+        throw new IllegalArgumentException(unknownMessage);
+    }
+
+    private IdentifierCaseRule identifierCaseRule() {
+        var connectInfo = connectionManager.getConnectInfo();
+        var dbType = connectInfo == null ? "" : StringUtils.defaultString(connectInfo.getDbType());
+        return switch (dbType.toLowerCase(Locale.ROOT)) {
+            case "postgresql" -> IdentifierCaseRule.LOWER;
+            case "oracle", "db2", "dm", "dameng" -> IdentifierCaseRule.UPPER;
+            case "mysql", "mariadb", "sqlserver" -> IdentifierCaseRule.INSENSITIVE;
+            default -> IdentifierCaseRule.EXACT;
+        };
     }
 
     private Map<RelationKey, QualifiedRelation> loadRelationsByKey(String catalog, String schema) throws SQLException {
@@ -192,5 +260,16 @@ public class SqlMetadataCatalog {
     }
 
     private record RelationKey(String schema, String name, String kind) {
+    }
+
+    private enum IdentifierCaseRule {
+        LOWER,
+        UPPER,
+        INSENSITIVE,
+        EXACT;
+
+        private String normalize(String identifier) {
+            return this == UPPER ? identifier.toUpperCase(Locale.ROOT) : identifier.toLowerCase(Locale.ROOT);
+        }
     }
 }
