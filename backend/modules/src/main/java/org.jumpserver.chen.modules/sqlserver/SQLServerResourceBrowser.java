@@ -64,7 +64,7 @@ public class SQLServerResourceBrowser extends BaseResourceBrowser {
         return this.getSchemas(SQL.of(SQL_GET_SCHEMAS));
     }
 
-    private static final String SQL_GET_TABLES = " SELECT table_name AS name FROM INFORMATION_SCHEMA.TABLES WHERE table_schema = '?'";
+    private static final String SQL_GET_TABLES = " SELECT table_name AS name FROM INFORMATION_SCHEMA.TABLES WHERE table_schema = '?' AND table_type = 'BASE TABLE'";
 
     @Override
     public List<Table> getTables(String schema) throws SQLException {
@@ -78,7 +78,7 @@ public class SQLServerResourceBrowser extends BaseResourceBrowser {
         return this.getViews(SQL.of(SQL_GET_VIEWS, schema));
     }
 
-    private static final String SQL_GET_FIELDS = "SELECT column_name AS name, column_type AS type, column_key AS `key`, is_nullable AS `nullable`, column_default AS `default`, extra AS extra, column_comment AS comment FROM information_schema.columns WHERE table_schema = '?' AND table_name = '?'";
+    private static final String SQL_GET_FIELDS = "SELECT column_name AS name, data_type AS type, is_nullable AS nullable FROM information_schema.columns WHERE table_schema = '?' AND table_name = '?'";
 
     @Override
     public List<Field> getFields(String schema, String table) throws SQLException {
