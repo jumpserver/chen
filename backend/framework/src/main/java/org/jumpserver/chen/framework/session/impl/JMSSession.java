@@ -277,6 +277,7 @@ public class JMSSession extends BaseSession {
         if (this.getController() != null) {
             this.getController().cancelAllDialogs();
         }
+        this.closeConsoles();
         try {
             this.replayHandler.release();
             this.finishedJmsSession();

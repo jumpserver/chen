@@ -203,6 +203,11 @@ public class BaseSession implements Session {
     }
 
     @Override
+    public boolean isClosing() {
+        return this.closeStarted.get();
+    }
+
+    @Override
     public void close() {
         if (!this.beginClose()) {
             return;
@@ -211,15 +216,17 @@ public class BaseSession implements Session {
     }
 
     protected final boolean beginClose() {
-        return this.closeStarted.compareAndSet(false, true);
+        synchronized (this) {
+            return this.closeStarted.compareAndSet(false, true);
+        }
     }
 
     protected final void closeSessionResources() {
         if (this.getController() != null) {
             this.getController().cancelAllDialogs();
         }
-        SessionManager.unregisterSession(this.getWebToken());
         this.closeConsoles();
+        SessionManager.unregisterSession(this.getWebToken());
         this.getDatasource().close();
         this.getPacketIO().close();
         var path = this.getTempPath();
@@ -228,7 +235,7 @@ public class BaseSession implements Session {
         }
     }
 
-    private void closeConsoles() {
+    protected final void closeConsoles() {
         var detached = new ArrayList<Map.Entry<String, Console>>();
         while (!this.consoles.isEmpty()) {
             for (var entry : this.consoles.entrySet()) {

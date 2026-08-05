@@ -6,6 +6,7 @@ import org.jumpserver.chen.framework.console.Console;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 
 @Slf4j
@@ -33,10 +34,17 @@ public class SessionManager {
     }
 
     public static boolean registerConsole(String token, String consoleId, Console console) {
-        return instance.store.computeIfPresent(token, (ignored, session) -> {
-            session.getConsoles().put(consoleId, console);
+        var registered = new AtomicBoolean(false);
+        instance.store.computeIfPresent(token, (ignored, session) -> {
+            synchronized (session) {
+                if (!session.isClosing()) {
+                    session.getConsoles().put(consoleId, console);
+                    registered.set(true);
+                }
+            }
             return session;
-        }) != null;
+        });
+        return registered.get();
     }
 
     public int getCurrentSessionCount() {
