@@ -23,10 +23,12 @@ import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Slf4j
 public class BaseSession implements Session {
@@ -44,6 +46,7 @@ public class BaseSession implements Session {
 
     @Getter
     Map<String, Console> consoles = new ConcurrentHashMap<>();
+    private final AtomicBoolean closeStarted = new AtomicBoolean(false);
 
     @Getter
     @Setter
@@ -201,15 +204,45 @@ public class BaseSession implements Session {
 
     @Override
     public void close() {
+        if (!this.beginClose()) {
+            return;
+        }
+        this.closeSessionResources();
+    }
+
+    protected final boolean beginClose() {
+        return this.closeStarted.compareAndSet(false, true);
+    }
+
+    protected final void closeSessionResources() {
         if (this.getController() != null) {
             this.getController().cancelAllDialogs();
         }
         SessionManager.unregisterSession(this.getWebToken());
+        this.closeConsoles();
         this.getDatasource().close();
         this.getPacketIO().close();
         var path = this.getTempPath();
         if (path.toFile().exists()) {
             path.toFile().delete();
+        }
+    }
+
+    private void closeConsoles() {
+        var detached = new ArrayList<Map.Entry<String, Console>>();
+        while (!this.consoles.isEmpty()) {
+            for (var entry : this.consoles.entrySet()) {
+                if (this.consoles.remove(entry.getKey(), entry.getValue())) {
+                    detached.add(Map.entry(entry.getKey(), entry.getValue()));
+                }
+            }
+        }
+        for (var entry : detached) {
+            try {
+                entry.getValue().close();
+            } catch (RuntimeException e) {
+                log.warn("close console failed, consoleId={}", entry.getKey(), e);
+            }
         }
     }
 

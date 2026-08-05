@@ -37,7 +37,7 @@ public class ConsoleContextResolver {
 
     private static boolean isAllowedNodeType(String consoleType, String nodeType) {
         return switch (consoleType) {
-            case Connect.CONSOLE_TYPE_QUERY -> QUERY_NODE_TYPES.contains(nodeType);
+            case Connect.CONSOLE_TYPE_QUERY, Connect.CONSOLE_TYPE_CONSOLE -> QUERY_NODE_TYPES.contains(nodeType);
             case Connect.CONSOLE_TYPE_DATA_VIEW -> DATA_VIEW_NODE_TYPES.contains(nodeType);
             default -> false;
         };
