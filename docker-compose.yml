@@ -6,13 +6,13 @@ services:
     container_name: chen-backend-dev
     volumes:
       - ./config:/opt/chen/config
-      - chen-data:/opt/chen/data
+      - ./data:/opt/chen/data
     ports:
       - "8082:8082"
     environment:
       LOG_LEVEL: INFO
       CORE_HOST: ${CORE_HOST:-http://host.docker.internal:8080}
-      BOOTSTRAP_TOKEN: ${BOOTSTRAP_TOKEN:?PleaseChangeMe}
+      BOOTSTRAP_TOKEN: ${BOOTSTRAP_TOKEN-:PleaseChangeMe}
       EXECUTE_PROGRAM: >-
         java -Dfile.encoding=utf-8 -XX:+ExitOnOutOfMemoryError
         -jar /opt/chen/chen.jar
