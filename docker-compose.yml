@@ -11,8 +11,8 @@ services:
       - "8082:8082"
     environment:
       LOG_LEVEL: INFO
-      BOOTSTRAP_TOKEN: PleaseChangeMe
-      CORE_HOST: http://192.168.1.80:8080
+      CORE_HOST: ${CORE_HOST:-http://host.docker.internal:8080}
+      BOOTSTRAP_TOKEN: ${BOOTSTRAP_TOKEN:?PleaseChangeMe}
       EXECUTE_PROGRAM: >-
         java -Dfile.encoding=utf-8 -XX:+ExitOnOutOfMemoryError
         -jar /opt/chen/chen.jar
