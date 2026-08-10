@@ -2,10 +2,12 @@ package org.jumpserver.chen.framework.console;
 
 import com.alibaba.druid.sql.parser.ParserException;
 import com.google.gson.Gson;
+import com.google.gson.JsonParseException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.jumpserver.chen.framework.console.action.DataViewAction;
 import org.jumpserver.chen.framework.console.action.QueryConsoleAction;
+import org.jumpserver.chen.framework.console.action.SQLChunkData;
 import org.jumpserver.chen.framework.console.dataview.DataView;
 import org.jumpserver.chen.framework.console.dataview.QueryDataViewTableEditContextFactory;
 import org.jumpserver.chen.framework.console.dataview.UpdateDataView;
@@ -359,16 +361,27 @@ public class QueryConsole extends AbstractConsole {
     private int expectedChunks = -1;
 
     private void handleSQLChunk(QueryConsoleAction action) {
-        var data = (Map<String, Object>) action.getData();
-        var chunk = (String) data.get("chunk");
-        var index = (Integer) data.get("index");
-        var total = (Integer) data.get("total");
-
-        if (chunk == null || index == null || total == null || total <= 0) {
+        SQLChunkData data;
+        try {
+            data = GSON.fromJson(GSON.toJson(action.getData()), SQLChunkData.class);
+        } catch (JsonParseException e) {
             this.getConsoleLogger().error("invalid sql chunk");
             this.resetSQLChunks();
             return;
         }
+
+        if (data == null
+                || data.getChunk() == null
+                || data.getIndex() == null
+                || data.getTotal() == null
+                || data.getTotal() <= 0) {
+            this.getConsoleLogger().error("invalid sql chunk");
+            this.resetSQLChunks();
+            return;
+        }
+        var chunk = data.getChunk();
+        var index = data.getIndex();
+        var total = data.getTotal();
         if (expectedChunks == -1) {
             expectedChunks = total;
         }
@@ -619,7 +632,7 @@ public class QueryConsole extends AbstractConsole {
             var plan = this.currentPlan;
             if (plan != null) {
                 plan.cancel();
-                this.getConsoleLogger().error("cancel query: %s", plan.getTargetSQL());
+                this.getConsoleLogger().warn("cancel query: %s", plan.getTargetSQL());
             }
         } catch (SQLException | RuntimeException e) {
             log.error("cancel failed ", e);
@@ -775,9 +788,9 @@ public class QueryConsole extends AbstractConsole {
         } catch (SQLException e) {
             if (!StringUtils.equals(this.getState().getExecutionStatus(), EXECUTION_STATUS_CANCELLED)) {
                 this.getState().setExecutionStatus(EXECUTION_STATUS_ERROR);
+                this.getConsoleLogger().error("%s: %s", MessageUtils.get("ExecuteError"), e.getMessage());
+                this.getPacketIO().sendPacket("message", Message.error(MessageUtils.get("ExecuteError"), e.getMessage()));
             }
-            this.getConsoleLogger().error("%s: %s", MessageUtils.get("ExecuteError"), e.getMessage());
-            this.getPacketIO().sendPacket("message", Message.error(MessageUtils.get("ExecuteError"), e.getMessage()));
         } finally {
             if (StringUtils.equals(this.getState().getExecutionStatus(), EXECUTION_STATUS_RUNNING)) {
                 this.getState().setExecutionStatus(EXECUTION_STATUS_SUCCESS);
