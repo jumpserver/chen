@@ -617,7 +617,7 @@ public class QueryConsole extends AbstractConsole {
         this.getState().setExecutionStatus(EXECUTION_STATUS_CANCELLED);
         try {
             var plan = this.currentPlan;
-            if (plan != null && plan.getStatement() != null) {
+            if (plan != null) {
                 plan.cancel();
                 this.getConsoleLogger().error("cancel query: %s", plan.getTargetSQL());
             }
@@ -893,15 +893,13 @@ public class QueryConsole extends AbstractConsole {
                     .createPlan(SQL.of(sourceSQL));
             plan.setAclResult(aclResult);
             plan.setSqlQueryParams(sqlQueryParams);
-            plan.generateTargetSQL();
-            this.getConsoleLogger().info("execute sql: %s", plan.getTargetSQL());
-
             this.currentPlan = plan;
-
             this.getState().setCanCancel(true);
             this.stateManager.commit();
 
             try {
+                plan.generateTargetSQL();
+                this.getConsoleLogger().info("execute sql: %s", plan.getTargetSQL());
                 var result = plan.executeWithAudit();
                 this.getConsoleLogger().success(result);
                 return result;
