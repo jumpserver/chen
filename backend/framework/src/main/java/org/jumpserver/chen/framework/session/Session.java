@@ -80,6 +80,8 @@ public interface Session {
 
     boolean isActive();
 
+    boolean isClosing();
+
     void close();
 
     void close(String message, Object... args);

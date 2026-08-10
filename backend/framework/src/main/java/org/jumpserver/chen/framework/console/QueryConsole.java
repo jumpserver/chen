@@ -75,6 +75,10 @@ public class QueryConsole extends AbstractConsole {
     static final String QUERY_INSERT_NOT_SUPPORTED = "QUERY_INSERT_NOT_SUPPORTED";
     static final String QUERY_DELETE_NOT_SUPPORTED = "QUERY_DELETE_NOT_SUPPORTED";
     static final String CONSOLE_DATA_VIEW_EDIT_NOT_SUPPORTED = "CONSOLE_DATA_VIEW_EDIT_NOT_SUPPORTED";
+    private static final String EXECUTION_STATUS_RUNNING = "running";
+    private static final String EXECUTION_STATUS_SUCCESS = "success";
+    private static final String EXECUTION_STATUS_ERROR = "error";
+    private static final String EXECUTION_STATUS_CANCELLED = "cancelled";
 
     private final Datasource datasource;
     private final boolean consoleMode;
@@ -453,7 +457,7 @@ public class QueryConsole extends AbstractConsole {
             }
             try {
                 var context = this.tableEditContextFactory.create(dataView, this.getDatasource().getDruidDbType());
-                var result = this.tableChangesPreviewService.preview(context, action.getDataView(), request);
+                var result = this.tableChangesPreviewService.preview(context, dataView.getTitle(), request);
                 this.getPacketIO().sendPacket(PACKET_SAVE_CHANGES_PREVIEW_RESULT, result);
             } catch (IllegalArgumentException e) {
                 this.getPacketIO().sendPacket(PACKET_SAVE_CHANGES_PREVIEW_RESULT, this.rejectedPreview(dataView, e.getMessage()));
@@ -462,7 +466,7 @@ public class QueryConsole extends AbstractConsole {
         }
         if (DataViewAction.ACTION_SAVE_CHANGES.equals(action.getAction())) {
             var request = GSON.fromJson(GSON.toJson(action.getData()), SaveChangesRequest.class);
-            SaveChangesResult result = this.saveQueryChanges(dataView, action.getDataView(), request);
+            SaveChangesResult result = this.saveQueryChanges(dataView, dataView.getTitle(), request);
             this.getPacketIO().sendPacket(PACKET_SAVE_CHANGES_RESULT, result);
             return;
         }
@@ -610,6 +614,7 @@ public class QueryConsole extends AbstractConsole {
     }
 
     public void onCancel() {
+        this.getState().setExecutionStatus(EXECUTION_STATUS_CANCELLED);
         try {
             var plan = this.currentPlan;
             if (plan != null && plan.getStatement() != null) {
@@ -740,6 +745,7 @@ public class QueryConsole extends AbstractConsole {
 
     public void onSQL(String sql) {
         this.getState().setInQuery(true);
+        this.getState().setExecutionStatus(EXECUTION_STATUS_RUNNING);
         this.stateManager.commit();
         var session = SessionManager.getCurrentSession();
 
@@ -763,12 +769,19 @@ public class QueryConsole extends AbstractConsole {
             }
             this.ensureCurrentSchema();
         } catch (ParserException e) {
+            this.getState().setExecutionStatus(EXECUTION_STATUS_ERROR);
             this.getConsoleLogger().error("%s: %s", MessageUtils.get("ParseError"), e.getMessage());
             this.getPacketIO().sendPacket("message", Message.error(MessageUtils.get("ParseError"), e.getMessage()));
         } catch (SQLException e) {
+            if (!StringUtils.equals(this.getState().getExecutionStatus(), EXECUTION_STATUS_CANCELLED)) {
+                this.getState().setExecutionStatus(EXECUTION_STATUS_ERROR);
+            }
             this.getConsoleLogger().error("%s: %s", MessageUtils.get("ExecuteError"), e.getMessage());
             this.getPacketIO().sendPacket("message", Message.error(MessageUtils.get("ExecuteError"), e.getMessage()));
         } finally {
+            if (StringUtils.equals(this.getState().getExecutionStatus(), EXECUTION_STATUS_RUNNING)) {
+                this.getState().setExecutionStatus(EXECUTION_STATUS_SUCCESS);
+            }
             this.getState().setInQuery(false);
             this.getState().setCanCancel(false);
             this.stateManager.commit();
@@ -782,6 +795,11 @@ public class QueryConsole extends AbstractConsole {
         if (aclResult.getRiskLevel() == Common.RiskLevel.Reject ||
                 aclResult.getRiskLevel() == Common.RiskLevel.ReviewReject ||
                 aclResult.getRiskLevel() == Common.RiskLevel.ReviewCancel) {
+            this.getState().setExecutionStatus(
+                    aclResult.getRiskLevel() == Common.RiskLevel.ReviewCancel
+                            ? EXECUTION_STATUS_CANCELLED
+                            : EXECUTION_STATUS_ERROR
+            );
             this.getConsoleLogger().error("%s", MessageUtils.get("ACLRejectError"));
             CommandRecord commandRecord = new CommandRecord(sql);
             commandRecord.setRiskLevel(aclResult.getRiskLevel());
@@ -800,6 +818,7 @@ public class QueryConsole extends AbstractConsole {
         dialog.addButton(new Button(MessageUtils.get("Submit"), "submit", countDownLatch::countDown));
         dialog.addButton(new Button(MessageUtils.get("Cancel"), "cancel", () -> {
             hasNext.set(false);
+            this.getState().setExecutionStatus(EXECUTION_STATUS_CANCELLED);
             countDownLatch.countDown();
             this.getConsoleLogger().warn(MessageUtils.get("ExecutionCanceled"));
         }));
@@ -813,12 +832,14 @@ public class QueryConsole extends AbstractConsole {
         try {
             if (!countDownLatch.await(WARNING_DIALOG_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
                 hasNext.set(false);
+                this.getState().setExecutionStatus(EXECUTION_STATUS_CANCELLED);
                 dialogHandle.cancel();
                 this.getConsoleLogger().warn(MessageUtils.get("ExecutionCanceled"));
             }
             return hasNext.get();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+            this.getState().setExecutionStatus(EXECUTION_STATUS_ERROR);
             this.getConsoleLogger().error("获取结果失败!");
             return false;
         } finally {
