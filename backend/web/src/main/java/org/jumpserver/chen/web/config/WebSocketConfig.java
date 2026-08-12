@@ -1,6 +1,7 @@
 package org.jumpserver.chen.web.config;
 
 import lombok.extern.slf4j.Slf4j;
+import org.jumpserver.chen.web.ai.AgentWebSocketHandler;
 import org.jumpserver.chen.framework.session.SessionManager;
 import org.jumpserver.chen.framework.ws.ConsoleWebSocketHandler;
 import org.jumpserver.chen.framework.ws.DBConsoleWebsocketHandler;
@@ -39,11 +40,12 @@ public class WebSocketConfig {
 
 
     @Bean
-    public WebSocketHandlerMapping chenWebSocketHandlerMapping() {
+    public WebSocketHandlerMapping chenWebSocketHandlerMapping(AgentWebSocketHandler agentWebSocketHandler) {
         var handlers = new LinkedHashMap<String, Object>();
         handlers.put("/ws/session", createRequestHandler(new SessionWebSocketHandler()));
         handlers.put("/ws/console", createRequestHandler(new ConsoleWebSocketHandler()));
         handlers.put("/ws/db-console", createRequestHandler(new DBConsoleWebsocketHandler()));
+        handlers.put("/ws/ai", createRequestHandler(agentWebSocketHandler));
 
         var mapping = new WebSocketHandlerMapping();
         // 与 Spring 默认 WebSocket 映射一致，确保 WS 请求优先于普通 MVC 映射处理。

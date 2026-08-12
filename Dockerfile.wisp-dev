@@ -1,0 +1,52 @@
+# syntax=docker/dockerfile:1.7
+
+ARG GO_VERSION=1.25
+FROM --platform=$BUILDPLATFORM golang:${GO_VERSION}-bookworm AS stage-build
+
+ARG TARGETOS=linux
+ARG TARGETARCH=amd64
+ARG WISP_BUILD_PROCS=2
+ARG WISP_BUILD_MEMORY=1GiB
+
+ENV CGO_ENABLED=0
+WORKDIR /opt/wisp
+
+COPY --from=wisp-source go.mod go.sum ./
+RUN --mount=type=cache,target=/go/pkg/mod,sharing=locked \
+    GOMAXPROCS=${WISP_BUILD_PROCS} \
+    GOMEMLIMIT=${WISP_BUILD_MEMORY} \
+    go mod download
+
+COPY --from=wisp-source main.go ./
+COPY --from=wisp-source cmd ./cmd
+COPY --from=wisp-source pkg ./pkg
+COPY --from=wisp-source protobuf-go ./protobuf-go
+
+RUN --mount=type=cache,target=/go/pkg/mod,sharing=locked \
+    --mount=type=cache,target=/root/.cache/go-build,sharing=locked \
+    GOMAXPROCS=${WISP_BUILD_PROCS} \
+    GOMEMLIMIT=${WISP_BUILD_MEMORY} \
+    GOOS=${TARGETOS} \
+    GOARCH=${TARGETARCH} \
+    go build -p=${WISP_BUILD_PROCS} -trimpath -o /out/wisp .
+
+FROM debian:bookworm-slim
+
+ARG APT_MIRROR=http://deb.debian.org
+RUN set -ex \
+    && sed -i "s@http://.*.debian.org@${APT_MIRROR}@g" /etc/apt/sources.list.d/debian.sources \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates netcat-openbsd \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /opt/wisp
+COPY --from=stage-build /out/wisp ./wisp
+
+VOLUME ["/opt/wisp/data"]
+EXPOSE 9090
+
+HEALTHCHECK --interval=2s --timeout=1s --start-period=5s --retries=30 \
+    CMD ["nc", "-z", "127.0.0.1", "9090"]
+
+CMD ["./wisp"]

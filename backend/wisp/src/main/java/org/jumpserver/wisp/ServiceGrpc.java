@@ -4,15 +4,12 @@ import static io.grpc.MethodDescriptor.generateFullMethodName;
 
 /**
  */
-@javax.annotation.Generated(
-    value = "by gRPC proto compiler (version 1.56.1)",
-    comments = "Source: service.proto")
 @io.grpc.stub.annotations.GrpcGenerated
 public final class ServiceGrpc {
 
   private ServiceGrpc() {}
 
-  public static final String SERVICE_NAME = "message.Service";
+  public static final java.lang.String SERVICE_NAME = "message.Service";
 
   // Static method descriptors that strictly reflect the proto.
   private static volatile io.grpc.MethodDescriptor<org.jumpserver.wisp.ServiceOuterClass.TokenRequest,
@@ -790,6 +787,37 @@ public final class ServiceGrpc {
     return getCallAPIMethod;
   }
 
+  private static volatile io.grpc.MethodDescriptor<org.jumpserver.wisp.ServiceOuterClass.AgentClientEvent,
+      org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent> getAgentSessionMethod;
+
+  @io.grpc.stub.annotations.RpcMethod(
+      fullMethodName = SERVICE_NAME + '/' + "AgentSession",
+      requestType = org.jumpserver.wisp.ServiceOuterClass.AgentClientEvent.class,
+      responseType = org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent.class,
+      methodType = io.grpc.MethodDescriptor.MethodType.BIDI_STREAMING)
+  public static io.grpc.MethodDescriptor<org.jumpserver.wisp.ServiceOuterClass.AgentClientEvent,
+      org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent> getAgentSessionMethod() {
+    io.grpc.MethodDescriptor<org.jumpserver.wisp.ServiceOuterClass.AgentClientEvent, org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent> getAgentSessionMethod;
+    if ((getAgentSessionMethod = ServiceGrpc.getAgentSessionMethod) == null) {
+      synchronized (ServiceGrpc.class) {
+        if ((getAgentSessionMethod = ServiceGrpc.getAgentSessionMethod) == null) {
+          ServiceGrpc.getAgentSessionMethod = getAgentSessionMethod =
+              io.grpc.MethodDescriptor.<org.jumpserver.wisp.ServiceOuterClass.AgentClientEvent, org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent>newBuilder()
+              .setType(io.grpc.MethodDescriptor.MethodType.BIDI_STREAMING)
+              .setFullMethodName(generateFullMethodName(SERVICE_NAME, "AgentSession"))
+              .setSampledToLocalTracing(true)
+              .setRequestMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
+                  org.jumpserver.wisp.ServiceOuterClass.AgentClientEvent.getDefaultInstance()))
+              .setResponseMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
+                  org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent.getDefaultInstance()))
+              .setSchemaDescriptor(new ServiceMethodDescriptorSupplier("AgentSession"))
+              .build();
+        }
+      }
+    }
+    return getAgentSessionMethod;
+  }
+
   /**
    * Creates a new async stub that supports all call types for the service
    */
@@ -802,6 +830,21 @@ public final class ServiceGrpc {
         }
       };
     return ServiceStub.newStub(factory, channel);
+  }
+
+  /**
+   * Creates a new blocking-style stub that supports all types of calls on the service
+   */
+  public static ServiceBlockingV2Stub newBlockingV2Stub(
+      io.grpc.Channel channel) {
+    io.grpc.stub.AbstractStub.StubFactory<ServiceBlockingV2Stub> factory =
+      new io.grpc.stub.AbstractStub.StubFactory<ServiceBlockingV2Stub>() {
+        @java.lang.Override
+        public ServiceBlockingV2Stub newStub(io.grpc.Channel channel, io.grpc.CallOptions callOptions) {
+          return new ServiceBlockingV2Stub(channel, callOptions);
+        }
+      };
+    return ServiceBlockingV2Stub.newStub(factory, channel);
   }
 
   /**
@@ -1011,6 +1054,13 @@ public final class ServiceGrpc {
     default void callAPI(org.jumpserver.wisp.ServiceOuterClass.HTTPRequest request,
         io.grpc.stub.StreamObserver<org.jumpserver.wisp.ServiceOuterClass.HTTPResponse> responseObserver) {
       io.grpc.stub.ServerCalls.asyncUnimplementedUnaryCall(getCallAPIMethod(), responseObserver);
+    }
+
+    /**
+     */
+    default io.grpc.stub.StreamObserver<org.jumpserver.wisp.ServiceOuterClass.AgentClientEvent> agentSession(
+        io.grpc.stub.StreamObserver<org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent> responseObserver) {
+      return io.grpc.stub.ServerCalls.asyncUnimplementedStreamingCall(getAgentSessionMethod(), responseObserver);
     }
   }
 
@@ -1240,10 +1290,221 @@ public final class ServiceGrpc {
       io.grpc.stub.ClientCalls.asyncUnaryCall(
           getChannel().newCall(getCallAPIMethod(), getCallOptions()), request, responseObserver);
     }
+
+    /**
+     */
+    public io.grpc.stub.StreamObserver<org.jumpserver.wisp.ServiceOuterClass.AgentClientEvent> agentSession(
+        io.grpc.stub.StreamObserver<org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent> responseObserver) {
+      return io.grpc.stub.ClientCalls.asyncBidiStreamingCall(
+          getChannel().newCall(getAgentSessionMethod(), getCallOptions()), responseObserver);
+    }
   }
 
   /**
    * A stub to allow clients to do synchronous rpc calls to service Service.
+   */
+  public static final class ServiceBlockingV2Stub
+      extends io.grpc.stub.AbstractBlockingStub<ServiceBlockingV2Stub> {
+    private ServiceBlockingV2Stub(
+        io.grpc.Channel channel, io.grpc.CallOptions callOptions) {
+      super(channel, callOptions);
+    }
+
+    @java.lang.Override
+    protected ServiceBlockingV2Stub build(
+        io.grpc.Channel channel, io.grpc.CallOptions callOptions) {
+      return new ServiceBlockingV2Stub(channel, callOptions);
+    }
+
+    /**
+     */
+    public org.jumpserver.wisp.ServiceOuterClass.TokenResponse getTokenAuthInfo(org.jumpserver.wisp.ServiceOuterClass.TokenRequest request) throws io.grpc.StatusException {
+      return io.grpc.stub.ClientCalls.blockingV2UnaryCall(
+          getChannel(), getGetTokenAuthInfoMethod(), getCallOptions(), request);
+    }
+
+    /**
+     */
+    public org.jumpserver.wisp.ServiceOuterClass.StatusResponse renewToken(org.jumpserver.wisp.ServiceOuterClass.TokenRequest request) throws io.grpc.StatusException {
+      return io.grpc.stub.ClientCalls.blockingV2UnaryCall(
+          getChannel(), getRenewTokenMethod(), getCallOptions(), request);
+    }
+
+    /**
+     */
+    public org.jumpserver.wisp.ServiceOuterClass.SessionCreateResponse createSession(org.jumpserver.wisp.ServiceOuterClass.SessionCreateRequest request) throws io.grpc.StatusException {
+      return io.grpc.stub.ClientCalls.blockingV2UnaryCall(
+          getChannel(), getCreateSessionMethod(), getCallOptions(), request);
+    }
+
+    /**
+     */
+    public org.jumpserver.wisp.ServiceOuterClass.SessionFinishResp finishSession(org.jumpserver.wisp.ServiceOuterClass.SessionFinishRequest request) throws io.grpc.StatusException {
+      return io.grpc.stub.ClientCalls.blockingV2UnaryCall(
+          getChannel(), getFinishSessionMethod(), getCallOptions(), request);
+    }
+
+    /**
+     */
+    public org.jumpserver.wisp.ServiceOuterClass.ReplayResponse uploadReplayFile(org.jumpserver.wisp.ServiceOuterClass.ReplayRequest request) throws io.grpc.StatusException {
+      return io.grpc.stub.ClientCalls.blockingV2UnaryCall(
+          getChannel(), getUploadReplayFileMethod(), getCallOptions(), request);
+    }
+
+    /**
+     */
+    public org.jumpserver.wisp.ServiceOuterClass.CommandResponse uploadCommand(org.jumpserver.wisp.ServiceOuterClass.CommandRequest request) throws io.grpc.StatusException {
+      return io.grpc.stub.ClientCalls.blockingV2UnaryCall(
+          getChannel(), getUploadCommandMethod(), getCallOptions(), request);
+    }
+
+    /**
+     */
+    @io.grpc.ExperimentalApi("https://github.com/grpc/grpc-java/issues/10918")
+    public io.grpc.stub.BlockingClientCall<org.jumpserver.wisp.ServiceOuterClass.FinishedTaskRequest, org.jumpserver.wisp.ServiceOuterClass.TaskResponse>
+        dispatchTask() {
+      return io.grpc.stub.ClientCalls.blockingBidiStreamingCall(
+          getChannel(), getDispatchTaskMethod(), getCallOptions());
+    }
+
+    /**
+     */
+    public org.jumpserver.wisp.ServiceOuterClass.RemainReplayResponse scanRemainReplays(org.jumpserver.wisp.ServiceOuterClass.RemainReplayRequest request) throws io.grpc.StatusException {
+      return io.grpc.stub.ClientCalls.blockingV2UnaryCall(
+          getChannel(), getScanRemainReplaysMethod(), getCallOptions(), request);
+    }
+
+    /**
+     */
+    public org.jumpserver.wisp.ServiceOuterClass.CommandConfirmResponse createCommandTicket(org.jumpserver.wisp.ServiceOuterClass.CommandConfirmRequest request) throws io.grpc.StatusException {
+      return io.grpc.stub.ClientCalls.blockingV2UnaryCall(
+          getChannel(), getCreateCommandTicketMethod(), getCallOptions(), request);
+    }
+
+    /**
+     */
+    public org.jumpserver.wisp.ServiceOuterClass.AssetLoginTicketResponse checkOrCreateAssetLoginTicket(org.jumpserver.wisp.ServiceOuterClass.AssetLoginTicketRequest request) throws io.grpc.StatusException {
+      return io.grpc.stub.ClientCalls.blockingV2UnaryCall(
+          getChannel(), getCheckOrCreateAssetLoginTicketMethod(), getCallOptions(), request);
+    }
+
+    /**
+     */
+    public org.jumpserver.wisp.ServiceOuterClass.TicketStateResponse checkTicketState(org.jumpserver.wisp.ServiceOuterClass.TicketRequest request) throws io.grpc.StatusException {
+      return io.grpc.stub.ClientCalls.blockingV2UnaryCall(
+          getChannel(), getCheckTicketStateMethod(), getCallOptions(), request);
+    }
+
+    /**
+     */
+    public org.jumpserver.wisp.ServiceOuterClass.StatusResponse cancelTicket(org.jumpserver.wisp.ServiceOuterClass.TicketRequest request) throws io.grpc.StatusException {
+      return io.grpc.stub.ClientCalls.blockingV2UnaryCall(
+          getChannel(), getCancelTicketMethod(), getCallOptions(), request);
+    }
+
+    /**
+     */
+    public org.jumpserver.wisp.ServiceOuterClass.ForwardResponse createForward(org.jumpserver.wisp.ServiceOuterClass.ForwardRequest request) throws io.grpc.StatusException {
+      return io.grpc.stub.ClientCalls.blockingV2UnaryCall(
+          getChannel(), getCreateForwardMethod(), getCallOptions(), request);
+    }
+
+    /**
+     */
+    public org.jumpserver.wisp.ServiceOuterClass.StatusResponse deleteForward(org.jumpserver.wisp.ServiceOuterClass.ForwardDeleteRequest request) throws io.grpc.StatusException {
+      return io.grpc.stub.ClientCalls.blockingV2UnaryCall(
+          getChannel(), getDeleteForwardMethod(), getCallOptions(), request);
+    }
+
+    /**
+     */
+    public org.jumpserver.wisp.ServiceOuterClass.PublicSettingResponse getPublicSetting(org.jumpserver.wisp.ServiceOuterClass.Empty request) throws io.grpc.StatusException {
+      return io.grpc.stub.ClientCalls.blockingV2UnaryCall(
+          getChannel(), getGetPublicSettingMethod(), getCallOptions(), request);
+    }
+
+    /**
+     */
+    public org.jumpserver.wisp.ServiceOuterClass.ListenPortResponse getListenPorts(org.jumpserver.wisp.ServiceOuterClass.Empty request) throws io.grpc.StatusException {
+      return io.grpc.stub.ClientCalls.blockingV2UnaryCall(
+          getChannel(), getGetListenPortsMethod(), getCallOptions(), request);
+    }
+
+    /**
+     */
+    public org.jumpserver.wisp.ServiceOuterClass.PortInfoResponse getPortInfo(org.jumpserver.wisp.ServiceOuterClass.PortInfoRequest request) throws io.grpc.StatusException {
+      return io.grpc.stub.ClientCalls.blockingV2UnaryCall(
+          getChannel(), getGetPortInfoMethod(), getCallOptions(), request);
+    }
+
+    /**
+     */
+    public org.jumpserver.wisp.ServiceOuterClass.StatusResponse handlePortFailure(org.jumpserver.wisp.ServiceOuterClass.PortFailureRequest request) throws io.grpc.StatusException {
+      return io.grpc.stub.ClientCalls.blockingV2UnaryCall(
+          getChannel(), getHandlePortFailureMethod(), getCallOptions(), request);
+    }
+
+    /**
+     */
+    public org.jumpserver.wisp.ServiceOuterClass.UserResponse checkUserByCookies(org.jumpserver.wisp.ServiceOuterClass.CookiesRequest request) throws io.grpc.StatusException {
+      return io.grpc.stub.ClientCalls.blockingV2UnaryCall(
+          getChannel(), getCheckUserByCookiesMethod(), getCallOptions(), request);
+    }
+
+    /**
+     */
+    public org.jumpserver.wisp.ServiceOuterClass.StatusResponse recordSessionLifecycleLog(org.jumpserver.wisp.ServiceOuterClass.SessionLifecycleLogRequest request) throws io.grpc.StatusException {
+      return io.grpc.stub.ClientCalls.blockingV2UnaryCall(
+          getChannel(), getRecordSessionLifecycleLogMethod(), getCallOptions(), request);
+    }
+
+    /**
+     */
+    public org.jumpserver.wisp.ServiceOuterClass.FaceRecognitionCallbackResponse faceRecognitionCallback(org.jumpserver.wisp.ServiceOuterClass.FaceRecognitionCallbackRequest request) throws io.grpc.StatusException {
+      return io.grpc.stub.ClientCalls.blockingV2UnaryCall(
+          getChannel(), getFaceRecognitionCallbackMethod(), getCallOptions(), request);
+    }
+
+    /**
+     */
+    public org.jumpserver.wisp.ServiceOuterClass.FaceMonitorCallbackResponse faceMonitorCallback(org.jumpserver.wisp.ServiceOuterClass.FaceMonitorCallbackRequest request) throws io.grpc.StatusException {
+      return io.grpc.stub.ClientCalls.blockingV2UnaryCall(
+          getChannel(), getFaceMonitorCallbackMethod(), getCallOptions(), request);
+    }
+
+    /**
+     */
+    public org.jumpserver.wisp.ServiceOuterClass.JoinFaceMonitorResponse joinFaceMonitor(org.jumpserver.wisp.ServiceOuterClass.JoinFaceMonitorRequest request) throws io.grpc.StatusException {
+      return io.grpc.stub.ClientCalls.blockingV2UnaryCall(
+          getChannel(), getJoinFaceMonitorMethod(), getCallOptions(), request);
+    }
+
+    /**
+     */
+    public org.jumpserver.wisp.ServiceOuterClass.AccountDetailResponse getAccountChat(org.jumpserver.wisp.ServiceOuterClass.Empty request) throws io.grpc.StatusException {
+      return io.grpc.stub.ClientCalls.blockingV2UnaryCall(
+          getChannel(), getGetAccountChatMethod(), getCallOptions(), request);
+    }
+
+    /**
+     */
+    public org.jumpserver.wisp.ServiceOuterClass.HTTPResponse callAPI(org.jumpserver.wisp.ServiceOuterClass.HTTPRequest request) throws io.grpc.StatusException {
+      return io.grpc.stub.ClientCalls.blockingV2UnaryCall(
+          getChannel(), getCallAPIMethod(), getCallOptions(), request);
+    }
+
+    /**
+     */
+    @io.grpc.ExperimentalApi("https://github.com/grpc/grpc-java/issues/10918")
+    public io.grpc.stub.BlockingClientCall<org.jumpserver.wisp.ServiceOuterClass.AgentClientEvent, org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent>
+        agentSession() {
+      return io.grpc.stub.ClientCalls.blockingBidiStreamingCall(
+          getChannel(), getAgentSessionMethod(), getCallOptions());
+    }
+  }
+
+  /**
+   * A stub to allow clients to do limited synchronous rpc calls to service Service.
    */
   public static final class ServiceBlockingStub
       extends io.grpc.stub.AbstractBlockingStub<ServiceBlockingStub> {
@@ -1661,6 +1922,7 @@ public final class ServiceGrpc {
   private static final int METHODID_GET_ACCOUNT_CHAT = 22;
   private static final int METHODID_CALL_API = 23;
   private static final int METHODID_DISPATCH_TASK = 24;
+  private static final int METHODID_AGENT_SESSION = 25;
 
   private static final class MethodHandlers<Req, Resp> implements
       io.grpc.stub.ServerCalls.UnaryMethod<Req, Resp>,
@@ -1788,6 +2050,9 @@ public final class ServiceGrpc {
         case METHODID_DISPATCH_TASK:
           return (io.grpc.stub.StreamObserver<Req>) serviceImpl.dispatchTask(
               (io.grpc.stub.StreamObserver<org.jumpserver.wisp.ServiceOuterClass.TaskResponse>) responseObserver);
+        case METHODID_AGENT_SESSION:
+          return (io.grpc.stub.StreamObserver<Req>) serviceImpl.agentSession(
+              (io.grpc.stub.StreamObserver<org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent>) responseObserver);
         default:
           throw new AssertionError();
       }
@@ -1971,6 +2236,13 @@ public final class ServiceGrpc {
               org.jumpserver.wisp.ServiceOuterClass.HTTPRequest,
               org.jumpserver.wisp.ServiceOuterClass.HTTPResponse>(
                 service, METHODID_CALL_API)))
+        .addMethod(
+          getAgentSessionMethod(),
+          io.grpc.stub.ServerCalls.asyncBidiStreamingCall(
+            new MethodHandlers<
+              org.jumpserver.wisp.ServiceOuterClass.AgentClientEvent,
+              org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent>(
+                service, METHODID_AGENT_SESSION)))
         .build();
   }
 
@@ -1997,9 +2269,9 @@ public final class ServiceGrpc {
   private static final class ServiceMethodDescriptorSupplier
       extends ServiceBaseDescriptorSupplier
       implements io.grpc.protobuf.ProtoMethodDescriptorSupplier {
-    private final String methodName;
+    private final java.lang.String methodName;
 
-    ServiceMethodDescriptorSupplier(String methodName) {
+    ServiceMethodDescriptorSupplier(java.lang.String methodName) {
       this.methodName = methodName;
     }
 
@@ -2044,6 +2316,7 @@ public final class ServiceGrpc {
               .addMethod(getJoinFaceMonitorMethod())
               .addMethod(getGetAccountChatMethod())
               .addMethod(getCallAPIMethod())
+              .addMethod(getAgentSessionMethod())
               .build();
         }
       }

@@ -28,7 +28,10 @@ public abstract class AbstractConsole implements Console {
     }
 
     public void onInit(Connect connect) {
-        this.packetIO.sendPacket("init", Map.of("title", this.title));
+        this.packetIO.sendPacket("init", Map.of(
+                "title", this.title,
+                "consoleId", this.packetIO.getWsSession().getId()
+        ));
     }
 
     public String getNodeKey() {
