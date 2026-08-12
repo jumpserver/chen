@@ -74,6 +74,9 @@ public class DataView extends SQLResult {
             case DataViewAction.ACTION_CHANGE_LIMIT -> {
                 this.changeLimit(this.parseLimit(action.getData()));
             }
+            case DataViewAction.ACTION_CHANGE_FILTER -> {
+                this.changeFilter(this.parseFilter(action.getData()));
+            }
             case DataViewAction.ACTION_EXPORT -> {
                 var data = (Map<String, String>) action.getData();
                 var scope = data.get("scope");
@@ -97,10 +100,22 @@ public class DataView extends SQLResult {
         return limit;
     }
 
+    private String parseFilter(Object data) throws SQLException {
+        if (!(data instanceof String filter)) {
+            throw new SQLException("Invalid data view filter");
+        }
+        filter = filter.trim();
+        if (filter.length() > 10000) {
+            throw new SQLException("Data view filter is too long");
+        }
+        return filter;
+    }
+
     public void loadData() throws SQLException {
         SQLQueryParams queryParams = new SQLQueryParams();
         queryParams.setLimit(this.state.getLimit());
         queryParams.setOffset((this.state.getPage() - 1) * this.state.getLimit());
+        queryParams.setFilter(this.state.getFilter());
 
         var result = this.loadDataInterface
                 .loadData(queryParams);
@@ -181,6 +196,7 @@ public class DataView extends SQLResult {
                 case "all":
                     SQLQueryParams queryParams = new SQLQueryParams();
                     queryParams.setLimit(-1);
+                    queryParams.setFilter(this.state.getFilter());
                     var result = this.loadDataInterface.loadData(queryParams);
                     var viewData = new DataViewData();
                     this.fullDataViewData(viewData, result);
@@ -258,6 +274,20 @@ public class DataView extends SQLResult {
         } catch (SQLException e) {
             this.getStateManager().getState().setLimit(oldLimit);
             this.getStateManager().getState().setPage(oldPage);
+            throw e;
+        }
+    }
+
+    public void changeFilter(String filter) throws SQLException {
+        var oldFilter = this.state.getFilter();
+        var oldPage = this.state.getPage();
+        try {
+            this.state.setFilter(filter);
+            this.state.setPage(1);
+            this.loadData();
+        } catch (SQLException e) {
+            this.state.setFilter(oldFilter);
+            this.state.setPage(oldPage);
             throw e;
         }
     }

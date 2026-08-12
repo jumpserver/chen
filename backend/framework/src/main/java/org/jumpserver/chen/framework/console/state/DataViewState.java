@@ -14,6 +14,7 @@ public class DataViewState extends State {
     private int total;
     private boolean pinned;
     private boolean paged;
+    private String filter;
 
     public DataViewState(String id, String title) {
         super(title);
@@ -23,6 +24,7 @@ public class DataViewState extends State {
         this.total = 0;
         this.page = 1;
         this.limit = 50;
+        this.filter = "";
     }
 
 }

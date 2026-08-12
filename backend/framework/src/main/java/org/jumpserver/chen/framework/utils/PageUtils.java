@@ -39,6 +39,36 @@ public class PageUtils {
         }
     }
 
+    public static String filter(String sql, DbType dbType, String conditionSql) {
+        if (conditionSql == null || conditionSql.isBlank()) {
+            return sql;
+        }
+
+        SQLStatement sourceStatement = SQLUtils.parseSingleStatement(sql, dbType);
+        if (!(sourceStatement instanceof SQLSelectStatement sourceSelect) ||
+                !(sourceSelect.getSelect().getQuery() instanceof SQLSelectQueryBlock sourceQuery)) {
+            throw new IllegalArgumentException("Data view filter requires a simple SELECT query");
+        }
+
+        List<SQLStatement> filterStatements = SQLUtils.parseStatements(
+                "SELECT * FROM CHEN_FILTER_SOURCE WHERE " + conditionSql,
+                dbType
+        );
+        if (filterStatements.size() != 1 || !(filterStatements.get(0) instanceof SQLSelectStatement filterSelect) ||
+                !(filterSelect.getSelect().getQuery() instanceof SQLSelectQueryBlock filterQuery) ||
+                filterQuery.getWhere() == null || filterQuery.getGroupBy() != null ||
+                filterQuery.getOrderBy() != null || filterQuery.getLimit() != null) {
+            throw new IllegalArgumentException("Invalid data view WHERE condition");
+        }
+
+        SQLExpr condition = filterQuery.getWhere().clone();
+        SQLExpr current = sourceQuery.getWhere();
+        sourceQuery.setWhere(current == null
+                ? condition
+                : new SQLBinaryOpExpr(current, SQLBinaryOperator.BooleanAnd, condition, dbType));
+        return SQLUtils.toSQLString(sourceStatement, dbType);
+    }
+
     public static String limit(String sql, DbType dbType, int offset, int count) {
         List<SQLStatement> stmtList = SQLUtils.parseStatements(sql, dbType);
         if (stmtList.size() != 1) {

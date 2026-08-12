@@ -16,12 +16,14 @@ import org.jumpserver.chen.framework.datasource.edit.TableBrowseSaveExecutionCon
 import org.jumpserver.chen.framework.datasource.edit.TableChangesPreviewService;
 import org.jumpserver.chen.framework.datasource.edit.TableChangesSaveService;
 import org.jumpserver.chen.framework.datasource.edit.TableEditContext;
+import org.jumpserver.chen.framework.datasource.sql.SQL;
 import org.jumpserver.chen.framework.i18n.MessageUtils;
 import org.jumpserver.chen.framework.jms.entity.CommandRecord;
 import org.jumpserver.chen.framework.session.SessionManager;
 import org.jumpserver.chen.framework.session.controller.DialogHandle;
 import org.jumpserver.chen.framework.session.controller.dialog.Button;
 import org.jumpserver.chen.framework.session.controller.dialog.Dialog;
+import org.jumpserver.chen.framework.utils.PageUtils;
 import org.jumpserver.chen.framework.ws.io.Packet;
 import org.jumpserver.wisp.Common;
 import org.springframework.web.socket.WebSocketSession;
@@ -157,11 +159,22 @@ public class DataViewConsole extends AbstractConsole {
 
         var session = SessionManager.getCurrentSession();
         dataView.setLoadDataInterface((sqlQueryParams) -> {
-            var plan = this.getDatasource()
+            var basePlan = this.getDatasource()
                     .getConnectionManager()
                     .getSqlActuator()
                     .createPlan(schemaName, tableName, null);
-            var sql = plan.getTargetSQL();
+            final String sql;
+            try {
+                sql = PageUtils.filter(
+                        basePlan.getTargetSQL(),
+                        this.getDatasource().getDruidDbType(),
+                        sqlQueryParams.getFilter()
+                );
+            } catch (RuntimeException e) {
+                throw new SQLException("Invalid data view WHERE condition: " + e.getMessage());
+            } finally {
+                basePlan.close();
+            }
 
             var aclResult = session.checkACL(sql);
             if (aclResult != null && (aclResult.getRiskLevel() == Common.RiskLevel.Reject || aclResult.getRiskLevel() == Common.RiskLevel.ReviewReject)) {
@@ -219,7 +232,10 @@ public class DataViewConsole extends AbstractConsole {
             }
 
 
-
+            var plan = this.getDatasource()
+                    .getConnectionManager()
+                    .getSqlActuator()
+                    .createPlan(SQL.of(sql));
             plan.setSqlQueryParams(sqlQueryParams);
             plan.generateTargetSQL();
 
