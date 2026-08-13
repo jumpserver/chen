@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.time.Instant;
+import java.util.Map;
 
 @Service
 @Slf4j
@@ -129,14 +130,7 @@ public class JmsSessionService implements SessionService {
         dbConnectInfo.setDb(tokenResp.getData().getAsset().getSpecific().getDbName());
 
         var platformSettings = tokenResp.getData().getPlatform().getProtocols(0).getSettingsMap();
-//
-        if (platformSettings.containsKey("sysdba") && platformSettings.get("sysdba").equals("true")) {
-            dbConnectInfo.getOptions().put("internal_logon", "sysdba");
-        }
-
-        if (platformSettings.containsKey("version")) {
-            dbConnectInfo.getOptions().put("version", platformSettings.get("version"));
-        }
+        applyPlatformSettings(dbConnectInfo, platformSettings);
 
         var asset = tokenResp.getData().getAsset();
 
@@ -149,6 +143,21 @@ public class JmsSessionService implements SessionService {
             dbConnectInfo.getOptions().put("pgSSLMode", asset.getSpecific().getPgSslMode());
         }
         return DatasourceFactory.fromConnectInfo(dbConnectInfo);
+    }
+
+    static void applyPlatformSettings(DBConnectInfo dbConnectInfo, Map<String, String> platformSettings) {
+        if (platformSettings.containsKey("sysdba") && platformSettings.get("sysdba").equals("true")) {
+            dbConnectInfo.getOptions().put("internal_logon", "sysdba");
+        }
+
+        if (platformSettings.containsKey("version")) {
+            dbConnectInfo.getOptions().put("version", platformSettings.get("version"));
+        }
+
+        if ("sqlserver".equals(dbConnectInfo.getDbType())) {
+            var encrypt = platformSettings.getOrDefault("encrypt", "true");
+            dbConnectInfo.getOptions().put("encrypt", Boolean.parseBoolean(encrypt));
+        }
     }
 
     private Common.Session createJMSSession(ServiceOuterClass.TokenResponse tokenResp, String remoteAddr) {
