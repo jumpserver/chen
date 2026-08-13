@@ -38,7 +38,7 @@ public class DB2ResourceBrowser extends BaseResourceBrowser {
         return this.getViews(SQL.of(SQL_GET_VIEWS, schema));
     }
 
-    private static final String SQL_GET_FIELDS = "select COLNAME, TYPENAME, LENGTH, DEFAULT, REMARKS from syscat.COLUMNS where TABSCHEMA = '?' and TABNAME = '?'";
+    private static final String SQL_GET_FIELDS = "select COLNAME, TYPENAME, NULLS from syscat.COLUMNS where TABSCHEMA = '?' and TABNAME = '?'";
 
     @Override
     public List<Field> getFields(String schema, String table) throws SQLException {

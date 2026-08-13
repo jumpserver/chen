@@ -38,7 +38,7 @@ public class DMResourceBrowser extends BaseResourceBrowser {
         return this.getViews(SQL.of(SQL_GET_VIEWS, schema));
     }
 
-    private static final String SQL_GET_FIELDS = "SELECT COLUMN_NAME AS `NAME`,DATA_TYPE AS `TYPE`,DATA_LENGTH AS `LENGTH`,DATA_DEFAULT AS `DEFAULT` FROM ALL_TAB_COLUMNS WHERE OWNER='?' AND TABLE_NAME='?'";
+    private static final String SQL_GET_FIELDS = "SELECT COLUMN_NAME AS NAME,DATA_TYPE AS TYPE,NULLABLE AS NULLABLE FROM ALL_TAB_COLUMNS WHERE OWNER='?' AND TABLE_NAME='?'";
 
     @Override
     public List<Field> getFields(String schema, String table) throws SQLException {

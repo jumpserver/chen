@@ -38,7 +38,7 @@ public class OracleResourceBrowser extends BaseResourceBrowser {
         return this.getViews(SQL.of(SQL_GET_VIEWS, schema));
     }
 
-    private static final String SQL_GET_FIELDS = "SELECT COLUMN_NAME,DATA_TYPE,DATA_LENGTH,DATA_PRECISION,DATA_SCALE,CHAR_LENGTH,CHAR_USED,DATA_DEFAULT,COMMENTS FROM ALL_TAB_COLUMNS WHERE OWNER='?' AND TABLE_NAME='?'" ;
+    private static final String SQL_GET_FIELDS = "SELECT COLUMN_NAME,DATA_TYPE,NULLABLE FROM ALL_TAB_COLUMNS WHERE OWNER='?' AND TABLE_NAME='?'" ;
 
     @Override
     public List<Field> getFields(String schema, String table) throws SQLException {

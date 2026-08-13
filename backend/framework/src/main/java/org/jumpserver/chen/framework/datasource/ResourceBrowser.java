@@ -17,6 +17,14 @@ public interface ResourceBrowser {
 
     List<TreeNode> getChildren(TreeNode node, boolean fromCache) throws SQLException;
 
+    List<Schema> getSchemas() throws SQLException;
+
+    List<Table> getTables(String schema) throws SQLException;
+
+    List<View> getViews(String schema) throws SQLException;
+
+    List<Field> getFields(String schema, String table) throws SQLException;
+
     List<Schema> getSchemas(SQL sql) throws SQLException;
 
     List<Table> getTables(SQL sql) throws SQLException;

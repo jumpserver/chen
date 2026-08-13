@@ -20,6 +20,8 @@ public interface ConnectionManager {
 
     void setDatabaseContext(String database);
 
+    <T> T withDatabaseContext(String database, DatabaseContextAction<T> action) throws SQLException;
+
     Datasource getDatasource();
 
     DBConnectInfo getConnectInfo();
@@ -37,4 +39,9 @@ public interface ConnectionManager {
     String getDatabaseContextKey();
 
     void close();
+
+    @FunctionalInterface
+    interface DatabaseContextAction<T> {
+        T run() throws SQLException;
+    }
 }
