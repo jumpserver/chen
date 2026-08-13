@@ -9,7 +9,7 @@ import java.util.List;
 @EqualsAndHashCode(callSuper = true)
 @Data
 public class QueryConsoleState extends State {
-    private String currentContext;
+    private volatile String currentContext;
     private boolean inQuery;
     private List<String> contexts;
     private int timeout;

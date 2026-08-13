@@ -251,6 +251,10 @@ public class QueryConsole extends AbstractConsole {
         return this.getState().getCurrentContext();
     }
 
+    public String getCurrentContext() {
+        return this.stateManager == null ? "" : StringUtils.defaultString(this.getState().getCurrentContext());
+    }
+
     @Override
     public void handle(Packet packet) {
         if (this.isCancelPacket(packet)) {
@@ -785,11 +789,13 @@ public class QueryConsole extends AbstractConsole {
             this.getState().setExecutionStatus(EXECUTION_STATUS_ERROR);
             this.getConsoleLogger().error("%s: %s", MessageUtils.get("ParseError"), e.getMessage());
             this.getPacketIO().sendPacket("message", Message.error(MessageUtils.get("ParseError"), e.getMessage()));
+            this.sendSQLError("parse", MessageUtils.get("ParseError"), e.getMessage(), sql, null);
         } catch (SQLException e) {
             if (!StringUtils.equals(this.getState().getExecutionStatus(), EXECUTION_STATUS_CANCELLED)) {
                 this.getState().setExecutionStatus(EXECUTION_STATUS_ERROR);
                 this.getConsoleLogger().error("%s: %s", MessageUtils.get("ExecuteError"), e.getMessage());
                 this.getPacketIO().sendPacket("message", Message.error(MessageUtils.get("ExecuteError"), e.getMessage()));
+                this.sendSQLError("execute", MessageUtils.get("ExecuteError"), e.getMessage(), sql, e);
             }
         } finally {
             if (StringUtils.equals(this.getState().getExecutionStatus(), EXECUTION_STATUS_RUNNING)) {
@@ -799,6 +805,22 @@ public class QueryConsole extends AbstractConsole {
             this.getState().setCanCancel(false);
             this.stateManager.commit();
         }
+    }
+
+    private void sendSQLError(String kind, String title, String message, String sql, SQLException exception) {
+        var error = new LinkedHashMap<String, Object>();
+        error.put("kind", kind);
+        error.put("title", StringUtils.defaultString(title));
+        error.put("message", StringUtils.defaultString(message));
+        error.put("sql", StringUtils.defaultString(sql));
+        error.put("timestamp", System.currentTimeMillis());
+        if (exception != null) {
+            if (StringUtils.isNotBlank(exception.getSQLState())) {
+                error.put("sqlState", exception.getSQLState());
+            }
+            error.put("vendorCode", exception.getErrorCode());
+        }
+        this.getPacketIO().sendPacket("sql_error", error);
     }
 
     private boolean canExecuteStatement(Session session, String sql, ACLResult aclResult) {

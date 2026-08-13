@@ -106,7 +106,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         faceMonitorToken_ = s;
@@ -122,7 +122,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getFaceMonitorTokenBytes() {
       java.lang.Object ref = faceMonitorToken_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         faceMonitorToken_ = b;
@@ -145,7 +145,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         sessionId_ = s;
@@ -161,7 +161,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getSessionIdBytes() {
       java.lang.Object ref = sessionId_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         sessionId_ = b;
@@ -514,7 +514,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getFaceMonitorTokenBytes() {
         java.lang.Object ref = faceMonitorToken_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           faceMonitorToken_ = b;
@@ -586,7 +586,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getSessionIdBytes() {
         java.lang.Object ref = sessionId_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           sessionId_ = b;
@@ -1190,7 +1190,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.Status status = 1;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder> 
+          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder>
           internalGetStatusFieldBuilder() {
         if (statusBuilder_ == null) {
           statusBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -1386,7 +1386,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         token_ = s;
@@ -1402,7 +1402,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getTokenBytes() {
       java.lang.Object ref = token_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         token_ = b;
@@ -1436,7 +1436,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         errorMessage_ = s;
@@ -1452,7 +1452,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getErrorMessageBytes() {
       java.lang.Object ref = errorMessage_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         errorMessage_ = b;
@@ -1486,7 +1486,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         action_ = s;
@@ -1502,7 +1502,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getActionBytes() {
       java.lang.Object ref = action_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         action_ = b;
@@ -2003,7 +2003,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getTokenBytes() {
         java.lang.Object ref = token_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           token_ = b;
@@ -2107,7 +2107,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getErrorMessageBytes() {
         java.lang.Object ref = errorMessage_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           errorMessage_ = b;
@@ -2211,7 +2211,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getActionBytes() {
         java.lang.Object ref = action_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           action_ = b;
@@ -2926,7 +2926,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.Status status = 1;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder> 
+          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder>
           internalGetStatusFieldBuilder() {
         if (statusBuilder_ == null) {
           statusBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -3089,7 +3089,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         token_ = s;
@@ -3105,7 +3105,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getTokenBytes() {
       java.lang.Object ref = token_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         token_ = b;
@@ -3139,7 +3139,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         errorMessage_ = s;
@@ -3155,7 +3155,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getErrorMessageBytes() {
       java.lang.Object ref = errorMessage_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         errorMessage_ = b;
@@ -3178,7 +3178,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         faceCode_ = s;
@@ -3194,7 +3194,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getFaceCodeBytes() {
       java.lang.Object ref = faceCode_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         faceCode_ = b;
@@ -3595,7 +3595,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getTokenBytes() {
         java.lang.Object ref = token_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           token_ = b;
@@ -3699,7 +3699,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getErrorMessageBytes() {
         java.lang.Object ref = errorMessage_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           errorMessage_ = b;
@@ -3771,7 +3771,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getFaceCodeBytes() {
         java.lang.Object ref = faceCode_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           faceCode_ = b;
@@ -4375,7 +4375,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.Status status = 1;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder> 
+          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder>
           internalGetStatusFieldBuilder() {
         if (statusBuilder_ == null) {
           statusBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -4532,7 +4532,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         userId_ = s;
@@ -4548,7 +4548,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getUserIdBytes() {
       java.lang.Object ref = userId_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         userId_ = b;
@@ -4571,7 +4571,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         assetId_ = s;
@@ -4587,7 +4587,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getAssetIdBytes() {
       java.lang.Object ref = assetId_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         assetId_ = b;
@@ -4610,7 +4610,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         accountUsername_ = s;
@@ -4626,7 +4626,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getAccountUsernameBytes() {
       java.lang.Object ref = accountUsername_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         accountUsername_ = b;
@@ -5003,7 +5003,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getUserIdBytes() {
         java.lang.Object ref = userId_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           userId_ = b;
@@ -5075,7 +5075,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getAssetIdBytes() {
         java.lang.Object ref = assetId_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           assetId_ = b;
@@ -5147,7 +5147,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getAccountUsernameBytes() {
         java.lang.Object ref = accountUsername_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           accountUsername_ = b;
@@ -5412,7 +5412,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         ticketId_ = s;
@@ -5428,7 +5428,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getTicketIdBytes() {
       java.lang.Object ref = ticketId_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         ticketId_ = b;
@@ -5947,7 +5947,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.Status status = 1;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder> 
+          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder>
           internalGetStatusFieldBuilder() {
         if (statusBuilder_ == null) {
           statusBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -6068,7 +6068,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.TicketInfo ticket_info = 2;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.ServiceOuterClass.TicketInfo, org.jumpserver.wisp.ServiceOuterClass.TicketInfo.Builder, org.jumpserver.wisp.ServiceOuterClass.TicketInfoOrBuilder> 
+          org.jumpserver.wisp.ServiceOuterClass.TicketInfo, org.jumpserver.wisp.ServiceOuterClass.TicketInfo.Builder, org.jumpserver.wisp.ServiceOuterClass.TicketInfoOrBuilder>
           internalGetTicketInfoFieldBuilder() {
         if (ticketInfoBuilder_ == null) {
           ticketInfoBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -6138,7 +6138,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getTicketIdBytes() {
         java.lang.Object ref = ticketId_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           ticketId_ = b;
@@ -6320,7 +6320,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         err_ = s;
@@ -6336,7 +6336,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getErrBytes() {
       java.lang.Object ref = err_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         err_ = b;
@@ -6721,7 +6721,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getErrBytes() {
         java.lang.Object ref = err_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           err_ = b;
@@ -6886,7 +6886,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         token_ = s;
@@ -6902,7 +6902,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getTokenBytes() {
       java.lang.Object ref = token_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         token_ = b;
@@ -7231,7 +7231,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getTokenBytes() {
         java.lang.Object ref = token_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           token_ = b;
@@ -7914,7 +7914,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.Status status = 1;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder> 
+          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder>
           internalGetStatusFieldBuilder() {
         if (statusBuilder_ == null) {
           statusBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -8035,7 +8035,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.TokenAuthInfo data = 2;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.Common.TokenAuthInfo, org.jumpserver.wisp.Common.TokenAuthInfo.Builder, org.jumpserver.wisp.Common.TokenAuthInfoOrBuilder> 
+          org.jumpserver.wisp.Common.TokenAuthInfo, org.jumpserver.wisp.Common.TokenAuthInfo.Builder, org.jumpserver.wisp.Common.TokenAuthInfoOrBuilder>
           internalGetDataFieldBuilder() {
         if (dataBuilder_ == null) {
           dataBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -8605,7 +8605,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.Session data = 1;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.Common.Session, org.jumpserver.wisp.Common.Session.Builder, org.jumpserver.wisp.Common.SessionOrBuilder> 
+          org.jumpserver.wisp.Common.Session, org.jumpserver.wisp.Common.Session.Builder, org.jumpserver.wisp.Common.SessionOrBuilder>
           internalGetDataFieldBuilder() {
         if (dataBuilder_ == null) {
           dataBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -9254,7 +9254,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.Status status = 1;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder> 
+          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder>
           internalGetStatusFieldBuilder() {
         if (statusBuilder_ == null) {
           statusBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -9375,7 +9375,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.Session data = 2;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.Common.Session, org.jumpserver.wisp.Common.Session.Builder, org.jumpserver.wisp.Common.SessionOrBuilder> 
+          org.jumpserver.wisp.Common.Session, org.jumpserver.wisp.Common.Session.Builder, org.jumpserver.wisp.Common.SessionOrBuilder>
           internalGetDataFieldBuilder() {
         if (dataBuilder_ == null) {
           dataBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -9531,7 +9531,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         id_ = s;
@@ -9547,7 +9547,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getIdBytes() {
       java.lang.Object ref = id_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         id_ = b;
@@ -9592,7 +9592,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         err_ = s;
@@ -9608,7 +9608,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getErrBytes() {
       java.lang.Object ref = err_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         err_ = b;
@@ -10009,7 +10009,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getIdBytes() {
         java.lang.Object ref = id_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           id_ = b;
@@ -10145,7 +10145,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getErrBytes() {
         java.lang.Object ref = err_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           err_ = b;
@@ -10749,7 +10749,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.Status status = 1;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder> 
+          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder>
           internalGetStatusFieldBuilder() {
         if (statusBuilder_ == null) {
           statusBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -10893,7 +10893,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         sessionId_ = s;
@@ -10909,7 +10909,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getSessionIdBytes() {
       java.lang.Object ref = sessionId_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         sessionId_ = b;
@@ -10932,7 +10932,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         replayFilePath_ = s;
@@ -10948,7 +10948,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getReplayFilePathBytes() {
       java.lang.Object ref = replayFilePath_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         replayFilePath_ = b;
@@ -11301,7 +11301,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getSessionIdBytes() {
         java.lang.Object ref = sessionId_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           sessionId_ = b;
@@ -11373,7 +11373,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getReplayFilePathBytes() {
         java.lang.Object ref = replayFilePath_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           replayFilePath_ = b;
@@ -11977,7 +11977,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.Status status = 1;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder> 
+          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder>
           internalGetStatusFieldBuilder() {
         if (statusBuilder_ == null) {
           statusBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -12230,7 +12230,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         sid_ = s;
@@ -12246,7 +12246,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getSidBytes() {
       java.lang.Object ref = sid_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         sid_ = b;
@@ -12269,7 +12269,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         orgId_ = s;
@@ -12285,7 +12285,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getOrgIdBytes() {
       java.lang.Object ref = orgId_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         orgId_ = b;
@@ -12308,7 +12308,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         input_ = s;
@@ -12324,7 +12324,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getInputBytes() {
       java.lang.Object ref = input_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         input_ = b;
@@ -12347,7 +12347,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         output_ = s;
@@ -12363,7 +12363,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getOutputBytes() {
       java.lang.Object ref = output_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         output_ = b;
@@ -12386,7 +12386,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         user_ = s;
@@ -12402,7 +12402,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getUserBytes() {
       java.lang.Object ref = user_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         user_ = b;
@@ -12425,7 +12425,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         asset_ = s;
@@ -12441,7 +12441,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getAssetBytes() {
       java.lang.Object ref = asset_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         asset_ = b;
@@ -12464,7 +12464,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         account_ = s;
@@ -12480,7 +12480,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getAccountBytes() {
       java.lang.Object ref = account_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         account_ = b;
@@ -12532,7 +12532,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         cmdAclId_ = s;
@@ -12548,7 +12548,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getCmdAclIdBytes() {
       java.lang.Object ref = cmdAclId_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         cmdAclId_ = b;
@@ -12571,7 +12571,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         cmdGroupId_ = s;
@@ -12587,7 +12587,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getCmdGroupIdBytes() {
       java.lang.Object ref = cmdGroupId_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         cmdGroupId_ = b;
@@ -13154,7 +13154,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getSidBytes() {
         java.lang.Object ref = sid_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           sid_ = b;
@@ -13226,7 +13226,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getOrgIdBytes() {
         java.lang.Object ref = orgId_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           orgId_ = b;
@@ -13298,7 +13298,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getInputBytes() {
         java.lang.Object ref = input_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           input_ = b;
@@ -13370,7 +13370,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getOutputBytes() {
         java.lang.Object ref = output_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           output_ = b;
@@ -13442,7 +13442,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getUserBytes() {
         java.lang.Object ref = user_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           user_ = b;
@@ -13514,7 +13514,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getAssetBytes() {
         java.lang.Object ref = asset_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           asset_ = b;
@@ -13586,7 +13586,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getAccountBytes() {
         java.lang.Object ref = account_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           account_ = b;
@@ -13741,7 +13741,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getCmdAclIdBytes() {
         java.lang.Object ref = cmdAclId_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           cmdAclId_ = b;
@@ -13813,7 +13813,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getCmdGroupIdBytes() {
         java.lang.Object ref = cmdGroupId_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           cmdGroupId_ = b;
@@ -14417,7 +14417,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.Status status = 1;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder> 
+          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder>
           internalGetStatusFieldBuilder() {
         if (statusBuilder_ == null) {
           statusBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -14548,7 +14548,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         taskId_ = s;
@@ -14564,7 +14564,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getTaskIdBytes() {
       java.lang.Object ref = taskId_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         taskId_ = b;
@@ -14893,7 +14893,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getTaskIdBytes() {
         java.lang.Object ref = taskId_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           taskId_ = b;
@@ -15497,7 +15497,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.TerminalTask task = 1;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.Common.TerminalTask, org.jumpserver.wisp.Common.TerminalTask.Builder, org.jumpserver.wisp.Common.TerminalTaskOrBuilder> 
+          org.jumpserver.wisp.Common.TerminalTask, org.jumpserver.wisp.Common.TerminalTask.Builder, org.jumpserver.wisp.Common.TerminalTaskOrBuilder>
           internalGetTaskFieldBuilder() {
         if (taskBuilder_ == null) {
           taskBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -15628,7 +15628,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         replayDir_ = s;
@@ -15644,7 +15644,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getReplayDirBytes() {
       java.lang.Object ref = replayDir_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         replayDir_ = b;
@@ -15973,7 +15973,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getReplayDirBytes() {
         java.lang.Object ref = replayDir_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           replayDir_ = b;
@@ -16886,7 +16886,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.Status status = 1;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder> 
+          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder>
           internalGetStatusFieldBuilder() {
         if (statusBuilder_ == null) {
           statusBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -17789,7 +17789,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.Status status = 1;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder> 
+          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder>
           internalGetStatusFieldBuilder() {
         if (statusBuilder_ == null) {
           statusBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -17946,7 +17946,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         sessionId_ = s;
@@ -17962,7 +17962,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getSessionIdBytes() {
       java.lang.Object ref = sessionId_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         sessionId_ = b;
@@ -17985,7 +17985,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         cmdAclId_ = s;
@@ -18001,7 +18001,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getCmdAclIdBytes() {
       java.lang.Object ref = cmdAclId_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         cmdAclId_ = b;
@@ -18024,7 +18024,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         cmd_ = s;
@@ -18040,7 +18040,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getCmdBytes() {
       java.lang.Object ref = cmd_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         cmd_ = b;
@@ -18417,7 +18417,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getSessionIdBytes() {
         java.lang.Object ref = sessionId_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           sessionId_ = b;
@@ -18489,7 +18489,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getCmdAclIdBytes() {
         java.lang.Object ref = cmdAclId_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           cmdAclId_ = b;
@@ -18561,7 +18561,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getCmdBytes() {
         java.lang.Object ref = cmd_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           cmd_ = b;
@@ -18739,7 +18739,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         method_ = s;
@@ -18755,7 +18755,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getMethodBytes() {
       java.lang.Object ref = method_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         method_ = b;
@@ -18778,7 +18778,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         url_ = s;
@@ -18794,7 +18794,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getUrlBytes() {
       java.lang.Object ref = url_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         url_ = b;
@@ -19147,7 +19147,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getMethodBytes() {
         java.lang.Object ref = method_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           method_ = b;
@@ -19219,7 +19219,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getUrlBytes() {
         java.lang.Object ref = url_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           url_ = b;
@@ -19902,7 +19902,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.Status status = 1;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder> 
+          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder>
           internalGetStatusFieldBuilder() {
         if (statusBuilder_ == null) {
           statusBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -20023,7 +20023,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.TicketInfo info = 2;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.ServiceOuterClass.TicketInfo, org.jumpserver.wisp.ServiceOuterClass.TicketInfo.Builder, org.jumpserver.wisp.ServiceOuterClass.TicketInfoOrBuilder> 
+          org.jumpserver.wisp.ServiceOuterClass.TicketInfo, org.jumpserver.wisp.ServiceOuterClass.TicketInfo.Builder, org.jumpserver.wisp.ServiceOuterClass.TicketInfoOrBuilder>
           internalGetInfoFieldBuilder() {
         if (infoBuilder_ == null) {
           infoBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -20264,7 +20264,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         ticketDetailUrl_ = s;
@@ -20280,7 +20280,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getTicketDetailUrlBytes() {
       java.lang.Object ref = ticketDetailUrl_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         ticketDetailUrl_ = b;
@@ -20851,7 +20851,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.ReqInfo check_req = 1;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.ServiceOuterClass.ReqInfo, org.jumpserver.wisp.ServiceOuterClass.ReqInfo.Builder, org.jumpserver.wisp.ServiceOuterClass.ReqInfoOrBuilder> 
+          org.jumpserver.wisp.ServiceOuterClass.ReqInfo, org.jumpserver.wisp.ServiceOuterClass.ReqInfo.Builder, org.jumpserver.wisp.ServiceOuterClass.ReqInfoOrBuilder>
           internalGetCheckReqFieldBuilder() {
         if (checkReqBuilder_ == null) {
           checkReqBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -20972,7 +20972,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.ReqInfo cancel_req = 2;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.ServiceOuterClass.ReqInfo, org.jumpserver.wisp.ServiceOuterClass.ReqInfo.Builder, org.jumpserver.wisp.ServiceOuterClass.ReqInfoOrBuilder> 
+          org.jumpserver.wisp.ServiceOuterClass.ReqInfo, org.jumpserver.wisp.ServiceOuterClass.ReqInfo.Builder, org.jumpserver.wisp.ServiceOuterClass.ReqInfoOrBuilder>
           internalGetCancelReqFieldBuilder() {
         if (cancelReqBuilder_ == null) {
           cancelReqBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -21010,7 +21010,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getTicketDetailUrlBytes() {
         java.lang.Object ref = ticketDetailUrl_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           ticketDetailUrl_ = b;
@@ -21725,7 +21725,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.ReqInfo req = 1;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.ServiceOuterClass.ReqInfo, org.jumpserver.wisp.ServiceOuterClass.ReqInfo.Builder, org.jumpserver.wisp.ServiceOuterClass.ReqInfoOrBuilder> 
+          org.jumpserver.wisp.ServiceOuterClass.ReqInfo, org.jumpserver.wisp.ServiceOuterClass.ReqInfo.Builder, org.jumpserver.wisp.ServiceOuterClass.ReqInfoOrBuilder>
           internalGetReqFieldBuilder() {
         if (reqBuilder_ == null) {
           reqBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -22374,7 +22374,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.TicketState Data = 1;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.ServiceOuterClass.TicketState, org.jumpserver.wisp.ServiceOuterClass.TicketState.Builder, org.jumpserver.wisp.ServiceOuterClass.TicketStateOrBuilder> 
+          org.jumpserver.wisp.ServiceOuterClass.TicketState, org.jumpserver.wisp.ServiceOuterClass.TicketState.Builder, org.jumpserver.wisp.ServiceOuterClass.TicketStateOrBuilder>
           internalGetDataFieldBuilder() {
         if (dataBuilder_ == null) {
           dataBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -22495,7 +22495,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.Status status = 2;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder> 
+          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder>
           internalGetStatusFieldBuilder() {
         if (statusBuilder_ == null) {
           statusBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -22791,7 +22791,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         processor_ = s;
@@ -22807,7 +22807,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getProcessorBytes() {
       java.lang.Object ref = processor_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         processor_ = b;
@@ -23209,7 +23209,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getProcessorBytes() {
         java.lang.Object ref = processor_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           processor_ = b;
@@ -23332,7 +23332,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
     /**
      * <code>repeated .message.Gateway gateways = 3;</code>
      */
-    java.util.List<org.jumpserver.wisp.Common.Gateway> 
+    java.util.List<org.jumpserver.wisp.Common.Gateway>
         getGatewaysList();
     /**
      * <code>repeated .message.Gateway gateways = 3;</code>
@@ -23345,7 +23345,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
     /**
      * <code>repeated .message.Gateway gateways = 3;</code>
      */
-    java.util.List<? extends org.jumpserver.wisp.Common.GatewayOrBuilder> 
+    java.util.List<? extends org.jumpserver.wisp.Common.GatewayOrBuilder>
         getGatewaysOrBuilderList();
     /**
      * <code>repeated .message.Gateway gateways = 3;</code>
@@ -23405,7 +23405,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         host_ = s;
@@ -23421,7 +23421,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getHostBytes() {
       java.lang.Object ref = host_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         host_ = b;
@@ -23456,7 +23456,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
      * <code>repeated .message.Gateway gateways = 3;</code>
      */
     @java.lang.Override
-    public java.util.List<? extends org.jumpserver.wisp.Common.GatewayOrBuilder> 
+    public java.util.List<? extends org.jumpserver.wisp.Common.GatewayOrBuilder>
         getGatewaysOrBuilderList() {
       return gateways_;
     }
@@ -23798,7 +23798,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
               gatewaysBuilder_ = null;
               gateways_ = other.gateways_;
               bitField0_ = (bitField0_ & ~0x00000004);
-              gatewaysBuilder_ = 
+              gatewaysBuilder_ =
                 com.google.protobuf.GeneratedMessage.alwaysUseFieldBuilders ?
                    internalGetGatewaysFieldBuilder() : null;
             } else {
@@ -23897,7 +23897,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getHostBytes() {
         java.lang.Object ref = host_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           host_ = b;
@@ -24171,7 +24171,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       /**
        * <code>repeated .message.Gateway gateways = 3;</code>
        */
-      public java.util.List<? extends org.jumpserver.wisp.Common.GatewayOrBuilder> 
+      public java.util.List<? extends org.jumpserver.wisp.Common.GatewayOrBuilder>
            getGatewaysOrBuilderList() {
         if (gatewaysBuilder_ != null) {
           return gatewaysBuilder_.getMessageOrBuilderList();
@@ -24197,12 +24197,12 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       /**
        * <code>repeated .message.Gateway gateways = 3;</code>
        */
-      public java.util.List<org.jumpserver.wisp.Common.Gateway.Builder> 
+      public java.util.List<org.jumpserver.wisp.Common.Gateway.Builder>
            getGatewaysBuilderList() {
         return internalGetGatewaysFieldBuilder().getBuilderList();
       }
       private com.google.protobuf.RepeatedFieldBuilder<
-          org.jumpserver.wisp.Common.Gateway, org.jumpserver.wisp.Common.Gateway.Builder, org.jumpserver.wisp.Common.GatewayOrBuilder> 
+          org.jumpserver.wisp.Common.Gateway, org.jumpserver.wisp.Common.Gateway.Builder, org.jumpserver.wisp.Common.GatewayOrBuilder>
           internalGetGatewaysFieldBuilder() {
         if (gatewaysBuilder_ == null) {
           gatewaysBuilder_ = new com.google.protobuf.RepeatedFieldBuilder<
@@ -24334,7 +24334,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         id_ = s;
@@ -24350,7 +24350,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getIdBytes() {
       java.lang.Object ref = id_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         id_ = b;
@@ -24679,7 +24679,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getIdBytes() {
         java.lang.Object ref = id_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           id_ = b;
@@ -24905,7 +24905,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         id_ = s;
@@ -24921,7 +24921,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getIdBytes() {
       java.lang.Object ref = id_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         id_ = b;
@@ -24944,7 +24944,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         host_ = s;
@@ -24960,7 +24960,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getHostBytes() {
       java.lang.Object ref = host_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         host_ = b;
@@ -25475,7 +25475,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.Status status = 1;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder> 
+          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder>
           internalGetStatusFieldBuilder() {
         if (statusBuilder_ == null) {
           statusBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -25513,7 +25513,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getIdBytes() {
         java.lang.Object ref = id_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           id_ = b;
@@ -25585,7 +25585,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getHostBytes() {
         java.lang.Object ref = host_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           host_ = b;
@@ -26300,7 +26300,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.Status status = 1;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder> 
+          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder>
           internalGetStatusFieldBuilder() {
         if (statusBuilder_ == null) {
           statusBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -26421,7 +26421,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.PublicSetting data = 2;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.Common.PublicSetting, org.jumpserver.wisp.Common.PublicSetting.Builder, org.jumpserver.wisp.Common.PublicSettingOrBuilder> 
+          org.jumpserver.wisp.Common.PublicSetting, org.jumpserver.wisp.Common.PublicSetting.Builder, org.jumpserver.wisp.Common.PublicSettingOrBuilder>
           internalGetDataFieldBuilder() {
         if (dataBuilder_ == null) {
           dataBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -27454,7 +27454,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.Status status = 1;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder> 
+          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder>
           internalGetStatusFieldBuilder() {
         if (statusBuilder_ == null) {
           statusBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -28621,7 +28621,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.Status status = 1;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder> 
+          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder>
           internalGetStatusFieldBuilder() {
         if (statusBuilder_ == null) {
           statusBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -28742,7 +28742,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.PortInfo data = 2;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.ServiceOuterClass.PortInfo, org.jumpserver.wisp.ServiceOuterClass.PortInfo.Builder, org.jumpserver.wisp.ServiceOuterClass.PortInfoOrBuilder> 
+          org.jumpserver.wisp.ServiceOuterClass.PortInfo, org.jumpserver.wisp.ServiceOuterClass.PortInfo.Builder, org.jumpserver.wisp.ServiceOuterClass.PortInfoOrBuilder>
           internalGetDataFieldBuilder() {
         if (dataBuilder_ == null) {
           dataBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -28828,7 +28828,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
     /**
      * <code>repeated .message.Gateway gateways = 2;</code>
      */
-    java.util.List<org.jumpserver.wisp.Common.Gateway> 
+    java.util.List<org.jumpserver.wisp.Common.Gateway>
         getGatewaysList();
     /**
      * <code>repeated .message.Gateway gateways = 2;</code>
@@ -28841,7 +28841,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
     /**
      * <code>repeated .message.Gateway gateways = 2;</code>
      */
-    java.util.List<? extends org.jumpserver.wisp.Common.GatewayOrBuilder> 
+    java.util.List<? extends org.jumpserver.wisp.Common.GatewayOrBuilder>
         getGatewaysOrBuilderList();
     /**
      * <code>repeated .message.Gateway gateways = 2;</code>
@@ -28928,7 +28928,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
      * <code>repeated .message.Gateway gateways = 2;</code>
      */
     @java.lang.Override
-    public java.util.List<? extends org.jumpserver.wisp.Common.GatewayOrBuilder> 
+    public java.util.List<? extends org.jumpserver.wisp.Common.GatewayOrBuilder>
         getGatewaysOrBuilderList() {
       return gateways_;
     }
@@ -29272,7 +29272,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
               gatewaysBuilder_ = null;
               gateways_ = other.gateways_;
               bitField0_ = (bitField0_ & ~0x00000002);
-              gatewaysBuilder_ = 
+              gatewaysBuilder_ =
                 com.google.protobuf.GeneratedMessage.alwaysUseFieldBuilders ?
                    internalGetGatewaysFieldBuilder() : null;
             } else {
@@ -29451,7 +29451,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.Asset asset = 1;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.Common.Asset, org.jumpserver.wisp.Common.Asset.Builder, org.jumpserver.wisp.Common.AssetOrBuilder> 
+          org.jumpserver.wisp.Common.Asset, org.jumpserver.wisp.Common.Asset.Builder, org.jumpserver.wisp.Common.AssetOrBuilder>
           internalGetAssetFieldBuilder() {
         if (assetBuilder_ == null) {
           assetBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -29659,7 +29659,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       /**
        * <code>repeated .message.Gateway gateways = 2;</code>
        */
-      public java.util.List<? extends org.jumpserver.wisp.Common.GatewayOrBuilder> 
+      public java.util.List<? extends org.jumpserver.wisp.Common.GatewayOrBuilder>
            getGatewaysOrBuilderList() {
         if (gatewaysBuilder_ != null) {
           return gatewaysBuilder_.getMessageOrBuilderList();
@@ -29685,12 +29685,12 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       /**
        * <code>repeated .message.Gateway gateways = 2;</code>
        */
-      public java.util.List<org.jumpserver.wisp.Common.Gateway.Builder> 
+      public java.util.List<org.jumpserver.wisp.Common.Gateway.Builder>
            getGatewaysBuilderList() {
         return internalGetGatewaysFieldBuilder().getBuilderList();
       }
       private com.google.protobuf.RepeatedFieldBuilder<
-          org.jumpserver.wisp.Common.Gateway, org.jumpserver.wisp.Common.Gateway.Builder, org.jumpserver.wisp.Common.GatewayOrBuilder> 
+          org.jumpserver.wisp.Common.Gateway, org.jumpserver.wisp.Common.Gateway.Builder, org.jumpserver.wisp.Common.GatewayOrBuilder>
           internalGetGatewaysFieldBuilder() {
         if (gatewaysBuilder_ == null) {
           gatewaysBuilder_ = new com.google.protobuf.RepeatedFieldBuilder<
@@ -29839,7 +29839,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         reason_ = s;
@@ -29855,7 +29855,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getReasonBytes() {
       java.lang.Object ref = reason_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         reason_ = b;
@@ -30239,7 +30239,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getReasonBytes() {
         java.lang.Object ref = reason_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           reason_ = b;
@@ -30344,7 +30344,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
     /**
      * <code>repeated .message.PortFailure data = 1;</code>
      */
-    java.util.List<org.jumpserver.wisp.ServiceOuterClass.PortFailure> 
+    java.util.List<org.jumpserver.wisp.ServiceOuterClass.PortFailure>
         getDataList();
     /**
      * <code>repeated .message.PortFailure data = 1;</code>
@@ -30357,7 +30357,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
     /**
      * <code>repeated .message.PortFailure data = 1;</code>
      */
-    java.util.List<? extends org.jumpserver.wisp.ServiceOuterClass.PortFailureOrBuilder> 
+    java.util.List<? extends org.jumpserver.wisp.ServiceOuterClass.PortFailureOrBuilder>
         getDataOrBuilderList();
     /**
      * <code>repeated .message.PortFailure data = 1;</code>
@@ -30417,7 +30417,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
      * <code>repeated .message.PortFailure data = 1;</code>
      */
     @java.lang.Override
-    public java.util.List<? extends org.jumpserver.wisp.ServiceOuterClass.PortFailureOrBuilder> 
+    public java.util.List<? extends org.jumpserver.wisp.ServiceOuterClass.PortFailureOrBuilder>
         getDataOrBuilderList() {
       return data_;
     }
@@ -30722,7 +30722,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
               dataBuilder_ = null;
               data_ = other.data_;
               bitField0_ = (bitField0_ & ~0x00000001);
-              dataBuilder_ = 
+              dataBuilder_ =
                 com.google.protobuf.GeneratedMessage.alwaysUseFieldBuilders ?
                    internalGetDataFieldBuilder() : null;
             } else {
@@ -30981,7 +30981,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       /**
        * <code>repeated .message.PortFailure data = 1;</code>
        */
-      public java.util.List<? extends org.jumpserver.wisp.ServiceOuterClass.PortFailureOrBuilder> 
+      public java.util.List<? extends org.jumpserver.wisp.ServiceOuterClass.PortFailureOrBuilder>
            getDataOrBuilderList() {
         if (dataBuilder_ != null) {
           return dataBuilder_.getMessageOrBuilderList();
@@ -31007,12 +31007,12 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       /**
        * <code>repeated .message.PortFailure data = 1;</code>
        */
-      public java.util.List<org.jumpserver.wisp.ServiceOuterClass.PortFailure.Builder> 
+      public java.util.List<org.jumpserver.wisp.ServiceOuterClass.PortFailure.Builder>
            getDataBuilderList() {
         return internalGetDataFieldBuilder().getBuilderList();
       }
       private com.google.protobuf.RepeatedFieldBuilder<
-          org.jumpserver.wisp.ServiceOuterClass.PortFailure, org.jumpserver.wisp.ServiceOuterClass.PortFailure.Builder, org.jumpserver.wisp.ServiceOuterClass.PortFailureOrBuilder> 
+          org.jumpserver.wisp.ServiceOuterClass.PortFailure, org.jumpserver.wisp.ServiceOuterClass.PortFailure.Builder, org.jumpserver.wisp.ServiceOuterClass.PortFailureOrBuilder>
           internalGetDataFieldBuilder() {
         if (dataBuilder_ == null) {
           dataBuilder_ = new com.google.protobuf.RepeatedFieldBuilder<
@@ -31084,7 +31084,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
     /**
      * <code>repeated .message.Cookie cookies = 1;</code>
      */
-    java.util.List<org.jumpserver.wisp.Common.Cookie> 
+    java.util.List<org.jumpserver.wisp.Common.Cookie>
         getCookiesList();
     /**
      * <code>repeated .message.Cookie cookies = 1;</code>
@@ -31097,7 +31097,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
     /**
      * <code>repeated .message.Cookie cookies = 1;</code>
      */
-    java.util.List<? extends org.jumpserver.wisp.Common.CookieOrBuilder> 
+    java.util.List<? extends org.jumpserver.wisp.Common.CookieOrBuilder>
         getCookiesOrBuilderList();
     /**
      * <code>repeated .message.Cookie cookies = 1;</code>
@@ -31157,7 +31157,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
      * <code>repeated .message.Cookie cookies = 1;</code>
      */
     @java.lang.Override
-    public java.util.List<? extends org.jumpserver.wisp.Common.CookieOrBuilder> 
+    public java.util.List<? extends org.jumpserver.wisp.Common.CookieOrBuilder>
         getCookiesOrBuilderList() {
       return cookies_;
     }
@@ -31462,7 +31462,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
               cookiesBuilder_ = null;
               cookies_ = other.cookies_;
               bitField0_ = (bitField0_ & ~0x00000001);
-              cookiesBuilder_ = 
+              cookiesBuilder_ =
                 com.google.protobuf.GeneratedMessage.alwaysUseFieldBuilders ?
                    internalGetCookiesFieldBuilder() : null;
             } else {
@@ -31721,7 +31721,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       /**
        * <code>repeated .message.Cookie cookies = 1;</code>
        */
-      public java.util.List<? extends org.jumpserver.wisp.Common.CookieOrBuilder> 
+      public java.util.List<? extends org.jumpserver.wisp.Common.CookieOrBuilder>
            getCookiesOrBuilderList() {
         if (cookiesBuilder_ != null) {
           return cookiesBuilder_.getMessageOrBuilderList();
@@ -31747,12 +31747,12 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       /**
        * <code>repeated .message.Cookie cookies = 1;</code>
        */
-      public java.util.List<org.jumpserver.wisp.Common.Cookie.Builder> 
+      public java.util.List<org.jumpserver.wisp.Common.Cookie.Builder>
            getCookiesBuilderList() {
         return internalGetCookiesFieldBuilder().getBuilderList();
       }
       private com.google.protobuf.RepeatedFieldBuilder<
-          org.jumpserver.wisp.Common.Cookie, org.jumpserver.wisp.Common.Cookie.Builder, org.jumpserver.wisp.Common.CookieOrBuilder> 
+          org.jumpserver.wisp.Common.Cookie, org.jumpserver.wisp.Common.Cookie.Builder, org.jumpserver.wisp.Common.CookieOrBuilder>
           internalGetCookiesFieldBuilder() {
         if (cookiesBuilder_ == null) {
           cookiesBuilder_ = new com.google.protobuf.RepeatedFieldBuilder<
@@ -32402,7 +32402,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.Status status = 1;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder> 
+          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder>
           internalGetStatusFieldBuilder() {
         if (statusBuilder_ == null) {
           statusBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -32523,7 +32523,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.User data = 2;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.Common.User, org.jumpserver.wisp.Common.User.Builder, org.jumpserver.wisp.Common.UserOrBuilder> 
+          org.jumpserver.wisp.Common.User, org.jumpserver.wisp.Common.User.Builder, org.jumpserver.wisp.Common.UserOrBuilder>
           internalGetDataFieldBuilder() {
         if (dataBuilder_ == null) {
           dataBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -32908,7 +32908,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         sessionId_ = s;
@@ -32924,7 +32924,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getSessionIdBytes() {
       java.lang.Object ref = sessionId_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         sessionId_ = b;
@@ -32965,7 +32965,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         reason_ = s;
@@ -32981,7 +32981,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getReasonBytes() {
       java.lang.Object ref = reason_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         reason_ = b;
@@ -33004,7 +33004,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         user_ = s;
@@ -33020,7 +33020,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getUserBytes() {
       java.lang.Object ref = user_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         user_ = b;
@@ -33419,7 +33419,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getSessionIdBytes() {
         java.lang.Object ref = sessionId_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           sessionId_ = b;
@@ -33542,7 +33542,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getReasonBytes() {
         java.lang.Object ref = reason_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           reason_ = b;
@@ -33614,7 +33614,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getUserBytes() {
         java.lang.Object ref = user_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           user_ = b;
@@ -34297,7 +34297,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.Status status = 1;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder> 
+          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder>
           internalGetStatusFieldBuilder() {
         if (statusBuilder_ == null) {
           statusBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -34418,7 +34418,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.google.protobuf.Struct payload = 2;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          com.google.protobuf.Struct, com.google.protobuf.Struct.Builder, com.google.protobuf.StructOrBuilder> 
+          com.google.protobuf.Struct, com.google.protobuf.Struct.Builder, com.google.protobuf.StructOrBuilder>
           internalGetPayloadFieldBuilder() {
         if (payloadBuilder_ == null) {
           payloadBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -34651,7 +34651,7 @@ java.lang.String defaultValue);
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         method_ = s;
@@ -34667,7 +34667,7 @@ java.lang.String defaultValue);
         getMethodBytes() {
       java.lang.Object ref = method_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         method_ = b;
@@ -34690,7 +34690,7 @@ java.lang.String defaultValue);
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         path_ = s;
@@ -34706,7 +34706,7 @@ java.lang.String defaultValue);
         getPathBytes() {
       java.lang.Object ref = path_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         path_ = b;
@@ -34722,7 +34722,7 @@ java.lang.String defaultValue);
           java.lang.String, java.lang.String> defaultEntry =
               com.google.protobuf.MapEntry
               .<java.lang.String, java.lang.String>newDefaultInstance(
-                  org.jumpserver.wisp.ServiceOuterClass.internal_static_message_HTTPRequest_QueryEntry_descriptor, 
+                  org.jumpserver.wisp.ServiceOuterClass.internal_static_message_HTTPRequest_QueryEntry_descriptor,
                   com.google.protobuf.WireFormat.FieldType.STRING,
                   "",
                   com.google.protobuf.WireFormat.FieldType.STRING,
@@ -34801,7 +34801,7 @@ java.lang.String defaultValue) {
           java.lang.String, java.lang.String> defaultEntry =
               com.google.protobuf.MapEntry
               .<java.lang.String, java.lang.String>newDefaultInstance(
-                  org.jumpserver.wisp.ServiceOuterClass.internal_static_message_HTTPRequest_HeaderEntry_descriptor, 
+                  org.jumpserver.wisp.ServiceOuterClass.internal_static_message_HTTPRequest_HeaderEntry_descriptor,
                   com.google.protobuf.WireFormat.FieldType.STRING,
                   "",
                   com.google.protobuf.WireFormat.FieldType.STRING,
@@ -35355,7 +35355,7 @@ java.lang.String defaultValue) {
           getMethodBytes() {
         java.lang.Object ref = method_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           method_ = b;
@@ -35427,7 +35427,7 @@ java.lang.String defaultValue) {
           getPathBytes() {
         java.lang.Object ref = path_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           path_ = b;
@@ -36358,7 +36358,7 @@ java.lang.String defaultValue) {
        * <code>.message.Status status = 1;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder> 
+          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder>
           internalGetStatusFieldBuilder() {
         if (statusBuilder_ == null) {
           statusBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -36454,256 +36454,10318 @@ java.lang.String defaultValue) {
 
   }
 
+  public interface AgentSessionOpenOrBuilder extends
+      // @@protoc_insertion_point(interface_extends:message.AgentSessionOpen)
+      com.google.protobuf.MessageOrBuilder {
+
+    /**
+     * <code>string session_id = 1;</code>
+     * @return The sessionId.
+     */
+    java.lang.String getSessionId();
+    /**
+     * <code>string session_id = 1;</code>
+     * @return The bytes for sessionId.
+     */
+    com.google.protobuf.ByteString
+        getSessionIdBytes();
+
+    /**
+     * <code>string user_id = 2;</code>
+     * @return The userId.
+     */
+    java.lang.String getUserId();
+    /**
+     * <code>string user_id = 2;</code>
+     * @return The bytes for userId.
+     */
+    com.google.protobuf.ByteString
+        getUserIdBytes();
+
+    /**
+     * <code>string organization_id = 3;</code>
+     * @return The organizationId.
+     */
+    java.lang.String getOrganizationId();
+    /**
+     * <code>string organization_id = 3;</code>
+     * @return The bytes for organizationId.
+     */
+    com.google.protobuf.ByteString
+        getOrganizationIdBytes();
+
+    /**
+     * <code>string asset_id = 4;</code>
+     * @return The assetId.
+     */
+    java.lang.String getAssetId();
+    /**
+     * <code>string asset_id = 4;</code>
+     * @return The bytes for assetId.
+     */
+    com.google.protobuf.ByteString
+        getAssetIdBytes();
+
+    /**
+     * <code>string account_id = 5;</code>
+     * @return The accountId.
+     */
+    java.lang.String getAccountId();
+    /**
+     * <code>string account_id = 5;</code>
+     * @return The bytes for accountId.
+     */
+    com.google.protobuf.ByteString
+        getAccountIdBytes();
+
+    /**
+     * <code>string protocol = 6;</code>
+     * @return The protocol.
+     */
+    java.lang.String getProtocol();
+    /**
+     * <code>string protocol = 6;</code>
+     * @return The bytes for protocol.
+     */
+    com.google.protobuf.ByteString
+        getProtocolBytes();
+
+    /**
+     * <code>string language = 7;</code>
+     * @return The language.
+     */
+    java.lang.String getLanguage();
+    /**
+     * <code>string language = 7;</code>
+     * @return The bytes for language.
+     */
+    com.google.protobuf.ByteString
+        getLanguageBytes();
+
+    /**
+     * <code>string surface = 8;</code>
+     * @return The surface.
+     */
+    java.lang.String getSurface();
+    /**
+     * <code>string surface = 8;</code>
+     * @return The bytes for surface.
+     */
+    com.google.protobuf.ByteString
+        getSurfaceBytes();
+  }
+  /**
+   * <pre>
+   * AgentSession is a component-to-Wisp session stream. Each Chen JMS session
+   * owns one independent stream while all streams share the existing HTTP/2
+   * channel. JSON payloads deliberately keep the UI chat and surface context
+   * independently evolvable from this transport contract.
+   * </pre>
+   *
+   * Protobuf type {@code message.AgentSessionOpen}
+   */
+  public static final class AgentSessionOpen extends
+      com.google.protobuf.GeneratedMessage implements
+      // @@protoc_insertion_point(message_implements:message.AgentSessionOpen)
+      AgentSessionOpenOrBuilder {
+  private static final long serialVersionUID = 0L;
+    static {
+      com.google.protobuf.RuntimeVersion.validateProtobufGencodeVersion(
+        com.google.protobuf.RuntimeVersion.RuntimeDomain.PUBLIC,
+        /* major= */ 4,
+        /* minor= */ 32,
+        /* patch= */ 1,
+        /* suffix= */ "",
+        AgentSessionOpen.class.getName());
+    }
+    // Use AgentSessionOpen.newBuilder() to construct.
+    private AgentSessionOpen(com.google.protobuf.GeneratedMessage.Builder<?> builder) {
+      super(builder);
+    }
+    private AgentSessionOpen() {
+      sessionId_ = "";
+      userId_ = "";
+      organizationId_ = "";
+      assetId_ = "";
+      accountId_ = "";
+      protocol_ = "";
+      language_ = "";
+      surface_ = "";
+    }
+
+    public static final com.google.protobuf.Descriptors.Descriptor
+        getDescriptor() {
+      return org.jumpserver.wisp.ServiceOuterClass.internal_static_message_AgentSessionOpen_descriptor;
+    }
+
+    @java.lang.Override
+    protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
+        internalGetFieldAccessorTable() {
+      return org.jumpserver.wisp.ServiceOuterClass.internal_static_message_AgentSessionOpen_fieldAccessorTable
+          .ensureFieldAccessorsInitialized(
+              org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen.class, org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen.Builder.class);
+    }
+
+    public static final int SESSION_ID_FIELD_NUMBER = 1;
+    @SuppressWarnings("serial")
+    private volatile java.lang.Object sessionId_ = "";
+    /**
+     * <code>string session_id = 1;</code>
+     * @return The sessionId.
+     */
+    @java.lang.Override
+    public java.lang.String getSessionId() {
+      java.lang.Object ref = sessionId_;
+      if (ref instanceof java.lang.String) {
+        return (java.lang.String) ref;
+      } else {
+        com.google.protobuf.ByteString bs =
+            (com.google.protobuf.ByteString) ref;
+        java.lang.String s = bs.toStringUtf8();
+        sessionId_ = s;
+        return s;
+      }
+    }
+    /**
+     * <code>string session_id = 1;</code>
+     * @return The bytes for sessionId.
+     */
+    @java.lang.Override
+    public com.google.protobuf.ByteString
+        getSessionIdBytes() {
+      java.lang.Object ref = sessionId_;
+      if (ref instanceof java.lang.String) {
+        com.google.protobuf.ByteString b =
+            com.google.protobuf.ByteString.copyFromUtf8(
+                (java.lang.String) ref);
+        sessionId_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+
+    public static final int USER_ID_FIELD_NUMBER = 2;
+    @SuppressWarnings("serial")
+    private volatile java.lang.Object userId_ = "";
+    /**
+     * <code>string user_id = 2;</code>
+     * @return The userId.
+     */
+    @java.lang.Override
+    public java.lang.String getUserId() {
+      java.lang.Object ref = userId_;
+      if (ref instanceof java.lang.String) {
+        return (java.lang.String) ref;
+      } else {
+        com.google.protobuf.ByteString bs =
+            (com.google.protobuf.ByteString) ref;
+        java.lang.String s = bs.toStringUtf8();
+        userId_ = s;
+        return s;
+      }
+    }
+    /**
+     * <code>string user_id = 2;</code>
+     * @return The bytes for userId.
+     */
+    @java.lang.Override
+    public com.google.protobuf.ByteString
+        getUserIdBytes() {
+      java.lang.Object ref = userId_;
+      if (ref instanceof java.lang.String) {
+        com.google.protobuf.ByteString b =
+            com.google.protobuf.ByteString.copyFromUtf8(
+                (java.lang.String) ref);
+        userId_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+
+    public static final int ORGANIZATION_ID_FIELD_NUMBER = 3;
+    @SuppressWarnings("serial")
+    private volatile java.lang.Object organizationId_ = "";
+    /**
+     * <code>string organization_id = 3;</code>
+     * @return The organizationId.
+     */
+    @java.lang.Override
+    public java.lang.String getOrganizationId() {
+      java.lang.Object ref = organizationId_;
+      if (ref instanceof java.lang.String) {
+        return (java.lang.String) ref;
+      } else {
+        com.google.protobuf.ByteString bs =
+            (com.google.protobuf.ByteString) ref;
+        java.lang.String s = bs.toStringUtf8();
+        organizationId_ = s;
+        return s;
+      }
+    }
+    /**
+     * <code>string organization_id = 3;</code>
+     * @return The bytes for organizationId.
+     */
+    @java.lang.Override
+    public com.google.protobuf.ByteString
+        getOrganizationIdBytes() {
+      java.lang.Object ref = organizationId_;
+      if (ref instanceof java.lang.String) {
+        com.google.protobuf.ByteString b =
+            com.google.protobuf.ByteString.copyFromUtf8(
+                (java.lang.String) ref);
+        organizationId_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+
+    public static final int ASSET_ID_FIELD_NUMBER = 4;
+    @SuppressWarnings("serial")
+    private volatile java.lang.Object assetId_ = "";
+    /**
+     * <code>string asset_id = 4;</code>
+     * @return The assetId.
+     */
+    @java.lang.Override
+    public java.lang.String getAssetId() {
+      java.lang.Object ref = assetId_;
+      if (ref instanceof java.lang.String) {
+        return (java.lang.String) ref;
+      } else {
+        com.google.protobuf.ByteString bs =
+            (com.google.protobuf.ByteString) ref;
+        java.lang.String s = bs.toStringUtf8();
+        assetId_ = s;
+        return s;
+      }
+    }
+    /**
+     * <code>string asset_id = 4;</code>
+     * @return The bytes for assetId.
+     */
+    @java.lang.Override
+    public com.google.protobuf.ByteString
+        getAssetIdBytes() {
+      java.lang.Object ref = assetId_;
+      if (ref instanceof java.lang.String) {
+        com.google.protobuf.ByteString b =
+            com.google.protobuf.ByteString.copyFromUtf8(
+                (java.lang.String) ref);
+        assetId_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+
+    public static final int ACCOUNT_ID_FIELD_NUMBER = 5;
+    @SuppressWarnings("serial")
+    private volatile java.lang.Object accountId_ = "";
+    /**
+     * <code>string account_id = 5;</code>
+     * @return The accountId.
+     */
+    @java.lang.Override
+    public java.lang.String getAccountId() {
+      java.lang.Object ref = accountId_;
+      if (ref instanceof java.lang.String) {
+        return (java.lang.String) ref;
+      } else {
+        com.google.protobuf.ByteString bs =
+            (com.google.protobuf.ByteString) ref;
+        java.lang.String s = bs.toStringUtf8();
+        accountId_ = s;
+        return s;
+      }
+    }
+    /**
+     * <code>string account_id = 5;</code>
+     * @return The bytes for accountId.
+     */
+    @java.lang.Override
+    public com.google.protobuf.ByteString
+        getAccountIdBytes() {
+      java.lang.Object ref = accountId_;
+      if (ref instanceof java.lang.String) {
+        com.google.protobuf.ByteString b =
+            com.google.protobuf.ByteString.copyFromUtf8(
+                (java.lang.String) ref);
+        accountId_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+
+    public static final int PROTOCOL_FIELD_NUMBER = 6;
+    @SuppressWarnings("serial")
+    private volatile java.lang.Object protocol_ = "";
+    /**
+     * <code>string protocol = 6;</code>
+     * @return The protocol.
+     */
+    @java.lang.Override
+    public java.lang.String getProtocol() {
+      java.lang.Object ref = protocol_;
+      if (ref instanceof java.lang.String) {
+        return (java.lang.String) ref;
+      } else {
+        com.google.protobuf.ByteString bs =
+            (com.google.protobuf.ByteString) ref;
+        java.lang.String s = bs.toStringUtf8();
+        protocol_ = s;
+        return s;
+      }
+    }
+    /**
+     * <code>string protocol = 6;</code>
+     * @return The bytes for protocol.
+     */
+    @java.lang.Override
+    public com.google.protobuf.ByteString
+        getProtocolBytes() {
+      java.lang.Object ref = protocol_;
+      if (ref instanceof java.lang.String) {
+        com.google.protobuf.ByteString b =
+            com.google.protobuf.ByteString.copyFromUtf8(
+                (java.lang.String) ref);
+        protocol_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+
+    public static final int LANGUAGE_FIELD_NUMBER = 7;
+    @SuppressWarnings("serial")
+    private volatile java.lang.Object language_ = "";
+    /**
+     * <code>string language = 7;</code>
+     * @return The language.
+     */
+    @java.lang.Override
+    public java.lang.String getLanguage() {
+      java.lang.Object ref = language_;
+      if (ref instanceof java.lang.String) {
+        return (java.lang.String) ref;
+      } else {
+        com.google.protobuf.ByteString bs =
+            (com.google.protobuf.ByteString) ref;
+        java.lang.String s = bs.toStringUtf8();
+        language_ = s;
+        return s;
+      }
+    }
+    /**
+     * <code>string language = 7;</code>
+     * @return The bytes for language.
+     */
+    @java.lang.Override
+    public com.google.protobuf.ByteString
+        getLanguageBytes() {
+      java.lang.Object ref = language_;
+      if (ref instanceof java.lang.String) {
+        com.google.protobuf.ByteString b =
+            com.google.protobuf.ByteString.copyFromUtf8(
+                (java.lang.String) ref);
+        language_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+
+    public static final int SURFACE_FIELD_NUMBER = 8;
+    @SuppressWarnings("serial")
+    private volatile java.lang.Object surface_ = "";
+    /**
+     * <code>string surface = 8;</code>
+     * @return The surface.
+     */
+    @java.lang.Override
+    public java.lang.String getSurface() {
+      java.lang.Object ref = surface_;
+      if (ref instanceof java.lang.String) {
+        return (java.lang.String) ref;
+      } else {
+        com.google.protobuf.ByteString bs =
+            (com.google.protobuf.ByteString) ref;
+        java.lang.String s = bs.toStringUtf8();
+        surface_ = s;
+        return s;
+      }
+    }
+    /**
+     * <code>string surface = 8;</code>
+     * @return The bytes for surface.
+     */
+    @java.lang.Override
+    public com.google.protobuf.ByteString
+        getSurfaceBytes() {
+      java.lang.Object ref = surface_;
+      if (ref instanceof java.lang.String) {
+        com.google.protobuf.ByteString b =
+            com.google.protobuf.ByteString.copyFromUtf8(
+                (java.lang.String) ref);
+        surface_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+
+    private byte memoizedIsInitialized = -1;
+    @java.lang.Override
+    public final boolean isInitialized() {
+      byte isInitialized = memoizedIsInitialized;
+      if (isInitialized == 1) return true;
+      if (isInitialized == 0) return false;
+
+      memoizedIsInitialized = 1;
+      return true;
+    }
+
+    @java.lang.Override
+    public void writeTo(com.google.protobuf.CodedOutputStream output)
+                        throws java.io.IOException {
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(sessionId_)) {
+        com.google.protobuf.GeneratedMessage.writeString(output, 1, sessionId_);
+      }
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(userId_)) {
+        com.google.protobuf.GeneratedMessage.writeString(output, 2, userId_);
+      }
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(organizationId_)) {
+        com.google.protobuf.GeneratedMessage.writeString(output, 3, organizationId_);
+      }
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(assetId_)) {
+        com.google.protobuf.GeneratedMessage.writeString(output, 4, assetId_);
+      }
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(accountId_)) {
+        com.google.protobuf.GeneratedMessage.writeString(output, 5, accountId_);
+      }
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(protocol_)) {
+        com.google.protobuf.GeneratedMessage.writeString(output, 6, protocol_);
+      }
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(language_)) {
+        com.google.protobuf.GeneratedMessage.writeString(output, 7, language_);
+      }
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(surface_)) {
+        com.google.protobuf.GeneratedMessage.writeString(output, 8, surface_);
+      }
+      getUnknownFields().writeTo(output);
+    }
+
+    @java.lang.Override
+    public int getSerializedSize() {
+      int size = memoizedSize;
+      if (size != -1) return size;
+
+      size = 0;
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(sessionId_)) {
+        size += com.google.protobuf.GeneratedMessage.computeStringSize(1, sessionId_);
+      }
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(userId_)) {
+        size += com.google.protobuf.GeneratedMessage.computeStringSize(2, userId_);
+      }
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(organizationId_)) {
+        size += com.google.protobuf.GeneratedMessage.computeStringSize(3, organizationId_);
+      }
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(assetId_)) {
+        size += com.google.protobuf.GeneratedMessage.computeStringSize(4, assetId_);
+      }
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(accountId_)) {
+        size += com.google.protobuf.GeneratedMessage.computeStringSize(5, accountId_);
+      }
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(protocol_)) {
+        size += com.google.protobuf.GeneratedMessage.computeStringSize(6, protocol_);
+      }
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(language_)) {
+        size += com.google.protobuf.GeneratedMessage.computeStringSize(7, language_);
+      }
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(surface_)) {
+        size += com.google.protobuf.GeneratedMessage.computeStringSize(8, surface_);
+      }
+      size += getUnknownFields().getSerializedSize();
+      memoizedSize = size;
+      return size;
+    }
+
+    @java.lang.Override
+    public boolean equals(final java.lang.Object obj) {
+      if (obj == this) {
+       return true;
+      }
+      if (!(obj instanceof org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen)) {
+        return super.equals(obj);
+      }
+      org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen other = (org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen) obj;
+
+      if (!getSessionId()
+          .equals(other.getSessionId())) return false;
+      if (!getUserId()
+          .equals(other.getUserId())) return false;
+      if (!getOrganizationId()
+          .equals(other.getOrganizationId())) return false;
+      if (!getAssetId()
+          .equals(other.getAssetId())) return false;
+      if (!getAccountId()
+          .equals(other.getAccountId())) return false;
+      if (!getProtocol()
+          .equals(other.getProtocol())) return false;
+      if (!getLanguage()
+          .equals(other.getLanguage())) return false;
+      if (!getSurface()
+          .equals(other.getSurface())) return false;
+      if (!getUnknownFields().equals(other.getUnknownFields())) return false;
+      return true;
+    }
+
+    @java.lang.Override
+    public int hashCode() {
+      if (memoizedHashCode != 0) {
+        return memoizedHashCode;
+      }
+      int hash = 41;
+      hash = (19 * hash) + getDescriptor().hashCode();
+      hash = (37 * hash) + SESSION_ID_FIELD_NUMBER;
+      hash = (53 * hash) + getSessionId().hashCode();
+      hash = (37 * hash) + USER_ID_FIELD_NUMBER;
+      hash = (53 * hash) + getUserId().hashCode();
+      hash = (37 * hash) + ORGANIZATION_ID_FIELD_NUMBER;
+      hash = (53 * hash) + getOrganizationId().hashCode();
+      hash = (37 * hash) + ASSET_ID_FIELD_NUMBER;
+      hash = (53 * hash) + getAssetId().hashCode();
+      hash = (37 * hash) + ACCOUNT_ID_FIELD_NUMBER;
+      hash = (53 * hash) + getAccountId().hashCode();
+      hash = (37 * hash) + PROTOCOL_FIELD_NUMBER;
+      hash = (53 * hash) + getProtocol().hashCode();
+      hash = (37 * hash) + LANGUAGE_FIELD_NUMBER;
+      hash = (53 * hash) + getLanguage().hashCode();
+      hash = (37 * hash) + SURFACE_FIELD_NUMBER;
+      hash = (53 * hash) + getSurface().hashCode();
+      hash = (29 * hash) + getUnknownFields().hashCode();
+      memoizedHashCode = hash;
+      return hash;
+    }
+
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen parseFrom(
+        java.nio.ByteBuffer data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen parseFrom(
+        java.nio.ByteBuffer data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen parseFrom(
+        com.google.protobuf.ByteString data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen parseFrom(
+        com.google.protobuf.ByteString data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen parseFrom(byte[] data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen parseFrom(
+        byte[] data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen parseFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseWithIOException(PARSER, input);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen parseFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseWithIOException(PARSER, input, extensionRegistry);
+    }
+
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen parseDelimitedFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseDelimitedWithIOException(PARSER, input);
+    }
+
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen parseDelimitedFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseDelimitedWithIOException(PARSER, input, extensionRegistry);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen parseFrom(
+        com.google.protobuf.CodedInputStream input)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseWithIOException(PARSER, input);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen parseFrom(
+        com.google.protobuf.CodedInputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseWithIOException(PARSER, input, extensionRegistry);
+    }
+
+    @java.lang.Override
+    public Builder newBuilderForType() { return newBuilder(); }
+    public static Builder newBuilder() {
+      return DEFAULT_INSTANCE.toBuilder();
+    }
+    public static Builder newBuilder(org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen prototype) {
+      return DEFAULT_INSTANCE.toBuilder().mergeFrom(prototype);
+    }
+    @java.lang.Override
+    public Builder toBuilder() {
+      return this == DEFAULT_INSTANCE
+          ? new Builder() : new Builder().mergeFrom(this);
+    }
+
+    @java.lang.Override
+    protected Builder newBuilderForType(
+        com.google.protobuf.GeneratedMessage.BuilderParent parent) {
+      Builder builder = new Builder(parent);
+      return builder;
+    }
+    /**
+     * <pre>
+     * AgentSession is a component-to-Wisp session stream. Each Chen JMS session
+     * owns one independent stream while all streams share the existing HTTP/2
+     * channel. JSON payloads deliberately keep the UI chat and surface context
+     * independently evolvable from this transport contract.
+     * </pre>
+     *
+     * Protobuf type {@code message.AgentSessionOpen}
+     */
+    public static final class Builder extends
+        com.google.protobuf.GeneratedMessage.Builder<Builder> implements
+        // @@protoc_insertion_point(builder_implements:message.AgentSessionOpen)
+        org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpenOrBuilder {
+      public static final com.google.protobuf.Descriptors.Descriptor
+          getDescriptor() {
+        return org.jumpserver.wisp.ServiceOuterClass.internal_static_message_AgentSessionOpen_descriptor;
+      }
+
+      @java.lang.Override
+      protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
+          internalGetFieldAccessorTable() {
+        return org.jumpserver.wisp.ServiceOuterClass.internal_static_message_AgentSessionOpen_fieldAccessorTable
+            .ensureFieldAccessorsInitialized(
+                org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen.class, org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen.Builder.class);
+      }
+
+      // Construct using org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen.newBuilder()
+      private Builder() {
+
+      }
+
+      private Builder(
+          com.google.protobuf.GeneratedMessage.BuilderParent parent) {
+        super(parent);
+
+      }
+      @java.lang.Override
+      public Builder clear() {
+        super.clear();
+        bitField0_ = 0;
+        sessionId_ = "";
+        userId_ = "";
+        organizationId_ = "";
+        assetId_ = "";
+        accountId_ = "";
+        protocol_ = "";
+        language_ = "";
+        surface_ = "";
+        return this;
+      }
+
+      @java.lang.Override
+      public com.google.protobuf.Descriptors.Descriptor
+          getDescriptorForType() {
+        return org.jumpserver.wisp.ServiceOuterClass.internal_static_message_AgentSessionOpen_descriptor;
+      }
+
+      @java.lang.Override
+      public org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen getDefaultInstanceForType() {
+        return org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen.getDefaultInstance();
+      }
+
+      @java.lang.Override
+      public org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen build() {
+        org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(result);
+        }
+        return result;
+      }
+
+      @java.lang.Override
+      public org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen buildPartial() {
+        org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen result = new org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen(this);
+        if (bitField0_ != 0) { buildPartial0(result); }
+        onBuilt();
+        return result;
+      }
+
+      private void buildPartial0(org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen result) {
+        int from_bitField0_ = bitField0_;
+        if (((from_bitField0_ & 0x00000001) != 0)) {
+          result.sessionId_ = sessionId_;
+        }
+        if (((from_bitField0_ & 0x00000002) != 0)) {
+          result.userId_ = userId_;
+        }
+        if (((from_bitField0_ & 0x00000004) != 0)) {
+          result.organizationId_ = organizationId_;
+        }
+        if (((from_bitField0_ & 0x00000008) != 0)) {
+          result.assetId_ = assetId_;
+        }
+        if (((from_bitField0_ & 0x00000010) != 0)) {
+          result.accountId_ = accountId_;
+        }
+        if (((from_bitField0_ & 0x00000020) != 0)) {
+          result.protocol_ = protocol_;
+        }
+        if (((from_bitField0_ & 0x00000040) != 0)) {
+          result.language_ = language_;
+        }
+        if (((from_bitField0_ & 0x00000080) != 0)) {
+          result.surface_ = surface_;
+        }
+      }
+
+      @java.lang.Override
+      public Builder mergeFrom(com.google.protobuf.Message other) {
+        if (other instanceof org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen) {
+          return mergeFrom((org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen)other);
+        } else {
+          super.mergeFrom(other);
+          return this;
+        }
+      }
+
+      public Builder mergeFrom(org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen other) {
+        if (other == org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen.getDefaultInstance()) return this;
+        if (!other.getSessionId().isEmpty()) {
+          sessionId_ = other.sessionId_;
+          bitField0_ |= 0x00000001;
+          onChanged();
+        }
+        if (!other.getUserId().isEmpty()) {
+          userId_ = other.userId_;
+          bitField0_ |= 0x00000002;
+          onChanged();
+        }
+        if (!other.getOrganizationId().isEmpty()) {
+          organizationId_ = other.organizationId_;
+          bitField0_ |= 0x00000004;
+          onChanged();
+        }
+        if (!other.getAssetId().isEmpty()) {
+          assetId_ = other.assetId_;
+          bitField0_ |= 0x00000008;
+          onChanged();
+        }
+        if (!other.getAccountId().isEmpty()) {
+          accountId_ = other.accountId_;
+          bitField0_ |= 0x00000010;
+          onChanged();
+        }
+        if (!other.getProtocol().isEmpty()) {
+          protocol_ = other.protocol_;
+          bitField0_ |= 0x00000020;
+          onChanged();
+        }
+        if (!other.getLanguage().isEmpty()) {
+          language_ = other.language_;
+          bitField0_ |= 0x00000040;
+          onChanged();
+        }
+        if (!other.getSurface().isEmpty()) {
+          surface_ = other.surface_;
+          bitField0_ |= 0x00000080;
+          onChanged();
+        }
+        this.mergeUnknownFields(other.getUnknownFields());
+        onChanged();
+        return this;
+      }
+
+      @java.lang.Override
+      public final boolean isInitialized() {
+        return true;
+      }
+
+      @java.lang.Override
+      public Builder mergeFrom(
+          com.google.protobuf.CodedInputStream input,
+          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          throws java.io.IOException {
+        if (extensionRegistry == null) {
+          throw new java.lang.NullPointerException();
+        }
+        try {
+          boolean done = false;
+          while (!done) {
+            int tag = input.readTag();
+            switch (tag) {
+              case 0:
+                done = true;
+                break;
+              case 10: {
+                sessionId_ = input.readStringRequireUtf8();
+                bitField0_ |= 0x00000001;
+                break;
+              } // case 10
+              case 18: {
+                userId_ = input.readStringRequireUtf8();
+                bitField0_ |= 0x00000002;
+                break;
+              } // case 18
+              case 26: {
+                organizationId_ = input.readStringRequireUtf8();
+                bitField0_ |= 0x00000004;
+                break;
+              } // case 26
+              case 34: {
+                assetId_ = input.readStringRequireUtf8();
+                bitField0_ |= 0x00000008;
+                break;
+              } // case 34
+              case 42: {
+                accountId_ = input.readStringRequireUtf8();
+                bitField0_ |= 0x00000010;
+                break;
+              } // case 42
+              case 50: {
+                protocol_ = input.readStringRequireUtf8();
+                bitField0_ |= 0x00000020;
+                break;
+              } // case 50
+              case 58: {
+                language_ = input.readStringRequireUtf8();
+                bitField0_ |= 0x00000040;
+                break;
+              } // case 58
+              case 66: {
+                surface_ = input.readStringRequireUtf8();
+                bitField0_ |= 0x00000080;
+                break;
+              } // case 66
+              default: {
+                if (!super.parseUnknownField(input, extensionRegistry, tag)) {
+                  done = true; // was an endgroup tag
+                }
+                break;
+              } // default:
+            } // switch (tag)
+          } // while (!done)
+        } catch (com.google.protobuf.InvalidProtocolBufferException e) {
+          throw e.unwrapIOException();
+        } finally {
+          onChanged();
+        } // finally
+        return this;
+      }
+      private int bitField0_;
+
+      private java.lang.Object sessionId_ = "";
+      /**
+       * <code>string session_id = 1;</code>
+       * @return The sessionId.
+       */
+      public java.lang.String getSessionId() {
+        java.lang.Object ref = sessionId_;
+        if (!(ref instanceof java.lang.String)) {
+          com.google.protobuf.ByteString bs =
+              (com.google.protobuf.ByteString) ref;
+          java.lang.String s = bs.toStringUtf8();
+          sessionId_ = s;
+          return s;
+        } else {
+          return (java.lang.String) ref;
+        }
+      }
+      /**
+       * <code>string session_id = 1;</code>
+       * @return The bytes for sessionId.
+       */
+      public com.google.protobuf.ByteString
+          getSessionIdBytes() {
+        java.lang.Object ref = sessionId_;
+        if (ref instanceof String) {
+          com.google.protobuf.ByteString b =
+              com.google.protobuf.ByteString.copyFromUtf8(
+                  (java.lang.String) ref);
+          sessionId_ = b;
+          return b;
+        } else {
+          return (com.google.protobuf.ByteString) ref;
+        }
+      }
+      /**
+       * <code>string session_id = 1;</code>
+       * @param value The sessionId to set.
+       * @return This builder for chaining.
+       */
+      public Builder setSessionId(
+          java.lang.String value) {
+        if (value == null) { throw new NullPointerException(); }
+        sessionId_ = value;
+        bitField0_ |= 0x00000001;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string session_id = 1;</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearSessionId() {
+        sessionId_ = getDefaultInstance().getSessionId();
+        bitField0_ = (bitField0_ & ~0x00000001);
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string session_id = 1;</code>
+       * @param value The bytes for sessionId to set.
+       * @return This builder for chaining.
+       */
+      public Builder setSessionIdBytes(
+          com.google.protobuf.ByteString value) {
+        if (value == null) { throw new NullPointerException(); }
+        checkByteStringIsUtf8(value);
+        sessionId_ = value;
+        bitField0_ |= 0x00000001;
+        onChanged();
+        return this;
+      }
+
+      private java.lang.Object userId_ = "";
+      /**
+       * <code>string user_id = 2;</code>
+       * @return The userId.
+       */
+      public java.lang.String getUserId() {
+        java.lang.Object ref = userId_;
+        if (!(ref instanceof java.lang.String)) {
+          com.google.protobuf.ByteString bs =
+              (com.google.protobuf.ByteString) ref;
+          java.lang.String s = bs.toStringUtf8();
+          userId_ = s;
+          return s;
+        } else {
+          return (java.lang.String) ref;
+        }
+      }
+      /**
+       * <code>string user_id = 2;</code>
+       * @return The bytes for userId.
+       */
+      public com.google.protobuf.ByteString
+          getUserIdBytes() {
+        java.lang.Object ref = userId_;
+        if (ref instanceof String) {
+          com.google.protobuf.ByteString b =
+              com.google.protobuf.ByteString.copyFromUtf8(
+                  (java.lang.String) ref);
+          userId_ = b;
+          return b;
+        } else {
+          return (com.google.protobuf.ByteString) ref;
+        }
+      }
+      /**
+       * <code>string user_id = 2;</code>
+       * @param value The userId to set.
+       * @return This builder for chaining.
+       */
+      public Builder setUserId(
+          java.lang.String value) {
+        if (value == null) { throw new NullPointerException(); }
+        userId_ = value;
+        bitField0_ |= 0x00000002;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string user_id = 2;</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearUserId() {
+        userId_ = getDefaultInstance().getUserId();
+        bitField0_ = (bitField0_ & ~0x00000002);
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string user_id = 2;</code>
+       * @param value The bytes for userId to set.
+       * @return This builder for chaining.
+       */
+      public Builder setUserIdBytes(
+          com.google.protobuf.ByteString value) {
+        if (value == null) { throw new NullPointerException(); }
+        checkByteStringIsUtf8(value);
+        userId_ = value;
+        bitField0_ |= 0x00000002;
+        onChanged();
+        return this;
+      }
+
+      private java.lang.Object organizationId_ = "";
+      /**
+       * <code>string organization_id = 3;</code>
+       * @return The organizationId.
+       */
+      public java.lang.String getOrganizationId() {
+        java.lang.Object ref = organizationId_;
+        if (!(ref instanceof java.lang.String)) {
+          com.google.protobuf.ByteString bs =
+              (com.google.protobuf.ByteString) ref;
+          java.lang.String s = bs.toStringUtf8();
+          organizationId_ = s;
+          return s;
+        } else {
+          return (java.lang.String) ref;
+        }
+      }
+      /**
+       * <code>string organization_id = 3;</code>
+       * @return The bytes for organizationId.
+       */
+      public com.google.protobuf.ByteString
+          getOrganizationIdBytes() {
+        java.lang.Object ref = organizationId_;
+        if (ref instanceof String) {
+          com.google.protobuf.ByteString b =
+              com.google.protobuf.ByteString.copyFromUtf8(
+                  (java.lang.String) ref);
+          organizationId_ = b;
+          return b;
+        } else {
+          return (com.google.protobuf.ByteString) ref;
+        }
+      }
+      /**
+       * <code>string organization_id = 3;</code>
+       * @param value The organizationId to set.
+       * @return This builder for chaining.
+       */
+      public Builder setOrganizationId(
+          java.lang.String value) {
+        if (value == null) { throw new NullPointerException(); }
+        organizationId_ = value;
+        bitField0_ |= 0x00000004;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string organization_id = 3;</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearOrganizationId() {
+        organizationId_ = getDefaultInstance().getOrganizationId();
+        bitField0_ = (bitField0_ & ~0x00000004);
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string organization_id = 3;</code>
+       * @param value The bytes for organizationId to set.
+       * @return This builder for chaining.
+       */
+      public Builder setOrganizationIdBytes(
+          com.google.protobuf.ByteString value) {
+        if (value == null) { throw new NullPointerException(); }
+        checkByteStringIsUtf8(value);
+        organizationId_ = value;
+        bitField0_ |= 0x00000004;
+        onChanged();
+        return this;
+      }
+
+      private java.lang.Object assetId_ = "";
+      /**
+       * <code>string asset_id = 4;</code>
+       * @return The assetId.
+       */
+      public java.lang.String getAssetId() {
+        java.lang.Object ref = assetId_;
+        if (!(ref instanceof java.lang.String)) {
+          com.google.protobuf.ByteString bs =
+              (com.google.protobuf.ByteString) ref;
+          java.lang.String s = bs.toStringUtf8();
+          assetId_ = s;
+          return s;
+        } else {
+          return (java.lang.String) ref;
+        }
+      }
+      /**
+       * <code>string asset_id = 4;</code>
+       * @return The bytes for assetId.
+       */
+      public com.google.protobuf.ByteString
+          getAssetIdBytes() {
+        java.lang.Object ref = assetId_;
+        if (ref instanceof String) {
+          com.google.protobuf.ByteString b =
+              com.google.protobuf.ByteString.copyFromUtf8(
+                  (java.lang.String) ref);
+          assetId_ = b;
+          return b;
+        } else {
+          return (com.google.protobuf.ByteString) ref;
+        }
+      }
+      /**
+       * <code>string asset_id = 4;</code>
+       * @param value The assetId to set.
+       * @return This builder for chaining.
+       */
+      public Builder setAssetId(
+          java.lang.String value) {
+        if (value == null) { throw new NullPointerException(); }
+        assetId_ = value;
+        bitField0_ |= 0x00000008;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string asset_id = 4;</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearAssetId() {
+        assetId_ = getDefaultInstance().getAssetId();
+        bitField0_ = (bitField0_ & ~0x00000008);
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string asset_id = 4;</code>
+       * @param value The bytes for assetId to set.
+       * @return This builder for chaining.
+       */
+      public Builder setAssetIdBytes(
+          com.google.protobuf.ByteString value) {
+        if (value == null) { throw new NullPointerException(); }
+        checkByteStringIsUtf8(value);
+        assetId_ = value;
+        bitField0_ |= 0x00000008;
+        onChanged();
+        return this;
+      }
+
+      private java.lang.Object accountId_ = "";
+      /**
+       * <code>string account_id = 5;</code>
+       * @return The accountId.
+       */
+      public java.lang.String getAccountId() {
+        java.lang.Object ref = accountId_;
+        if (!(ref instanceof java.lang.String)) {
+          com.google.protobuf.ByteString bs =
+              (com.google.protobuf.ByteString) ref;
+          java.lang.String s = bs.toStringUtf8();
+          accountId_ = s;
+          return s;
+        } else {
+          return (java.lang.String) ref;
+        }
+      }
+      /**
+       * <code>string account_id = 5;</code>
+       * @return The bytes for accountId.
+       */
+      public com.google.protobuf.ByteString
+          getAccountIdBytes() {
+        java.lang.Object ref = accountId_;
+        if (ref instanceof String) {
+          com.google.protobuf.ByteString b =
+              com.google.protobuf.ByteString.copyFromUtf8(
+                  (java.lang.String) ref);
+          accountId_ = b;
+          return b;
+        } else {
+          return (com.google.protobuf.ByteString) ref;
+        }
+      }
+      /**
+       * <code>string account_id = 5;</code>
+       * @param value The accountId to set.
+       * @return This builder for chaining.
+       */
+      public Builder setAccountId(
+          java.lang.String value) {
+        if (value == null) { throw new NullPointerException(); }
+        accountId_ = value;
+        bitField0_ |= 0x00000010;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string account_id = 5;</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearAccountId() {
+        accountId_ = getDefaultInstance().getAccountId();
+        bitField0_ = (bitField0_ & ~0x00000010);
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string account_id = 5;</code>
+       * @param value The bytes for accountId to set.
+       * @return This builder for chaining.
+       */
+      public Builder setAccountIdBytes(
+          com.google.protobuf.ByteString value) {
+        if (value == null) { throw new NullPointerException(); }
+        checkByteStringIsUtf8(value);
+        accountId_ = value;
+        bitField0_ |= 0x00000010;
+        onChanged();
+        return this;
+      }
+
+      private java.lang.Object protocol_ = "";
+      /**
+       * <code>string protocol = 6;</code>
+       * @return The protocol.
+       */
+      public java.lang.String getProtocol() {
+        java.lang.Object ref = protocol_;
+        if (!(ref instanceof java.lang.String)) {
+          com.google.protobuf.ByteString bs =
+              (com.google.protobuf.ByteString) ref;
+          java.lang.String s = bs.toStringUtf8();
+          protocol_ = s;
+          return s;
+        } else {
+          return (java.lang.String) ref;
+        }
+      }
+      /**
+       * <code>string protocol = 6;</code>
+       * @return The bytes for protocol.
+       */
+      public com.google.protobuf.ByteString
+          getProtocolBytes() {
+        java.lang.Object ref = protocol_;
+        if (ref instanceof String) {
+          com.google.protobuf.ByteString b =
+              com.google.protobuf.ByteString.copyFromUtf8(
+                  (java.lang.String) ref);
+          protocol_ = b;
+          return b;
+        } else {
+          return (com.google.protobuf.ByteString) ref;
+        }
+      }
+      /**
+       * <code>string protocol = 6;</code>
+       * @param value The protocol to set.
+       * @return This builder for chaining.
+       */
+      public Builder setProtocol(
+          java.lang.String value) {
+        if (value == null) { throw new NullPointerException(); }
+        protocol_ = value;
+        bitField0_ |= 0x00000020;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string protocol = 6;</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearProtocol() {
+        protocol_ = getDefaultInstance().getProtocol();
+        bitField0_ = (bitField0_ & ~0x00000020);
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string protocol = 6;</code>
+       * @param value The bytes for protocol to set.
+       * @return This builder for chaining.
+       */
+      public Builder setProtocolBytes(
+          com.google.protobuf.ByteString value) {
+        if (value == null) { throw new NullPointerException(); }
+        checkByteStringIsUtf8(value);
+        protocol_ = value;
+        bitField0_ |= 0x00000020;
+        onChanged();
+        return this;
+      }
+
+      private java.lang.Object language_ = "";
+      /**
+       * <code>string language = 7;</code>
+       * @return The language.
+       */
+      public java.lang.String getLanguage() {
+        java.lang.Object ref = language_;
+        if (!(ref instanceof java.lang.String)) {
+          com.google.protobuf.ByteString bs =
+              (com.google.protobuf.ByteString) ref;
+          java.lang.String s = bs.toStringUtf8();
+          language_ = s;
+          return s;
+        } else {
+          return (java.lang.String) ref;
+        }
+      }
+      /**
+       * <code>string language = 7;</code>
+       * @return The bytes for language.
+       */
+      public com.google.protobuf.ByteString
+          getLanguageBytes() {
+        java.lang.Object ref = language_;
+        if (ref instanceof String) {
+          com.google.protobuf.ByteString b =
+              com.google.protobuf.ByteString.copyFromUtf8(
+                  (java.lang.String) ref);
+          language_ = b;
+          return b;
+        } else {
+          return (com.google.protobuf.ByteString) ref;
+        }
+      }
+      /**
+       * <code>string language = 7;</code>
+       * @param value The language to set.
+       * @return This builder for chaining.
+       */
+      public Builder setLanguage(
+          java.lang.String value) {
+        if (value == null) { throw new NullPointerException(); }
+        language_ = value;
+        bitField0_ |= 0x00000040;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string language = 7;</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearLanguage() {
+        language_ = getDefaultInstance().getLanguage();
+        bitField0_ = (bitField0_ & ~0x00000040);
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string language = 7;</code>
+       * @param value The bytes for language to set.
+       * @return This builder for chaining.
+       */
+      public Builder setLanguageBytes(
+          com.google.protobuf.ByteString value) {
+        if (value == null) { throw new NullPointerException(); }
+        checkByteStringIsUtf8(value);
+        language_ = value;
+        bitField0_ |= 0x00000040;
+        onChanged();
+        return this;
+      }
+
+      private java.lang.Object surface_ = "";
+      /**
+       * <code>string surface = 8;</code>
+       * @return The surface.
+       */
+      public java.lang.String getSurface() {
+        java.lang.Object ref = surface_;
+        if (!(ref instanceof java.lang.String)) {
+          com.google.protobuf.ByteString bs =
+              (com.google.protobuf.ByteString) ref;
+          java.lang.String s = bs.toStringUtf8();
+          surface_ = s;
+          return s;
+        } else {
+          return (java.lang.String) ref;
+        }
+      }
+      /**
+       * <code>string surface = 8;</code>
+       * @return The bytes for surface.
+       */
+      public com.google.protobuf.ByteString
+          getSurfaceBytes() {
+        java.lang.Object ref = surface_;
+        if (ref instanceof String) {
+          com.google.protobuf.ByteString b =
+              com.google.protobuf.ByteString.copyFromUtf8(
+                  (java.lang.String) ref);
+          surface_ = b;
+          return b;
+        } else {
+          return (com.google.protobuf.ByteString) ref;
+        }
+      }
+      /**
+       * <code>string surface = 8;</code>
+       * @param value The surface to set.
+       * @return This builder for chaining.
+       */
+      public Builder setSurface(
+          java.lang.String value) {
+        if (value == null) { throw new NullPointerException(); }
+        surface_ = value;
+        bitField0_ |= 0x00000080;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string surface = 8;</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearSurface() {
+        surface_ = getDefaultInstance().getSurface();
+        bitField0_ = (bitField0_ & ~0x00000080);
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string surface = 8;</code>
+       * @param value The bytes for surface to set.
+       * @return This builder for chaining.
+       */
+      public Builder setSurfaceBytes(
+          com.google.protobuf.ByteString value) {
+        if (value == null) { throw new NullPointerException(); }
+        checkByteStringIsUtf8(value);
+        surface_ = value;
+        bitField0_ |= 0x00000080;
+        onChanged();
+        return this;
+      }
+
+      // @@protoc_insertion_point(builder_scope:message.AgentSessionOpen)
+    }
+
+    // @@protoc_insertion_point(class_scope:message.AgentSessionOpen)
+    private static final org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen DEFAULT_INSTANCE;
+    static {
+      DEFAULT_INSTANCE = new org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen();
+    }
+
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen getDefaultInstance() {
+      return DEFAULT_INSTANCE;
+    }
+
+    private static final com.google.protobuf.Parser<AgentSessionOpen>
+        PARSER = new com.google.protobuf.AbstractParser<AgentSessionOpen>() {
+      @java.lang.Override
+      public AgentSessionOpen parsePartialFrom(
+          com.google.protobuf.CodedInputStream input,
+          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          throws com.google.protobuf.InvalidProtocolBufferException {
+        Builder builder = newBuilder();
+        try {
+          builder.mergeFrom(input, extensionRegistry);
+        } catch (com.google.protobuf.InvalidProtocolBufferException e) {
+          throw e.setUnfinishedMessage(builder.buildPartial());
+        } catch (com.google.protobuf.UninitializedMessageException e) {
+          throw e.asInvalidProtocolBufferException().setUnfinishedMessage(builder.buildPartial());
+        } catch (java.io.IOException e) {
+          throw new com.google.protobuf.InvalidProtocolBufferException(e)
+              .setUnfinishedMessage(builder.buildPartial());
+        }
+        return builder.buildPartial();
+      }
+    };
+
+    public static com.google.protobuf.Parser<AgentSessionOpen> parser() {
+      return PARSER;
+    }
+
+    @java.lang.Override
+    public com.google.protobuf.Parser<AgentSessionOpen> getParserForType() {
+      return PARSER;
+    }
+
+    @java.lang.Override
+    public org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen getDefaultInstanceForType() {
+      return DEFAULT_INSTANCE;
+    }
+
+  }
+
+  public interface AgentRequestOrBuilder extends
+      // @@protoc_insertion_point(interface_extends:message.AgentRequest)
+      com.google.protobuf.MessageOrBuilder {
+
+    /**
+     * <code>string id = 1;</code>
+     * @return The id.
+     */
+    java.lang.String getId();
+    /**
+     * <code>string id = 1;</code>
+     * @return The bytes for id.
+     */
+    com.google.protobuf.ByteString
+        getIdBytes();
+
+    /**
+     * <code>string operation = 2;</code>
+     * @return The operation.
+     */
+    java.lang.String getOperation();
+    /**
+     * <code>string operation = 2;</code>
+     * @return The bytes for operation.
+     */
+    com.google.protobuf.ByteString
+        getOperationBytes();
+
+    /**
+     * <code>string question = 3;</code>
+     * @return The question.
+     */
+    java.lang.String getQuestion();
+    /**
+     * <code>string question = 3;</code>
+     * @return The bytes for question.
+     */
+    com.google.protobuf.ByteString
+        getQuestionBytes();
+
+    /**
+     * <code>string context_json = 4;</code>
+     * @return The contextJson.
+     */
+    java.lang.String getContextJson();
+    /**
+     * <code>string context_json = 4;</code>
+     * @return The bytes for contextJson.
+     */
+    com.google.protobuf.ByteString
+        getContextJsonBytes();
+  }
+  /**
+   * Protobuf type {@code message.AgentRequest}
+   */
+  public static final class AgentRequest extends
+      com.google.protobuf.GeneratedMessage implements
+      // @@protoc_insertion_point(message_implements:message.AgentRequest)
+      AgentRequestOrBuilder {
+  private static final long serialVersionUID = 0L;
+    static {
+      com.google.protobuf.RuntimeVersion.validateProtobufGencodeVersion(
+        com.google.protobuf.RuntimeVersion.RuntimeDomain.PUBLIC,
+        /* major= */ 4,
+        /* minor= */ 32,
+        /* patch= */ 1,
+        /* suffix= */ "",
+        AgentRequest.class.getName());
+    }
+    // Use AgentRequest.newBuilder() to construct.
+    private AgentRequest(com.google.protobuf.GeneratedMessage.Builder<?> builder) {
+      super(builder);
+    }
+    private AgentRequest() {
+      id_ = "";
+      operation_ = "";
+      question_ = "";
+      contextJson_ = "";
+    }
+
+    public static final com.google.protobuf.Descriptors.Descriptor
+        getDescriptor() {
+      return org.jumpserver.wisp.ServiceOuterClass.internal_static_message_AgentRequest_descriptor;
+    }
+
+    @java.lang.Override
+    protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
+        internalGetFieldAccessorTable() {
+      return org.jumpserver.wisp.ServiceOuterClass.internal_static_message_AgentRequest_fieldAccessorTable
+          .ensureFieldAccessorsInitialized(
+              org.jumpserver.wisp.ServiceOuterClass.AgentRequest.class, org.jumpserver.wisp.ServiceOuterClass.AgentRequest.Builder.class);
+    }
+
+    public static final int ID_FIELD_NUMBER = 1;
+    @SuppressWarnings("serial")
+    private volatile java.lang.Object id_ = "";
+    /**
+     * <code>string id = 1;</code>
+     * @return The id.
+     */
+    @java.lang.Override
+    public java.lang.String getId() {
+      java.lang.Object ref = id_;
+      if (ref instanceof java.lang.String) {
+        return (java.lang.String) ref;
+      } else {
+        com.google.protobuf.ByteString bs =
+            (com.google.protobuf.ByteString) ref;
+        java.lang.String s = bs.toStringUtf8();
+        id_ = s;
+        return s;
+      }
+    }
+    /**
+     * <code>string id = 1;</code>
+     * @return The bytes for id.
+     */
+    @java.lang.Override
+    public com.google.protobuf.ByteString
+        getIdBytes() {
+      java.lang.Object ref = id_;
+      if (ref instanceof java.lang.String) {
+        com.google.protobuf.ByteString b =
+            com.google.protobuf.ByteString.copyFromUtf8(
+                (java.lang.String) ref);
+        id_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+
+    public static final int OPERATION_FIELD_NUMBER = 2;
+    @SuppressWarnings("serial")
+    private volatile java.lang.Object operation_ = "";
+    /**
+     * <code>string operation = 2;</code>
+     * @return The operation.
+     */
+    @java.lang.Override
+    public java.lang.String getOperation() {
+      java.lang.Object ref = operation_;
+      if (ref instanceof java.lang.String) {
+        return (java.lang.String) ref;
+      } else {
+        com.google.protobuf.ByteString bs =
+            (com.google.protobuf.ByteString) ref;
+        java.lang.String s = bs.toStringUtf8();
+        operation_ = s;
+        return s;
+      }
+    }
+    /**
+     * <code>string operation = 2;</code>
+     * @return The bytes for operation.
+     */
+    @java.lang.Override
+    public com.google.protobuf.ByteString
+        getOperationBytes() {
+      java.lang.Object ref = operation_;
+      if (ref instanceof java.lang.String) {
+        com.google.protobuf.ByteString b =
+            com.google.protobuf.ByteString.copyFromUtf8(
+                (java.lang.String) ref);
+        operation_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+
+    public static final int QUESTION_FIELD_NUMBER = 3;
+    @SuppressWarnings("serial")
+    private volatile java.lang.Object question_ = "";
+    /**
+     * <code>string question = 3;</code>
+     * @return The question.
+     */
+    @java.lang.Override
+    public java.lang.String getQuestion() {
+      java.lang.Object ref = question_;
+      if (ref instanceof java.lang.String) {
+        return (java.lang.String) ref;
+      } else {
+        com.google.protobuf.ByteString bs =
+            (com.google.protobuf.ByteString) ref;
+        java.lang.String s = bs.toStringUtf8();
+        question_ = s;
+        return s;
+      }
+    }
+    /**
+     * <code>string question = 3;</code>
+     * @return The bytes for question.
+     */
+    @java.lang.Override
+    public com.google.protobuf.ByteString
+        getQuestionBytes() {
+      java.lang.Object ref = question_;
+      if (ref instanceof java.lang.String) {
+        com.google.protobuf.ByteString b =
+            com.google.protobuf.ByteString.copyFromUtf8(
+                (java.lang.String) ref);
+        question_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+
+    public static final int CONTEXT_JSON_FIELD_NUMBER = 4;
+    @SuppressWarnings("serial")
+    private volatile java.lang.Object contextJson_ = "";
+    /**
+     * <code>string context_json = 4;</code>
+     * @return The contextJson.
+     */
+    @java.lang.Override
+    public java.lang.String getContextJson() {
+      java.lang.Object ref = contextJson_;
+      if (ref instanceof java.lang.String) {
+        return (java.lang.String) ref;
+      } else {
+        com.google.protobuf.ByteString bs =
+            (com.google.protobuf.ByteString) ref;
+        java.lang.String s = bs.toStringUtf8();
+        contextJson_ = s;
+        return s;
+      }
+    }
+    /**
+     * <code>string context_json = 4;</code>
+     * @return The bytes for contextJson.
+     */
+    @java.lang.Override
+    public com.google.protobuf.ByteString
+        getContextJsonBytes() {
+      java.lang.Object ref = contextJson_;
+      if (ref instanceof java.lang.String) {
+        com.google.protobuf.ByteString b =
+            com.google.protobuf.ByteString.copyFromUtf8(
+                (java.lang.String) ref);
+        contextJson_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+
+    private byte memoizedIsInitialized = -1;
+    @java.lang.Override
+    public final boolean isInitialized() {
+      byte isInitialized = memoizedIsInitialized;
+      if (isInitialized == 1) return true;
+      if (isInitialized == 0) return false;
+
+      memoizedIsInitialized = 1;
+      return true;
+    }
+
+    @java.lang.Override
+    public void writeTo(com.google.protobuf.CodedOutputStream output)
+                        throws java.io.IOException {
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(id_)) {
+        com.google.protobuf.GeneratedMessage.writeString(output, 1, id_);
+      }
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(operation_)) {
+        com.google.protobuf.GeneratedMessage.writeString(output, 2, operation_);
+      }
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(question_)) {
+        com.google.protobuf.GeneratedMessage.writeString(output, 3, question_);
+      }
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(contextJson_)) {
+        com.google.protobuf.GeneratedMessage.writeString(output, 4, contextJson_);
+      }
+      getUnknownFields().writeTo(output);
+    }
+
+    @java.lang.Override
+    public int getSerializedSize() {
+      int size = memoizedSize;
+      if (size != -1) return size;
+
+      size = 0;
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(id_)) {
+        size += com.google.protobuf.GeneratedMessage.computeStringSize(1, id_);
+      }
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(operation_)) {
+        size += com.google.protobuf.GeneratedMessage.computeStringSize(2, operation_);
+      }
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(question_)) {
+        size += com.google.protobuf.GeneratedMessage.computeStringSize(3, question_);
+      }
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(contextJson_)) {
+        size += com.google.protobuf.GeneratedMessage.computeStringSize(4, contextJson_);
+      }
+      size += getUnknownFields().getSerializedSize();
+      memoizedSize = size;
+      return size;
+    }
+
+    @java.lang.Override
+    public boolean equals(final java.lang.Object obj) {
+      if (obj == this) {
+       return true;
+      }
+      if (!(obj instanceof org.jumpserver.wisp.ServiceOuterClass.AgentRequest)) {
+        return super.equals(obj);
+      }
+      org.jumpserver.wisp.ServiceOuterClass.AgentRequest other = (org.jumpserver.wisp.ServiceOuterClass.AgentRequest) obj;
+
+      if (!getId()
+          .equals(other.getId())) return false;
+      if (!getOperation()
+          .equals(other.getOperation())) return false;
+      if (!getQuestion()
+          .equals(other.getQuestion())) return false;
+      if (!getContextJson()
+          .equals(other.getContextJson())) return false;
+      if (!getUnknownFields().equals(other.getUnknownFields())) return false;
+      return true;
+    }
+
+    @java.lang.Override
+    public int hashCode() {
+      if (memoizedHashCode != 0) {
+        return memoizedHashCode;
+      }
+      int hash = 41;
+      hash = (19 * hash) + getDescriptor().hashCode();
+      hash = (37 * hash) + ID_FIELD_NUMBER;
+      hash = (53 * hash) + getId().hashCode();
+      hash = (37 * hash) + OPERATION_FIELD_NUMBER;
+      hash = (53 * hash) + getOperation().hashCode();
+      hash = (37 * hash) + QUESTION_FIELD_NUMBER;
+      hash = (53 * hash) + getQuestion().hashCode();
+      hash = (37 * hash) + CONTEXT_JSON_FIELD_NUMBER;
+      hash = (53 * hash) + getContextJson().hashCode();
+      hash = (29 * hash) + getUnknownFields().hashCode();
+      memoizedHashCode = hash;
+      return hash;
+    }
+
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentRequest parseFrom(
+        java.nio.ByteBuffer data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentRequest parseFrom(
+        java.nio.ByteBuffer data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentRequest parseFrom(
+        com.google.protobuf.ByteString data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentRequest parseFrom(
+        com.google.protobuf.ByteString data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentRequest parseFrom(byte[] data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentRequest parseFrom(
+        byte[] data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentRequest parseFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseWithIOException(PARSER, input);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentRequest parseFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseWithIOException(PARSER, input, extensionRegistry);
+    }
+
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentRequest parseDelimitedFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseDelimitedWithIOException(PARSER, input);
+    }
+
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentRequest parseDelimitedFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseDelimitedWithIOException(PARSER, input, extensionRegistry);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentRequest parseFrom(
+        com.google.protobuf.CodedInputStream input)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseWithIOException(PARSER, input);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentRequest parseFrom(
+        com.google.protobuf.CodedInputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseWithIOException(PARSER, input, extensionRegistry);
+    }
+
+    @java.lang.Override
+    public Builder newBuilderForType() { return newBuilder(); }
+    public static Builder newBuilder() {
+      return DEFAULT_INSTANCE.toBuilder();
+    }
+    public static Builder newBuilder(org.jumpserver.wisp.ServiceOuterClass.AgentRequest prototype) {
+      return DEFAULT_INSTANCE.toBuilder().mergeFrom(prototype);
+    }
+    @java.lang.Override
+    public Builder toBuilder() {
+      return this == DEFAULT_INSTANCE
+          ? new Builder() : new Builder().mergeFrom(this);
+    }
+
+    @java.lang.Override
+    protected Builder newBuilderForType(
+        com.google.protobuf.GeneratedMessage.BuilderParent parent) {
+      Builder builder = new Builder(parent);
+      return builder;
+    }
+    /**
+     * Protobuf type {@code message.AgentRequest}
+     */
+    public static final class Builder extends
+        com.google.protobuf.GeneratedMessage.Builder<Builder> implements
+        // @@protoc_insertion_point(builder_implements:message.AgentRequest)
+        org.jumpserver.wisp.ServiceOuterClass.AgentRequestOrBuilder {
+      public static final com.google.protobuf.Descriptors.Descriptor
+          getDescriptor() {
+        return org.jumpserver.wisp.ServiceOuterClass.internal_static_message_AgentRequest_descriptor;
+      }
+
+      @java.lang.Override
+      protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
+          internalGetFieldAccessorTable() {
+        return org.jumpserver.wisp.ServiceOuterClass.internal_static_message_AgentRequest_fieldAccessorTable
+            .ensureFieldAccessorsInitialized(
+                org.jumpserver.wisp.ServiceOuterClass.AgentRequest.class, org.jumpserver.wisp.ServiceOuterClass.AgentRequest.Builder.class);
+      }
+
+      // Construct using org.jumpserver.wisp.ServiceOuterClass.AgentRequest.newBuilder()
+      private Builder() {
+
+      }
+
+      private Builder(
+          com.google.protobuf.GeneratedMessage.BuilderParent parent) {
+        super(parent);
+
+      }
+      @java.lang.Override
+      public Builder clear() {
+        super.clear();
+        bitField0_ = 0;
+        id_ = "";
+        operation_ = "";
+        question_ = "";
+        contextJson_ = "";
+        return this;
+      }
+
+      @java.lang.Override
+      public com.google.protobuf.Descriptors.Descriptor
+          getDescriptorForType() {
+        return org.jumpserver.wisp.ServiceOuterClass.internal_static_message_AgentRequest_descriptor;
+      }
+
+      @java.lang.Override
+      public org.jumpserver.wisp.ServiceOuterClass.AgentRequest getDefaultInstanceForType() {
+        return org.jumpserver.wisp.ServiceOuterClass.AgentRequest.getDefaultInstance();
+      }
+
+      @java.lang.Override
+      public org.jumpserver.wisp.ServiceOuterClass.AgentRequest build() {
+        org.jumpserver.wisp.ServiceOuterClass.AgentRequest result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(result);
+        }
+        return result;
+      }
+
+      @java.lang.Override
+      public org.jumpserver.wisp.ServiceOuterClass.AgentRequest buildPartial() {
+        org.jumpserver.wisp.ServiceOuterClass.AgentRequest result = new org.jumpserver.wisp.ServiceOuterClass.AgentRequest(this);
+        if (bitField0_ != 0) { buildPartial0(result); }
+        onBuilt();
+        return result;
+      }
+
+      private void buildPartial0(org.jumpserver.wisp.ServiceOuterClass.AgentRequest result) {
+        int from_bitField0_ = bitField0_;
+        if (((from_bitField0_ & 0x00000001) != 0)) {
+          result.id_ = id_;
+        }
+        if (((from_bitField0_ & 0x00000002) != 0)) {
+          result.operation_ = operation_;
+        }
+        if (((from_bitField0_ & 0x00000004) != 0)) {
+          result.question_ = question_;
+        }
+        if (((from_bitField0_ & 0x00000008) != 0)) {
+          result.contextJson_ = contextJson_;
+        }
+      }
+
+      @java.lang.Override
+      public Builder mergeFrom(com.google.protobuf.Message other) {
+        if (other instanceof org.jumpserver.wisp.ServiceOuterClass.AgentRequest) {
+          return mergeFrom((org.jumpserver.wisp.ServiceOuterClass.AgentRequest)other);
+        } else {
+          super.mergeFrom(other);
+          return this;
+        }
+      }
+
+      public Builder mergeFrom(org.jumpserver.wisp.ServiceOuterClass.AgentRequest other) {
+        if (other == org.jumpserver.wisp.ServiceOuterClass.AgentRequest.getDefaultInstance()) return this;
+        if (!other.getId().isEmpty()) {
+          id_ = other.id_;
+          bitField0_ |= 0x00000001;
+          onChanged();
+        }
+        if (!other.getOperation().isEmpty()) {
+          operation_ = other.operation_;
+          bitField0_ |= 0x00000002;
+          onChanged();
+        }
+        if (!other.getQuestion().isEmpty()) {
+          question_ = other.question_;
+          bitField0_ |= 0x00000004;
+          onChanged();
+        }
+        if (!other.getContextJson().isEmpty()) {
+          contextJson_ = other.contextJson_;
+          bitField0_ |= 0x00000008;
+          onChanged();
+        }
+        this.mergeUnknownFields(other.getUnknownFields());
+        onChanged();
+        return this;
+      }
+
+      @java.lang.Override
+      public final boolean isInitialized() {
+        return true;
+      }
+
+      @java.lang.Override
+      public Builder mergeFrom(
+          com.google.protobuf.CodedInputStream input,
+          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          throws java.io.IOException {
+        if (extensionRegistry == null) {
+          throw new java.lang.NullPointerException();
+        }
+        try {
+          boolean done = false;
+          while (!done) {
+            int tag = input.readTag();
+            switch (tag) {
+              case 0:
+                done = true;
+                break;
+              case 10: {
+                id_ = input.readStringRequireUtf8();
+                bitField0_ |= 0x00000001;
+                break;
+              } // case 10
+              case 18: {
+                operation_ = input.readStringRequireUtf8();
+                bitField0_ |= 0x00000002;
+                break;
+              } // case 18
+              case 26: {
+                question_ = input.readStringRequireUtf8();
+                bitField0_ |= 0x00000004;
+                break;
+              } // case 26
+              case 34: {
+                contextJson_ = input.readStringRequireUtf8();
+                bitField0_ |= 0x00000008;
+                break;
+              } // case 34
+              default: {
+                if (!super.parseUnknownField(input, extensionRegistry, tag)) {
+                  done = true; // was an endgroup tag
+                }
+                break;
+              } // default:
+            } // switch (tag)
+          } // while (!done)
+        } catch (com.google.protobuf.InvalidProtocolBufferException e) {
+          throw e.unwrapIOException();
+        } finally {
+          onChanged();
+        } // finally
+        return this;
+      }
+      private int bitField0_;
+
+      private java.lang.Object id_ = "";
+      /**
+       * <code>string id = 1;</code>
+       * @return The id.
+       */
+      public java.lang.String getId() {
+        java.lang.Object ref = id_;
+        if (!(ref instanceof java.lang.String)) {
+          com.google.protobuf.ByteString bs =
+              (com.google.protobuf.ByteString) ref;
+          java.lang.String s = bs.toStringUtf8();
+          id_ = s;
+          return s;
+        } else {
+          return (java.lang.String) ref;
+        }
+      }
+      /**
+       * <code>string id = 1;</code>
+       * @return The bytes for id.
+       */
+      public com.google.protobuf.ByteString
+          getIdBytes() {
+        java.lang.Object ref = id_;
+        if (ref instanceof String) {
+          com.google.protobuf.ByteString b =
+              com.google.protobuf.ByteString.copyFromUtf8(
+                  (java.lang.String) ref);
+          id_ = b;
+          return b;
+        } else {
+          return (com.google.protobuf.ByteString) ref;
+        }
+      }
+      /**
+       * <code>string id = 1;</code>
+       * @param value The id to set.
+       * @return This builder for chaining.
+       */
+      public Builder setId(
+          java.lang.String value) {
+        if (value == null) { throw new NullPointerException(); }
+        id_ = value;
+        bitField0_ |= 0x00000001;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string id = 1;</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearId() {
+        id_ = getDefaultInstance().getId();
+        bitField0_ = (bitField0_ & ~0x00000001);
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string id = 1;</code>
+       * @param value The bytes for id to set.
+       * @return This builder for chaining.
+       */
+      public Builder setIdBytes(
+          com.google.protobuf.ByteString value) {
+        if (value == null) { throw new NullPointerException(); }
+        checkByteStringIsUtf8(value);
+        id_ = value;
+        bitField0_ |= 0x00000001;
+        onChanged();
+        return this;
+      }
+
+      private java.lang.Object operation_ = "";
+      /**
+       * <code>string operation = 2;</code>
+       * @return The operation.
+       */
+      public java.lang.String getOperation() {
+        java.lang.Object ref = operation_;
+        if (!(ref instanceof java.lang.String)) {
+          com.google.protobuf.ByteString bs =
+              (com.google.protobuf.ByteString) ref;
+          java.lang.String s = bs.toStringUtf8();
+          operation_ = s;
+          return s;
+        } else {
+          return (java.lang.String) ref;
+        }
+      }
+      /**
+       * <code>string operation = 2;</code>
+       * @return The bytes for operation.
+       */
+      public com.google.protobuf.ByteString
+          getOperationBytes() {
+        java.lang.Object ref = operation_;
+        if (ref instanceof String) {
+          com.google.protobuf.ByteString b =
+              com.google.protobuf.ByteString.copyFromUtf8(
+                  (java.lang.String) ref);
+          operation_ = b;
+          return b;
+        } else {
+          return (com.google.protobuf.ByteString) ref;
+        }
+      }
+      /**
+       * <code>string operation = 2;</code>
+       * @param value The operation to set.
+       * @return This builder for chaining.
+       */
+      public Builder setOperation(
+          java.lang.String value) {
+        if (value == null) { throw new NullPointerException(); }
+        operation_ = value;
+        bitField0_ |= 0x00000002;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string operation = 2;</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearOperation() {
+        operation_ = getDefaultInstance().getOperation();
+        bitField0_ = (bitField0_ & ~0x00000002);
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string operation = 2;</code>
+       * @param value The bytes for operation to set.
+       * @return This builder for chaining.
+       */
+      public Builder setOperationBytes(
+          com.google.protobuf.ByteString value) {
+        if (value == null) { throw new NullPointerException(); }
+        checkByteStringIsUtf8(value);
+        operation_ = value;
+        bitField0_ |= 0x00000002;
+        onChanged();
+        return this;
+      }
+
+      private java.lang.Object question_ = "";
+      /**
+       * <code>string question = 3;</code>
+       * @return The question.
+       */
+      public java.lang.String getQuestion() {
+        java.lang.Object ref = question_;
+        if (!(ref instanceof java.lang.String)) {
+          com.google.protobuf.ByteString bs =
+              (com.google.protobuf.ByteString) ref;
+          java.lang.String s = bs.toStringUtf8();
+          question_ = s;
+          return s;
+        } else {
+          return (java.lang.String) ref;
+        }
+      }
+      /**
+       * <code>string question = 3;</code>
+       * @return The bytes for question.
+       */
+      public com.google.protobuf.ByteString
+          getQuestionBytes() {
+        java.lang.Object ref = question_;
+        if (ref instanceof String) {
+          com.google.protobuf.ByteString b =
+              com.google.protobuf.ByteString.copyFromUtf8(
+                  (java.lang.String) ref);
+          question_ = b;
+          return b;
+        } else {
+          return (com.google.protobuf.ByteString) ref;
+        }
+      }
+      /**
+       * <code>string question = 3;</code>
+       * @param value The question to set.
+       * @return This builder for chaining.
+       */
+      public Builder setQuestion(
+          java.lang.String value) {
+        if (value == null) { throw new NullPointerException(); }
+        question_ = value;
+        bitField0_ |= 0x00000004;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string question = 3;</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearQuestion() {
+        question_ = getDefaultInstance().getQuestion();
+        bitField0_ = (bitField0_ & ~0x00000004);
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string question = 3;</code>
+       * @param value The bytes for question to set.
+       * @return This builder for chaining.
+       */
+      public Builder setQuestionBytes(
+          com.google.protobuf.ByteString value) {
+        if (value == null) { throw new NullPointerException(); }
+        checkByteStringIsUtf8(value);
+        question_ = value;
+        bitField0_ |= 0x00000004;
+        onChanged();
+        return this;
+      }
+
+      private java.lang.Object contextJson_ = "";
+      /**
+       * <code>string context_json = 4;</code>
+       * @return The contextJson.
+       */
+      public java.lang.String getContextJson() {
+        java.lang.Object ref = contextJson_;
+        if (!(ref instanceof java.lang.String)) {
+          com.google.protobuf.ByteString bs =
+              (com.google.protobuf.ByteString) ref;
+          java.lang.String s = bs.toStringUtf8();
+          contextJson_ = s;
+          return s;
+        } else {
+          return (java.lang.String) ref;
+        }
+      }
+      /**
+       * <code>string context_json = 4;</code>
+       * @return The bytes for contextJson.
+       */
+      public com.google.protobuf.ByteString
+          getContextJsonBytes() {
+        java.lang.Object ref = contextJson_;
+        if (ref instanceof String) {
+          com.google.protobuf.ByteString b =
+              com.google.protobuf.ByteString.copyFromUtf8(
+                  (java.lang.String) ref);
+          contextJson_ = b;
+          return b;
+        } else {
+          return (com.google.protobuf.ByteString) ref;
+        }
+      }
+      /**
+       * <code>string context_json = 4;</code>
+       * @param value The contextJson to set.
+       * @return This builder for chaining.
+       */
+      public Builder setContextJson(
+          java.lang.String value) {
+        if (value == null) { throw new NullPointerException(); }
+        contextJson_ = value;
+        bitField0_ |= 0x00000008;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string context_json = 4;</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearContextJson() {
+        contextJson_ = getDefaultInstance().getContextJson();
+        bitField0_ = (bitField0_ & ~0x00000008);
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string context_json = 4;</code>
+       * @param value The bytes for contextJson to set.
+       * @return This builder for chaining.
+       */
+      public Builder setContextJsonBytes(
+          com.google.protobuf.ByteString value) {
+        if (value == null) { throw new NullPointerException(); }
+        checkByteStringIsUtf8(value);
+        contextJson_ = value;
+        bitField0_ |= 0x00000008;
+        onChanged();
+        return this;
+      }
+
+      // @@protoc_insertion_point(builder_scope:message.AgentRequest)
+    }
+
+    // @@protoc_insertion_point(class_scope:message.AgentRequest)
+    private static final org.jumpserver.wisp.ServiceOuterClass.AgentRequest DEFAULT_INSTANCE;
+    static {
+      DEFAULT_INSTANCE = new org.jumpserver.wisp.ServiceOuterClass.AgentRequest();
+    }
+
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentRequest getDefaultInstance() {
+      return DEFAULT_INSTANCE;
+    }
+
+    private static final com.google.protobuf.Parser<AgentRequest>
+        PARSER = new com.google.protobuf.AbstractParser<AgentRequest>() {
+      @java.lang.Override
+      public AgentRequest parsePartialFrom(
+          com.google.protobuf.CodedInputStream input,
+          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          throws com.google.protobuf.InvalidProtocolBufferException {
+        Builder builder = newBuilder();
+        try {
+          builder.mergeFrom(input, extensionRegistry);
+        } catch (com.google.protobuf.InvalidProtocolBufferException e) {
+          throw e.setUnfinishedMessage(builder.buildPartial());
+        } catch (com.google.protobuf.UninitializedMessageException e) {
+          throw e.asInvalidProtocolBufferException().setUnfinishedMessage(builder.buildPartial());
+        } catch (java.io.IOException e) {
+          throw new com.google.protobuf.InvalidProtocolBufferException(e)
+              .setUnfinishedMessage(builder.buildPartial());
+        }
+        return builder.buildPartial();
+      }
+    };
+
+    public static com.google.protobuf.Parser<AgentRequest> parser() {
+      return PARSER;
+    }
+
+    @java.lang.Override
+    public com.google.protobuf.Parser<AgentRequest> getParserForType() {
+      return PARSER;
+    }
+
+    @java.lang.Override
+    public org.jumpserver.wisp.ServiceOuterClass.AgentRequest getDefaultInstanceForType() {
+      return DEFAULT_INSTANCE;
+    }
+
+  }
+
+  public interface AgentToolResultOrBuilder extends
+      // @@protoc_insertion_point(interface_extends:message.AgentToolResult)
+      com.google.protobuf.MessageOrBuilder {
+
+    /**
+     * <code>string id = 1;</code>
+     * @return The id.
+     */
+    java.lang.String getId();
+    /**
+     * <code>string id = 1;</code>
+     * @return The bytes for id.
+     */
+    com.google.protobuf.ByteString
+        getIdBytes();
+
+    /**
+     * <code>string result_json = 2;</code>
+     * @return The resultJson.
+     */
+    java.lang.String getResultJson();
+    /**
+     * <code>string result_json = 2;</code>
+     * @return The bytes for resultJson.
+     */
+    com.google.protobuf.ByteString
+        getResultJsonBytes();
+
+    /**
+     * <code>string error = 3;</code>
+     * @return The error.
+     */
+    java.lang.String getError();
+    /**
+     * <code>string error = 3;</code>
+     * @return The bytes for error.
+     */
+    com.google.protobuf.ByteString
+        getErrorBytes();
+  }
+  /**
+   * Protobuf type {@code message.AgentToolResult}
+   */
+  public static final class AgentToolResult extends
+      com.google.protobuf.GeneratedMessage implements
+      // @@protoc_insertion_point(message_implements:message.AgentToolResult)
+      AgentToolResultOrBuilder {
+  private static final long serialVersionUID = 0L;
+    static {
+      com.google.protobuf.RuntimeVersion.validateProtobufGencodeVersion(
+        com.google.protobuf.RuntimeVersion.RuntimeDomain.PUBLIC,
+        /* major= */ 4,
+        /* minor= */ 32,
+        /* patch= */ 1,
+        /* suffix= */ "",
+        AgentToolResult.class.getName());
+    }
+    // Use AgentToolResult.newBuilder() to construct.
+    private AgentToolResult(com.google.protobuf.GeneratedMessage.Builder<?> builder) {
+      super(builder);
+    }
+    private AgentToolResult() {
+      id_ = "";
+      resultJson_ = "";
+      error_ = "";
+    }
+
+    public static final com.google.protobuf.Descriptors.Descriptor
+        getDescriptor() {
+      return org.jumpserver.wisp.ServiceOuterClass.internal_static_message_AgentToolResult_descriptor;
+    }
+
+    @java.lang.Override
+    protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
+        internalGetFieldAccessorTable() {
+      return org.jumpserver.wisp.ServiceOuterClass.internal_static_message_AgentToolResult_fieldAccessorTable
+          .ensureFieldAccessorsInitialized(
+              org.jumpserver.wisp.ServiceOuterClass.AgentToolResult.class, org.jumpserver.wisp.ServiceOuterClass.AgentToolResult.Builder.class);
+    }
+
+    public static final int ID_FIELD_NUMBER = 1;
+    @SuppressWarnings("serial")
+    private volatile java.lang.Object id_ = "";
+    /**
+     * <code>string id = 1;</code>
+     * @return The id.
+     */
+    @java.lang.Override
+    public java.lang.String getId() {
+      java.lang.Object ref = id_;
+      if (ref instanceof java.lang.String) {
+        return (java.lang.String) ref;
+      } else {
+        com.google.protobuf.ByteString bs =
+            (com.google.protobuf.ByteString) ref;
+        java.lang.String s = bs.toStringUtf8();
+        id_ = s;
+        return s;
+      }
+    }
+    /**
+     * <code>string id = 1;</code>
+     * @return The bytes for id.
+     */
+    @java.lang.Override
+    public com.google.protobuf.ByteString
+        getIdBytes() {
+      java.lang.Object ref = id_;
+      if (ref instanceof java.lang.String) {
+        com.google.protobuf.ByteString b =
+            com.google.protobuf.ByteString.copyFromUtf8(
+                (java.lang.String) ref);
+        id_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+
+    public static final int RESULT_JSON_FIELD_NUMBER = 2;
+    @SuppressWarnings("serial")
+    private volatile java.lang.Object resultJson_ = "";
+    /**
+     * <code>string result_json = 2;</code>
+     * @return The resultJson.
+     */
+    @java.lang.Override
+    public java.lang.String getResultJson() {
+      java.lang.Object ref = resultJson_;
+      if (ref instanceof java.lang.String) {
+        return (java.lang.String) ref;
+      } else {
+        com.google.protobuf.ByteString bs =
+            (com.google.protobuf.ByteString) ref;
+        java.lang.String s = bs.toStringUtf8();
+        resultJson_ = s;
+        return s;
+      }
+    }
+    /**
+     * <code>string result_json = 2;</code>
+     * @return The bytes for resultJson.
+     */
+    @java.lang.Override
+    public com.google.protobuf.ByteString
+        getResultJsonBytes() {
+      java.lang.Object ref = resultJson_;
+      if (ref instanceof java.lang.String) {
+        com.google.protobuf.ByteString b =
+            com.google.protobuf.ByteString.copyFromUtf8(
+                (java.lang.String) ref);
+        resultJson_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+
+    public static final int ERROR_FIELD_NUMBER = 3;
+    @SuppressWarnings("serial")
+    private volatile java.lang.Object error_ = "";
+    /**
+     * <code>string error = 3;</code>
+     * @return The error.
+     */
+    @java.lang.Override
+    public java.lang.String getError() {
+      java.lang.Object ref = error_;
+      if (ref instanceof java.lang.String) {
+        return (java.lang.String) ref;
+      } else {
+        com.google.protobuf.ByteString bs =
+            (com.google.protobuf.ByteString) ref;
+        java.lang.String s = bs.toStringUtf8();
+        error_ = s;
+        return s;
+      }
+    }
+    /**
+     * <code>string error = 3;</code>
+     * @return The bytes for error.
+     */
+    @java.lang.Override
+    public com.google.protobuf.ByteString
+        getErrorBytes() {
+      java.lang.Object ref = error_;
+      if (ref instanceof java.lang.String) {
+        com.google.protobuf.ByteString b =
+            com.google.protobuf.ByteString.copyFromUtf8(
+                (java.lang.String) ref);
+        error_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+
+    private byte memoizedIsInitialized = -1;
+    @java.lang.Override
+    public final boolean isInitialized() {
+      byte isInitialized = memoizedIsInitialized;
+      if (isInitialized == 1) return true;
+      if (isInitialized == 0) return false;
+
+      memoizedIsInitialized = 1;
+      return true;
+    }
+
+    @java.lang.Override
+    public void writeTo(com.google.protobuf.CodedOutputStream output)
+                        throws java.io.IOException {
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(id_)) {
+        com.google.protobuf.GeneratedMessage.writeString(output, 1, id_);
+      }
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(resultJson_)) {
+        com.google.protobuf.GeneratedMessage.writeString(output, 2, resultJson_);
+      }
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(error_)) {
+        com.google.protobuf.GeneratedMessage.writeString(output, 3, error_);
+      }
+      getUnknownFields().writeTo(output);
+    }
+
+    @java.lang.Override
+    public int getSerializedSize() {
+      int size = memoizedSize;
+      if (size != -1) return size;
+
+      size = 0;
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(id_)) {
+        size += com.google.protobuf.GeneratedMessage.computeStringSize(1, id_);
+      }
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(resultJson_)) {
+        size += com.google.protobuf.GeneratedMessage.computeStringSize(2, resultJson_);
+      }
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(error_)) {
+        size += com.google.protobuf.GeneratedMessage.computeStringSize(3, error_);
+      }
+      size += getUnknownFields().getSerializedSize();
+      memoizedSize = size;
+      return size;
+    }
+
+    @java.lang.Override
+    public boolean equals(final java.lang.Object obj) {
+      if (obj == this) {
+       return true;
+      }
+      if (!(obj instanceof org.jumpserver.wisp.ServiceOuterClass.AgentToolResult)) {
+        return super.equals(obj);
+      }
+      org.jumpserver.wisp.ServiceOuterClass.AgentToolResult other = (org.jumpserver.wisp.ServiceOuterClass.AgentToolResult) obj;
+
+      if (!getId()
+          .equals(other.getId())) return false;
+      if (!getResultJson()
+          .equals(other.getResultJson())) return false;
+      if (!getError()
+          .equals(other.getError())) return false;
+      if (!getUnknownFields().equals(other.getUnknownFields())) return false;
+      return true;
+    }
+
+    @java.lang.Override
+    public int hashCode() {
+      if (memoizedHashCode != 0) {
+        return memoizedHashCode;
+      }
+      int hash = 41;
+      hash = (19 * hash) + getDescriptor().hashCode();
+      hash = (37 * hash) + ID_FIELD_NUMBER;
+      hash = (53 * hash) + getId().hashCode();
+      hash = (37 * hash) + RESULT_JSON_FIELD_NUMBER;
+      hash = (53 * hash) + getResultJson().hashCode();
+      hash = (37 * hash) + ERROR_FIELD_NUMBER;
+      hash = (53 * hash) + getError().hashCode();
+      hash = (29 * hash) + getUnknownFields().hashCode();
+      memoizedHashCode = hash;
+      return hash;
+    }
+
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentToolResult parseFrom(
+        java.nio.ByteBuffer data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentToolResult parseFrom(
+        java.nio.ByteBuffer data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentToolResult parseFrom(
+        com.google.protobuf.ByteString data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentToolResult parseFrom(
+        com.google.protobuf.ByteString data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentToolResult parseFrom(byte[] data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentToolResult parseFrom(
+        byte[] data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentToolResult parseFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseWithIOException(PARSER, input);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentToolResult parseFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseWithIOException(PARSER, input, extensionRegistry);
+    }
+
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentToolResult parseDelimitedFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseDelimitedWithIOException(PARSER, input);
+    }
+
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentToolResult parseDelimitedFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseDelimitedWithIOException(PARSER, input, extensionRegistry);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentToolResult parseFrom(
+        com.google.protobuf.CodedInputStream input)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseWithIOException(PARSER, input);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentToolResult parseFrom(
+        com.google.protobuf.CodedInputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseWithIOException(PARSER, input, extensionRegistry);
+    }
+
+    @java.lang.Override
+    public Builder newBuilderForType() { return newBuilder(); }
+    public static Builder newBuilder() {
+      return DEFAULT_INSTANCE.toBuilder();
+    }
+    public static Builder newBuilder(org.jumpserver.wisp.ServiceOuterClass.AgentToolResult prototype) {
+      return DEFAULT_INSTANCE.toBuilder().mergeFrom(prototype);
+    }
+    @java.lang.Override
+    public Builder toBuilder() {
+      return this == DEFAULT_INSTANCE
+          ? new Builder() : new Builder().mergeFrom(this);
+    }
+
+    @java.lang.Override
+    protected Builder newBuilderForType(
+        com.google.protobuf.GeneratedMessage.BuilderParent parent) {
+      Builder builder = new Builder(parent);
+      return builder;
+    }
+    /**
+     * Protobuf type {@code message.AgentToolResult}
+     */
+    public static final class Builder extends
+        com.google.protobuf.GeneratedMessage.Builder<Builder> implements
+        // @@protoc_insertion_point(builder_implements:message.AgentToolResult)
+        org.jumpserver.wisp.ServiceOuterClass.AgentToolResultOrBuilder {
+      public static final com.google.protobuf.Descriptors.Descriptor
+          getDescriptor() {
+        return org.jumpserver.wisp.ServiceOuterClass.internal_static_message_AgentToolResult_descriptor;
+      }
+
+      @java.lang.Override
+      protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
+          internalGetFieldAccessorTable() {
+        return org.jumpserver.wisp.ServiceOuterClass.internal_static_message_AgentToolResult_fieldAccessorTable
+            .ensureFieldAccessorsInitialized(
+                org.jumpserver.wisp.ServiceOuterClass.AgentToolResult.class, org.jumpserver.wisp.ServiceOuterClass.AgentToolResult.Builder.class);
+      }
+
+      // Construct using org.jumpserver.wisp.ServiceOuterClass.AgentToolResult.newBuilder()
+      private Builder() {
+
+      }
+
+      private Builder(
+          com.google.protobuf.GeneratedMessage.BuilderParent parent) {
+        super(parent);
+
+      }
+      @java.lang.Override
+      public Builder clear() {
+        super.clear();
+        bitField0_ = 0;
+        id_ = "";
+        resultJson_ = "";
+        error_ = "";
+        return this;
+      }
+
+      @java.lang.Override
+      public com.google.protobuf.Descriptors.Descriptor
+          getDescriptorForType() {
+        return org.jumpserver.wisp.ServiceOuterClass.internal_static_message_AgentToolResult_descriptor;
+      }
+
+      @java.lang.Override
+      public org.jumpserver.wisp.ServiceOuterClass.AgentToolResult getDefaultInstanceForType() {
+        return org.jumpserver.wisp.ServiceOuterClass.AgentToolResult.getDefaultInstance();
+      }
+
+      @java.lang.Override
+      public org.jumpserver.wisp.ServiceOuterClass.AgentToolResult build() {
+        org.jumpserver.wisp.ServiceOuterClass.AgentToolResult result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(result);
+        }
+        return result;
+      }
+
+      @java.lang.Override
+      public org.jumpserver.wisp.ServiceOuterClass.AgentToolResult buildPartial() {
+        org.jumpserver.wisp.ServiceOuterClass.AgentToolResult result = new org.jumpserver.wisp.ServiceOuterClass.AgentToolResult(this);
+        if (bitField0_ != 0) { buildPartial0(result); }
+        onBuilt();
+        return result;
+      }
+
+      private void buildPartial0(org.jumpserver.wisp.ServiceOuterClass.AgentToolResult result) {
+        int from_bitField0_ = bitField0_;
+        if (((from_bitField0_ & 0x00000001) != 0)) {
+          result.id_ = id_;
+        }
+        if (((from_bitField0_ & 0x00000002) != 0)) {
+          result.resultJson_ = resultJson_;
+        }
+        if (((from_bitField0_ & 0x00000004) != 0)) {
+          result.error_ = error_;
+        }
+      }
+
+      @java.lang.Override
+      public Builder mergeFrom(com.google.protobuf.Message other) {
+        if (other instanceof org.jumpserver.wisp.ServiceOuterClass.AgentToolResult) {
+          return mergeFrom((org.jumpserver.wisp.ServiceOuterClass.AgentToolResult)other);
+        } else {
+          super.mergeFrom(other);
+          return this;
+        }
+      }
+
+      public Builder mergeFrom(org.jumpserver.wisp.ServiceOuterClass.AgentToolResult other) {
+        if (other == org.jumpserver.wisp.ServiceOuterClass.AgentToolResult.getDefaultInstance()) return this;
+        if (!other.getId().isEmpty()) {
+          id_ = other.id_;
+          bitField0_ |= 0x00000001;
+          onChanged();
+        }
+        if (!other.getResultJson().isEmpty()) {
+          resultJson_ = other.resultJson_;
+          bitField0_ |= 0x00000002;
+          onChanged();
+        }
+        if (!other.getError().isEmpty()) {
+          error_ = other.error_;
+          bitField0_ |= 0x00000004;
+          onChanged();
+        }
+        this.mergeUnknownFields(other.getUnknownFields());
+        onChanged();
+        return this;
+      }
+
+      @java.lang.Override
+      public final boolean isInitialized() {
+        return true;
+      }
+
+      @java.lang.Override
+      public Builder mergeFrom(
+          com.google.protobuf.CodedInputStream input,
+          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          throws java.io.IOException {
+        if (extensionRegistry == null) {
+          throw new java.lang.NullPointerException();
+        }
+        try {
+          boolean done = false;
+          while (!done) {
+            int tag = input.readTag();
+            switch (tag) {
+              case 0:
+                done = true;
+                break;
+              case 10: {
+                id_ = input.readStringRequireUtf8();
+                bitField0_ |= 0x00000001;
+                break;
+              } // case 10
+              case 18: {
+                resultJson_ = input.readStringRequireUtf8();
+                bitField0_ |= 0x00000002;
+                break;
+              } // case 18
+              case 26: {
+                error_ = input.readStringRequireUtf8();
+                bitField0_ |= 0x00000004;
+                break;
+              } // case 26
+              default: {
+                if (!super.parseUnknownField(input, extensionRegistry, tag)) {
+                  done = true; // was an endgroup tag
+                }
+                break;
+              } // default:
+            } // switch (tag)
+          } // while (!done)
+        } catch (com.google.protobuf.InvalidProtocolBufferException e) {
+          throw e.unwrapIOException();
+        } finally {
+          onChanged();
+        } // finally
+        return this;
+      }
+      private int bitField0_;
+
+      private java.lang.Object id_ = "";
+      /**
+       * <code>string id = 1;</code>
+       * @return The id.
+       */
+      public java.lang.String getId() {
+        java.lang.Object ref = id_;
+        if (!(ref instanceof java.lang.String)) {
+          com.google.protobuf.ByteString bs =
+              (com.google.protobuf.ByteString) ref;
+          java.lang.String s = bs.toStringUtf8();
+          id_ = s;
+          return s;
+        } else {
+          return (java.lang.String) ref;
+        }
+      }
+      /**
+       * <code>string id = 1;</code>
+       * @return The bytes for id.
+       */
+      public com.google.protobuf.ByteString
+          getIdBytes() {
+        java.lang.Object ref = id_;
+        if (ref instanceof String) {
+          com.google.protobuf.ByteString b =
+              com.google.protobuf.ByteString.copyFromUtf8(
+                  (java.lang.String) ref);
+          id_ = b;
+          return b;
+        } else {
+          return (com.google.protobuf.ByteString) ref;
+        }
+      }
+      /**
+       * <code>string id = 1;</code>
+       * @param value The id to set.
+       * @return This builder for chaining.
+       */
+      public Builder setId(
+          java.lang.String value) {
+        if (value == null) { throw new NullPointerException(); }
+        id_ = value;
+        bitField0_ |= 0x00000001;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string id = 1;</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearId() {
+        id_ = getDefaultInstance().getId();
+        bitField0_ = (bitField0_ & ~0x00000001);
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string id = 1;</code>
+       * @param value The bytes for id to set.
+       * @return This builder for chaining.
+       */
+      public Builder setIdBytes(
+          com.google.protobuf.ByteString value) {
+        if (value == null) { throw new NullPointerException(); }
+        checkByteStringIsUtf8(value);
+        id_ = value;
+        bitField0_ |= 0x00000001;
+        onChanged();
+        return this;
+      }
+
+      private java.lang.Object resultJson_ = "";
+      /**
+       * <code>string result_json = 2;</code>
+       * @return The resultJson.
+       */
+      public java.lang.String getResultJson() {
+        java.lang.Object ref = resultJson_;
+        if (!(ref instanceof java.lang.String)) {
+          com.google.protobuf.ByteString bs =
+              (com.google.protobuf.ByteString) ref;
+          java.lang.String s = bs.toStringUtf8();
+          resultJson_ = s;
+          return s;
+        } else {
+          return (java.lang.String) ref;
+        }
+      }
+      /**
+       * <code>string result_json = 2;</code>
+       * @return The bytes for resultJson.
+       */
+      public com.google.protobuf.ByteString
+          getResultJsonBytes() {
+        java.lang.Object ref = resultJson_;
+        if (ref instanceof String) {
+          com.google.protobuf.ByteString b =
+              com.google.protobuf.ByteString.copyFromUtf8(
+                  (java.lang.String) ref);
+          resultJson_ = b;
+          return b;
+        } else {
+          return (com.google.protobuf.ByteString) ref;
+        }
+      }
+      /**
+       * <code>string result_json = 2;</code>
+       * @param value The resultJson to set.
+       * @return This builder for chaining.
+       */
+      public Builder setResultJson(
+          java.lang.String value) {
+        if (value == null) { throw new NullPointerException(); }
+        resultJson_ = value;
+        bitField0_ |= 0x00000002;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string result_json = 2;</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearResultJson() {
+        resultJson_ = getDefaultInstance().getResultJson();
+        bitField0_ = (bitField0_ & ~0x00000002);
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string result_json = 2;</code>
+       * @param value The bytes for resultJson to set.
+       * @return This builder for chaining.
+       */
+      public Builder setResultJsonBytes(
+          com.google.protobuf.ByteString value) {
+        if (value == null) { throw new NullPointerException(); }
+        checkByteStringIsUtf8(value);
+        resultJson_ = value;
+        bitField0_ |= 0x00000002;
+        onChanged();
+        return this;
+      }
+
+      private java.lang.Object error_ = "";
+      /**
+       * <code>string error = 3;</code>
+       * @return The error.
+       */
+      public java.lang.String getError() {
+        java.lang.Object ref = error_;
+        if (!(ref instanceof java.lang.String)) {
+          com.google.protobuf.ByteString bs =
+              (com.google.protobuf.ByteString) ref;
+          java.lang.String s = bs.toStringUtf8();
+          error_ = s;
+          return s;
+        } else {
+          return (java.lang.String) ref;
+        }
+      }
+      /**
+       * <code>string error = 3;</code>
+       * @return The bytes for error.
+       */
+      public com.google.protobuf.ByteString
+          getErrorBytes() {
+        java.lang.Object ref = error_;
+        if (ref instanceof String) {
+          com.google.protobuf.ByteString b =
+              com.google.protobuf.ByteString.copyFromUtf8(
+                  (java.lang.String) ref);
+          error_ = b;
+          return b;
+        } else {
+          return (com.google.protobuf.ByteString) ref;
+        }
+      }
+      /**
+       * <code>string error = 3;</code>
+       * @param value The error to set.
+       * @return This builder for chaining.
+       */
+      public Builder setError(
+          java.lang.String value) {
+        if (value == null) { throw new NullPointerException(); }
+        error_ = value;
+        bitField0_ |= 0x00000004;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string error = 3;</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearError() {
+        error_ = getDefaultInstance().getError();
+        bitField0_ = (bitField0_ & ~0x00000004);
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string error = 3;</code>
+       * @param value The bytes for error to set.
+       * @return This builder for chaining.
+       */
+      public Builder setErrorBytes(
+          com.google.protobuf.ByteString value) {
+        if (value == null) { throw new NullPointerException(); }
+        checkByteStringIsUtf8(value);
+        error_ = value;
+        bitField0_ |= 0x00000004;
+        onChanged();
+        return this;
+      }
+
+      // @@protoc_insertion_point(builder_scope:message.AgentToolResult)
+    }
+
+    // @@protoc_insertion_point(class_scope:message.AgentToolResult)
+    private static final org.jumpserver.wisp.ServiceOuterClass.AgentToolResult DEFAULT_INSTANCE;
+    static {
+      DEFAULT_INSTANCE = new org.jumpserver.wisp.ServiceOuterClass.AgentToolResult();
+    }
+
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentToolResult getDefaultInstance() {
+      return DEFAULT_INSTANCE;
+    }
+
+    private static final com.google.protobuf.Parser<AgentToolResult>
+        PARSER = new com.google.protobuf.AbstractParser<AgentToolResult>() {
+      @java.lang.Override
+      public AgentToolResult parsePartialFrom(
+          com.google.protobuf.CodedInputStream input,
+          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          throws com.google.protobuf.InvalidProtocolBufferException {
+        Builder builder = newBuilder();
+        try {
+          builder.mergeFrom(input, extensionRegistry);
+        } catch (com.google.protobuf.InvalidProtocolBufferException e) {
+          throw e.setUnfinishedMessage(builder.buildPartial());
+        } catch (com.google.protobuf.UninitializedMessageException e) {
+          throw e.asInvalidProtocolBufferException().setUnfinishedMessage(builder.buildPartial());
+        } catch (java.io.IOException e) {
+          throw new com.google.protobuf.InvalidProtocolBufferException(e)
+              .setUnfinishedMessage(builder.buildPartial());
+        }
+        return builder.buildPartial();
+      }
+    };
+
+    public static com.google.protobuf.Parser<AgentToolResult> parser() {
+      return PARSER;
+    }
+
+    @java.lang.Override
+    public com.google.protobuf.Parser<AgentToolResult> getParserForType() {
+      return PARSER;
+    }
+
+    @java.lang.Override
+    public org.jumpserver.wisp.ServiceOuterClass.AgentToolResult getDefaultInstanceForType() {
+      return DEFAULT_INSTANCE;
+    }
+
+  }
+
+  public interface AgentCancelOrBuilder extends
+      // @@protoc_insertion_point(interface_extends:message.AgentCancel)
+      com.google.protobuf.MessageOrBuilder {
+
+    /**
+     * <code>string request_id = 1;</code>
+     * @return The requestId.
+     */
+    java.lang.String getRequestId();
+    /**
+     * <code>string request_id = 1;</code>
+     * @return The bytes for requestId.
+     */
+    com.google.protobuf.ByteString
+        getRequestIdBytes();
+  }
+  /**
+   * Protobuf type {@code message.AgentCancel}
+   */
+  public static final class AgentCancel extends
+      com.google.protobuf.GeneratedMessage implements
+      // @@protoc_insertion_point(message_implements:message.AgentCancel)
+      AgentCancelOrBuilder {
+  private static final long serialVersionUID = 0L;
+    static {
+      com.google.protobuf.RuntimeVersion.validateProtobufGencodeVersion(
+        com.google.protobuf.RuntimeVersion.RuntimeDomain.PUBLIC,
+        /* major= */ 4,
+        /* minor= */ 32,
+        /* patch= */ 1,
+        /* suffix= */ "",
+        AgentCancel.class.getName());
+    }
+    // Use AgentCancel.newBuilder() to construct.
+    private AgentCancel(com.google.protobuf.GeneratedMessage.Builder<?> builder) {
+      super(builder);
+    }
+    private AgentCancel() {
+      requestId_ = "";
+    }
+
+    public static final com.google.protobuf.Descriptors.Descriptor
+        getDescriptor() {
+      return org.jumpserver.wisp.ServiceOuterClass.internal_static_message_AgentCancel_descriptor;
+    }
+
+    @java.lang.Override
+    protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
+        internalGetFieldAccessorTable() {
+      return org.jumpserver.wisp.ServiceOuterClass.internal_static_message_AgentCancel_fieldAccessorTable
+          .ensureFieldAccessorsInitialized(
+              org.jumpserver.wisp.ServiceOuterClass.AgentCancel.class, org.jumpserver.wisp.ServiceOuterClass.AgentCancel.Builder.class);
+    }
+
+    public static final int REQUEST_ID_FIELD_NUMBER = 1;
+    @SuppressWarnings("serial")
+    private volatile java.lang.Object requestId_ = "";
+    /**
+     * <code>string request_id = 1;</code>
+     * @return The requestId.
+     */
+    @java.lang.Override
+    public java.lang.String getRequestId() {
+      java.lang.Object ref = requestId_;
+      if (ref instanceof java.lang.String) {
+        return (java.lang.String) ref;
+      } else {
+        com.google.protobuf.ByteString bs =
+            (com.google.protobuf.ByteString) ref;
+        java.lang.String s = bs.toStringUtf8();
+        requestId_ = s;
+        return s;
+      }
+    }
+    /**
+     * <code>string request_id = 1;</code>
+     * @return The bytes for requestId.
+     */
+    @java.lang.Override
+    public com.google.protobuf.ByteString
+        getRequestIdBytes() {
+      java.lang.Object ref = requestId_;
+      if (ref instanceof java.lang.String) {
+        com.google.protobuf.ByteString b =
+            com.google.protobuf.ByteString.copyFromUtf8(
+                (java.lang.String) ref);
+        requestId_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+
+    private byte memoizedIsInitialized = -1;
+    @java.lang.Override
+    public final boolean isInitialized() {
+      byte isInitialized = memoizedIsInitialized;
+      if (isInitialized == 1) return true;
+      if (isInitialized == 0) return false;
+
+      memoizedIsInitialized = 1;
+      return true;
+    }
+
+    @java.lang.Override
+    public void writeTo(com.google.protobuf.CodedOutputStream output)
+                        throws java.io.IOException {
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(requestId_)) {
+        com.google.protobuf.GeneratedMessage.writeString(output, 1, requestId_);
+      }
+      getUnknownFields().writeTo(output);
+    }
+
+    @java.lang.Override
+    public int getSerializedSize() {
+      int size = memoizedSize;
+      if (size != -1) return size;
+
+      size = 0;
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(requestId_)) {
+        size += com.google.protobuf.GeneratedMessage.computeStringSize(1, requestId_);
+      }
+      size += getUnknownFields().getSerializedSize();
+      memoizedSize = size;
+      return size;
+    }
+
+    @java.lang.Override
+    public boolean equals(final java.lang.Object obj) {
+      if (obj == this) {
+       return true;
+      }
+      if (!(obj instanceof org.jumpserver.wisp.ServiceOuterClass.AgentCancel)) {
+        return super.equals(obj);
+      }
+      org.jumpserver.wisp.ServiceOuterClass.AgentCancel other = (org.jumpserver.wisp.ServiceOuterClass.AgentCancel) obj;
+
+      if (!getRequestId()
+          .equals(other.getRequestId())) return false;
+      if (!getUnknownFields().equals(other.getUnknownFields())) return false;
+      return true;
+    }
+
+    @java.lang.Override
+    public int hashCode() {
+      if (memoizedHashCode != 0) {
+        return memoizedHashCode;
+      }
+      int hash = 41;
+      hash = (19 * hash) + getDescriptor().hashCode();
+      hash = (37 * hash) + REQUEST_ID_FIELD_NUMBER;
+      hash = (53 * hash) + getRequestId().hashCode();
+      hash = (29 * hash) + getUnknownFields().hashCode();
+      memoizedHashCode = hash;
+      return hash;
+    }
+
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentCancel parseFrom(
+        java.nio.ByteBuffer data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentCancel parseFrom(
+        java.nio.ByteBuffer data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentCancel parseFrom(
+        com.google.protobuf.ByteString data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentCancel parseFrom(
+        com.google.protobuf.ByteString data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentCancel parseFrom(byte[] data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentCancel parseFrom(
+        byte[] data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentCancel parseFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseWithIOException(PARSER, input);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentCancel parseFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseWithIOException(PARSER, input, extensionRegistry);
+    }
+
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentCancel parseDelimitedFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseDelimitedWithIOException(PARSER, input);
+    }
+
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentCancel parseDelimitedFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseDelimitedWithIOException(PARSER, input, extensionRegistry);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentCancel parseFrom(
+        com.google.protobuf.CodedInputStream input)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseWithIOException(PARSER, input);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentCancel parseFrom(
+        com.google.protobuf.CodedInputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseWithIOException(PARSER, input, extensionRegistry);
+    }
+
+    @java.lang.Override
+    public Builder newBuilderForType() { return newBuilder(); }
+    public static Builder newBuilder() {
+      return DEFAULT_INSTANCE.toBuilder();
+    }
+    public static Builder newBuilder(org.jumpserver.wisp.ServiceOuterClass.AgentCancel prototype) {
+      return DEFAULT_INSTANCE.toBuilder().mergeFrom(prototype);
+    }
+    @java.lang.Override
+    public Builder toBuilder() {
+      return this == DEFAULT_INSTANCE
+          ? new Builder() : new Builder().mergeFrom(this);
+    }
+
+    @java.lang.Override
+    protected Builder newBuilderForType(
+        com.google.protobuf.GeneratedMessage.BuilderParent parent) {
+      Builder builder = new Builder(parent);
+      return builder;
+    }
+    /**
+     * Protobuf type {@code message.AgentCancel}
+     */
+    public static final class Builder extends
+        com.google.protobuf.GeneratedMessage.Builder<Builder> implements
+        // @@protoc_insertion_point(builder_implements:message.AgentCancel)
+        org.jumpserver.wisp.ServiceOuterClass.AgentCancelOrBuilder {
+      public static final com.google.protobuf.Descriptors.Descriptor
+          getDescriptor() {
+        return org.jumpserver.wisp.ServiceOuterClass.internal_static_message_AgentCancel_descriptor;
+      }
+
+      @java.lang.Override
+      protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
+          internalGetFieldAccessorTable() {
+        return org.jumpserver.wisp.ServiceOuterClass.internal_static_message_AgentCancel_fieldAccessorTable
+            .ensureFieldAccessorsInitialized(
+                org.jumpserver.wisp.ServiceOuterClass.AgentCancel.class, org.jumpserver.wisp.ServiceOuterClass.AgentCancel.Builder.class);
+      }
+
+      // Construct using org.jumpserver.wisp.ServiceOuterClass.AgentCancel.newBuilder()
+      private Builder() {
+
+      }
+
+      private Builder(
+          com.google.protobuf.GeneratedMessage.BuilderParent parent) {
+        super(parent);
+
+      }
+      @java.lang.Override
+      public Builder clear() {
+        super.clear();
+        bitField0_ = 0;
+        requestId_ = "";
+        return this;
+      }
+
+      @java.lang.Override
+      public com.google.protobuf.Descriptors.Descriptor
+          getDescriptorForType() {
+        return org.jumpserver.wisp.ServiceOuterClass.internal_static_message_AgentCancel_descriptor;
+      }
+
+      @java.lang.Override
+      public org.jumpserver.wisp.ServiceOuterClass.AgentCancel getDefaultInstanceForType() {
+        return org.jumpserver.wisp.ServiceOuterClass.AgentCancel.getDefaultInstance();
+      }
+
+      @java.lang.Override
+      public org.jumpserver.wisp.ServiceOuterClass.AgentCancel build() {
+        org.jumpserver.wisp.ServiceOuterClass.AgentCancel result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(result);
+        }
+        return result;
+      }
+
+      @java.lang.Override
+      public org.jumpserver.wisp.ServiceOuterClass.AgentCancel buildPartial() {
+        org.jumpserver.wisp.ServiceOuterClass.AgentCancel result = new org.jumpserver.wisp.ServiceOuterClass.AgentCancel(this);
+        if (bitField0_ != 0) { buildPartial0(result); }
+        onBuilt();
+        return result;
+      }
+
+      private void buildPartial0(org.jumpserver.wisp.ServiceOuterClass.AgentCancel result) {
+        int from_bitField0_ = bitField0_;
+        if (((from_bitField0_ & 0x00000001) != 0)) {
+          result.requestId_ = requestId_;
+        }
+      }
+
+      @java.lang.Override
+      public Builder mergeFrom(com.google.protobuf.Message other) {
+        if (other instanceof org.jumpserver.wisp.ServiceOuterClass.AgentCancel) {
+          return mergeFrom((org.jumpserver.wisp.ServiceOuterClass.AgentCancel)other);
+        } else {
+          super.mergeFrom(other);
+          return this;
+        }
+      }
+
+      public Builder mergeFrom(org.jumpserver.wisp.ServiceOuterClass.AgentCancel other) {
+        if (other == org.jumpserver.wisp.ServiceOuterClass.AgentCancel.getDefaultInstance()) return this;
+        if (!other.getRequestId().isEmpty()) {
+          requestId_ = other.requestId_;
+          bitField0_ |= 0x00000001;
+          onChanged();
+        }
+        this.mergeUnknownFields(other.getUnknownFields());
+        onChanged();
+        return this;
+      }
+
+      @java.lang.Override
+      public final boolean isInitialized() {
+        return true;
+      }
+
+      @java.lang.Override
+      public Builder mergeFrom(
+          com.google.protobuf.CodedInputStream input,
+          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          throws java.io.IOException {
+        if (extensionRegistry == null) {
+          throw new java.lang.NullPointerException();
+        }
+        try {
+          boolean done = false;
+          while (!done) {
+            int tag = input.readTag();
+            switch (tag) {
+              case 0:
+                done = true;
+                break;
+              case 10: {
+                requestId_ = input.readStringRequireUtf8();
+                bitField0_ |= 0x00000001;
+                break;
+              } // case 10
+              default: {
+                if (!super.parseUnknownField(input, extensionRegistry, tag)) {
+                  done = true; // was an endgroup tag
+                }
+                break;
+              } // default:
+            } // switch (tag)
+          } // while (!done)
+        } catch (com.google.protobuf.InvalidProtocolBufferException e) {
+          throw e.unwrapIOException();
+        } finally {
+          onChanged();
+        } // finally
+        return this;
+      }
+      private int bitField0_;
+
+      private java.lang.Object requestId_ = "";
+      /**
+       * <code>string request_id = 1;</code>
+       * @return The requestId.
+       */
+      public java.lang.String getRequestId() {
+        java.lang.Object ref = requestId_;
+        if (!(ref instanceof java.lang.String)) {
+          com.google.protobuf.ByteString bs =
+              (com.google.protobuf.ByteString) ref;
+          java.lang.String s = bs.toStringUtf8();
+          requestId_ = s;
+          return s;
+        } else {
+          return (java.lang.String) ref;
+        }
+      }
+      /**
+       * <code>string request_id = 1;</code>
+       * @return The bytes for requestId.
+       */
+      public com.google.protobuf.ByteString
+          getRequestIdBytes() {
+        java.lang.Object ref = requestId_;
+        if (ref instanceof String) {
+          com.google.protobuf.ByteString b =
+              com.google.protobuf.ByteString.copyFromUtf8(
+                  (java.lang.String) ref);
+          requestId_ = b;
+          return b;
+        } else {
+          return (com.google.protobuf.ByteString) ref;
+        }
+      }
+      /**
+       * <code>string request_id = 1;</code>
+       * @param value The requestId to set.
+       * @return This builder for chaining.
+       */
+      public Builder setRequestId(
+          java.lang.String value) {
+        if (value == null) { throw new NullPointerException(); }
+        requestId_ = value;
+        bitField0_ |= 0x00000001;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string request_id = 1;</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearRequestId() {
+        requestId_ = getDefaultInstance().getRequestId();
+        bitField0_ = (bitField0_ & ~0x00000001);
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string request_id = 1;</code>
+       * @param value The bytes for requestId to set.
+       * @return This builder for chaining.
+       */
+      public Builder setRequestIdBytes(
+          com.google.protobuf.ByteString value) {
+        if (value == null) { throw new NullPointerException(); }
+        checkByteStringIsUtf8(value);
+        requestId_ = value;
+        bitField0_ |= 0x00000001;
+        onChanged();
+        return this;
+      }
+
+      // @@protoc_insertion_point(builder_scope:message.AgentCancel)
+    }
+
+    // @@protoc_insertion_point(class_scope:message.AgentCancel)
+    private static final org.jumpserver.wisp.ServiceOuterClass.AgentCancel DEFAULT_INSTANCE;
+    static {
+      DEFAULT_INSTANCE = new org.jumpserver.wisp.ServiceOuterClass.AgentCancel();
+    }
+
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentCancel getDefaultInstance() {
+      return DEFAULT_INSTANCE;
+    }
+
+    private static final com.google.protobuf.Parser<AgentCancel>
+        PARSER = new com.google.protobuf.AbstractParser<AgentCancel>() {
+      @java.lang.Override
+      public AgentCancel parsePartialFrom(
+          com.google.protobuf.CodedInputStream input,
+          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          throws com.google.protobuf.InvalidProtocolBufferException {
+        Builder builder = newBuilder();
+        try {
+          builder.mergeFrom(input, extensionRegistry);
+        } catch (com.google.protobuf.InvalidProtocolBufferException e) {
+          throw e.setUnfinishedMessage(builder.buildPartial());
+        } catch (com.google.protobuf.UninitializedMessageException e) {
+          throw e.asInvalidProtocolBufferException().setUnfinishedMessage(builder.buildPartial());
+        } catch (java.io.IOException e) {
+          throw new com.google.protobuf.InvalidProtocolBufferException(e)
+              .setUnfinishedMessage(builder.buildPartial());
+        }
+        return builder.buildPartial();
+      }
+    };
+
+    public static com.google.protobuf.Parser<AgentCancel> parser() {
+      return PARSER;
+    }
+
+    @java.lang.Override
+    public com.google.protobuf.Parser<AgentCancel> getParserForType() {
+      return PARSER;
+    }
+
+    @java.lang.Override
+    public org.jumpserver.wisp.ServiceOuterClass.AgentCancel getDefaultInstanceForType() {
+      return DEFAULT_INSTANCE;
+    }
+
+  }
+
+  public interface AgentClientEventOrBuilder extends
+      // @@protoc_insertion_point(interface_extends:message.AgentClientEvent)
+      com.google.protobuf.MessageOrBuilder {
+
+    /**
+     * <code>.message.AgentSessionOpen open = 1;</code>
+     * @return Whether the open field is set.
+     */
+    boolean hasOpen();
+    /**
+     * <code>.message.AgentSessionOpen open = 1;</code>
+     * @return The open.
+     */
+    org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen getOpen();
+    /**
+     * <code>.message.AgentSessionOpen open = 1;</code>
+     */
+    org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpenOrBuilder getOpenOrBuilder();
+
+    /**
+     * <code>.message.AgentRequest request = 2;</code>
+     * @return Whether the request field is set.
+     */
+    boolean hasRequest();
+    /**
+     * <code>.message.AgentRequest request = 2;</code>
+     * @return The request.
+     */
+    org.jumpserver.wisp.ServiceOuterClass.AgentRequest getRequest();
+    /**
+     * <code>.message.AgentRequest request = 2;</code>
+     */
+    org.jumpserver.wisp.ServiceOuterClass.AgentRequestOrBuilder getRequestOrBuilder();
+
+    /**
+     * <code>.message.AgentToolResult tool_result = 3;</code>
+     * @return Whether the toolResult field is set.
+     */
+    boolean hasToolResult();
+    /**
+     * <code>.message.AgentToolResult tool_result = 3;</code>
+     * @return The toolResult.
+     */
+    org.jumpserver.wisp.ServiceOuterClass.AgentToolResult getToolResult();
+    /**
+     * <code>.message.AgentToolResult tool_result = 3;</code>
+     */
+    org.jumpserver.wisp.ServiceOuterClass.AgentToolResultOrBuilder getToolResultOrBuilder();
+
+    /**
+     * <code>.message.AgentCancel cancel = 4;</code>
+     * @return Whether the cancel field is set.
+     */
+    boolean hasCancel();
+    /**
+     * <code>.message.AgentCancel cancel = 4;</code>
+     * @return The cancel.
+     */
+    org.jumpserver.wisp.ServiceOuterClass.AgentCancel getCancel();
+    /**
+     * <code>.message.AgentCancel cancel = 4;</code>
+     */
+    org.jumpserver.wisp.ServiceOuterClass.AgentCancelOrBuilder getCancelOrBuilder();
+
+    /**
+     * <code>.message.Empty close = 5;</code>
+     * @return Whether the close field is set.
+     */
+    boolean hasClose();
+    /**
+     * <code>.message.Empty close = 5;</code>
+     * @return The close.
+     */
+    org.jumpserver.wisp.ServiceOuterClass.Empty getClose();
+    /**
+     * <code>.message.Empty close = 5;</code>
+     */
+    org.jumpserver.wisp.ServiceOuterClass.EmptyOrBuilder getCloseOrBuilder();
+
+    org.jumpserver.wisp.ServiceOuterClass.AgentClientEvent.EventCase getEventCase();
+  }
+  /**
+   * Protobuf type {@code message.AgentClientEvent}
+   */
+  public static final class AgentClientEvent extends
+      com.google.protobuf.GeneratedMessage implements
+      // @@protoc_insertion_point(message_implements:message.AgentClientEvent)
+      AgentClientEventOrBuilder {
+  private static final long serialVersionUID = 0L;
+    static {
+      com.google.protobuf.RuntimeVersion.validateProtobufGencodeVersion(
+        com.google.protobuf.RuntimeVersion.RuntimeDomain.PUBLIC,
+        /* major= */ 4,
+        /* minor= */ 32,
+        /* patch= */ 1,
+        /* suffix= */ "",
+        AgentClientEvent.class.getName());
+    }
+    // Use AgentClientEvent.newBuilder() to construct.
+    private AgentClientEvent(com.google.protobuf.GeneratedMessage.Builder<?> builder) {
+      super(builder);
+    }
+    private AgentClientEvent() {
+    }
+
+    public static final com.google.protobuf.Descriptors.Descriptor
+        getDescriptor() {
+      return org.jumpserver.wisp.ServiceOuterClass.internal_static_message_AgentClientEvent_descriptor;
+    }
+
+    @java.lang.Override
+    protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
+        internalGetFieldAccessorTable() {
+      return org.jumpserver.wisp.ServiceOuterClass.internal_static_message_AgentClientEvent_fieldAccessorTable
+          .ensureFieldAccessorsInitialized(
+              org.jumpserver.wisp.ServiceOuterClass.AgentClientEvent.class, org.jumpserver.wisp.ServiceOuterClass.AgentClientEvent.Builder.class);
+    }
+
+    private int eventCase_ = 0;
+    @SuppressWarnings("serial")
+    private java.lang.Object event_;
+    public enum EventCase
+        implements com.google.protobuf.Internal.EnumLite,
+            com.google.protobuf.AbstractMessage.InternalOneOfEnum {
+      OPEN(1),
+      REQUEST(2),
+      TOOL_RESULT(3),
+      CANCEL(4),
+      CLOSE(5),
+      EVENT_NOT_SET(0);
+      private final int value;
+      private EventCase(int value) {
+        this.value = value;
+      }
+      /**
+       * @param value The number of the enum to look for.
+       * @return The enum associated with the given number.
+       * @deprecated Use {@link #forNumber(int)} instead.
+       */
+      @java.lang.Deprecated
+      public static EventCase valueOf(int value) {
+        return forNumber(value);
+      }
+
+      public static EventCase forNumber(int value) {
+        switch (value) {
+          case 1: return OPEN;
+          case 2: return REQUEST;
+          case 3: return TOOL_RESULT;
+          case 4: return CANCEL;
+          case 5: return CLOSE;
+          case 0: return EVENT_NOT_SET;
+          default: return null;
+        }
+      }
+      public int getNumber() {
+        return this.value;
+      }
+    };
+
+    public EventCase
+    getEventCase() {
+      return EventCase.forNumber(
+          eventCase_);
+    }
+
+    public static final int OPEN_FIELD_NUMBER = 1;
+    /**
+     * <code>.message.AgentSessionOpen open = 1;</code>
+     * @return Whether the open field is set.
+     */
+    @java.lang.Override
+    public boolean hasOpen() {
+      return eventCase_ == 1;
+    }
+    /**
+     * <code>.message.AgentSessionOpen open = 1;</code>
+     * @return The open.
+     */
+    @java.lang.Override
+    public org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen getOpen() {
+      if (eventCase_ == 1) {
+         return (org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen) event_;
+      }
+      return org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen.getDefaultInstance();
+    }
+    /**
+     * <code>.message.AgentSessionOpen open = 1;</code>
+     */
+    @java.lang.Override
+    public org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpenOrBuilder getOpenOrBuilder() {
+      if (eventCase_ == 1) {
+         return (org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen) event_;
+      }
+      return org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen.getDefaultInstance();
+    }
+
+    public static final int REQUEST_FIELD_NUMBER = 2;
+    /**
+     * <code>.message.AgentRequest request = 2;</code>
+     * @return Whether the request field is set.
+     */
+    @java.lang.Override
+    public boolean hasRequest() {
+      return eventCase_ == 2;
+    }
+    /**
+     * <code>.message.AgentRequest request = 2;</code>
+     * @return The request.
+     */
+    @java.lang.Override
+    public org.jumpserver.wisp.ServiceOuterClass.AgentRequest getRequest() {
+      if (eventCase_ == 2) {
+         return (org.jumpserver.wisp.ServiceOuterClass.AgentRequest) event_;
+      }
+      return org.jumpserver.wisp.ServiceOuterClass.AgentRequest.getDefaultInstance();
+    }
+    /**
+     * <code>.message.AgentRequest request = 2;</code>
+     */
+    @java.lang.Override
+    public org.jumpserver.wisp.ServiceOuterClass.AgentRequestOrBuilder getRequestOrBuilder() {
+      if (eventCase_ == 2) {
+         return (org.jumpserver.wisp.ServiceOuterClass.AgentRequest) event_;
+      }
+      return org.jumpserver.wisp.ServiceOuterClass.AgentRequest.getDefaultInstance();
+    }
+
+    public static final int TOOL_RESULT_FIELD_NUMBER = 3;
+    /**
+     * <code>.message.AgentToolResult tool_result = 3;</code>
+     * @return Whether the toolResult field is set.
+     */
+    @java.lang.Override
+    public boolean hasToolResult() {
+      return eventCase_ == 3;
+    }
+    /**
+     * <code>.message.AgentToolResult tool_result = 3;</code>
+     * @return The toolResult.
+     */
+    @java.lang.Override
+    public org.jumpserver.wisp.ServiceOuterClass.AgentToolResult getToolResult() {
+      if (eventCase_ == 3) {
+         return (org.jumpserver.wisp.ServiceOuterClass.AgentToolResult) event_;
+      }
+      return org.jumpserver.wisp.ServiceOuterClass.AgentToolResult.getDefaultInstance();
+    }
+    /**
+     * <code>.message.AgentToolResult tool_result = 3;</code>
+     */
+    @java.lang.Override
+    public org.jumpserver.wisp.ServiceOuterClass.AgentToolResultOrBuilder getToolResultOrBuilder() {
+      if (eventCase_ == 3) {
+         return (org.jumpserver.wisp.ServiceOuterClass.AgentToolResult) event_;
+      }
+      return org.jumpserver.wisp.ServiceOuterClass.AgentToolResult.getDefaultInstance();
+    }
+
+    public static final int CANCEL_FIELD_NUMBER = 4;
+    /**
+     * <code>.message.AgentCancel cancel = 4;</code>
+     * @return Whether the cancel field is set.
+     */
+    @java.lang.Override
+    public boolean hasCancel() {
+      return eventCase_ == 4;
+    }
+    /**
+     * <code>.message.AgentCancel cancel = 4;</code>
+     * @return The cancel.
+     */
+    @java.lang.Override
+    public org.jumpserver.wisp.ServiceOuterClass.AgentCancel getCancel() {
+      if (eventCase_ == 4) {
+         return (org.jumpserver.wisp.ServiceOuterClass.AgentCancel) event_;
+      }
+      return org.jumpserver.wisp.ServiceOuterClass.AgentCancel.getDefaultInstance();
+    }
+    /**
+     * <code>.message.AgentCancel cancel = 4;</code>
+     */
+    @java.lang.Override
+    public org.jumpserver.wisp.ServiceOuterClass.AgentCancelOrBuilder getCancelOrBuilder() {
+      if (eventCase_ == 4) {
+         return (org.jumpserver.wisp.ServiceOuterClass.AgentCancel) event_;
+      }
+      return org.jumpserver.wisp.ServiceOuterClass.AgentCancel.getDefaultInstance();
+    }
+
+    public static final int CLOSE_FIELD_NUMBER = 5;
+    /**
+     * <code>.message.Empty close = 5;</code>
+     * @return Whether the close field is set.
+     */
+    @java.lang.Override
+    public boolean hasClose() {
+      return eventCase_ == 5;
+    }
+    /**
+     * <code>.message.Empty close = 5;</code>
+     * @return The close.
+     */
+    @java.lang.Override
+    public org.jumpserver.wisp.ServiceOuterClass.Empty getClose() {
+      if (eventCase_ == 5) {
+         return (org.jumpserver.wisp.ServiceOuterClass.Empty) event_;
+      }
+      return org.jumpserver.wisp.ServiceOuterClass.Empty.getDefaultInstance();
+    }
+    /**
+     * <code>.message.Empty close = 5;</code>
+     */
+    @java.lang.Override
+    public org.jumpserver.wisp.ServiceOuterClass.EmptyOrBuilder getCloseOrBuilder() {
+      if (eventCase_ == 5) {
+         return (org.jumpserver.wisp.ServiceOuterClass.Empty) event_;
+      }
+      return org.jumpserver.wisp.ServiceOuterClass.Empty.getDefaultInstance();
+    }
+
+    private byte memoizedIsInitialized = -1;
+    @java.lang.Override
+    public final boolean isInitialized() {
+      byte isInitialized = memoizedIsInitialized;
+      if (isInitialized == 1) return true;
+      if (isInitialized == 0) return false;
+
+      memoizedIsInitialized = 1;
+      return true;
+    }
+
+    @java.lang.Override
+    public void writeTo(com.google.protobuf.CodedOutputStream output)
+                        throws java.io.IOException {
+      if (eventCase_ == 1) {
+        output.writeMessage(1, (org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen) event_);
+      }
+      if (eventCase_ == 2) {
+        output.writeMessage(2, (org.jumpserver.wisp.ServiceOuterClass.AgentRequest) event_);
+      }
+      if (eventCase_ == 3) {
+        output.writeMessage(3, (org.jumpserver.wisp.ServiceOuterClass.AgentToolResult) event_);
+      }
+      if (eventCase_ == 4) {
+        output.writeMessage(4, (org.jumpserver.wisp.ServiceOuterClass.AgentCancel) event_);
+      }
+      if (eventCase_ == 5) {
+        output.writeMessage(5, (org.jumpserver.wisp.ServiceOuterClass.Empty) event_);
+      }
+      getUnknownFields().writeTo(output);
+    }
+
+    @java.lang.Override
+    public int getSerializedSize() {
+      int size = memoizedSize;
+      if (size != -1) return size;
+
+      size = 0;
+      if (eventCase_ == 1) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeMessageSize(1, (org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen) event_);
+      }
+      if (eventCase_ == 2) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeMessageSize(2, (org.jumpserver.wisp.ServiceOuterClass.AgentRequest) event_);
+      }
+      if (eventCase_ == 3) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeMessageSize(3, (org.jumpserver.wisp.ServiceOuterClass.AgentToolResult) event_);
+      }
+      if (eventCase_ == 4) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeMessageSize(4, (org.jumpserver.wisp.ServiceOuterClass.AgentCancel) event_);
+      }
+      if (eventCase_ == 5) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeMessageSize(5, (org.jumpserver.wisp.ServiceOuterClass.Empty) event_);
+      }
+      size += getUnknownFields().getSerializedSize();
+      memoizedSize = size;
+      return size;
+    }
+
+    @java.lang.Override
+    public boolean equals(final java.lang.Object obj) {
+      if (obj == this) {
+       return true;
+      }
+      if (!(obj instanceof org.jumpserver.wisp.ServiceOuterClass.AgentClientEvent)) {
+        return super.equals(obj);
+      }
+      org.jumpserver.wisp.ServiceOuterClass.AgentClientEvent other = (org.jumpserver.wisp.ServiceOuterClass.AgentClientEvent) obj;
+
+      if (!getEventCase().equals(other.getEventCase())) return false;
+      switch (eventCase_) {
+        case 1:
+          if (!getOpen()
+              .equals(other.getOpen())) return false;
+          break;
+        case 2:
+          if (!getRequest()
+              .equals(other.getRequest())) return false;
+          break;
+        case 3:
+          if (!getToolResult()
+              .equals(other.getToolResult())) return false;
+          break;
+        case 4:
+          if (!getCancel()
+              .equals(other.getCancel())) return false;
+          break;
+        case 5:
+          if (!getClose()
+              .equals(other.getClose())) return false;
+          break;
+        case 0:
+        default:
+      }
+      if (!getUnknownFields().equals(other.getUnknownFields())) return false;
+      return true;
+    }
+
+    @java.lang.Override
+    public int hashCode() {
+      if (memoizedHashCode != 0) {
+        return memoizedHashCode;
+      }
+      int hash = 41;
+      hash = (19 * hash) + getDescriptor().hashCode();
+      switch (eventCase_) {
+        case 1:
+          hash = (37 * hash) + OPEN_FIELD_NUMBER;
+          hash = (53 * hash) + getOpen().hashCode();
+          break;
+        case 2:
+          hash = (37 * hash) + REQUEST_FIELD_NUMBER;
+          hash = (53 * hash) + getRequest().hashCode();
+          break;
+        case 3:
+          hash = (37 * hash) + TOOL_RESULT_FIELD_NUMBER;
+          hash = (53 * hash) + getToolResult().hashCode();
+          break;
+        case 4:
+          hash = (37 * hash) + CANCEL_FIELD_NUMBER;
+          hash = (53 * hash) + getCancel().hashCode();
+          break;
+        case 5:
+          hash = (37 * hash) + CLOSE_FIELD_NUMBER;
+          hash = (53 * hash) + getClose().hashCode();
+          break;
+        case 0:
+        default:
+      }
+      hash = (29 * hash) + getUnknownFields().hashCode();
+      memoizedHashCode = hash;
+      return hash;
+    }
+
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentClientEvent parseFrom(
+        java.nio.ByteBuffer data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentClientEvent parseFrom(
+        java.nio.ByteBuffer data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentClientEvent parseFrom(
+        com.google.protobuf.ByteString data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentClientEvent parseFrom(
+        com.google.protobuf.ByteString data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentClientEvent parseFrom(byte[] data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentClientEvent parseFrom(
+        byte[] data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentClientEvent parseFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseWithIOException(PARSER, input);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentClientEvent parseFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseWithIOException(PARSER, input, extensionRegistry);
+    }
+
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentClientEvent parseDelimitedFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseDelimitedWithIOException(PARSER, input);
+    }
+
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentClientEvent parseDelimitedFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseDelimitedWithIOException(PARSER, input, extensionRegistry);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentClientEvent parseFrom(
+        com.google.protobuf.CodedInputStream input)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseWithIOException(PARSER, input);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentClientEvent parseFrom(
+        com.google.protobuf.CodedInputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseWithIOException(PARSER, input, extensionRegistry);
+    }
+
+    @java.lang.Override
+    public Builder newBuilderForType() { return newBuilder(); }
+    public static Builder newBuilder() {
+      return DEFAULT_INSTANCE.toBuilder();
+    }
+    public static Builder newBuilder(org.jumpserver.wisp.ServiceOuterClass.AgentClientEvent prototype) {
+      return DEFAULT_INSTANCE.toBuilder().mergeFrom(prototype);
+    }
+    @java.lang.Override
+    public Builder toBuilder() {
+      return this == DEFAULT_INSTANCE
+          ? new Builder() : new Builder().mergeFrom(this);
+    }
+
+    @java.lang.Override
+    protected Builder newBuilderForType(
+        com.google.protobuf.GeneratedMessage.BuilderParent parent) {
+      Builder builder = new Builder(parent);
+      return builder;
+    }
+    /**
+     * Protobuf type {@code message.AgentClientEvent}
+     */
+    public static final class Builder extends
+        com.google.protobuf.GeneratedMessage.Builder<Builder> implements
+        // @@protoc_insertion_point(builder_implements:message.AgentClientEvent)
+        org.jumpserver.wisp.ServiceOuterClass.AgentClientEventOrBuilder {
+      public static final com.google.protobuf.Descriptors.Descriptor
+          getDescriptor() {
+        return org.jumpserver.wisp.ServiceOuterClass.internal_static_message_AgentClientEvent_descriptor;
+      }
+
+      @java.lang.Override
+      protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
+          internalGetFieldAccessorTable() {
+        return org.jumpserver.wisp.ServiceOuterClass.internal_static_message_AgentClientEvent_fieldAccessorTable
+            .ensureFieldAccessorsInitialized(
+                org.jumpserver.wisp.ServiceOuterClass.AgentClientEvent.class, org.jumpserver.wisp.ServiceOuterClass.AgentClientEvent.Builder.class);
+      }
+
+      // Construct using org.jumpserver.wisp.ServiceOuterClass.AgentClientEvent.newBuilder()
+      private Builder() {
+
+      }
+
+      private Builder(
+          com.google.protobuf.GeneratedMessage.BuilderParent parent) {
+        super(parent);
+
+      }
+      @java.lang.Override
+      public Builder clear() {
+        super.clear();
+        bitField0_ = 0;
+        if (openBuilder_ != null) {
+          openBuilder_.clear();
+        }
+        if (requestBuilder_ != null) {
+          requestBuilder_.clear();
+        }
+        if (toolResultBuilder_ != null) {
+          toolResultBuilder_.clear();
+        }
+        if (cancelBuilder_ != null) {
+          cancelBuilder_.clear();
+        }
+        if (closeBuilder_ != null) {
+          closeBuilder_.clear();
+        }
+        eventCase_ = 0;
+        event_ = null;
+        return this;
+      }
+
+      @java.lang.Override
+      public com.google.protobuf.Descriptors.Descriptor
+          getDescriptorForType() {
+        return org.jumpserver.wisp.ServiceOuterClass.internal_static_message_AgentClientEvent_descriptor;
+      }
+
+      @java.lang.Override
+      public org.jumpserver.wisp.ServiceOuterClass.AgentClientEvent getDefaultInstanceForType() {
+        return org.jumpserver.wisp.ServiceOuterClass.AgentClientEvent.getDefaultInstance();
+      }
+
+      @java.lang.Override
+      public org.jumpserver.wisp.ServiceOuterClass.AgentClientEvent build() {
+        org.jumpserver.wisp.ServiceOuterClass.AgentClientEvent result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(result);
+        }
+        return result;
+      }
+
+      @java.lang.Override
+      public org.jumpserver.wisp.ServiceOuterClass.AgentClientEvent buildPartial() {
+        org.jumpserver.wisp.ServiceOuterClass.AgentClientEvent result = new org.jumpserver.wisp.ServiceOuterClass.AgentClientEvent(this);
+        if (bitField0_ != 0) { buildPartial0(result); }
+        buildPartialOneofs(result);
+        onBuilt();
+        return result;
+      }
+
+      private void buildPartial0(org.jumpserver.wisp.ServiceOuterClass.AgentClientEvent result) {
+        int from_bitField0_ = bitField0_;
+      }
+
+      private void buildPartialOneofs(org.jumpserver.wisp.ServiceOuterClass.AgentClientEvent result) {
+        result.eventCase_ = eventCase_;
+        result.event_ = this.event_;
+        if (eventCase_ == 1 &&
+            openBuilder_ != null) {
+          result.event_ = openBuilder_.build();
+        }
+        if (eventCase_ == 2 &&
+            requestBuilder_ != null) {
+          result.event_ = requestBuilder_.build();
+        }
+        if (eventCase_ == 3 &&
+            toolResultBuilder_ != null) {
+          result.event_ = toolResultBuilder_.build();
+        }
+        if (eventCase_ == 4 &&
+            cancelBuilder_ != null) {
+          result.event_ = cancelBuilder_.build();
+        }
+        if (eventCase_ == 5 &&
+            closeBuilder_ != null) {
+          result.event_ = closeBuilder_.build();
+        }
+      }
+
+      @java.lang.Override
+      public Builder mergeFrom(com.google.protobuf.Message other) {
+        if (other instanceof org.jumpserver.wisp.ServiceOuterClass.AgentClientEvent) {
+          return mergeFrom((org.jumpserver.wisp.ServiceOuterClass.AgentClientEvent)other);
+        } else {
+          super.mergeFrom(other);
+          return this;
+        }
+      }
+
+      public Builder mergeFrom(org.jumpserver.wisp.ServiceOuterClass.AgentClientEvent other) {
+        if (other == org.jumpserver.wisp.ServiceOuterClass.AgentClientEvent.getDefaultInstance()) return this;
+        switch (other.getEventCase()) {
+          case OPEN: {
+            mergeOpen(other.getOpen());
+            break;
+          }
+          case REQUEST: {
+            mergeRequest(other.getRequest());
+            break;
+          }
+          case TOOL_RESULT: {
+            mergeToolResult(other.getToolResult());
+            break;
+          }
+          case CANCEL: {
+            mergeCancel(other.getCancel());
+            break;
+          }
+          case CLOSE: {
+            mergeClose(other.getClose());
+            break;
+          }
+          case EVENT_NOT_SET: {
+            break;
+          }
+        }
+        this.mergeUnknownFields(other.getUnknownFields());
+        onChanged();
+        return this;
+      }
+
+      @java.lang.Override
+      public final boolean isInitialized() {
+        return true;
+      }
+
+      @java.lang.Override
+      public Builder mergeFrom(
+          com.google.protobuf.CodedInputStream input,
+          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          throws java.io.IOException {
+        if (extensionRegistry == null) {
+          throw new java.lang.NullPointerException();
+        }
+        try {
+          boolean done = false;
+          while (!done) {
+            int tag = input.readTag();
+            switch (tag) {
+              case 0:
+                done = true;
+                break;
+              case 10: {
+                input.readMessage(
+                    internalGetOpenFieldBuilder().getBuilder(),
+                    extensionRegistry);
+                eventCase_ = 1;
+                break;
+              } // case 10
+              case 18: {
+                input.readMessage(
+                    internalGetRequestFieldBuilder().getBuilder(),
+                    extensionRegistry);
+                eventCase_ = 2;
+                break;
+              } // case 18
+              case 26: {
+                input.readMessage(
+                    internalGetToolResultFieldBuilder().getBuilder(),
+                    extensionRegistry);
+                eventCase_ = 3;
+                break;
+              } // case 26
+              case 34: {
+                input.readMessage(
+                    internalGetCancelFieldBuilder().getBuilder(),
+                    extensionRegistry);
+                eventCase_ = 4;
+                break;
+              } // case 34
+              case 42: {
+                input.readMessage(
+                    internalGetCloseFieldBuilder().getBuilder(),
+                    extensionRegistry);
+                eventCase_ = 5;
+                break;
+              } // case 42
+              default: {
+                if (!super.parseUnknownField(input, extensionRegistry, tag)) {
+                  done = true; // was an endgroup tag
+                }
+                break;
+              } // default:
+            } // switch (tag)
+          } // while (!done)
+        } catch (com.google.protobuf.InvalidProtocolBufferException e) {
+          throw e.unwrapIOException();
+        } finally {
+          onChanged();
+        } // finally
+        return this;
+      }
+      private int eventCase_ = 0;
+      private java.lang.Object event_;
+      public EventCase
+          getEventCase() {
+        return EventCase.forNumber(
+            eventCase_);
+      }
+
+      public Builder clearEvent() {
+        eventCase_ = 0;
+        event_ = null;
+        onChanged();
+        return this;
+      }
+
+      private int bitField0_;
+
+      private com.google.protobuf.SingleFieldBuilder<
+          org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen, org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen.Builder, org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpenOrBuilder> openBuilder_;
+      /**
+       * <code>.message.AgentSessionOpen open = 1;</code>
+       * @return Whether the open field is set.
+       */
+      @java.lang.Override
+      public boolean hasOpen() {
+        return eventCase_ == 1;
+      }
+      /**
+       * <code>.message.AgentSessionOpen open = 1;</code>
+       * @return The open.
+       */
+      @java.lang.Override
+      public org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen getOpen() {
+        if (openBuilder_ == null) {
+          if (eventCase_ == 1) {
+            return (org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen) event_;
+          }
+          return org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen.getDefaultInstance();
+        } else {
+          if (eventCase_ == 1) {
+            return openBuilder_.getMessage();
+          }
+          return org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen.getDefaultInstance();
+        }
+      }
+      /**
+       * <code>.message.AgentSessionOpen open = 1;</code>
+       */
+      public Builder setOpen(org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen value) {
+        if (openBuilder_ == null) {
+          if (value == null) {
+            throw new NullPointerException();
+          }
+          event_ = value;
+          onChanged();
+        } else {
+          openBuilder_.setMessage(value);
+        }
+        eventCase_ = 1;
+        return this;
+      }
+      /**
+       * <code>.message.AgentSessionOpen open = 1;</code>
+       */
+      public Builder setOpen(
+          org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen.Builder builderForValue) {
+        if (openBuilder_ == null) {
+          event_ = builderForValue.build();
+          onChanged();
+        } else {
+          openBuilder_.setMessage(builderForValue.build());
+        }
+        eventCase_ = 1;
+        return this;
+      }
+      /**
+       * <code>.message.AgentSessionOpen open = 1;</code>
+       */
+      public Builder mergeOpen(org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen value) {
+        if (openBuilder_ == null) {
+          if (eventCase_ == 1 &&
+              event_ != org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen.getDefaultInstance()) {
+            event_ = org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen.newBuilder((org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen) event_)
+                .mergeFrom(value).buildPartial();
+          } else {
+            event_ = value;
+          }
+          onChanged();
+        } else {
+          if (eventCase_ == 1) {
+            openBuilder_.mergeFrom(value);
+          } else {
+            openBuilder_.setMessage(value);
+          }
+        }
+        eventCase_ = 1;
+        return this;
+      }
+      /**
+       * <code>.message.AgentSessionOpen open = 1;</code>
+       */
+      public Builder clearOpen() {
+        if (openBuilder_ == null) {
+          if (eventCase_ == 1) {
+            eventCase_ = 0;
+            event_ = null;
+            onChanged();
+          }
+        } else {
+          if (eventCase_ == 1) {
+            eventCase_ = 0;
+            event_ = null;
+          }
+          openBuilder_.clear();
+        }
+        return this;
+      }
+      /**
+       * <code>.message.AgentSessionOpen open = 1;</code>
+       */
+      public org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen.Builder getOpenBuilder() {
+        return internalGetOpenFieldBuilder().getBuilder();
+      }
+      /**
+       * <code>.message.AgentSessionOpen open = 1;</code>
+       */
+      @java.lang.Override
+      public org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpenOrBuilder getOpenOrBuilder() {
+        if ((eventCase_ == 1) && (openBuilder_ != null)) {
+          return openBuilder_.getMessageOrBuilder();
+        } else {
+          if (eventCase_ == 1) {
+            return (org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen) event_;
+          }
+          return org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen.getDefaultInstance();
+        }
+      }
+      /**
+       * <code>.message.AgentSessionOpen open = 1;</code>
+       */
+      private com.google.protobuf.SingleFieldBuilder<
+          org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen, org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen.Builder, org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpenOrBuilder>
+          internalGetOpenFieldBuilder() {
+        if (openBuilder_ == null) {
+          if (!(eventCase_ == 1)) {
+            event_ = org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen.getDefaultInstance();
+          }
+          openBuilder_ = new com.google.protobuf.SingleFieldBuilder<
+              org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen, org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen.Builder, org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpenOrBuilder>(
+                  (org.jumpserver.wisp.ServiceOuterClass.AgentSessionOpen) event_,
+                  getParentForChildren(),
+                  isClean());
+          event_ = null;
+        }
+        eventCase_ = 1;
+        onChanged();
+        return openBuilder_;
+      }
+
+      private com.google.protobuf.SingleFieldBuilder<
+          org.jumpserver.wisp.ServiceOuterClass.AgentRequest, org.jumpserver.wisp.ServiceOuterClass.AgentRequest.Builder, org.jumpserver.wisp.ServiceOuterClass.AgentRequestOrBuilder> requestBuilder_;
+      /**
+       * <code>.message.AgentRequest request = 2;</code>
+       * @return Whether the request field is set.
+       */
+      @java.lang.Override
+      public boolean hasRequest() {
+        return eventCase_ == 2;
+      }
+      /**
+       * <code>.message.AgentRequest request = 2;</code>
+       * @return The request.
+       */
+      @java.lang.Override
+      public org.jumpserver.wisp.ServiceOuterClass.AgentRequest getRequest() {
+        if (requestBuilder_ == null) {
+          if (eventCase_ == 2) {
+            return (org.jumpserver.wisp.ServiceOuterClass.AgentRequest) event_;
+          }
+          return org.jumpserver.wisp.ServiceOuterClass.AgentRequest.getDefaultInstance();
+        } else {
+          if (eventCase_ == 2) {
+            return requestBuilder_.getMessage();
+          }
+          return org.jumpserver.wisp.ServiceOuterClass.AgentRequest.getDefaultInstance();
+        }
+      }
+      /**
+       * <code>.message.AgentRequest request = 2;</code>
+       */
+      public Builder setRequest(org.jumpserver.wisp.ServiceOuterClass.AgentRequest value) {
+        if (requestBuilder_ == null) {
+          if (value == null) {
+            throw new NullPointerException();
+          }
+          event_ = value;
+          onChanged();
+        } else {
+          requestBuilder_.setMessage(value);
+        }
+        eventCase_ = 2;
+        return this;
+      }
+      /**
+       * <code>.message.AgentRequest request = 2;</code>
+       */
+      public Builder setRequest(
+          org.jumpserver.wisp.ServiceOuterClass.AgentRequest.Builder builderForValue) {
+        if (requestBuilder_ == null) {
+          event_ = builderForValue.build();
+          onChanged();
+        } else {
+          requestBuilder_.setMessage(builderForValue.build());
+        }
+        eventCase_ = 2;
+        return this;
+      }
+      /**
+       * <code>.message.AgentRequest request = 2;</code>
+       */
+      public Builder mergeRequest(org.jumpserver.wisp.ServiceOuterClass.AgentRequest value) {
+        if (requestBuilder_ == null) {
+          if (eventCase_ == 2 &&
+              event_ != org.jumpserver.wisp.ServiceOuterClass.AgentRequest.getDefaultInstance()) {
+            event_ = org.jumpserver.wisp.ServiceOuterClass.AgentRequest.newBuilder((org.jumpserver.wisp.ServiceOuterClass.AgentRequest) event_)
+                .mergeFrom(value).buildPartial();
+          } else {
+            event_ = value;
+          }
+          onChanged();
+        } else {
+          if (eventCase_ == 2) {
+            requestBuilder_.mergeFrom(value);
+          } else {
+            requestBuilder_.setMessage(value);
+          }
+        }
+        eventCase_ = 2;
+        return this;
+      }
+      /**
+       * <code>.message.AgentRequest request = 2;</code>
+       */
+      public Builder clearRequest() {
+        if (requestBuilder_ == null) {
+          if (eventCase_ == 2) {
+            eventCase_ = 0;
+            event_ = null;
+            onChanged();
+          }
+        } else {
+          if (eventCase_ == 2) {
+            eventCase_ = 0;
+            event_ = null;
+          }
+          requestBuilder_.clear();
+        }
+        return this;
+      }
+      /**
+       * <code>.message.AgentRequest request = 2;</code>
+       */
+      public org.jumpserver.wisp.ServiceOuterClass.AgentRequest.Builder getRequestBuilder() {
+        return internalGetRequestFieldBuilder().getBuilder();
+      }
+      /**
+       * <code>.message.AgentRequest request = 2;</code>
+       */
+      @java.lang.Override
+      public org.jumpserver.wisp.ServiceOuterClass.AgentRequestOrBuilder getRequestOrBuilder() {
+        if ((eventCase_ == 2) && (requestBuilder_ != null)) {
+          return requestBuilder_.getMessageOrBuilder();
+        } else {
+          if (eventCase_ == 2) {
+            return (org.jumpserver.wisp.ServiceOuterClass.AgentRequest) event_;
+          }
+          return org.jumpserver.wisp.ServiceOuterClass.AgentRequest.getDefaultInstance();
+        }
+      }
+      /**
+       * <code>.message.AgentRequest request = 2;</code>
+       */
+      private com.google.protobuf.SingleFieldBuilder<
+          org.jumpserver.wisp.ServiceOuterClass.AgentRequest, org.jumpserver.wisp.ServiceOuterClass.AgentRequest.Builder, org.jumpserver.wisp.ServiceOuterClass.AgentRequestOrBuilder>
+          internalGetRequestFieldBuilder() {
+        if (requestBuilder_ == null) {
+          if (!(eventCase_ == 2)) {
+            event_ = org.jumpserver.wisp.ServiceOuterClass.AgentRequest.getDefaultInstance();
+          }
+          requestBuilder_ = new com.google.protobuf.SingleFieldBuilder<
+              org.jumpserver.wisp.ServiceOuterClass.AgentRequest, org.jumpserver.wisp.ServiceOuterClass.AgentRequest.Builder, org.jumpserver.wisp.ServiceOuterClass.AgentRequestOrBuilder>(
+                  (org.jumpserver.wisp.ServiceOuterClass.AgentRequest) event_,
+                  getParentForChildren(),
+                  isClean());
+          event_ = null;
+        }
+        eventCase_ = 2;
+        onChanged();
+        return requestBuilder_;
+      }
+
+      private com.google.protobuf.SingleFieldBuilder<
+          org.jumpserver.wisp.ServiceOuterClass.AgentToolResult, org.jumpserver.wisp.ServiceOuterClass.AgentToolResult.Builder, org.jumpserver.wisp.ServiceOuterClass.AgentToolResultOrBuilder> toolResultBuilder_;
+      /**
+       * <code>.message.AgentToolResult tool_result = 3;</code>
+       * @return Whether the toolResult field is set.
+       */
+      @java.lang.Override
+      public boolean hasToolResult() {
+        return eventCase_ == 3;
+      }
+      /**
+       * <code>.message.AgentToolResult tool_result = 3;</code>
+       * @return The toolResult.
+       */
+      @java.lang.Override
+      public org.jumpserver.wisp.ServiceOuterClass.AgentToolResult getToolResult() {
+        if (toolResultBuilder_ == null) {
+          if (eventCase_ == 3) {
+            return (org.jumpserver.wisp.ServiceOuterClass.AgentToolResult) event_;
+          }
+          return org.jumpserver.wisp.ServiceOuterClass.AgentToolResult.getDefaultInstance();
+        } else {
+          if (eventCase_ == 3) {
+            return toolResultBuilder_.getMessage();
+          }
+          return org.jumpserver.wisp.ServiceOuterClass.AgentToolResult.getDefaultInstance();
+        }
+      }
+      /**
+       * <code>.message.AgentToolResult tool_result = 3;</code>
+       */
+      public Builder setToolResult(org.jumpserver.wisp.ServiceOuterClass.AgentToolResult value) {
+        if (toolResultBuilder_ == null) {
+          if (value == null) {
+            throw new NullPointerException();
+          }
+          event_ = value;
+          onChanged();
+        } else {
+          toolResultBuilder_.setMessage(value);
+        }
+        eventCase_ = 3;
+        return this;
+      }
+      /**
+       * <code>.message.AgentToolResult tool_result = 3;</code>
+       */
+      public Builder setToolResult(
+          org.jumpserver.wisp.ServiceOuterClass.AgentToolResult.Builder builderForValue) {
+        if (toolResultBuilder_ == null) {
+          event_ = builderForValue.build();
+          onChanged();
+        } else {
+          toolResultBuilder_.setMessage(builderForValue.build());
+        }
+        eventCase_ = 3;
+        return this;
+      }
+      /**
+       * <code>.message.AgentToolResult tool_result = 3;</code>
+       */
+      public Builder mergeToolResult(org.jumpserver.wisp.ServiceOuterClass.AgentToolResult value) {
+        if (toolResultBuilder_ == null) {
+          if (eventCase_ == 3 &&
+              event_ != org.jumpserver.wisp.ServiceOuterClass.AgentToolResult.getDefaultInstance()) {
+            event_ = org.jumpserver.wisp.ServiceOuterClass.AgentToolResult.newBuilder((org.jumpserver.wisp.ServiceOuterClass.AgentToolResult) event_)
+                .mergeFrom(value).buildPartial();
+          } else {
+            event_ = value;
+          }
+          onChanged();
+        } else {
+          if (eventCase_ == 3) {
+            toolResultBuilder_.mergeFrom(value);
+          } else {
+            toolResultBuilder_.setMessage(value);
+          }
+        }
+        eventCase_ = 3;
+        return this;
+      }
+      /**
+       * <code>.message.AgentToolResult tool_result = 3;</code>
+       */
+      public Builder clearToolResult() {
+        if (toolResultBuilder_ == null) {
+          if (eventCase_ == 3) {
+            eventCase_ = 0;
+            event_ = null;
+            onChanged();
+          }
+        } else {
+          if (eventCase_ == 3) {
+            eventCase_ = 0;
+            event_ = null;
+          }
+          toolResultBuilder_.clear();
+        }
+        return this;
+      }
+      /**
+       * <code>.message.AgentToolResult tool_result = 3;</code>
+       */
+      public org.jumpserver.wisp.ServiceOuterClass.AgentToolResult.Builder getToolResultBuilder() {
+        return internalGetToolResultFieldBuilder().getBuilder();
+      }
+      /**
+       * <code>.message.AgentToolResult tool_result = 3;</code>
+       */
+      @java.lang.Override
+      public org.jumpserver.wisp.ServiceOuterClass.AgentToolResultOrBuilder getToolResultOrBuilder() {
+        if ((eventCase_ == 3) && (toolResultBuilder_ != null)) {
+          return toolResultBuilder_.getMessageOrBuilder();
+        } else {
+          if (eventCase_ == 3) {
+            return (org.jumpserver.wisp.ServiceOuterClass.AgentToolResult) event_;
+          }
+          return org.jumpserver.wisp.ServiceOuterClass.AgentToolResult.getDefaultInstance();
+        }
+      }
+      /**
+       * <code>.message.AgentToolResult tool_result = 3;</code>
+       */
+      private com.google.protobuf.SingleFieldBuilder<
+          org.jumpserver.wisp.ServiceOuterClass.AgentToolResult, org.jumpserver.wisp.ServiceOuterClass.AgentToolResult.Builder, org.jumpserver.wisp.ServiceOuterClass.AgentToolResultOrBuilder>
+          internalGetToolResultFieldBuilder() {
+        if (toolResultBuilder_ == null) {
+          if (!(eventCase_ == 3)) {
+            event_ = org.jumpserver.wisp.ServiceOuterClass.AgentToolResult.getDefaultInstance();
+          }
+          toolResultBuilder_ = new com.google.protobuf.SingleFieldBuilder<
+              org.jumpserver.wisp.ServiceOuterClass.AgentToolResult, org.jumpserver.wisp.ServiceOuterClass.AgentToolResult.Builder, org.jumpserver.wisp.ServiceOuterClass.AgentToolResultOrBuilder>(
+                  (org.jumpserver.wisp.ServiceOuterClass.AgentToolResult) event_,
+                  getParentForChildren(),
+                  isClean());
+          event_ = null;
+        }
+        eventCase_ = 3;
+        onChanged();
+        return toolResultBuilder_;
+      }
+
+      private com.google.protobuf.SingleFieldBuilder<
+          org.jumpserver.wisp.ServiceOuterClass.AgentCancel, org.jumpserver.wisp.ServiceOuterClass.AgentCancel.Builder, org.jumpserver.wisp.ServiceOuterClass.AgentCancelOrBuilder> cancelBuilder_;
+      /**
+       * <code>.message.AgentCancel cancel = 4;</code>
+       * @return Whether the cancel field is set.
+       */
+      @java.lang.Override
+      public boolean hasCancel() {
+        return eventCase_ == 4;
+      }
+      /**
+       * <code>.message.AgentCancel cancel = 4;</code>
+       * @return The cancel.
+       */
+      @java.lang.Override
+      public org.jumpserver.wisp.ServiceOuterClass.AgentCancel getCancel() {
+        if (cancelBuilder_ == null) {
+          if (eventCase_ == 4) {
+            return (org.jumpserver.wisp.ServiceOuterClass.AgentCancel) event_;
+          }
+          return org.jumpserver.wisp.ServiceOuterClass.AgentCancel.getDefaultInstance();
+        } else {
+          if (eventCase_ == 4) {
+            return cancelBuilder_.getMessage();
+          }
+          return org.jumpserver.wisp.ServiceOuterClass.AgentCancel.getDefaultInstance();
+        }
+      }
+      /**
+       * <code>.message.AgentCancel cancel = 4;</code>
+       */
+      public Builder setCancel(org.jumpserver.wisp.ServiceOuterClass.AgentCancel value) {
+        if (cancelBuilder_ == null) {
+          if (value == null) {
+            throw new NullPointerException();
+          }
+          event_ = value;
+          onChanged();
+        } else {
+          cancelBuilder_.setMessage(value);
+        }
+        eventCase_ = 4;
+        return this;
+      }
+      /**
+       * <code>.message.AgentCancel cancel = 4;</code>
+       */
+      public Builder setCancel(
+          org.jumpserver.wisp.ServiceOuterClass.AgentCancel.Builder builderForValue) {
+        if (cancelBuilder_ == null) {
+          event_ = builderForValue.build();
+          onChanged();
+        } else {
+          cancelBuilder_.setMessage(builderForValue.build());
+        }
+        eventCase_ = 4;
+        return this;
+      }
+      /**
+       * <code>.message.AgentCancel cancel = 4;</code>
+       */
+      public Builder mergeCancel(org.jumpserver.wisp.ServiceOuterClass.AgentCancel value) {
+        if (cancelBuilder_ == null) {
+          if (eventCase_ == 4 &&
+              event_ != org.jumpserver.wisp.ServiceOuterClass.AgentCancel.getDefaultInstance()) {
+            event_ = org.jumpserver.wisp.ServiceOuterClass.AgentCancel.newBuilder((org.jumpserver.wisp.ServiceOuterClass.AgentCancel) event_)
+                .mergeFrom(value).buildPartial();
+          } else {
+            event_ = value;
+          }
+          onChanged();
+        } else {
+          if (eventCase_ == 4) {
+            cancelBuilder_.mergeFrom(value);
+          } else {
+            cancelBuilder_.setMessage(value);
+          }
+        }
+        eventCase_ = 4;
+        return this;
+      }
+      /**
+       * <code>.message.AgentCancel cancel = 4;</code>
+       */
+      public Builder clearCancel() {
+        if (cancelBuilder_ == null) {
+          if (eventCase_ == 4) {
+            eventCase_ = 0;
+            event_ = null;
+            onChanged();
+          }
+        } else {
+          if (eventCase_ == 4) {
+            eventCase_ = 0;
+            event_ = null;
+          }
+          cancelBuilder_.clear();
+        }
+        return this;
+      }
+      /**
+       * <code>.message.AgentCancel cancel = 4;</code>
+       */
+      public org.jumpserver.wisp.ServiceOuterClass.AgentCancel.Builder getCancelBuilder() {
+        return internalGetCancelFieldBuilder().getBuilder();
+      }
+      /**
+       * <code>.message.AgentCancel cancel = 4;</code>
+       */
+      @java.lang.Override
+      public org.jumpserver.wisp.ServiceOuterClass.AgentCancelOrBuilder getCancelOrBuilder() {
+        if ((eventCase_ == 4) && (cancelBuilder_ != null)) {
+          return cancelBuilder_.getMessageOrBuilder();
+        } else {
+          if (eventCase_ == 4) {
+            return (org.jumpserver.wisp.ServiceOuterClass.AgentCancel) event_;
+          }
+          return org.jumpserver.wisp.ServiceOuterClass.AgentCancel.getDefaultInstance();
+        }
+      }
+      /**
+       * <code>.message.AgentCancel cancel = 4;</code>
+       */
+      private com.google.protobuf.SingleFieldBuilder<
+          org.jumpserver.wisp.ServiceOuterClass.AgentCancel, org.jumpserver.wisp.ServiceOuterClass.AgentCancel.Builder, org.jumpserver.wisp.ServiceOuterClass.AgentCancelOrBuilder>
+          internalGetCancelFieldBuilder() {
+        if (cancelBuilder_ == null) {
+          if (!(eventCase_ == 4)) {
+            event_ = org.jumpserver.wisp.ServiceOuterClass.AgentCancel.getDefaultInstance();
+          }
+          cancelBuilder_ = new com.google.protobuf.SingleFieldBuilder<
+              org.jumpserver.wisp.ServiceOuterClass.AgentCancel, org.jumpserver.wisp.ServiceOuterClass.AgentCancel.Builder, org.jumpserver.wisp.ServiceOuterClass.AgentCancelOrBuilder>(
+                  (org.jumpserver.wisp.ServiceOuterClass.AgentCancel) event_,
+                  getParentForChildren(),
+                  isClean());
+          event_ = null;
+        }
+        eventCase_ = 4;
+        onChanged();
+        return cancelBuilder_;
+      }
+
+      private com.google.protobuf.SingleFieldBuilder<
+          org.jumpserver.wisp.ServiceOuterClass.Empty, org.jumpserver.wisp.ServiceOuterClass.Empty.Builder, org.jumpserver.wisp.ServiceOuterClass.EmptyOrBuilder> closeBuilder_;
+      /**
+       * <code>.message.Empty close = 5;</code>
+       * @return Whether the close field is set.
+       */
+      @java.lang.Override
+      public boolean hasClose() {
+        return eventCase_ == 5;
+      }
+      /**
+       * <code>.message.Empty close = 5;</code>
+       * @return The close.
+       */
+      @java.lang.Override
+      public org.jumpserver.wisp.ServiceOuterClass.Empty getClose() {
+        if (closeBuilder_ == null) {
+          if (eventCase_ == 5) {
+            return (org.jumpserver.wisp.ServiceOuterClass.Empty) event_;
+          }
+          return org.jumpserver.wisp.ServiceOuterClass.Empty.getDefaultInstance();
+        } else {
+          if (eventCase_ == 5) {
+            return closeBuilder_.getMessage();
+          }
+          return org.jumpserver.wisp.ServiceOuterClass.Empty.getDefaultInstance();
+        }
+      }
+      /**
+       * <code>.message.Empty close = 5;</code>
+       */
+      public Builder setClose(org.jumpserver.wisp.ServiceOuterClass.Empty value) {
+        if (closeBuilder_ == null) {
+          if (value == null) {
+            throw new NullPointerException();
+          }
+          event_ = value;
+          onChanged();
+        } else {
+          closeBuilder_.setMessage(value);
+        }
+        eventCase_ = 5;
+        return this;
+      }
+      /**
+       * <code>.message.Empty close = 5;</code>
+       */
+      public Builder setClose(
+          org.jumpserver.wisp.ServiceOuterClass.Empty.Builder builderForValue) {
+        if (closeBuilder_ == null) {
+          event_ = builderForValue.build();
+          onChanged();
+        } else {
+          closeBuilder_.setMessage(builderForValue.build());
+        }
+        eventCase_ = 5;
+        return this;
+      }
+      /**
+       * <code>.message.Empty close = 5;</code>
+       */
+      public Builder mergeClose(org.jumpserver.wisp.ServiceOuterClass.Empty value) {
+        if (closeBuilder_ == null) {
+          if (eventCase_ == 5 &&
+              event_ != org.jumpserver.wisp.ServiceOuterClass.Empty.getDefaultInstance()) {
+            event_ = org.jumpserver.wisp.ServiceOuterClass.Empty.newBuilder((org.jumpserver.wisp.ServiceOuterClass.Empty) event_)
+                .mergeFrom(value).buildPartial();
+          } else {
+            event_ = value;
+          }
+          onChanged();
+        } else {
+          if (eventCase_ == 5) {
+            closeBuilder_.mergeFrom(value);
+          } else {
+            closeBuilder_.setMessage(value);
+          }
+        }
+        eventCase_ = 5;
+        return this;
+      }
+      /**
+       * <code>.message.Empty close = 5;</code>
+       */
+      public Builder clearClose() {
+        if (closeBuilder_ == null) {
+          if (eventCase_ == 5) {
+            eventCase_ = 0;
+            event_ = null;
+            onChanged();
+          }
+        } else {
+          if (eventCase_ == 5) {
+            eventCase_ = 0;
+            event_ = null;
+          }
+          closeBuilder_.clear();
+        }
+        return this;
+      }
+      /**
+       * <code>.message.Empty close = 5;</code>
+       */
+      public org.jumpserver.wisp.ServiceOuterClass.Empty.Builder getCloseBuilder() {
+        return internalGetCloseFieldBuilder().getBuilder();
+      }
+      /**
+       * <code>.message.Empty close = 5;</code>
+       */
+      @java.lang.Override
+      public org.jumpserver.wisp.ServiceOuterClass.EmptyOrBuilder getCloseOrBuilder() {
+        if ((eventCase_ == 5) && (closeBuilder_ != null)) {
+          return closeBuilder_.getMessageOrBuilder();
+        } else {
+          if (eventCase_ == 5) {
+            return (org.jumpserver.wisp.ServiceOuterClass.Empty) event_;
+          }
+          return org.jumpserver.wisp.ServiceOuterClass.Empty.getDefaultInstance();
+        }
+      }
+      /**
+       * <code>.message.Empty close = 5;</code>
+       */
+      private com.google.protobuf.SingleFieldBuilder<
+          org.jumpserver.wisp.ServiceOuterClass.Empty, org.jumpserver.wisp.ServiceOuterClass.Empty.Builder, org.jumpserver.wisp.ServiceOuterClass.EmptyOrBuilder>
+          internalGetCloseFieldBuilder() {
+        if (closeBuilder_ == null) {
+          if (!(eventCase_ == 5)) {
+            event_ = org.jumpserver.wisp.ServiceOuterClass.Empty.getDefaultInstance();
+          }
+          closeBuilder_ = new com.google.protobuf.SingleFieldBuilder<
+              org.jumpserver.wisp.ServiceOuterClass.Empty, org.jumpserver.wisp.ServiceOuterClass.Empty.Builder, org.jumpserver.wisp.ServiceOuterClass.EmptyOrBuilder>(
+                  (org.jumpserver.wisp.ServiceOuterClass.Empty) event_,
+                  getParentForChildren(),
+                  isClean());
+          event_ = null;
+        }
+        eventCase_ = 5;
+        onChanged();
+        return closeBuilder_;
+      }
+
+      // @@protoc_insertion_point(builder_scope:message.AgentClientEvent)
+    }
+
+    // @@protoc_insertion_point(class_scope:message.AgentClientEvent)
+    private static final org.jumpserver.wisp.ServiceOuterClass.AgentClientEvent DEFAULT_INSTANCE;
+    static {
+      DEFAULT_INSTANCE = new org.jumpserver.wisp.ServiceOuterClass.AgentClientEvent();
+    }
+
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentClientEvent getDefaultInstance() {
+      return DEFAULT_INSTANCE;
+    }
+
+    private static final com.google.protobuf.Parser<AgentClientEvent>
+        PARSER = new com.google.protobuf.AbstractParser<AgentClientEvent>() {
+      @java.lang.Override
+      public AgentClientEvent parsePartialFrom(
+          com.google.protobuf.CodedInputStream input,
+          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          throws com.google.protobuf.InvalidProtocolBufferException {
+        Builder builder = newBuilder();
+        try {
+          builder.mergeFrom(input, extensionRegistry);
+        } catch (com.google.protobuf.InvalidProtocolBufferException e) {
+          throw e.setUnfinishedMessage(builder.buildPartial());
+        } catch (com.google.protobuf.UninitializedMessageException e) {
+          throw e.asInvalidProtocolBufferException().setUnfinishedMessage(builder.buildPartial());
+        } catch (java.io.IOException e) {
+          throw new com.google.protobuf.InvalidProtocolBufferException(e)
+              .setUnfinishedMessage(builder.buildPartial());
+        }
+        return builder.buildPartial();
+      }
+    };
+
+    public static com.google.protobuf.Parser<AgentClientEvent> parser() {
+      return PARSER;
+    }
+
+    @java.lang.Override
+    public com.google.protobuf.Parser<AgentClientEvent> getParserForType() {
+      return PARSER;
+    }
+
+    @java.lang.Override
+    public org.jumpserver.wisp.ServiceOuterClass.AgentClientEvent getDefaultInstanceForType() {
+      return DEFAULT_INSTANCE;
+    }
+
+  }
+
+  public interface AgentReadyOrBuilder extends
+      // @@protoc_insertion_point(interface_extends:message.AgentReady)
+      com.google.protobuf.MessageOrBuilder {
+
+    /**
+     * <code>bool enabled = 1;</code>
+     * @return The enabled.
+     */
+    boolean getEnabled();
+
+    /**
+     * <code>string reason = 2;</code>
+     * @return The reason.
+     */
+    java.lang.String getReason();
+    /**
+     * <code>string reason = 2;</code>
+     * @return The bytes for reason.
+     */
+    com.google.protobuf.ByteString
+        getReasonBytes();
+
+    /**
+     * <code>string session_id = 3;</code>
+     * @return The sessionId.
+     */
+    java.lang.String getSessionId();
+    /**
+     * <code>string session_id = 3;</code>
+     * @return The bytes for sessionId.
+     */
+    com.google.protobuf.ByteString
+        getSessionIdBytes();
+
+    /**
+     * <code>string surface = 4;</code>
+     * @return The surface.
+     */
+    java.lang.String getSurface();
+    /**
+     * <code>string surface = 4;</code>
+     * @return The bytes for surface.
+     */
+    com.google.protobuf.ByteString
+        getSurfaceBytes();
+
+    /**
+     * <code>string provider = 5;</code>
+     * @return The provider.
+     */
+    java.lang.String getProvider();
+    /**
+     * <code>string provider = 5;</code>
+     * @return The bytes for provider.
+     */
+    com.google.protobuf.ByteString
+        getProviderBytes();
+
+    /**
+     * <code>string model = 6;</code>
+     * @return The model.
+     */
+    java.lang.String getModel();
+    /**
+     * <code>string model = 6;</code>
+     * @return The bytes for model.
+     */
+    com.google.protobuf.ByteString
+        getModelBytes();
+  }
+  /**
+   * Protobuf type {@code message.AgentReady}
+   */
+  public static final class AgentReady extends
+      com.google.protobuf.GeneratedMessage implements
+      // @@protoc_insertion_point(message_implements:message.AgentReady)
+      AgentReadyOrBuilder {
+  private static final long serialVersionUID = 0L;
+    static {
+      com.google.protobuf.RuntimeVersion.validateProtobufGencodeVersion(
+        com.google.protobuf.RuntimeVersion.RuntimeDomain.PUBLIC,
+        /* major= */ 4,
+        /* minor= */ 32,
+        /* patch= */ 1,
+        /* suffix= */ "",
+        AgentReady.class.getName());
+    }
+    // Use AgentReady.newBuilder() to construct.
+    private AgentReady(com.google.protobuf.GeneratedMessage.Builder<?> builder) {
+      super(builder);
+    }
+    private AgentReady() {
+      reason_ = "";
+      sessionId_ = "";
+      surface_ = "";
+      provider_ = "";
+      model_ = "";
+    }
+
+    public static final com.google.protobuf.Descriptors.Descriptor
+        getDescriptor() {
+      return org.jumpserver.wisp.ServiceOuterClass.internal_static_message_AgentReady_descriptor;
+    }
+
+    @java.lang.Override
+    protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
+        internalGetFieldAccessorTable() {
+      return org.jumpserver.wisp.ServiceOuterClass.internal_static_message_AgentReady_fieldAccessorTable
+          .ensureFieldAccessorsInitialized(
+              org.jumpserver.wisp.ServiceOuterClass.AgentReady.class, org.jumpserver.wisp.ServiceOuterClass.AgentReady.Builder.class);
+    }
+
+    public static final int ENABLED_FIELD_NUMBER = 1;
+    private boolean enabled_ = false;
+    /**
+     * <code>bool enabled = 1;</code>
+     * @return The enabled.
+     */
+    @java.lang.Override
+    public boolean getEnabled() {
+      return enabled_;
+    }
+
+    public static final int REASON_FIELD_NUMBER = 2;
+    @SuppressWarnings("serial")
+    private volatile java.lang.Object reason_ = "";
+    /**
+     * <code>string reason = 2;</code>
+     * @return The reason.
+     */
+    @java.lang.Override
+    public java.lang.String getReason() {
+      java.lang.Object ref = reason_;
+      if (ref instanceof java.lang.String) {
+        return (java.lang.String) ref;
+      } else {
+        com.google.protobuf.ByteString bs =
+            (com.google.protobuf.ByteString) ref;
+        java.lang.String s = bs.toStringUtf8();
+        reason_ = s;
+        return s;
+      }
+    }
+    /**
+     * <code>string reason = 2;</code>
+     * @return The bytes for reason.
+     */
+    @java.lang.Override
+    public com.google.protobuf.ByteString
+        getReasonBytes() {
+      java.lang.Object ref = reason_;
+      if (ref instanceof java.lang.String) {
+        com.google.protobuf.ByteString b =
+            com.google.protobuf.ByteString.copyFromUtf8(
+                (java.lang.String) ref);
+        reason_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+
+    public static final int SESSION_ID_FIELD_NUMBER = 3;
+    @SuppressWarnings("serial")
+    private volatile java.lang.Object sessionId_ = "";
+    /**
+     * <code>string session_id = 3;</code>
+     * @return The sessionId.
+     */
+    @java.lang.Override
+    public java.lang.String getSessionId() {
+      java.lang.Object ref = sessionId_;
+      if (ref instanceof java.lang.String) {
+        return (java.lang.String) ref;
+      } else {
+        com.google.protobuf.ByteString bs =
+            (com.google.protobuf.ByteString) ref;
+        java.lang.String s = bs.toStringUtf8();
+        sessionId_ = s;
+        return s;
+      }
+    }
+    /**
+     * <code>string session_id = 3;</code>
+     * @return The bytes for sessionId.
+     */
+    @java.lang.Override
+    public com.google.protobuf.ByteString
+        getSessionIdBytes() {
+      java.lang.Object ref = sessionId_;
+      if (ref instanceof java.lang.String) {
+        com.google.protobuf.ByteString b =
+            com.google.protobuf.ByteString.copyFromUtf8(
+                (java.lang.String) ref);
+        sessionId_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+
+    public static final int SURFACE_FIELD_NUMBER = 4;
+    @SuppressWarnings("serial")
+    private volatile java.lang.Object surface_ = "";
+    /**
+     * <code>string surface = 4;</code>
+     * @return The surface.
+     */
+    @java.lang.Override
+    public java.lang.String getSurface() {
+      java.lang.Object ref = surface_;
+      if (ref instanceof java.lang.String) {
+        return (java.lang.String) ref;
+      } else {
+        com.google.protobuf.ByteString bs =
+            (com.google.protobuf.ByteString) ref;
+        java.lang.String s = bs.toStringUtf8();
+        surface_ = s;
+        return s;
+      }
+    }
+    /**
+     * <code>string surface = 4;</code>
+     * @return The bytes for surface.
+     */
+    @java.lang.Override
+    public com.google.protobuf.ByteString
+        getSurfaceBytes() {
+      java.lang.Object ref = surface_;
+      if (ref instanceof java.lang.String) {
+        com.google.protobuf.ByteString b =
+            com.google.protobuf.ByteString.copyFromUtf8(
+                (java.lang.String) ref);
+        surface_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+
+    public static final int PROVIDER_FIELD_NUMBER = 5;
+    @SuppressWarnings("serial")
+    private volatile java.lang.Object provider_ = "";
+    /**
+     * <code>string provider = 5;</code>
+     * @return The provider.
+     */
+    @java.lang.Override
+    public java.lang.String getProvider() {
+      java.lang.Object ref = provider_;
+      if (ref instanceof java.lang.String) {
+        return (java.lang.String) ref;
+      } else {
+        com.google.protobuf.ByteString bs =
+            (com.google.protobuf.ByteString) ref;
+        java.lang.String s = bs.toStringUtf8();
+        provider_ = s;
+        return s;
+      }
+    }
+    /**
+     * <code>string provider = 5;</code>
+     * @return The bytes for provider.
+     */
+    @java.lang.Override
+    public com.google.protobuf.ByteString
+        getProviderBytes() {
+      java.lang.Object ref = provider_;
+      if (ref instanceof java.lang.String) {
+        com.google.protobuf.ByteString b =
+            com.google.protobuf.ByteString.copyFromUtf8(
+                (java.lang.String) ref);
+        provider_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+
+    public static final int MODEL_FIELD_NUMBER = 6;
+    @SuppressWarnings("serial")
+    private volatile java.lang.Object model_ = "";
+    /**
+     * <code>string model = 6;</code>
+     * @return The model.
+     */
+    @java.lang.Override
+    public java.lang.String getModel() {
+      java.lang.Object ref = model_;
+      if (ref instanceof java.lang.String) {
+        return (java.lang.String) ref;
+      } else {
+        com.google.protobuf.ByteString bs =
+            (com.google.protobuf.ByteString) ref;
+        java.lang.String s = bs.toStringUtf8();
+        model_ = s;
+        return s;
+      }
+    }
+    /**
+     * <code>string model = 6;</code>
+     * @return The bytes for model.
+     */
+    @java.lang.Override
+    public com.google.protobuf.ByteString
+        getModelBytes() {
+      java.lang.Object ref = model_;
+      if (ref instanceof java.lang.String) {
+        com.google.protobuf.ByteString b =
+            com.google.protobuf.ByteString.copyFromUtf8(
+                (java.lang.String) ref);
+        model_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+
+    private byte memoizedIsInitialized = -1;
+    @java.lang.Override
+    public final boolean isInitialized() {
+      byte isInitialized = memoizedIsInitialized;
+      if (isInitialized == 1) return true;
+      if (isInitialized == 0) return false;
+
+      memoizedIsInitialized = 1;
+      return true;
+    }
+
+    @java.lang.Override
+    public void writeTo(com.google.protobuf.CodedOutputStream output)
+                        throws java.io.IOException {
+      if (enabled_ != false) {
+        output.writeBool(1, enabled_);
+      }
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(reason_)) {
+        com.google.protobuf.GeneratedMessage.writeString(output, 2, reason_);
+      }
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(sessionId_)) {
+        com.google.protobuf.GeneratedMessage.writeString(output, 3, sessionId_);
+      }
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(surface_)) {
+        com.google.protobuf.GeneratedMessage.writeString(output, 4, surface_);
+      }
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(provider_)) {
+        com.google.protobuf.GeneratedMessage.writeString(output, 5, provider_);
+      }
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(model_)) {
+        com.google.protobuf.GeneratedMessage.writeString(output, 6, model_);
+      }
+      getUnknownFields().writeTo(output);
+    }
+
+    @java.lang.Override
+    public int getSerializedSize() {
+      int size = memoizedSize;
+      if (size != -1) return size;
+
+      size = 0;
+      if (enabled_ != false) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeBoolSize(1, enabled_);
+      }
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(reason_)) {
+        size += com.google.protobuf.GeneratedMessage.computeStringSize(2, reason_);
+      }
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(sessionId_)) {
+        size += com.google.protobuf.GeneratedMessage.computeStringSize(3, sessionId_);
+      }
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(surface_)) {
+        size += com.google.protobuf.GeneratedMessage.computeStringSize(4, surface_);
+      }
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(provider_)) {
+        size += com.google.protobuf.GeneratedMessage.computeStringSize(5, provider_);
+      }
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(model_)) {
+        size += com.google.protobuf.GeneratedMessage.computeStringSize(6, model_);
+      }
+      size += getUnknownFields().getSerializedSize();
+      memoizedSize = size;
+      return size;
+    }
+
+    @java.lang.Override
+    public boolean equals(final java.lang.Object obj) {
+      if (obj == this) {
+       return true;
+      }
+      if (!(obj instanceof org.jumpserver.wisp.ServiceOuterClass.AgentReady)) {
+        return super.equals(obj);
+      }
+      org.jumpserver.wisp.ServiceOuterClass.AgentReady other = (org.jumpserver.wisp.ServiceOuterClass.AgentReady) obj;
+
+      if (getEnabled()
+          != other.getEnabled()) return false;
+      if (!getReason()
+          .equals(other.getReason())) return false;
+      if (!getSessionId()
+          .equals(other.getSessionId())) return false;
+      if (!getSurface()
+          .equals(other.getSurface())) return false;
+      if (!getProvider()
+          .equals(other.getProvider())) return false;
+      if (!getModel()
+          .equals(other.getModel())) return false;
+      if (!getUnknownFields().equals(other.getUnknownFields())) return false;
+      return true;
+    }
+
+    @java.lang.Override
+    public int hashCode() {
+      if (memoizedHashCode != 0) {
+        return memoizedHashCode;
+      }
+      int hash = 41;
+      hash = (19 * hash) + getDescriptor().hashCode();
+      hash = (37 * hash) + ENABLED_FIELD_NUMBER;
+      hash = (53 * hash) + com.google.protobuf.Internal.hashBoolean(
+          getEnabled());
+      hash = (37 * hash) + REASON_FIELD_NUMBER;
+      hash = (53 * hash) + getReason().hashCode();
+      hash = (37 * hash) + SESSION_ID_FIELD_NUMBER;
+      hash = (53 * hash) + getSessionId().hashCode();
+      hash = (37 * hash) + SURFACE_FIELD_NUMBER;
+      hash = (53 * hash) + getSurface().hashCode();
+      hash = (37 * hash) + PROVIDER_FIELD_NUMBER;
+      hash = (53 * hash) + getProvider().hashCode();
+      hash = (37 * hash) + MODEL_FIELD_NUMBER;
+      hash = (53 * hash) + getModel().hashCode();
+      hash = (29 * hash) + getUnknownFields().hashCode();
+      memoizedHashCode = hash;
+      return hash;
+    }
+
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentReady parseFrom(
+        java.nio.ByteBuffer data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentReady parseFrom(
+        java.nio.ByteBuffer data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentReady parseFrom(
+        com.google.protobuf.ByteString data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentReady parseFrom(
+        com.google.protobuf.ByteString data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentReady parseFrom(byte[] data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentReady parseFrom(
+        byte[] data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentReady parseFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseWithIOException(PARSER, input);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentReady parseFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseWithIOException(PARSER, input, extensionRegistry);
+    }
+
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentReady parseDelimitedFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseDelimitedWithIOException(PARSER, input);
+    }
+
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentReady parseDelimitedFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseDelimitedWithIOException(PARSER, input, extensionRegistry);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentReady parseFrom(
+        com.google.protobuf.CodedInputStream input)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseWithIOException(PARSER, input);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentReady parseFrom(
+        com.google.protobuf.CodedInputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseWithIOException(PARSER, input, extensionRegistry);
+    }
+
+    @java.lang.Override
+    public Builder newBuilderForType() { return newBuilder(); }
+    public static Builder newBuilder() {
+      return DEFAULT_INSTANCE.toBuilder();
+    }
+    public static Builder newBuilder(org.jumpserver.wisp.ServiceOuterClass.AgentReady prototype) {
+      return DEFAULT_INSTANCE.toBuilder().mergeFrom(prototype);
+    }
+    @java.lang.Override
+    public Builder toBuilder() {
+      return this == DEFAULT_INSTANCE
+          ? new Builder() : new Builder().mergeFrom(this);
+    }
+
+    @java.lang.Override
+    protected Builder newBuilderForType(
+        com.google.protobuf.GeneratedMessage.BuilderParent parent) {
+      Builder builder = new Builder(parent);
+      return builder;
+    }
+    /**
+     * Protobuf type {@code message.AgentReady}
+     */
+    public static final class Builder extends
+        com.google.protobuf.GeneratedMessage.Builder<Builder> implements
+        // @@protoc_insertion_point(builder_implements:message.AgentReady)
+        org.jumpserver.wisp.ServiceOuterClass.AgentReadyOrBuilder {
+      public static final com.google.protobuf.Descriptors.Descriptor
+          getDescriptor() {
+        return org.jumpserver.wisp.ServiceOuterClass.internal_static_message_AgentReady_descriptor;
+      }
+
+      @java.lang.Override
+      protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
+          internalGetFieldAccessorTable() {
+        return org.jumpserver.wisp.ServiceOuterClass.internal_static_message_AgentReady_fieldAccessorTable
+            .ensureFieldAccessorsInitialized(
+                org.jumpserver.wisp.ServiceOuterClass.AgentReady.class, org.jumpserver.wisp.ServiceOuterClass.AgentReady.Builder.class);
+      }
+
+      // Construct using org.jumpserver.wisp.ServiceOuterClass.AgentReady.newBuilder()
+      private Builder() {
+
+      }
+
+      private Builder(
+          com.google.protobuf.GeneratedMessage.BuilderParent parent) {
+        super(parent);
+
+      }
+      @java.lang.Override
+      public Builder clear() {
+        super.clear();
+        bitField0_ = 0;
+        enabled_ = false;
+        reason_ = "";
+        sessionId_ = "";
+        surface_ = "";
+        provider_ = "";
+        model_ = "";
+        return this;
+      }
+
+      @java.lang.Override
+      public com.google.protobuf.Descriptors.Descriptor
+          getDescriptorForType() {
+        return org.jumpserver.wisp.ServiceOuterClass.internal_static_message_AgentReady_descriptor;
+      }
+
+      @java.lang.Override
+      public org.jumpserver.wisp.ServiceOuterClass.AgentReady getDefaultInstanceForType() {
+        return org.jumpserver.wisp.ServiceOuterClass.AgentReady.getDefaultInstance();
+      }
+
+      @java.lang.Override
+      public org.jumpserver.wisp.ServiceOuterClass.AgentReady build() {
+        org.jumpserver.wisp.ServiceOuterClass.AgentReady result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(result);
+        }
+        return result;
+      }
+
+      @java.lang.Override
+      public org.jumpserver.wisp.ServiceOuterClass.AgentReady buildPartial() {
+        org.jumpserver.wisp.ServiceOuterClass.AgentReady result = new org.jumpserver.wisp.ServiceOuterClass.AgentReady(this);
+        if (bitField0_ != 0) { buildPartial0(result); }
+        onBuilt();
+        return result;
+      }
+
+      private void buildPartial0(org.jumpserver.wisp.ServiceOuterClass.AgentReady result) {
+        int from_bitField0_ = bitField0_;
+        if (((from_bitField0_ & 0x00000001) != 0)) {
+          result.enabled_ = enabled_;
+        }
+        if (((from_bitField0_ & 0x00000002) != 0)) {
+          result.reason_ = reason_;
+        }
+        if (((from_bitField0_ & 0x00000004) != 0)) {
+          result.sessionId_ = sessionId_;
+        }
+        if (((from_bitField0_ & 0x00000008) != 0)) {
+          result.surface_ = surface_;
+        }
+        if (((from_bitField0_ & 0x00000010) != 0)) {
+          result.provider_ = provider_;
+        }
+        if (((from_bitField0_ & 0x00000020) != 0)) {
+          result.model_ = model_;
+        }
+      }
+
+      @java.lang.Override
+      public Builder mergeFrom(com.google.protobuf.Message other) {
+        if (other instanceof org.jumpserver.wisp.ServiceOuterClass.AgentReady) {
+          return mergeFrom((org.jumpserver.wisp.ServiceOuterClass.AgentReady)other);
+        } else {
+          super.mergeFrom(other);
+          return this;
+        }
+      }
+
+      public Builder mergeFrom(org.jumpserver.wisp.ServiceOuterClass.AgentReady other) {
+        if (other == org.jumpserver.wisp.ServiceOuterClass.AgentReady.getDefaultInstance()) return this;
+        if (other.getEnabled() != false) {
+          setEnabled(other.getEnabled());
+        }
+        if (!other.getReason().isEmpty()) {
+          reason_ = other.reason_;
+          bitField0_ |= 0x00000002;
+          onChanged();
+        }
+        if (!other.getSessionId().isEmpty()) {
+          sessionId_ = other.sessionId_;
+          bitField0_ |= 0x00000004;
+          onChanged();
+        }
+        if (!other.getSurface().isEmpty()) {
+          surface_ = other.surface_;
+          bitField0_ |= 0x00000008;
+          onChanged();
+        }
+        if (!other.getProvider().isEmpty()) {
+          provider_ = other.provider_;
+          bitField0_ |= 0x00000010;
+          onChanged();
+        }
+        if (!other.getModel().isEmpty()) {
+          model_ = other.model_;
+          bitField0_ |= 0x00000020;
+          onChanged();
+        }
+        this.mergeUnknownFields(other.getUnknownFields());
+        onChanged();
+        return this;
+      }
+
+      @java.lang.Override
+      public final boolean isInitialized() {
+        return true;
+      }
+
+      @java.lang.Override
+      public Builder mergeFrom(
+          com.google.protobuf.CodedInputStream input,
+          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          throws java.io.IOException {
+        if (extensionRegistry == null) {
+          throw new java.lang.NullPointerException();
+        }
+        try {
+          boolean done = false;
+          while (!done) {
+            int tag = input.readTag();
+            switch (tag) {
+              case 0:
+                done = true;
+                break;
+              case 8: {
+                enabled_ = input.readBool();
+                bitField0_ |= 0x00000001;
+                break;
+              } // case 8
+              case 18: {
+                reason_ = input.readStringRequireUtf8();
+                bitField0_ |= 0x00000002;
+                break;
+              } // case 18
+              case 26: {
+                sessionId_ = input.readStringRequireUtf8();
+                bitField0_ |= 0x00000004;
+                break;
+              } // case 26
+              case 34: {
+                surface_ = input.readStringRequireUtf8();
+                bitField0_ |= 0x00000008;
+                break;
+              } // case 34
+              case 42: {
+                provider_ = input.readStringRequireUtf8();
+                bitField0_ |= 0x00000010;
+                break;
+              } // case 42
+              case 50: {
+                model_ = input.readStringRequireUtf8();
+                bitField0_ |= 0x00000020;
+                break;
+              } // case 50
+              default: {
+                if (!super.parseUnknownField(input, extensionRegistry, tag)) {
+                  done = true; // was an endgroup tag
+                }
+                break;
+              } // default:
+            } // switch (tag)
+          } // while (!done)
+        } catch (com.google.protobuf.InvalidProtocolBufferException e) {
+          throw e.unwrapIOException();
+        } finally {
+          onChanged();
+        } // finally
+        return this;
+      }
+      private int bitField0_;
+
+      private boolean enabled_ ;
+      /**
+       * <code>bool enabled = 1;</code>
+       * @return The enabled.
+       */
+      @java.lang.Override
+      public boolean getEnabled() {
+        return enabled_;
+      }
+      /**
+       * <code>bool enabled = 1;</code>
+       * @param value The enabled to set.
+       * @return This builder for chaining.
+       */
+      public Builder setEnabled(boolean value) {
+
+        enabled_ = value;
+        bitField0_ |= 0x00000001;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>bool enabled = 1;</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearEnabled() {
+        bitField0_ = (bitField0_ & ~0x00000001);
+        enabled_ = false;
+        onChanged();
+        return this;
+      }
+
+      private java.lang.Object reason_ = "";
+      /**
+       * <code>string reason = 2;</code>
+       * @return The reason.
+       */
+      public java.lang.String getReason() {
+        java.lang.Object ref = reason_;
+        if (!(ref instanceof java.lang.String)) {
+          com.google.protobuf.ByteString bs =
+              (com.google.protobuf.ByteString) ref;
+          java.lang.String s = bs.toStringUtf8();
+          reason_ = s;
+          return s;
+        } else {
+          return (java.lang.String) ref;
+        }
+      }
+      /**
+       * <code>string reason = 2;</code>
+       * @return The bytes for reason.
+       */
+      public com.google.protobuf.ByteString
+          getReasonBytes() {
+        java.lang.Object ref = reason_;
+        if (ref instanceof String) {
+          com.google.protobuf.ByteString b =
+              com.google.protobuf.ByteString.copyFromUtf8(
+                  (java.lang.String) ref);
+          reason_ = b;
+          return b;
+        } else {
+          return (com.google.protobuf.ByteString) ref;
+        }
+      }
+      /**
+       * <code>string reason = 2;</code>
+       * @param value The reason to set.
+       * @return This builder for chaining.
+       */
+      public Builder setReason(
+          java.lang.String value) {
+        if (value == null) { throw new NullPointerException(); }
+        reason_ = value;
+        bitField0_ |= 0x00000002;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string reason = 2;</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearReason() {
+        reason_ = getDefaultInstance().getReason();
+        bitField0_ = (bitField0_ & ~0x00000002);
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string reason = 2;</code>
+       * @param value The bytes for reason to set.
+       * @return This builder for chaining.
+       */
+      public Builder setReasonBytes(
+          com.google.protobuf.ByteString value) {
+        if (value == null) { throw new NullPointerException(); }
+        checkByteStringIsUtf8(value);
+        reason_ = value;
+        bitField0_ |= 0x00000002;
+        onChanged();
+        return this;
+      }
+
+      private java.lang.Object sessionId_ = "";
+      /**
+       * <code>string session_id = 3;</code>
+       * @return The sessionId.
+       */
+      public java.lang.String getSessionId() {
+        java.lang.Object ref = sessionId_;
+        if (!(ref instanceof java.lang.String)) {
+          com.google.protobuf.ByteString bs =
+              (com.google.protobuf.ByteString) ref;
+          java.lang.String s = bs.toStringUtf8();
+          sessionId_ = s;
+          return s;
+        } else {
+          return (java.lang.String) ref;
+        }
+      }
+      /**
+       * <code>string session_id = 3;</code>
+       * @return The bytes for sessionId.
+       */
+      public com.google.protobuf.ByteString
+          getSessionIdBytes() {
+        java.lang.Object ref = sessionId_;
+        if (ref instanceof String) {
+          com.google.protobuf.ByteString b =
+              com.google.protobuf.ByteString.copyFromUtf8(
+                  (java.lang.String) ref);
+          sessionId_ = b;
+          return b;
+        } else {
+          return (com.google.protobuf.ByteString) ref;
+        }
+      }
+      /**
+       * <code>string session_id = 3;</code>
+       * @param value The sessionId to set.
+       * @return This builder for chaining.
+       */
+      public Builder setSessionId(
+          java.lang.String value) {
+        if (value == null) { throw new NullPointerException(); }
+        sessionId_ = value;
+        bitField0_ |= 0x00000004;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string session_id = 3;</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearSessionId() {
+        sessionId_ = getDefaultInstance().getSessionId();
+        bitField0_ = (bitField0_ & ~0x00000004);
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string session_id = 3;</code>
+       * @param value The bytes for sessionId to set.
+       * @return This builder for chaining.
+       */
+      public Builder setSessionIdBytes(
+          com.google.protobuf.ByteString value) {
+        if (value == null) { throw new NullPointerException(); }
+        checkByteStringIsUtf8(value);
+        sessionId_ = value;
+        bitField0_ |= 0x00000004;
+        onChanged();
+        return this;
+      }
+
+      private java.lang.Object surface_ = "";
+      /**
+       * <code>string surface = 4;</code>
+       * @return The surface.
+       */
+      public java.lang.String getSurface() {
+        java.lang.Object ref = surface_;
+        if (!(ref instanceof java.lang.String)) {
+          com.google.protobuf.ByteString bs =
+              (com.google.protobuf.ByteString) ref;
+          java.lang.String s = bs.toStringUtf8();
+          surface_ = s;
+          return s;
+        } else {
+          return (java.lang.String) ref;
+        }
+      }
+      /**
+       * <code>string surface = 4;</code>
+       * @return The bytes for surface.
+       */
+      public com.google.protobuf.ByteString
+          getSurfaceBytes() {
+        java.lang.Object ref = surface_;
+        if (ref instanceof String) {
+          com.google.protobuf.ByteString b =
+              com.google.protobuf.ByteString.copyFromUtf8(
+                  (java.lang.String) ref);
+          surface_ = b;
+          return b;
+        } else {
+          return (com.google.protobuf.ByteString) ref;
+        }
+      }
+      /**
+       * <code>string surface = 4;</code>
+       * @param value The surface to set.
+       * @return This builder for chaining.
+       */
+      public Builder setSurface(
+          java.lang.String value) {
+        if (value == null) { throw new NullPointerException(); }
+        surface_ = value;
+        bitField0_ |= 0x00000008;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string surface = 4;</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearSurface() {
+        surface_ = getDefaultInstance().getSurface();
+        bitField0_ = (bitField0_ & ~0x00000008);
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string surface = 4;</code>
+       * @param value The bytes for surface to set.
+       * @return This builder for chaining.
+       */
+      public Builder setSurfaceBytes(
+          com.google.protobuf.ByteString value) {
+        if (value == null) { throw new NullPointerException(); }
+        checkByteStringIsUtf8(value);
+        surface_ = value;
+        bitField0_ |= 0x00000008;
+        onChanged();
+        return this;
+      }
+
+      private java.lang.Object provider_ = "";
+      /**
+       * <code>string provider = 5;</code>
+       * @return The provider.
+       */
+      public java.lang.String getProvider() {
+        java.lang.Object ref = provider_;
+        if (!(ref instanceof java.lang.String)) {
+          com.google.protobuf.ByteString bs =
+              (com.google.protobuf.ByteString) ref;
+          java.lang.String s = bs.toStringUtf8();
+          provider_ = s;
+          return s;
+        } else {
+          return (java.lang.String) ref;
+        }
+      }
+      /**
+       * <code>string provider = 5;</code>
+       * @return The bytes for provider.
+       */
+      public com.google.protobuf.ByteString
+          getProviderBytes() {
+        java.lang.Object ref = provider_;
+        if (ref instanceof String) {
+          com.google.protobuf.ByteString b =
+              com.google.protobuf.ByteString.copyFromUtf8(
+                  (java.lang.String) ref);
+          provider_ = b;
+          return b;
+        } else {
+          return (com.google.protobuf.ByteString) ref;
+        }
+      }
+      /**
+       * <code>string provider = 5;</code>
+       * @param value The provider to set.
+       * @return This builder for chaining.
+       */
+      public Builder setProvider(
+          java.lang.String value) {
+        if (value == null) { throw new NullPointerException(); }
+        provider_ = value;
+        bitField0_ |= 0x00000010;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string provider = 5;</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearProvider() {
+        provider_ = getDefaultInstance().getProvider();
+        bitField0_ = (bitField0_ & ~0x00000010);
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string provider = 5;</code>
+       * @param value The bytes for provider to set.
+       * @return This builder for chaining.
+       */
+      public Builder setProviderBytes(
+          com.google.protobuf.ByteString value) {
+        if (value == null) { throw new NullPointerException(); }
+        checkByteStringIsUtf8(value);
+        provider_ = value;
+        bitField0_ |= 0x00000010;
+        onChanged();
+        return this;
+      }
+
+      private java.lang.Object model_ = "";
+      /**
+       * <code>string model = 6;</code>
+       * @return The model.
+       */
+      public java.lang.String getModel() {
+        java.lang.Object ref = model_;
+        if (!(ref instanceof java.lang.String)) {
+          com.google.protobuf.ByteString bs =
+              (com.google.protobuf.ByteString) ref;
+          java.lang.String s = bs.toStringUtf8();
+          model_ = s;
+          return s;
+        } else {
+          return (java.lang.String) ref;
+        }
+      }
+      /**
+       * <code>string model = 6;</code>
+       * @return The bytes for model.
+       */
+      public com.google.protobuf.ByteString
+          getModelBytes() {
+        java.lang.Object ref = model_;
+        if (ref instanceof String) {
+          com.google.protobuf.ByteString b =
+              com.google.protobuf.ByteString.copyFromUtf8(
+                  (java.lang.String) ref);
+          model_ = b;
+          return b;
+        } else {
+          return (com.google.protobuf.ByteString) ref;
+        }
+      }
+      /**
+       * <code>string model = 6;</code>
+       * @param value The model to set.
+       * @return This builder for chaining.
+       */
+      public Builder setModel(
+          java.lang.String value) {
+        if (value == null) { throw new NullPointerException(); }
+        model_ = value;
+        bitField0_ |= 0x00000020;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string model = 6;</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearModel() {
+        model_ = getDefaultInstance().getModel();
+        bitField0_ = (bitField0_ & ~0x00000020);
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string model = 6;</code>
+       * @param value The bytes for model to set.
+       * @return This builder for chaining.
+       */
+      public Builder setModelBytes(
+          com.google.protobuf.ByteString value) {
+        if (value == null) { throw new NullPointerException(); }
+        checkByteStringIsUtf8(value);
+        model_ = value;
+        bitField0_ |= 0x00000020;
+        onChanged();
+        return this;
+      }
+
+      // @@protoc_insertion_point(builder_scope:message.AgentReady)
+    }
+
+    // @@protoc_insertion_point(class_scope:message.AgentReady)
+    private static final org.jumpserver.wisp.ServiceOuterClass.AgentReady DEFAULT_INSTANCE;
+    static {
+      DEFAULT_INSTANCE = new org.jumpserver.wisp.ServiceOuterClass.AgentReady();
+    }
+
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentReady getDefaultInstance() {
+      return DEFAULT_INSTANCE;
+    }
+
+    private static final com.google.protobuf.Parser<AgentReady>
+        PARSER = new com.google.protobuf.AbstractParser<AgentReady>() {
+      @java.lang.Override
+      public AgentReady parsePartialFrom(
+          com.google.protobuf.CodedInputStream input,
+          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          throws com.google.protobuf.InvalidProtocolBufferException {
+        Builder builder = newBuilder();
+        try {
+          builder.mergeFrom(input, extensionRegistry);
+        } catch (com.google.protobuf.InvalidProtocolBufferException e) {
+          throw e.setUnfinishedMessage(builder.buildPartial());
+        } catch (com.google.protobuf.UninitializedMessageException e) {
+          throw e.asInvalidProtocolBufferException().setUnfinishedMessage(builder.buildPartial());
+        } catch (java.io.IOException e) {
+          throw new com.google.protobuf.InvalidProtocolBufferException(e)
+              .setUnfinishedMessage(builder.buildPartial());
+        }
+        return builder.buildPartial();
+      }
+    };
+
+    public static com.google.protobuf.Parser<AgentReady> parser() {
+      return PARSER;
+    }
+
+    @java.lang.Override
+    public com.google.protobuf.Parser<AgentReady> getParserForType() {
+      return PARSER;
+    }
+
+    @java.lang.Override
+    public org.jumpserver.wisp.ServiceOuterClass.AgentReady getDefaultInstanceForType() {
+      return DEFAULT_INSTANCE;
+    }
+
+  }
+
+  public interface AgentChatMessageOrBuilder extends
+      // @@protoc_insertion_point(interface_extends:message.AgentChatMessage)
+      com.google.protobuf.MessageOrBuilder {
+
+    /**
+     * <code>string message_json = 1;</code>
+     * @return The messageJson.
+     */
+    java.lang.String getMessageJson();
+    /**
+     * <code>string message_json = 1;</code>
+     * @return The bytes for messageJson.
+     */
+    com.google.protobuf.ByteString
+        getMessageJsonBytes();
+  }
+  /**
+   * Protobuf type {@code message.AgentChatMessage}
+   */
+  public static final class AgentChatMessage extends
+      com.google.protobuf.GeneratedMessage implements
+      // @@protoc_insertion_point(message_implements:message.AgentChatMessage)
+      AgentChatMessageOrBuilder {
+  private static final long serialVersionUID = 0L;
+    static {
+      com.google.protobuf.RuntimeVersion.validateProtobufGencodeVersion(
+        com.google.protobuf.RuntimeVersion.RuntimeDomain.PUBLIC,
+        /* major= */ 4,
+        /* minor= */ 32,
+        /* patch= */ 1,
+        /* suffix= */ "",
+        AgentChatMessage.class.getName());
+    }
+    // Use AgentChatMessage.newBuilder() to construct.
+    private AgentChatMessage(com.google.protobuf.GeneratedMessage.Builder<?> builder) {
+      super(builder);
+    }
+    private AgentChatMessage() {
+      messageJson_ = "";
+    }
+
+    public static final com.google.protobuf.Descriptors.Descriptor
+        getDescriptor() {
+      return org.jumpserver.wisp.ServiceOuterClass.internal_static_message_AgentChatMessage_descriptor;
+    }
+
+    @java.lang.Override
+    protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
+        internalGetFieldAccessorTable() {
+      return org.jumpserver.wisp.ServiceOuterClass.internal_static_message_AgentChatMessage_fieldAccessorTable
+          .ensureFieldAccessorsInitialized(
+              org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage.class, org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage.Builder.class);
+    }
+
+    public static final int MESSAGE_JSON_FIELD_NUMBER = 1;
+    @SuppressWarnings("serial")
+    private volatile java.lang.Object messageJson_ = "";
+    /**
+     * <code>string message_json = 1;</code>
+     * @return The messageJson.
+     */
+    @java.lang.Override
+    public java.lang.String getMessageJson() {
+      java.lang.Object ref = messageJson_;
+      if (ref instanceof java.lang.String) {
+        return (java.lang.String) ref;
+      } else {
+        com.google.protobuf.ByteString bs =
+            (com.google.protobuf.ByteString) ref;
+        java.lang.String s = bs.toStringUtf8();
+        messageJson_ = s;
+        return s;
+      }
+    }
+    /**
+     * <code>string message_json = 1;</code>
+     * @return The bytes for messageJson.
+     */
+    @java.lang.Override
+    public com.google.protobuf.ByteString
+        getMessageJsonBytes() {
+      java.lang.Object ref = messageJson_;
+      if (ref instanceof java.lang.String) {
+        com.google.protobuf.ByteString b =
+            com.google.protobuf.ByteString.copyFromUtf8(
+                (java.lang.String) ref);
+        messageJson_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+
+    private byte memoizedIsInitialized = -1;
+    @java.lang.Override
+    public final boolean isInitialized() {
+      byte isInitialized = memoizedIsInitialized;
+      if (isInitialized == 1) return true;
+      if (isInitialized == 0) return false;
+
+      memoizedIsInitialized = 1;
+      return true;
+    }
+
+    @java.lang.Override
+    public void writeTo(com.google.protobuf.CodedOutputStream output)
+                        throws java.io.IOException {
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(messageJson_)) {
+        com.google.protobuf.GeneratedMessage.writeString(output, 1, messageJson_);
+      }
+      getUnknownFields().writeTo(output);
+    }
+
+    @java.lang.Override
+    public int getSerializedSize() {
+      int size = memoizedSize;
+      if (size != -1) return size;
+
+      size = 0;
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(messageJson_)) {
+        size += com.google.protobuf.GeneratedMessage.computeStringSize(1, messageJson_);
+      }
+      size += getUnknownFields().getSerializedSize();
+      memoizedSize = size;
+      return size;
+    }
+
+    @java.lang.Override
+    public boolean equals(final java.lang.Object obj) {
+      if (obj == this) {
+       return true;
+      }
+      if (!(obj instanceof org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage)) {
+        return super.equals(obj);
+      }
+      org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage other = (org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage) obj;
+
+      if (!getMessageJson()
+          .equals(other.getMessageJson())) return false;
+      if (!getUnknownFields().equals(other.getUnknownFields())) return false;
+      return true;
+    }
+
+    @java.lang.Override
+    public int hashCode() {
+      if (memoizedHashCode != 0) {
+        return memoizedHashCode;
+      }
+      int hash = 41;
+      hash = (19 * hash) + getDescriptor().hashCode();
+      hash = (37 * hash) + MESSAGE_JSON_FIELD_NUMBER;
+      hash = (53 * hash) + getMessageJson().hashCode();
+      hash = (29 * hash) + getUnknownFields().hashCode();
+      memoizedHashCode = hash;
+      return hash;
+    }
+
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage parseFrom(
+        java.nio.ByteBuffer data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage parseFrom(
+        java.nio.ByteBuffer data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage parseFrom(
+        com.google.protobuf.ByteString data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage parseFrom(
+        com.google.protobuf.ByteString data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage parseFrom(byte[] data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage parseFrom(
+        byte[] data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage parseFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseWithIOException(PARSER, input);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage parseFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseWithIOException(PARSER, input, extensionRegistry);
+    }
+
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage parseDelimitedFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseDelimitedWithIOException(PARSER, input);
+    }
+
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage parseDelimitedFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseDelimitedWithIOException(PARSER, input, extensionRegistry);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage parseFrom(
+        com.google.protobuf.CodedInputStream input)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseWithIOException(PARSER, input);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage parseFrom(
+        com.google.protobuf.CodedInputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseWithIOException(PARSER, input, extensionRegistry);
+    }
+
+    @java.lang.Override
+    public Builder newBuilderForType() { return newBuilder(); }
+    public static Builder newBuilder() {
+      return DEFAULT_INSTANCE.toBuilder();
+    }
+    public static Builder newBuilder(org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage prototype) {
+      return DEFAULT_INSTANCE.toBuilder().mergeFrom(prototype);
+    }
+    @java.lang.Override
+    public Builder toBuilder() {
+      return this == DEFAULT_INSTANCE
+          ? new Builder() : new Builder().mergeFrom(this);
+    }
+
+    @java.lang.Override
+    protected Builder newBuilderForType(
+        com.google.protobuf.GeneratedMessage.BuilderParent parent) {
+      Builder builder = new Builder(parent);
+      return builder;
+    }
+    /**
+     * Protobuf type {@code message.AgentChatMessage}
+     */
+    public static final class Builder extends
+        com.google.protobuf.GeneratedMessage.Builder<Builder> implements
+        // @@protoc_insertion_point(builder_implements:message.AgentChatMessage)
+        org.jumpserver.wisp.ServiceOuterClass.AgentChatMessageOrBuilder {
+      public static final com.google.protobuf.Descriptors.Descriptor
+          getDescriptor() {
+        return org.jumpserver.wisp.ServiceOuterClass.internal_static_message_AgentChatMessage_descriptor;
+      }
+
+      @java.lang.Override
+      protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
+          internalGetFieldAccessorTable() {
+        return org.jumpserver.wisp.ServiceOuterClass.internal_static_message_AgentChatMessage_fieldAccessorTable
+            .ensureFieldAccessorsInitialized(
+                org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage.class, org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage.Builder.class);
+      }
+
+      // Construct using org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage.newBuilder()
+      private Builder() {
+
+      }
+
+      private Builder(
+          com.google.protobuf.GeneratedMessage.BuilderParent parent) {
+        super(parent);
+
+      }
+      @java.lang.Override
+      public Builder clear() {
+        super.clear();
+        bitField0_ = 0;
+        messageJson_ = "";
+        return this;
+      }
+
+      @java.lang.Override
+      public com.google.protobuf.Descriptors.Descriptor
+          getDescriptorForType() {
+        return org.jumpserver.wisp.ServiceOuterClass.internal_static_message_AgentChatMessage_descriptor;
+      }
+
+      @java.lang.Override
+      public org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage getDefaultInstanceForType() {
+        return org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage.getDefaultInstance();
+      }
+
+      @java.lang.Override
+      public org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage build() {
+        org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(result);
+        }
+        return result;
+      }
+
+      @java.lang.Override
+      public org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage buildPartial() {
+        org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage result = new org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage(this);
+        if (bitField0_ != 0) { buildPartial0(result); }
+        onBuilt();
+        return result;
+      }
+
+      private void buildPartial0(org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage result) {
+        int from_bitField0_ = bitField0_;
+        if (((from_bitField0_ & 0x00000001) != 0)) {
+          result.messageJson_ = messageJson_;
+        }
+      }
+
+      @java.lang.Override
+      public Builder mergeFrom(com.google.protobuf.Message other) {
+        if (other instanceof org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage) {
+          return mergeFrom((org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage)other);
+        } else {
+          super.mergeFrom(other);
+          return this;
+        }
+      }
+
+      public Builder mergeFrom(org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage other) {
+        if (other == org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage.getDefaultInstance()) return this;
+        if (!other.getMessageJson().isEmpty()) {
+          messageJson_ = other.messageJson_;
+          bitField0_ |= 0x00000001;
+          onChanged();
+        }
+        this.mergeUnknownFields(other.getUnknownFields());
+        onChanged();
+        return this;
+      }
+
+      @java.lang.Override
+      public final boolean isInitialized() {
+        return true;
+      }
+
+      @java.lang.Override
+      public Builder mergeFrom(
+          com.google.protobuf.CodedInputStream input,
+          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          throws java.io.IOException {
+        if (extensionRegistry == null) {
+          throw new java.lang.NullPointerException();
+        }
+        try {
+          boolean done = false;
+          while (!done) {
+            int tag = input.readTag();
+            switch (tag) {
+              case 0:
+                done = true;
+                break;
+              case 10: {
+                messageJson_ = input.readStringRequireUtf8();
+                bitField0_ |= 0x00000001;
+                break;
+              } // case 10
+              default: {
+                if (!super.parseUnknownField(input, extensionRegistry, tag)) {
+                  done = true; // was an endgroup tag
+                }
+                break;
+              } // default:
+            } // switch (tag)
+          } // while (!done)
+        } catch (com.google.protobuf.InvalidProtocolBufferException e) {
+          throw e.unwrapIOException();
+        } finally {
+          onChanged();
+        } // finally
+        return this;
+      }
+      private int bitField0_;
+
+      private java.lang.Object messageJson_ = "";
+      /**
+       * <code>string message_json = 1;</code>
+       * @return The messageJson.
+       */
+      public java.lang.String getMessageJson() {
+        java.lang.Object ref = messageJson_;
+        if (!(ref instanceof java.lang.String)) {
+          com.google.protobuf.ByteString bs =
+              (com.google.protobuf.ByteString) ref;
+          java.lang.String s = bs.toStringUtf8();
+          messageJson_ = s;
+          return s;
+        } else {
+          return (java.lang.String) ref;
+        }
+      }
+      /**
+       * <code>string message_json = 1;</code>
+       * @return The bytes for messageJson.
+       */
+      public com.google.protobuf.ByteString
+          getMessageJsonBytes() {
+        java.lang.Object ref = messageJson_;
+        if (ref instanceof String) {
+          com.google.protobuf.ByteString b =
+              com.google.protobuf.ByteString.copyFromUtf8(
+                  (java.lang.String) ref);
+          messageJson_ = b;
+          return b;
+        } else {
+          return (com.google.protobuf.ByteString) ref;
+        }
+      }
+      /**
+       * <code>string message_json = 1;</code>
+       * @param value The messageJson to set.
+       * @return This builder for chaining.
+       */
+      public Builder setMessageJson(
+          java.lang.String value) {
+        if (value == null) { throw new NullPointerException(); }
+        messageJson_ = value;
+        bitField0_ |= 0x00000001;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string message_json = 1;</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearMessageJson() {
+        messageJson_ = getDefaultInstance().getMessageJson();
+        bitField0_ = (bitField0_ & ~0x00000001);
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string message_json = 1;</code>
+       * @param value The bytes for messageJson to set.
+       * @return This builder for chaining.
+       */
+      public Builder setMessageJsonBytes(
+          com.google.protobuf.ByteString value) {
+        if (value == null) { throw new NullPointerException(); }
+        checkByteStringIsUtf8(value);
+        messageJson_ = value;
+        bitField0_ |= 0x00000001;
+        onChanged();
+        return this;
+      }
+
+      // @@protoc_insertion_point(builder_scope:message.AgentChatMessage)
+    }
+
+    // @@protoc_insertion_point(class_scope:message.AgentChatMessage)
+    private static final org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage DEFAULT_INSTANCE;
+    static {
+      DEFAULT_INSTANCE = new org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage();
+    }
+
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage getDefaultInstance() {
+      return DEFAULT_INSTANCE;
+    }
+
+    private static final com.google.protobuf.Parser<AgentChatMessage>
+        PARSER = new com.google.protobuf.AbstractParser<AgentChatMessage>() {
+      @java.lang.Override
+      public AgentChatMessage parsePartialFrom(
+          com.google.protobuf.CodedInputStream input,
+          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          throws com.google.protobuf.InvalidProtocolBufferException {
+        Builder builder = newBuilder();
+        try {
+          builder.mergeFrom(input, extensionRegistry);
+        } catch (com.google.protobuf.InvalidProtocolBufferException e) {
+          throw e.setUnfinishedMessage(builder.buildPartial());
+        } catch (com.google.protobuf.UninitializedMessageException e) {
+          throw e.asInvalidProtocolBufferException().setUnfinishedMessage(builder.buildPartial());
+        } catch (java.io.IOException e) {
+          throw new com.google.protobuf.InvalidProtocolBufferException(e)
+              .setUnfinishedMessage(builder.buildPartial());
+        }
+        return builder.buildPartial();
+      }
+    };
+
+    public static com.google.protobuf.Parser<AgentChatMessage> parser() {
+      return PARSER;
+    }
+
+    @java.lang.Override
+    public com.google.protobuf.Parser<AgentChatMessage> getParserForType() {
+      return PARSER;
+    }
+
+    @java.lang.Override
+    public org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage getDefaultInstanceForType() {
+      return DEFAULT_INSTANCE;
+    }
+
+  }
+
+  public interface AgentToolCallOrBuilder extends
+      // @@protoc_insertion_point(interface_extends:message.AgentToolCall)
+      com.google.protobuf.MessageOrBuilder {
+
+    /**
+     * <code>string id = 1;</code>
+     * @return The id.
+     */
+    java.lang.String getId();
+    /**
+     * <code>string id = 1;</code>
+     * @return The bytes for id.
+     */
+    com.google.protobuf.ByteString
+        getIdBytes();
+
+    /**
+     * <code>string name = 2;</code>
+     * @return The name.
+     */
+    java.lang.String getName();
+    /**
+     * <code>string name = 2;</code>
+     * @return The bytes for name.
+     */
+    com.google.protobuf.ByteString
+        getNameBytes();
+
+    /**
+     * <code>string arguments_json = 3;</code>
+     * @return The argumentsJson.
+     */
+    java.lang.String getArgumentsJson();
+    /**
+     * <code>string arguments_json = 3;</code>
+     * @return The bytes for argumentsJson.
+     */
+    com.google.protobuf.ByteString
+        getArgumentsJsonBytes();
+  }
+  /**
+   * Protobuf type {@code message.AgentToolCall}
+   */
+  public static final class AgentToolCall extends
+      com.google.protobuf.GeneratedMessage implements
+      // @@protoc_insertion_point(message_implements:message.AgentToolCall)
+      AgentToolCallOrBuilder {
+  private static final long serialVersionUID = 0L;
+    static {
+      com.google.protobuf.RuntimeVersion.validateProtobufGencodeVersion(
+        com.google.protobuf.RuntimeVersion.RuntimeDomain.PUBLIC,
+        /* major= */ 4,
+        /* minor= */ 32,
+        /* patch= */ 1,
+        /* suffix= */ "",
+        AgentToolCall.class.getName());
+    }
+    // Use AgentToolCall.newBuilder() to construct.
+    private AgentToolCall(com.google.protobuf.GeneratedMessage.Builder<?> builder) {
+      super(builder);
+    }
+    private AgentToolCall() {
+      id_ = "";
+      name_ = "";
+      argumentsJson_ = "";
+    }
+
+    public static final com.google.protobuf.Descriptors.Descriptor
+        getDescriptor() {
+      return org.jumpserver.wisp.ServiceOuterClass.internal_static_message_AgentToolCall_descriptor;
+    }
+
+    @java.lang.Override
+    protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
+        internalGetFieldAccessorTable() {
+      return org.jumpserver.wisp.ServiceOuterClass.internal_static_message_AgentToolCall_fieldAccessorTable
+          .ensureFieldAccessorsInitialized(
+              org.jumpserver.wisp.ServiceOuterClass.AgentToolCall.class, org.jumpserver.wisp.ServiceOuterClass.AgentToolCall.Builder.class);
+    }
+
+    public static final int ID_FIELD_NUMBER = 1;
+    @SuppressWarnings("serial")
+    private volatile java.lang.Object id_ = "";
+    /**
+     * <code>string id = 1;</code>
+     * @return The id.
+     */
+    @java.lang.Override
+    public java.lang.String getId() {
+      java.lang.Object ref = id_;
+      if (ref instanceof java.lang.String) {
+        return (java.lang.String) ref;
+      } else {
+        com.google.protobuf.ByteString bs =
+            (com.google.protobuf.ByteString) ref;
+        java.lang.String s = bs.toStringUtf8();
+        id_ = s;
+        return s;
+      }
+    }
+    /**
+     * <code>string id = 1;</code>
+     * @return The bytes for id.
+     */
+    @java.lang.Override
+    public com.google.protobuf.ByteString
+        getIdBytes() {
+      java.lang.Object ref = id_;
+      if (ref instanceof java.lang.String) {
+        com.google.protobuf.ByteString b =
+            com.google.protobuf.ByteString.copyFromUtf8(
+                (java.lang.String) ref);
+        id_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+
+    public static final int NAME_FIELD_NUMBER = 2;
+    @SuppressWarnings("serial")
+    private volatile java.lang.Object name_ = "";
+    /**
+     * <code>string name = 2;</code>
+     * @return The name.
+     */
+    @java.lang.Override
+    public java.lang.String getName() {
+      java.lang.Object ref = name_;
+      if (ref instanceof java.lang.String) {
+        return (java.lang.String) ref;
+      } else {
+        com.google.protobuf.ByteString bs =
+            (com.google.protobuf.ByteString) ref;
+        java.lang.String s = bs.toStringUtf8();
+        name_ = s;
+        return s;
+      }
+    }
+    /**
+     * <code>string name = 2;</code>
+     * @return The bytes for name.
+     */
+    @java.lang.Override
+    public com.google.protobuf.ByteString
+        getNameBytes() {
+      java.lang.Object ref = name_;
+      if (ref instanceof java.lang.String) {
+        com.google.protobuf.ByteString b =
+            com.google.protobuf.ByteString.copyFromUtf8(
+                (java.lang.String) ref);
+        name_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+
+    public static final int ARGUMENTS_JSON_FIELD_NUMBER = 3;
+    @SuppressWarnings("serial")
+    private volatile java.lang.Object argumentsJson_ = "";
+    /**
+     * <code>string arguments_json = 3;</code>
+     * @return The argumentsJson.
+     */
+    @java.lang.Override
+    public java.lang.String getArgumentsJson() {
+      java.lang.Object ref = argumentsJson_;
+      if (ref instanceof java.lang.String) {
+        return (java.lang.String) ref;
+      } else {
+        com.google.protobuf.ByteString bs =
+            (com.google.protobuf.ByteString) ref;
+        java.lang.String s = bs.toStringUtf8();
+        argumentsJson_ = s;
+        return s;
+      }
+    }
+    /**
+     * <code>string arguments_json = 3;</code>
+     * @return The bytes for argumentsJson.
+     */
+    @java.lang.Override
+    public com.google.protobuf.ByteString
+        getArgumentsJsonBytes() {
+      java.lang.Object ref = argumentsJson_;
+      if (ref instanceof java.lang.String) {
+        com.google.protobuf.ByteString b =
+            com.google.protobuf.ByteString.copyFromUtf8(
+                (java.lang.String) ref);
+        argumentsJson_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+
+    private byte memoizedIsInitialized = -1;
+    @java.lang.Override
+    public final boolean isInitialized() {
+      byte isInitialized = memoizedIsInitialized;
+      if (isInitialized == 1) return true;
+      if (isInitialized == 0) return false;
+
+      memoizedIsInitialized = 1;
+      return true;
+    }
+
+    @java.lang.Override
+    public void writeTo(com.google.protobuf.CodedOutputStream output)
+                        throws java.io.IOException {
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(id_)) {
+        com.google.protobuf.GeneratedMessage.writeString(output, 1, id_);
+      }
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(name_)) {
+        com.google.protobuf.GeneratedMessage.writeString(output, 2, name_);
+      }
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(argumentsJson_)) {
+        com.google.protobuf.GeneratedMessage.writeString(output, 3, argumentsJson_);
+      }
+      getUnknownFields().writeTo(output);
+    }
+
+    @java.lang.Override
+    public int getSerializedSize() {
+      int size = memoizedSize;
+      if (size != -1) return size;
+
+      size = 0;
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(id_)) {
+        size += com.google.protobuf.GeneratedMessage.computeStringSize(1, id_);
+      }
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(name_)) {
+        size += com.google.protobuf.GeneratedMessage.computeStringSize(2, name_);
+      }
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(argumentsJson_)) {
+        size += com.google.protobuf.GeneratedMessage.computeStringSize(3, argumentsJson_);
+      }
+      size += getUnknownFields().getSerializedSize();
+      memoizedSize = size;
+      return size;
+    }
+
+    @java.lang.Override
+    public boolean equals(final java.lang.Object obj) {
+      if (obj == this) {
+       return true;
+      }
+      if (!(obj instanceof org.jumpserver.wisp.ServiceOuterClass.AgentToolCall)) {
+        return super.equals(obj);
+      }
+      org.jumpserver.wisp.ServiceOuterClass.AgentToolCall other = (org.jumpserver.wisp.ServiceOuterClass.AgentToolCall) obj;
+
+      if (!getId()
+          .equals(other.getId())) return false;
+      if (!getName()
+          .equals(other.getName())) return false;
+      if (!getArgumentsJson()
+          .equals(other.getArgumentsJson())) return false;
+      if (!getUnknownFields().equals(other.getUnknownFields())) return false;
+      return true;
+    }
+
+    @java.lang.Override
+    public int hashCode() {
+      if (memoizedHashCode != 0) {
+        return memoizedHashCode;
+      }
+      int hash = 41;
+      hash = (19 * hash) + getDescriptor().hashCode();
+      hash = (37 * hash) + ID_FIELD_NUMBER;
+      hash = (53 * hash) + getId().hashCode();
+      hash = (37 * hash) + NAME_FIELD_NUMBER;
+      hash = (53 * hash) + getName().hashCode();
+      hash = (37 * hash) + ARGUMENTS_JSON_FIELD_NUMBER;
+      hash = (53 * hash) + getArgumentsJson().hashCode();
+      hash = (29 * hash) + getUnknownFields().hashCode();
+      memoizedHashCode = hash;
+      return hash;
+    }
+
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentToolCall parseFrom(
+        java.nio.ByteBuffer data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentToolCall parseFrom(
+        java.nio.ByteBuffer data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentToolCall parseFrom(
+        com.google.protobuf.ByteString data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentToolCall parseFrom(
+        com.google.protobuf.ByteString data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentToolCall parseFrom(byte[] data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentToolCall parseFrom(
+        byte[] data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentToolCall parseFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseWithIOException(PARSER, input);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentToolCall parseFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseWithIOException(PARSER, input, extensionRegistry);
+    }
+
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentToolCall parseDelimitedFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseDelimitedWithIOException(PARSER, input);
+    }
+
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentToolCall parseDelimitedFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseDelimitedWithIOException(PARSER, input, extensionRegistry);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentToolCall parseFrom(
+        com.google.protobuf.CodedInputStream input)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseWithIOException(PARSER, input);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentToolCall parseFrom(
+        com.google.protobuf.CodedInputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseWithIOException(PARSER, input, extensionRegistry);
+    }
+
+    @java.lang.Override
+    public Builder newBuilderForType() { return newBuilder(); }
+    public static Builder newBuilder() {
+      return DEFAULT_INSTANCE.toBuilder();
+    }
+    public static Builder newBuilder(org.jumpserver.wisp.ServiceOuterClass.AgentToolCall prototype) {
+      return DEFAULT_INSTANCE.toBuilder().mergeFrom(prototype);
+    }
+    @java.lang.Override
+    public Builder toBuilder() {
+      return this == DEFAULT_INSTANCE
+          ? new Builder() : new Builder().mergeFrom(this);
+    }
+
+    @java.lang.Override
+    protected Builder newBuilderForType(
+        com.google.protobuf.GeneratedMessage.BuilderParent parent) {
+      Builder builder = new Builder(parent);
+      return builder;
+    }
+    /**
+     * Protobuf type {@code message.AgentToolCall}
+     */
+    public static final class Builder extends
+        com.google.protobuf.GeneratedMessage.Builder<Builder> implements
+        // @@protoc_insertion_point(builder_implements:message.AgentToolCall)
+        org.jumpserver.wisp.ServiceOuterClass.AgentToolCallOrBuilder {
+      public static final com.google.protobuf.Descriptors.Descriptor
+          getDescriptor() {
+        return org.jumpserver.wisp.ServiceOuterClass.internal_static_message_AgentToolCall_descriptor;
+      }
+
+      @java.lang.Override
+      protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
+          internalGetFieldAccessorTable() {
+        return org.jumpserver.wisp.ServiceOuterClass.internal_static_message_AgentToolCall_fieldAccessorTable
+            .ensureFieldAccessorsInitialized(
+                org.jumpserver.wisp.ServiceOuterClass.AgentToolCall.class, org.jumpserver.wisp.ServiceOuterClass.AgentToolCall.Builder.class);
+      }
+
+      // Construct using org.jumpserver.wisp.ServiceOuterClass.AgentToolCall.newBuilder()
+      private Builder() {
+
+      }
+
+      private Builder(
+          com.google.protobuf.GeneratedMessage.BuilderParent parent) {
+        super(parent);
+
+      }
+      @java.lang.Override
+      public Builder clear() {
+        super.clear();
+        bitField0_ = 0;
+        id_ = "";
+        name_ = "";
+        argumentsJson_ = "";
+        return this;
+      }
+
+      @java.lang.Override
+      public com.google.protobuf.Descriptors.Descriptor
+          getDescriptorForType() {
+        return org.jumpserver.wisp.ServiceOuterClass.internal_static_message_AgentToolCall_descriptor;
+      }
+
+      @java.lang.Override
+      public org.jumpserver.wisp.ServiceOuterClass.AgentToolCall getDefaultInstanceForType() {
+        return org.jumpserver.wisp.ServiceOuterClass.AgentToolCall.getDefaultInstance();
+      }
+
+      @java.lang.Override
+      public org.jumpserver.wisp.ServiceOuterClass.AgentToolCall build() {
+        org.jumpserver.wisp.ServiceOuterClass.AgentToolCall result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(result);
+        }
+        return result;
+      }
+
+      @java.lang.Override
+      public org.jumpserver.wisp.ServiceOuterClass.AgentToolCall buildPartial() {
+        org.jumpserver.wisp.ServiceOuterClass.AgentToolCall result = new org.jumpserver.wisp.ServiceOuterClass.AgentToolCall(this);
+        if (bitField0_ != 0) { buildPartial0(result); }
+        onBuilt();
+        return result;
+      }
+
+      private void buildPartial0(org.jumpserver.wisp.ServiceOuterClass.AgentToolCall result) {
+        int from_bitField0_ = bitField0_;
+        if (((from_bitField0_ & 0x00000001) != 0)) {
+          result.id_ = id_;
+        }
+        if (((from_bitField0_ & 0x00000002) != 0)) {
+          result.name_ = name_;
+        }
+        if (((from_bitField0_ & 0x00000004) != 0)) {
+          result.argumentsJson_ = argumentsJson_;
+        }
+      }
+
+      @java.lang.Override
+      public Builder mergeFrom(com.google.protobuf.Message other) {
+        if (other instanceof org.jumpserver.wisp.ServiceOuterClass.AgentToolCall) {
+          return mergeFrom((org.jumpserver.wisp.ServiceOuterClass.AgentToolCall)other);
+        } else {
+          super.mergeFrom(other);
+          return this;
+        }
+      }
+
+      public Builder mergeFrom(org.jumpserver.wisp.ServiceOuterClass.AgentToolCall other) {
+        if (other == org.jumpserver.wisp.ServiceOuterClass.AgentToolCall.getDefaultInstance()) return this;
+        if (!other.getId().isEmpty()) {
+          id_ = other.id_;
+          bitField0_ |= 0x00000001;
+          onChanged();
+        }
+        if (!other.getName().isEmpty()) {
+          name_ = other.name_;
+          bitField0_ |= 0x00000002;
+          onChanged();
+        }
+        if (!other.getArgumentsJson().isEmpty()) {
+          argumentsJson_ = other.argumentsJson_;
+          bitField0_ |= 0x00000004;
+          onChanged();
+        }
+        this.mergeUnknownFields(other.getUnknownFields());
+        onChanged();
+        return this;
+      }
+
+      @java.lang.Override
+      public final boolean isInitialized() {
+        return true;
+      }
+
+      @java.lang.Override
+      public Builder mergeFrom(
+          com.google.protobuf.CodedInputStream input,
+          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          throws java.io.IOException {
+        if (extensionRegistry == null) {
+          throw new java.lang.NullPointerException();
+        }
+        try {
+          boolean done = false;
+          while (!done) {
+            int tag = input.readTag();
+            switch (tag) {
+              case 0:
+                done = true;
+                break;
+              case 10: {
+                id_ = input.readStringRequireUtf8();
+                bitField0_ |= 0x00000001;
+                break;
+              } // case 10
+              case 18: {
+                name_ = input.readStringRequireUtf8();
+                bitField0_ |= 0x00000002;
+                break;
+              } // case 18
+              case 26: {
+                argumentsJson_ = input.readStringRequireUtf8();
+                bitField0_ |= 0x00000004;
+                break;
+              } // case 26
+              default: {
+                if (!super.parseUnknownField(input, extensionRegistry, tag)) {
+                  done = true; // was an endgroup tag
+                }
+                break;
+              } // default:
+            } // switch (tag)
+          } // while (!done)
+        } catch (com.google.protobuf.InvalidProtocolBufferException e) {
+          throw e.unwrapIOException();
+        } finally {
+          onChanged();
+        } // finally
+        return this;
+      }
+      private int bitField0_;
+
+      private java.lang.Object id_ = "";
+      /**
+       * <code>string id = 1;</code>
+       * @return The id.
+       */
+      public java.lang.String getId() {
+        java.lang.Object ref = id_;
+        if (!(ref instanceof java.lang.String)) {
+          com.google.protobuf.ByteString bs =
+              (com.google.protobuf.ByteString) ref;
+          java.lang.String s = bs.toStringUtf8();
+          id_ = s;
+          return s;
+        } else {
+          return (java.lang.String) ref;
+        }
+      }
+      /**
+       * <code>string id = 1;</code>
+       * @return The bytes for id.
+       */
+      public com.google.protobuf.ByteString
+          getIdBytes() {
+        java.lang.Object ref = id_;
+        if (ref instanceof String) {
+          com.google.protobuf.ByteString b =
+              com.google.protobuf.ByteString.copyFromUtf8(
+                  (java.lang.String) ref);
+          id_ = b;
+          return b;
+        } else {
+          return (com.google.protobuf.ByteString) ref;
+        }
+      }
+      /**
+       * <code>string id = 1;</code>
+       * @param value The id to set.
+       * @return This builder for chaining.
+       */
+      public Builder setId(
+          java.lang.String value) {
+        if (value == null) { throw new NullPointerException(); }
+        id_ = value;
+        bitField0_ |= 0x00000001;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string id = 1;</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearId() {
+        id_ = getDefaultInstance().getId();
+        bitField0_ = (bitField0_ & ~0x00000001);
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string id = 1;</code>
+       * @param value The bytes for id to set.
+       * @return This builder for chaining.
+       */
+      public Builder setIdBytes(
+          com.google.protobuf.ByteString value) {
+        if (value == null) { throw new NullPointerException(); }
+        checkByteStringIsUtf8(value);
+        id_ = value;
+        bitField0_ |= 0x00000001;
+        onChanged();
+        return this;
+      }
+
+      private java.lang.Object name_ = "";
+      /**
+       * <code>string name = 2;</code>
+       * @return The name.
+       */
+      public java.lang.String getName() {
+        java.lang.Object ref = name_;
+        if (!(ref instanceof java.lang.String)) {
+          com.google.protobuf.ByteString bs =
+              (com.google.protobuf.ByteString) ref;
+          java.lang.String s = bs.toStringUtf8();
+          name_ = s;
+          return s;
+        } else {
+          return (java.lang.String) ref;
+        }
+      }
+      /**
+       * <code>string name = 2;</code>
+       * @return The bytes for name.
+       */
+      public com.google.protobuf.ByteString
+          getNameBytes() {
+        java.lang.Object ref = name_;
+        if (ref instanceof String) {
+          com.google.protobuf.ByteString b =
+              com.google.protobuf.ByteString.copyFromUtf8(
+                  (java.lang.String) ref);
+          name_ = b;
+          return b;
+        } else {
+          return (com.google.protobuf.ByteString) ref;
+        }
+      }
+      /**
+       * <code>string name = 2;</code>
+       * @param value The name to set.
+       * @return This builder for chaining.
+       */
+      public Builder setName(
+          java.lang.String value) {
+        if (value == null) { throw new NullPointerException(); }
+        name_ = value;
+        bitField0_ |= 0x00000002;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string name = 2;</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearName() {
+        name_ = getDefaultInstance().getName();
+        bitField0_ = (bitField0_ & ~0x00000002);
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string name = 2;</code>
+       * @param value The bytes for name to set.
+       * @return This builder for chaining.
+       */
+      public Builder setNameBytes(
+          com.google.protobuf.ByteString value) {
+        if (value == null) { throw new NullPointerException(); }
+        checkByteStringIsUtf8(value);
+        name_ = value;
+        bitField0_ |= 0x00000002;
+        onChanged();
+        return this;
+      }
+
+      private java.lang.Object argumentsJson_ = "";
+      /**
+       * <code>string arguments_json = 3;</code>
+       * @return The argumentsJson.
+       */
+      public java.lang.String getArgumentsJson() {
+        java.lang.Object ref = argumentsJson_;
+        if (!(ref instanceof java.lang.String)) {
+          com.google.protobuf.ByteString bs =
+              (com.google.protobuf.ByteString) ref;
+          java.lang.String s = bs.toStringUtf8();
+          argumentsJson_ = s;
+          return s;
+        } else {
+          return (java.lang.String) ref;
+        }
+      }
+      /**
+       * <code>string arguments_json = 3;</code>
+       * @return The bytes for argumentsJson.
+       */
+      public com.google.protobuf.ByteString
+          getArgumentsJsonBytes() {
+        java.lang.Object ref = argumentsJson_;
+        if (ref instanceof String) {
+          com.google.protobuf.ByteString b =
+              com.google.protobuf.ByteString.copyFromUtf8(
+                  (java.lang.String) ref);
+          argumentsJson_ = b;
+          return b;
+        } else {
+          return (com.google.protobuf.ByteString) ref;
+        }
+      }
+      /**
+       * <code>string arguments_json = 3;</code>
+       * @param value The argumentsJson to set.
+       * @return This builder for chaining.
+       */
+      public Builder setArgumentsJson(
+          java.lang.String value) {
+        if (value == null) { throw new NullPointerException(); }
+        argumentsJson_ = value;
+        bitField0_ |= 0x00000004;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string arguments_json = 3;</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearArgumentsJson() {
+        argumentsJson_ = getDefaultInstance().getArgumentsJson();
+        bitField0_ = (bitField0_ & ~0x00000004);
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string arguments_json = 3;</code>
+       * @param value The bytes for argumentsJson to set.
+       * @return This builder for chaining.
+       */
+      public Builder setArgumentsJsonBytes(
+          com.google.protobuf.ByteString value) {
+        if (value == null) { throw new NullPointerException(); }
+        checkByteStringIsUtf8(value);
+        argumentsJson_ = value;
+        bitField0_ |= 0x00000004;
+        onChanged();
+        return this;
+      }
+
+      // @@protoc_insertion_point(builder_scope:message.AgentToolCall)
+    }
+
+    // @@protoc_insertion_point(class_scope:message.AgentToolCall)
+    private static final org.jumpserver.wisp.ServiceOuterClass.AgentToolCall DEFAULT_INSTANCE;
+    static {
+      DEFAULT_INSTANCE = new org.jumpserver.wisp.ServiceOuterClass.AgentToolCall();
+    }
+
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentToolCall getDefaultInstance() {
+      return DEFAULT_INSTANCE;
+    }
+
+    private static final com.google.protobuf.Parser<AgentToolCall>
+        PARSER = new com.google.protobuf.AbstractParser<AgentToolCall>() {
+      @java.lang.Override
+      public AgentToolCall parsePartialFrom(
+          com.google.protobuf.CodedInputStream input,
+          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          throws com.google.protobuf.InvalidProtocolBufferException {
+        Builder builder = newBuilder();
+        try {
+          builder.mergeFrom(input, extensionRegistry);
+        } catch (com.google.protobuf.InvalidProtocolBufferException e) {
+          throw e.setUnfinishedMessage(builder.buildPartial());
+        } catch (com.google.protobuf.UninitializedMessageException e) {
+          throw e.asInvalidProtocolBufferException().setUnfinishedMessage(builder.buildPartial());
+        } catch (java.io.IOException e) {
+          throw new com.google.protobuf.InvalidProtocolBufferException(e)
+              .setUnfinishedMessage(builder.buildPartial());
+        }
+        return builder.buildPartial();
+      }
+    };
+
+    public static com.google.protobuf.Parser<AgentToolCall> parser() {
+      return PARSER;
+    }
+
+    @java.lang.Override
+    public com.google.protobuf.Parser<AgentToolCall> getParserForType() {
+      return PARSER;
+    }
+
+    @java.lang.Override
+    public org.jumpserver.wisp.ServiceOuterClass.AgentToolCall getDefaultInstanceForType() {
+      return DEFAULT_INSTANCE;
+    }
+
+  }
+
+  public interface AgentErrorOrBuilder extends
+      // @@protoc_insertion_point(interface_extends:message.AgentError)
+      com.google.protobuf.MessageOrBuilder {
+
+    /**
+     * <code>string code = 1;</code>
+     * @return The code.
+     */
+    java.lang.String getCode();
+    /**
+     * <code>string code = 1;</code>
+     * @return The bytes for code.
+     */
+    com.google.protobuf.ByteString
+        getCodeBytes();
+
+    /**
+     * <code>string message = 2;</code>
+     * @return The message.
+     */
+    java.lang.String getMessage();
+    /**
+     * <code>string message = 2;</code>
+     * @return The bytes for message.
+     */
+    com.google.protobuf.ByteString
+        getMessageBytes();
+
+    /**
+     * <code>string request_id = 3;</code>
+     * @return The requestId.
+     */
+    java.lang.String getRequestId();
+    /**
+     * <code>string request_id = 3;</code>
+     * @return The bytes for requestId.
+     */
+    com.google.protobuf.ByteString
+        getRequestIdBytes();
+  }
+  /**
+   * Protobuf type {@code message.AgentError}
+   */
+  public static final class AgentError extends
+      com.google.protobuf.GeneratedMessage implements
+      // @@protoc_insertion_point(message_implements:message.AgentError)
+      AgentErrorOrBuilder {
+  private static final long serialVersionUID = 0L;
+    static {
+      com.google.protobuf.RuntimeVersion.validateProtobufGencodeVersion(
+        com.google.protobuf.RuntimeVersion.RuntimeDomain.PUBLIC,
+        /* major= */ 4,
+        /* minor= */ 32,
+        /* patch= */ 1,
+        /* suffix= */ "",
+        AgentError.class.getName());
+    }
+    // Use AgentError.newBuilder() to construct.
+    private AgentError(com.google.protobuf.GeneratedMessage.Builder<?> builder) {
+      super(builder);
+    }
+    private AgentError() {
+      code_ = "";
+      message_ = "";
+      requestId_ = "";
+    }
+
+    public static final com.google.protobuf.Descriptors.Descriptor
+        getDescriptor() {
+      return org.jumpserver.wisp.ServiceOuterClass.internal_static_message_AgentError_descriptor;
+    }
+
+    @java.lang.Override
+    protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
+        internalGetFieldAccessorTable() {
+      return org.jumpserver.wisp.ServiceOuterClass.internal_static_message_AgentError_fieldAccessorTable
+          .ensureFieldAccessorsInitialized(
+              org.jumpserver.wisp.ServiceOuterClass.AgentError.class, org.jumpserver.wisp.ServiceOuterClass.AgentError.Builder.class);
+    }
+
+    public static final int CODE_FIELD_NUMBER = 1;
+    @SuppressWarnings("serial")
+    private volatile java.lang.Object code_ = "";
+    /**
+     * <code>string code = 1;</code>
+     * @return The code.
+     */
+    @java.lang.Override
+    public java.lang.String getCode() {
+      java.lang.Object ref = code_;
+      if (ref instanceof java.lang.String) {
+        return (java.lang.String) ref;
+      } else {
+        com.google.protobuf.ByteString bs =
+            (com.google.protobuf.ByteString) ref;
+        java.lang.String s = bs.toStringUtf8();
+        code_ = s;
+        return s;
+      }
+    }
+    /**
+     * <code>string code = 1;</code>
+     * @return The bytes for code.
+     */
+    @java.lang.Override
+    public com.google.protobuf.ByteString
+        getCodeBytes() {
+      java.lang.Object ref = code_;
+      if (ref instanceof java.lang.String) {
+        com.google.protobuf.ByteString b =
+            com.google.protobuf.ByteString.copyFromUtf8(
+                (java.lang.String) ref);
+        code_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+
+    public static final int MESSAGE_FIELD_NUMBER = 2;
+    @SuppressWarnings("serial")
+    private volatile java.lang.Object message_ = "";
+    /**
+     * <code>string message = 2;</code>
+     * @return The message.
+     */
+    @java.lang.Override
+    public java.lang.String getMessage() {
+      java.lang.Object ref = message_;
+      if (ref instanceof java.lang.String) {
+        return (java.lang.String) ref;
+      } else {
+        com.google.protobuf.ByteString bs =
+            (com.google.protobuf.ByteString) ref;
+        java.lang.String s = bs.toStringUtf8();
+        message_ = s;
+        return s;
+      }
+    }
+    /**
+     * <code>string message = 2;</code>
+     * @return The bytes for message.
+     */
+    @java.lang.Override
+    public com.google.protobuf.ByteString
+        getMessageBytes() {
+      java.lang.Object ref = message_;
+      if (ref instanceof java.lang.String) {
+        com.google.protobuf.ByteString b =
+            com.google.protobuf.ByteString.copyFromUtf8(
+                (java.lang.String) ref);
+        message_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+
+    public static final int REQUEST_ID_FIELD_NUMBER = 3;
+    @SuppressWarnings("serial")
+    private volatile java.lang.Object requestId_ = "";
+    /**
+     * <code>string request_id = 3;</code>
+     * @return The requestId.
+     */
+    @java.lang.Override
+    public java.lang.String getRequestId() {
+      java.lang.Object ref = requestId_;
+      if (ref instanceof java.lang.String) {
+        return (java.lang.String) ref;
+      } else {
+        com.google.protobuf.ByteString bs =
+            (com.google.protobuf.ByteString) ref;
+        java.lang.String s = bs.toStringUtf8();
+        requestId_ = s;
+        return s;
+      }
+    }
+    /**
+     * <code>string request_id = 3;</code>
+     * @return The bytes for requestId.
+     */
+    @java.lang.Override
+    public com.google.protobuf.ByteString
+        getRequestIdBytes() {
+      java.lang.Object ref = requestId_;
+      if (ref instanceof java.lang.String) {
+        com.google.protobuf.ByteString b =
+            com.google.protobuf.ByteString.copyFromUtf8(
+                (java.lang.String) ref);
+        requestId_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+
+    private byte memoizedIsInitialized = -1;
+    @java.lang.Override
+    public final boolean isInitialized() {
+      byte isInitialized = memoizedIsInitialized;
+      if (isInitialized == 1) return true;
+      if (isInitialized == 0) return false;
+
+      memoizedIsInitialized = 1;
+      return true;
+    }
+
+    @java.lang.Override
+    public void writeTo(com.google.protobuf.CodedOutputStream output)
+                        throws java.io.IOException {
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(code_)) {
+        com.google.protobuf.GeneratedMessage.writeString(output, 1, code_);
+      }
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(message_)) {
+        com.google.protobuf.GeneratedMessage.writeString(output, 2, message_);
+      }
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(requestId_)) {
+        com.google.protobuf.GeneratedMessage.writeString(output, 3, requestId_);
+      }
+      getUnknownFields().writeTo(output);
+    }
+
+    @java.lang.Override
+    public int getSerializedSize() {
+      int size = memoizedSize;
+      if (size != -1) return size;
+
+      size = 0;
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(code_)) {
+        size += com.google.protobuf.GeneratedMessage.computeStringSize(1, code_);
+      }
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(message_)) {
+        size += com.google.protobuf.GeneratedMessage.computeStringSize(2, message_);
+      }
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(requestId_)) {
+        size += com.google.protobuf.GeneratedMessage.computeStringSize(3, requestId_);
+      }
+      size += getUnknownFields().getSerializedSize();
+      memoizedSize = size;
+      return size;
+    }
+
+    @java.lang.Override
+    public boolean equals(final java.lang.Object obj) {
+      if (obj == this) {
+       return true;
+      }
+      if (!(obj instanceof org.jumpserver.wisp.ServiceOuterClass.AgentError)) {
+        return super.equals(obj);
+      }
+      org.jumpserver.wisp.ServiceOuterClass.AgentError other = (org.jumpserver.wisp.ServiceOuterClass.AgentError) obj;
+
+      if (!getCode()
+          .equals(other.getCode())) return false;
+      if (!getMessage()
+          .equals(other.getMessage())) return false;
+      if (!getRequestId()
+          .equals(other.getRequestId())) return false;
+      if (!getUnknownFields().equals(other.getUnknownFields())) return false;
+      return true;
+    }
+
+    @java.lang.Override
+    public int hashCode() {
+      if (memoizedHashCode != 0) {
+        return memoizedHashCode;
+      }
+      int hash = 41;
+      hash = (19 * hash) + getDescriptor().hashCode();
+      hash = (37 * hash) + CODE_FIELD_NUMBER;
+      hash = (53 * hash) + getCode().hashCode();
+      hash = (37 * hash) + MESSAGE_FIELD_NUMBER;
+      hash = (53 * hash) + getMessage().hashCode();
+      hash = (37 * hash) + REQUEST_ID_FIELD_NUMBER;
+      hash = (53 * hash) + getRequestId().hashCode();
+      hash = (29 * hash) + getUnknownFields().hashCode();
+      memoizedHashCode = hash;
+      return hash;
+    }
+
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentError parseFrom(
+        java.nio.ByteBuffer data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentError parseFrom(
+        java.nio.ByteBuffer data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentError parseFrom(
+        com.google.protobuf.ByteString data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentError parseFrom(
+        com.google.protobuf.ByteString data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentError parseFrom(byte[] data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentError parseFrom(
+        byte[] data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentError parseFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseWithIOException(PARSER, input);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentError parseFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseWithIOException(PARSER, input, extensionRegistry);
+    }
+
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentError parseDelimitedFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseDelimitedWithIOException(PARSER, input);
+    }
+
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentError parseDelimitedFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseDelimitedWithIOException(PARSER, input, extensionRegistry);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentError parseFrom(
+        com.google.protobuf.CodedInputStream input)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseWithIOException(PARSER, input);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentError parseFrom(
+        com.google.protobuf.CodedInputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseWithIOException(PARSER, input, extensionRegistry);
+    }
+
+    @java.lang.Override
+    public Builder newBuilderForType() { return newBuilder(); }
+    public static Builder newBuilder() {
+      return DEFAULT_INSTANCE.toBuilder();
+    }
+    public static Builder newBuilder(org.jumpserver.wisp.ServiceOuterClass.AgentError prototype) {
+      return DEFAULT_INSTANCE.toBuilder().mergeFrom(prototype);
+    }
+    @java.lang.Override
+    public Builder toBuilder() {
+      return this == DEFAULT_INSTANCE
+          ? new Builder() : new Builder().mergeFrom(this);
+    }
+
+    @java.lang.Override
+    protected Builder newBuilderForType(
+        com.google.protobuf.GeneratedMessage.BuilderParent parent) {
+      Builder builder = new Builder(parent);
+      return builder;
+    }
+    /**
+     * Protobuf type {@code message.AgentError}
+     */
+    public static final class Builder extends
+        com.google.protobuf.GeneratedMessage.Builder<Builder> implements
+        // @@protoc_insertion_point(builder_implements:message.AgentError)
+        org.jumpserver.wisp.ServiceOuterClass.AgentErrorOrBuilder {
+      public static final com.google.protobuf.Descriptors.Descriptor
+          getDescriptor() {
+        return org.jumpserver.wisp.ServiceOuterClass.internal_static_message_AgentError_descriptor;
+      }
+
+      @java.lang.Override
+      protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
+          internalGetFieldAccessorTable() {
+        return org.jumpserver.wisp.ServiceOuterClass.internal_static_message_AgentError_fieldAccessorTable
+            .ensureFieldAccessorsInitialized(
+                org.jumpserver.wisp.ServiceOuterClass.AgentError.class, org.jumpserver.wisp.ServiceOuterClass.AgentError.Builder.class);
+      }
+
+      // Construct using org.jumpserver.wisp.ServiceOuterClass.AgentError.newBuilder()
+      private Builder() {
+
+      }
+
+      private Builder(
+          com.google.protobuf.GeneratedMessage.BuilderParent parent) {
+        super(parent);
+
+      }
+      @java.lang.Override
+      public Builder clear() {
+        super.clear();
+        bitField0_ = 0;
+        code_ = "";
+        message_ = "";
+        requestId_ = "";
+        return this;
+      }
+
+      @java.lang.Override
+      public com.google.protobuf.Descriptors.Descriptor
+          getDescriptorForType() {
+        return org.jumpserver.wisp.ServiceOuterClass.internal_static_message_AgentError_descriptor;
+      }
+
+      @java.lang.Override
+      public org.jumpserver.wisp.ServiceOuterClass.AgentError getDefaultInstanceForType() {
+        return org.jumpserver.wisp.ServiceOuterClass.AgentError.getDefaultInstance();
+      }
+
+      @java.lang.Override
+      public org.jumpserver.wisp.ServiceOuterClass.AgentError build() {
+        org.jumpserver.wisp.ServiceOuterClass.AgentError result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(result);
+        }
+        return result;
+      }
+
+      @java.lang.Override
+      public org.jumpserver.wisp.ServiceOuterClass.AgentError buildPartial() {
+        org.jumpserver.wisp.ServiceOuterClass.AgentError result = new org.jumpserver.wisp.ServiceOuterClass.AgentError(this);
+        if (bitField0_ != 0) { buildPartial0(result); }
+        onBuilt();
+        return result;
+      }
+
+      private void buildPartial0(org.jumpserver.wisp.ServiceOuterClass.AgentError result) {
+        int from_bitField0_ = bitField0_;
+        if (((from_bitField0_ & 0x00000001) != 0)) {
+          result.code_ = code_;
+        }
+        if (((from_bitField0_ & 0x00000002) != 0)) {
+          result.message_ = message_;
+        }
+        if (((from_bitField0_ & 0x00000004) != 0)) {
+          result.requestId_ = requestId_;
+        }
+      }
+
+      @java.lang.Override
+      public Builder mergeFrom(com.google.protobuf.Message other) {
+        if (other instanceof org.jumpserver.wisp.ServiceOuterClass.AgentError) {
+          return mergeFrom((org.jumpserver.wisp.ServiceOuterClass.AgentError)other);
+        } else {
+          super.mergeFrom(other);
+          return this;
+        }
+      }
+
+      public Builder mergeFrom(org.jumpserver.wisp.ServiceOuterClass.AgentError other) {
+        if (other == org.jumpserver.wisp.ServiceOuterClass.AgentError.getDefaultInstance()) return this;
+        if (!other.getCode().isEmpty()) {
+          code_ = other.code_;
+          bitField0_ |= 0x00000001;
+          onChanged();
+        }
+        if (!other.getMessage().isEmpty()) {
+          message_ = other.message_;
+          bitField0_ |= 0x00000002;
+          onChanged();
+        }
+        if (!other.getRequestId().isEmpty()) {
+          requestId_ = other.requestId_;
+          bitField0_ |= 0x00000004;
+          onChanged();
+        }
+        this.mergeUnknownFields(other.getUnknownFields());
+        onChanged();
+        return this;
+      }
+
+      @java.lang.Override
+      public final boolean isInitialized() {
+        return true;
+      }
+
+      @java.lang.Override
+      public Builder mergeFrom(
+          com.google.protobuf.CodedInputStream input,
+          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          throws java.io.IOException {
+        if (extensionRegistry == null) {
+          throw new java.lang.NullPointerException();
+        }
+        try {
+          boolean done = false;
+          while (!done) {
+            int tag = input.readTag();
+            switch (tag) {
+              case 0:
+                done = true;
+                break;
+              case 10: {
+                code_ = input.readStringRequireUtf8();
+                bitField0_ |= 0x00000001;
+                break;
+              } // case 10
+              case 18: {
+                message_ = input.readStringRequireUtf8();
+                bitField0_ |= 0x00000002;
+                break;
+              } // case 18
+              case 26: {
+                requestId_ = input.readStringRequireUtf8();
+                bitField0_ |= 0x00000004;
+                break;
+              } // case 26
+              default: {
+                if (!super.parseUnknownField(input, extensionRegistry, tag)) {
+                  done = true; // was an endgroup tag
+                }
+                break;
+              } // default:
+            } // switch (tag)
+          } // while (!done)
+        } catch (com.google.protobuf.InvalidProtocolBufferException e) {
+          throw e.unwrapIOException();
+        } finally {
+          onChanged();
+        } // finally
+        return this;
+      }
+      private int bitField0_;
+
+      private java.lang.Object code_ = "";
+      /**
+       * <code>string code = 1;</code>
+       * @return The code.
+       */
+      public java.lang.String getCode() {
+        java.lang.Object ref = code_;
+        if (!(ref instanceof java.lang.String)) {
+          com.google.protobuf.ByteString bs =
+              (com.google.protobuf.ByteString) ref;
+          java.lang.String s = bs.toStringUtf8();
+          code_ = s;
+          return s;
+        } else {
+          return (java.lang.String) ref;
+        }
+      }
+      /**
+       * <code>string code = 1;</code>
+       * @return The bytes for code.
+       */
+      public com.google.protobuf.ByteString
+          getCodeBytes() {
+        java.lang.Object ref = code_;
+        if (ref instanceof String) {
+          com.google.protobuf.ByteString b =
+              com.google.protobuf.ByteString.copyFromUtf8(
+                  (java.lang.String) ref);
+          code_ = b;
+          return b;
+        } else {
+          return (com.google.protobuf.ByteString) ref;
+        }
+      }
+      /**
+       * <code>string code = 1;</code>
+       * @param value The code to set.
+       * @return This builder for chaining.
+       */
+      public Builder setCode(
+          java.lang.String value) {
+        if (value == null) { throw new NullPointerException(); }
+        code_ = value;
+        bitField0_ |= 0x00000001;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string code = 1;</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearCode() {
+        code_ = getDefaultInstance().getCode();
+        bitField0_ = (bitField0_ & ~0x00000001);
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string code = 1;</code>
+       * @param value The bytes for code to set.
+       * @return This builder for chaining.
+       */
+      public Builder setCodeBytes(
+          com.google.protobuf.ByteString value) {
+        if (value == null) { throw new NullPointerException(); }
+        checkByteStringIsUtf8(value);
+        code_ = value;
+        bitField0_ |= 0x00000001;
+        onChanged();
+        return this;
+      }
+
+      private java.lang.Object message_ = "";
+      /**
+       * <code>string message = 2;</code>
+       * @return The message.
+       */
+      public java.lang.String getMessage() {
+        java.lang.Object ref = message_;
+        if (!(ref instanceof java.lang.String)) {
+          com.google.protobuf.ByteString bs =
+              (com.google.protobuf.ByteString) ref;
+          java.lang.String s = bs.toStringUtf8();
+          message_ = s;
+          return s;
+        } else {
+          return (java.lang.String) ref;
+        }
+      }
+      /**
+       * <code>string message = 2;</code>
+       * @return The bytes for message.
+       */
+      public com.google.protobuf.ByteString
+          getMessageBytes() {
+        java.lang.Object ref = message_;
+        if (ref instanceof String) {
+          com.google.protobuf.ByteString b =
+              com.google.protobuf.ByteString.copyFromUtf8(
+                  (java.lang.String) ref);
+          message_ = b;
+          return b;
+        } else {
+          return (com.google.protobuf.ByteString) ref;
+        }
+      }
+      /**
+       * <code>string message = 2;</code>
+       * @param value The message to set.
+       * @return This builder for chaining.
+       */
+      public Builder setMessage(
+          java.lang.String value) {
+        if (value == null) { throw new NullPointerException(); }
+        message_ = value;
+        bitField0_ |= 0x00000002;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string message = 2;</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearMessage() {
+        message_ = getDefaultInstance().getMessage();
+        bitField0_ = (bitField0_ & ~0x00000002);
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string message = 2;</code>
+       * @param value The bytes for message to set.
+       * @return This builder for chaining.
+       */
+      public Builder setMessageBytes(
+          com.google.protobuf.ByteString value) {
+        if (value == null) { throw new NullPointerException(); }
+        checkByteStringIsUtf8(value);
+        message_ = value;
+        bitField0_ |= 0x00000002;
+        onChanged();
+        return this;
+      }
+
+      private java.lang.Object requestId_ = "";
+      /**
+       * <code>string request_id = 3;</code>
+       * @return The requestId.
+       */
+      public java.lang.String getRequestId() {
+        java.lang.Object ref = requestId_;
+        if (!(ref instanceof java.lang.String)) {
+          com.google.protobuf.ByteString bs =
+              (com.google.protobuf.ByteString) ref;
+          java.lang.String s = bs.toStringUtf8();
+          requestId_ = s;
+          return s;
+        } else {
+          return (java.lang.String) ref;
+        }
+      }
+      /**
+       * <code>string request_id = 3;</code>
+       * @return The bytes for requestId.
+       */
+      public com.google.protobuf.ByteString
+          getRequestIdBytes() {
+        java.lang.Object ref = requestId_;
+        if (ref instanceof String) {
+          com.google.protobuf.ByteString b =
+              com.google.protobuf.ByteString.copyFromUtf8(
+                  (java.lang.String) ref);
+          requestId_ = b;
+          return b;
+        } else {
+          return (com.google.protobuf.ByteString) ref;
+        }
+      }
+      /**
+       * <code>string request_id = 3;</code>
+       * @param value The requestId to set.
+       * @return This builder for chaining.
+       */
+      public Builder setRequestId(
+          java.lang.String value) {
+        if (value == null) { throw new NullPointerException(); }
+        requestId_ = value;
+        bitField0_ |= 0x00000004;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string request_id = 3;</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearRequestId() {
+        requestId_ = getDefaultInstance().getRequestId();
+        bitField0_ = (bitField0_ & ~0x00000004);
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>string request_id = 3;</code>
+       * @param value The bytes for requestId to set.
+       * @return This builder for chaining.
+       */
+      public Builder setRequestIdBytes(
+          com.google.protobuf.ByteString value) {
+        if (value == null) { throw new NullPointerException(); }
+        checkByteStringIsUtf8(value);
+        requestId_ = value;
+        bitField0_ |= 0x00000004;
+        onChanged();
+        return this;
+      }
+
+      // @@protoc_insertion_point(builder_scope:message.AgentError)
+    }
+
+    // @@protoc_insertion_point(class_scope:message.AgentError)
+    private static final org.jumpserver.wisp.ServiceOuterClass.AgentError DEFAULT_INSTANCE;
+    static {
+      DEFAULT_INSTANCE = new org.jumpserver.wisp.ServiceOuterClass.AgentError();
+    }
+
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentError getDefaultInstance() {
+      return DEFAULT_INSTANCE;
+    }
+
+    private static final com.google.protobuf.Parser<AgentError>
+        PARSER = new com.google.protobuf.AbstractParser<AgentError>() {
+      @java.lang.Override
+      public AgentError parsePartialFrom(
+          com.google.protobuf.CodedInputStream input,
+          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          throws com.google.protobuf.InvalidProtocolBufferException {
+        Builder builder = newBuilder();
+        try {
+          builder.mergeFrom(input, extensionRegistry);
+        } catch (com.google.protobuf.InvalidProtocolBufferException e) {
+          throw e.setUnfinishedMessage(builder.buildPartial());
+        } catch (com.google.protobuf.UninitializedMessageException e) {
+          throw e.asInvalidProtocolBufferException().setUnfinishedMessage(builder.buildPartial());
+        } catch (java.io.IOException e) {
+          throw new com.google.protobuf.InvalidProtocolBufferException(e)
+              .setUnfinishedMessage(builder.buildPartial());
+        }
+        return builder.buildPartial();
+      }
+    };
+
+    public static com.google.protobuf.Parser<AgentError> parser() {
+      return PARSER;
+    }
+
+    @java.lang.Override
+    public com.google.protobuf.Parser<AgentError> getParserForType() {
+      return PARSER;
+    }
+
+    @java.lang.Override
+    public org.jumpserver.wisp.ServiceOuterClass.AgentError getDefaultInstanceForType() {
+      return DEFAULT_INSTANCE;
+    }
+
+  }
+
+  public interface AgentServerEventOrBuilder extends
+      // @@protoc_insertion_point(interface_extends:message.AgentServerEvent)
+      com.google.protobuf.MessageOrBuilder {
+
+    /**
+     * <code>.message.AgentReady ready = 1;</code>
+     * @return Whether the ready field is set.
+     */
+    boolean hasReady();
+    /**
+     * <code>.message.AgentReady ready = 1;</code>
+     * @return The ready.
+     */
+    org.jumpserver.wisp.ServiceOuterClass.AgentReady getReady();
+    /**
+     * <code>.message.AgentReady ready = 1;</code>
+     */
+    org.jumpserver.wisp.ServiceOuterClass.AgentReadyOrBuilder getReadyOrBuilder();
+
+    /**
+     * <code>.message.AgentChatMessage chat = 2;</code>
+     * @return Whether the chat field is set.
+     */
+    boolean hasChat();
+    /**
+     * <code>.message.AgentChatMessage chat = 2;</code>
+     * @return The chat.
+     */
+    org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage getChat();
+    /**
+     * <code>.message.AgentChatMessage chat = 2;</code>
+     */
+    org.jumpserver.wisp.ServiceOuterClass.AgentChatMessageOrBuilder getChatOrBuilder();
+
+    /**
+     * <code>.message.AgentToolCall tool_call = 3;</code>
+     * @return Whether the toolCall field is set.
+     */
+    boolean hasToolCall();
+    /**
+     * <code>.message.AgentToolCall tool_call = 3;</code>
+     * @return The toolCall.
+     */
+    org.jumpserver.wisp.ServiceOuterClass.AgentToolCall getToolCall();
+    /**
+     * <code>.message.AgentToolCall tool_call = 3;</code>
+     */
+    org.jumpserver.wisp.ServiceOuterClass.AgentToolCallOrBuilder getToolCallOrBuilder();
+
+    /**
+     * <code>.message.AgentError error = 4;</code>
+     * @return Whether the error field is set.
+     */
+    boolean hasError();
+    /**
+     * <code>.message.AgentError error = 4;</code>
+     * @return The error.
+     */
+    org.jumpserver.wisp.ServiceOuterClass.AgentError getError();
+    /**
+     * <code>.message.AgentError error = 4;</code>
+     */
+    org.jumpserver.wisp.ServiceOuterClass.AgentErrorOrBuilder getErrorOrBuilder();
+
+    org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent.EventCase getEventCase();
+  }
+  /**
+   * Protobuf type {@code message.AgentServerEvent}
+   */
+  public static final class AgentServerEvent extends
+      com.google.protobuf.GeneratedMessage implements
+      // @@protoc_insertion_point(message_implements:message.AgentServerEvent)
+      AgentServerEventOrBuilder {
+  private static final long serialVersionUID = 0L;
+    static {
+      com.google.protobuf.RuntimeVersion.validateProtobufGencodeVersion(
+        com.google.protobuf.RuntimeVersion.RuntimeDomain.PUBLIC,
+        /* major= */ 4,
+        /* minor= */ 32,
+        /* patch= */ 1,
+        /* suffix= */ "",
+        AgentServerEvent.class.getName());
+    }
+    // Use AgentServerEvent.newBuilder() to construct.
+    private AgentServerEvent(com.google.protobuf.GeneratedMessage.Builder<?> builder) {
+      super(builder);
+    }
+    private AgentServerEvent() {
+    }
+
+    public static final com.google.protobuf.Descriptors.Descriptor
+        getDescriptor() {
+      return org.jumpserver.wisp.ServiceOuterClass.internal_static_message_AgentServerEvent_descriptor;
+    }
+
+    @java.lang.Override
+    protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
+        internalGetFieldAccessorTable() {
+      return org.jumpserver.wisp.ServiceOuterClass.internal_static_message_AgentServerEvent_fieldAccessorTable
+          .ensureFieldAccessorsInitialized(
+              org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent.class, org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent.Builder.class);
+    }
+
+    private int eventCase_ = 0;
+    @SuppressWarnings("serial")
+    private java.lang.Object event_;
+    public enum EventCase
+        implements com.google.protobuf.Internal.EnumLite,
+            com.google.protobuf.AbstractMessage.InternalOneOfEnum {
+      READY(1),
+      CHAT(2),
+      TOOL_CALL(3),
+      ERROR(4),
+      EVENT_NOT_SET(0);
+      private final int value;
+      private EventCase(int value) {
+        this.value = value;
+      }
+      /**
+       * @param value The number of the enum to look for.
+       * @return The enum associated with the given number.
+       * @deprecated Use {@link #forNumber(int)} instead.
+       */
+      @java.lang.Deprecated
+      public static EventCase valueOf(int value) {
+        return forNumber(value);
+      }
+
+      public static EventCase forNumber(int value) {
+        switch (value) {
+          case 1: return READY;
+          case 2: return CHAT;
+          case 3: return TOOL_CALL;
+          case 4: return ERROR;
+          case 0: return EVENT_NOT_SET;
+          default: return null;
+        }
+      }
+      public int getNumber() {
+        return this.value;
+      }
+    };
+
+    public EventCase
+    getEventCase() {
+      return EventCase.forNumber(
+          eventCase_);
+    }
+
+    public static final int READY_FIELD_NUMBER = 1;
+    /**
+     * <code>.message.AgentReady ready = 1;</code>
+     * @return Whether the ready field is set.
+     */
+    @java.lang.Override
+    public boolean hasReady() {
+      return eventCase_ == 1;
+    }
+    /**
+     * <code>.message.AgentReady ready = 1;</code>
+     * @return The ready.
+     */
+    @java.lang.Override
+    public org.jumpserver.wisp.ServiceOuterClass.AgentReady getReady() {
+      if (eventCase_ == 1) {
+         return (org.jumpserver.wisp.ServiceOuterClass.AgentReady) event_;
+      }
+      return org.jumpserver.wisp.ServiceOuterClass.AgentReady.getDefaultInstance();
+    }
+    /**
+     * <code>.message.AgentReady ready = 1;</code>
+     */
+    @java.lang.Override
+    public org.jumpserver.wisp.ServiceOuterClass.AgentReadyOrBuilder getReadyOrBuilder() {
+      if (eventCase_ == 1) {
+         return (org.jumpserver.wisp.ServiceOuterClass.AgentReady) event_;
+      }
+      return org.jumpserver.wisp.ServiceOuterClass.AgentReady.getDefaultInstance();
+    }
+
+    public static final int CHAT_FIELD_NUMBER = 2;
+    /**
+     * <code>.message.AgentChatMessage chat = 2;</code>
+     * @return Whether the chat field is set.
+     */
+    @java.lang.Override
+    public boolean hasChat() {
+      return eventCase_ == 2;
+    }
+    /**
+     * <code>.message.AgentChatMessage chat = 2;</code>
+     * @return The chat.
+     */
+    @java.lang.Override
+    public org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage getChat() {
+      if (eventCase_ == 2) {
+         return (org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage) event_;
+      }
+      return org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage.getDefaultInstance();
+    }
+    /**
+     * <code>.message.AgentChatMessage chat = 2;</code>
+     */
+    @java.lang.Override
+    public org.jumpserver.wisp.ServiceOuterClass.AgentChatMessageOrBuilder getChatOrBuilder() {
+      if (eventCase_ == 2) {
+         return (org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage) event_;
+      }
+      return org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage.getDefaultInstance();
+    }
+
+    public static final int TOOL_CALL_FIELD_NUMBER = 3;
+    /**
+     * <code>.message.AgentToolCall tool_call = 3;</code>
+     * @return Whether the toolCall field is set.
+     */
+    @java.lang.Override
+    public boolean hasToolCall() {
+      return eventCase_ == 3;
+    }
+    /**
+     * <code>.message.AgentToolCall tool_call = 3;</code>
+     * @return The toolCall.
+     */
+    @java.lang.Override
+    public org.jumpserver.wisp.ServiceOuterClass.AgentToolCall getToolCall() {
+      if (eventCase_ == 3) {
+         return (org.jumpserver.wisp.ServiceOuterClass.AgentToolCall) event_;
+      }
+      return org.jumpserver.wisp.ServiceOuterClass.AgentToolCall.getDefaultInstance();
+    }
+    /**
+     * <code>.message.AgentToolCall tool_call = 3;</code>
+     */
+    @java.lang.Override
+    public org.jumpserver.wisp.ServiceOuterClass.AgentToolCallOrBuilder getToolCallOrBuilder() {
+      if (eventCase_ == 3) {
+         return (org.jumpserver.wisp.ServiceOuterClass.AgentToolCall) event_;
+      }
+      return org.jumpserver.wisp.ServiceOuterClass.AgentToolCall.getDefaultInstance();
+    }
+
+    public static final int ERROR_FIELD_NUMBER = 4;
+    /**
+     * <code>.message.AgentError error = 4;</code>
+     * @return Whether the error field is set.
+     */
+    @java.lang.Override
+    public boolean hasError() {
+      return eventCase_ == 4;
+    }
+    /**
+     * <code>.message.AgentError error = 4;</code>
+     * @return The error.
+     */
+    @java.lang.Override
+    public org.jumpserver.wisp.ServiceOuterClass.AgentError getError() {
+      if (eventCase_ == 4) {
+         return (org.jumpserver.wisp.ServiceOuterClass.AgentError) event_;
+      }
+      return org.jumpserver.wisp.ServiceOuterClass.AgentError.getDefaultInstance();
+    }
+    /**
+     * <code>.message.AgentError error = 4;</code>
+     */
+    @java.lang.Override
+    public org.jumpserver.wisp.ServiceOuterClass.AgentErrorOrBuilder getErrorOrBuilder() {
+      if (eventCase_ == 4) {
+         return (org.jumpserver.wisp.ServiceOuterClass.AgentError) event_;
+      }
+      return org.jumpserver.wisp.ServiceOuterClass.AgentError.getDefaultInstance();
+    }
+
+    private byte memoizedIsInitialized = -1;
+    @java.lang.Override
+    public final boolean isInitialized() {
+      byte isInitialized = memoizedIsInitialized;
+      if (isInitialized == 1) return true;
+      if (isInitialized == 0) return false;
+
+      memoizedIsInitialized = 1;
+      return true;
+    }
+
+    @java.lang.Override
+    public void writeTo(com.google.protobuf.CodedOutputStream output)
+                        throws java.io.IOException {
+      if (eventCase_ == 1) {
+        output.writeMessage(1, (org.jumpserver.wisp.ServiceOuterClass.AgentReady) event_);
+      }
+      if (eventCase_ == 2) {
+        output.writeMessage(2, (org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage) event_);
+      }
+      if (eventCase_ == 3) {
+        output.writeMessage(3, (org.jumpserver.wisp.ServiceOuterClass.AgentToolCall) event_);
+      }
+      if (eventCase_ == 4) {
+        output.writeMessage(4, (org.jumpserver.wisp.ServiceOuterClass.AgentError) event_);
+      }
+      getUnknownFields().writeTo(output);
+    }
+
+    @java.lang.Override
+    public int getSerializedSize() {
+      int size = memoizedSize;
+      if (size != -1) return size;
+
+      size = 0;
+      if (eventCase_ == 1) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeMessageSize(1, (org.jumpserver.wisp.ServiceOuterClass.AgentReady) event_);
+      }
+      if (eventCase_ == 2) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeMessageSize(2, (org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage) event_);
+      }
+      if (eventCase_ == 3) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeMessageSize(3, (org.jumpserver.wisp.ServiceOuterClass.AgentToolCall) event_);
+      }
+      if (eventCase_ == 4) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeMessageSize(4, (org.jumpserver.wisp.ServiceOuterClass.AgentError) event_);
+      }
+      size += getUnknownFields().getSerializedSize();
+      memoizedSize = size;
+      return size;
+    }
+
+    @java.lang.Override
+    public boolean equals(final java.lang.Object obj) {
+      if (obj == this) {
+       return true;
+      }
+      if (!(obj instanceof org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent)) {
+        return super.equals(obj);
+      }
+      org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent other = (org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent) obj;
+
+      if (!getEventCase().equals(other.getEventCase())) return false;
+      switch (eventCase_) {
+        case 1:
+          if (!getReady()
+              .equals(other.getReady())) return false;
+          break;
+        case 2:
+          if (!getChat()
+              .equals(other.getChat())) return false;
+          break;
+        case 3:
+          if (!getToolCall()
+              .equals(other.getToolCall())) return false;
+          break;
+        case 4:
+          if (!getError()
+              .equals(other.getError())) return false;
+          break;
+        case 0:
+        default:
+      }
+      if (!getUnknownFields().equals(other.getUnknownFields())) return false;
+      return true;
+    }
+
+    @java.lang.Override
+    public int hashCode() {
+      if (memoizedHashCode != 0) {
+        return memoizedHashCode;
+      }
+      int hash = 41;
+      hash = (19 * hash) + getDescriptor().hashCode();
+      switch (eventCase_) {
+        case 1:
+          hash = (37 * hash) + READY_FIELD_NUMBER;
+          hash = (53 * hash) + getReady().hashCode();
+          break;
+        case 2:
+          hash = (37 * hash) + CHAT_FIELD_NUMBER;
+          hash = (53 * hash) + getChat().hashCode();
+          break;
+        case 3:
+          hash = (37 * hash) + TOOL_CALL_FIELD_NUMBER;
+          hash = (53 * hash) + getToolCall().hashCode();
+          break;
+        case 4:
+          hash = (37 * hash) + ERROR_FIELD_NUMBER;
+          hash = (53 * hash) + getError().hashCode();
+          break;
+        case 0:
+        default:
+      }
+      hash = (29 * hash) + getUnknownFields().hashCode();
+      memoizedHashCode = hash;
+      return hash;
+    }
+
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent parseFrom(
+        java.nio.ByteBuffer data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent parseFrom(
+        java.nio.ByteBuffer data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent parseFrom(
+        com.google.protobuf.ByteString data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent parseFrom(
+        com.google.protobuf.ByteString data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent parseFrom(byte[] data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent parseFrom(
+        byte[] data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent parseFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseWithIOException(PARSER, input);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent parseFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseWithIOException(PARSER, input, extensionRegistry);
+    }
+
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent parseDelimitedFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseDelimitedWithIOException(PARSER, input);
+    }
+
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent parseDelimitedFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseDelimitedWithIOException(PARSER, input, extensionRegistry);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent parseFrom(
+        com.google.protobuf.CodedInputStream input)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseWithIOException(PARSER, input);
+    }
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent parseFrom(
+        com.google.protobuf.CodedInputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseWithIOException(PARSER, input, extensionRegistry);
+    }
+
+    @java.lang.Override
+    public Builder newBuilderForType() { return newBuilder(); }
+    public static Builder newBuilder() {
+      return DEFAULT_INSTANCE.toBuilder();
+    }
+    public static Builder newBuilder(org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent prototype) {
+      return DEFAULT_INSTANCE.toBuilder().mergeFrom(prototype);
+    }
+    @java.lang.Override
+    public Builder toBuilder() {
+      return this == DEFAULT_INSTANCE
+          ? new Builder() : new Builder().mergeFrom(this);
+    }
+
+    @java.lang.Override
+    protected Builder newBuilderForType(
+        com.google.protobuf.GeneratedMessage.BuilderParent parent) {
+      Builder builder = new Builder(parent);
+      return builder;
+    }
+    /**
+     * Protobuf type {@code message.AgentServerEvent}
+     */
+    public static final class Builder extends
+        com.google.protobuf.GeneratedMessage.Builder<Builder> implements
+        // @@protoc_insertion_point(builder_implements:message.AgentServerEvent)
+        org.jumpserver.wisp.ServiceOuterClass.AgentServerEventOrBuilder {
+      public static final com.google.protobuf.Descriptors.Descriptor
+          getDescriptor() {
+        return org.jumpserver.wisp.ServiceOuterClass.internal_static_message_AgentServerEvent_descriptor;
+      }
+
+      @java.lang.Override
+      protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
+          internalGetFieldAccessorTable() {
+        return org.jumpserver.wisp.ServiceOuterClass.internal_static_message_AgentServerEvent_fieldAccessorTable
+            .ensureFieldAccessorsInitialized(
+                org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent.class, org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent.Builder.class);
+      }
+
+      // Construct using org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent.newBuilder()
+      private Builder() {
+
+      }
+
+      private Builder(
+          com.google.protobuf.GeneratedMessage.BuilderParent parent) {
+        super(parent);
+
+      }
+      @java.lang.Override
+      public Builder clear() {
+        super.clear();
+        bitField0_ = 0;
+        if (readyBuilder_ != null) {
+          readyBuilder_.clear();
+        }
+        if (chatBuilder_ != null) {
+          chatBuilder_.clear();
+        }
+        if (toolCallBuilder_ != null) {
+          toolCallBuilder_.clear();
+        }
+        if (errorBuilder_ != null) {
+          errorBuilder_.clear();
+        }
+        eventCase_ = 0;
+        event_ = null;
+        return this;
+      }
+
+      @java.lang.Override
+      public com.google.protobuf.Descriptors.Descriptor
+          getDescriptorForType() {
+        return org.jumpserver.wisp.ServiceOuterClass.internal_static_message_AgentServerEvent_descriptor;
+      }
+
+      @java.lang.Override
+      public org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent getDefaultInstanceForType() {
+        return org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent.getDefaultInstance();
+      }
+
+      @java.lang.Override
+      public org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent build() {
+        org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(result);
+        }
+        return result;
+      }
+
+      @java.lang.Override
+      public org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent buildPartial() {
+        org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent result = new org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent(this);
+        if (bitField0_ != 0) { buildPartial0(result); }
+        buildPartialOneofs(result);
+        onBuilt();
+        return result;
+      }
+
+      private void buildPartial0(org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent result) {
+        int from_bitField0_ = bitField0_;
+      }
+
+      private void buildPartialOneofs(org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent result) {
+        result.eventCase_ = eventCase_;
+        result.event_ = this.event_;
+        if (eventCase_ == 1 &&
+            readyBuilder_ != null) {
+          result.event_ = readyBuilder_.build();
+        }
+        if (eventCase_ == 2 &&
+            chatBuilder_ != null) {
+          result.event_ = chatBuilder_.build();
+        }
+        if (eventCase_ == 3 &&
+            toolCallBuilder_ != null) {
+          result.event_ = toolCallBuilder_.build();
+        }
+        if (eventCase_ == 4 &&
+            errorBuilder_ != null) {
+          result.event_ = errorBuilder_.build();
+        }
+      }
+
+      @java.lang.Override
+      public Builder mergeFrom(com.google.protobuf.Message other) {
+        if (other instanceof org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent) {
+          return mergeFrom((org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent)other);
+        } else {
+          super.mergeFrom(other);
+          return this;
+        }
+      }
+
+      public Builder mergeFrom(org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent other) {
+        if (other == org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent.getDefaultInstance()) return this;
+        switch (other.getEventCase()) {
+          case READY: {
+            mergeReady(other.getReady());
+            break;
+          }
+          case CHAT: {
+            mergeChat(other.getChat());
+            break;
+          }
+          case TOOL_CALL: {
+            mergeToolCall(other.getToolCall());
+            break;
+          }
+          case ERROR: {
+            mergeError(other.getError());
+            break;
+          }
+          case EVENT_NOT_SET: {
+            break;
+          }
+        }
+        this.mergeUnknownFields(other.getUnknownFields());
+        onChanged();
+        return this;
+      }
+
+      @java.lang.Override
+      public final boolean isInitialized() {
+        return true;
+      }
+
+      @java.lang.Override
+      public Builder mergeFrom(
+          com.google.protobuf.CodedInputStream input,
+          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          throws java.io.IOException {
+        if (extensionRegistry == null) {
+          throw new java.lang.NullPointerException();
+        }
+        try {
+          boolean done = false;
+          while (!done) {
+            int tag = input.readTag();
+            switch (tag) {
+              case 0:
+                done = true;
+                break;
+              case 10: {
+                input.readMessage(
+                    internalGetReadyFieldBuilder().getBuilder(),
+                    extensionRegistry);
+                eventCase_ = 1;
+                break;
+              } // case 10
+              case 18: {
+                input.readMessage(
+                    internalGetChatFieldBuilder().getBuilder(),
+                    extensionRegistry);
+                eventCase_ = 2;
+                break;
+              } // case 18
+              case 26: {
+                input.readMessage(
+                    internalGetToolCallFieldBuilder().getBuilder(),
+                    extensionRegistry);
+                eventCase_ = 3;
+                break;
+              } // case 26
+              case 34: {
+                input.readMessage(
+                    internalGetErrorFieldBuilder().getBuilder(),
+                    extensionRegistry);
+                eventCase_ = 4;
+                break;
+              } // case 34
+              default: {
+                if (!super.parseUnknownField(input, extensionRegistry, tag)) {
+                  done = true; // was an endgroup tag
+                }
+                break;
+              } // default:
+            } // switch (tag)
+          } // while (!done)
+        } catch (com.google.protobuf.InvalidProtocolBufferException e) {
+          throw e.unwrapIOException();
+        } finally {
+          onChanged();
+        } // finally
+        return this;
+      }
+      private int eventCase_ = 0;
+      private java.lang.Object event_;
+      public EventCase
+          getEventCase() {
+        return EventCase.forNumber(
+            eventCase_);
+      }
+
+      public Builder clearEvent() {
+        eventCase_ = 0;
+        event_ = null;
+        onChanged();
+        return this;
+      }
+
+      private int bitField0_;
+
+      private com.google.protobuf.SingleFieldBuilder<
+          org.jumpserver.wisp.ServiceOuterClass.AgentReady, org.jumpserver.wisp.ServiceOuterClass.AgentReady.Builder, org.jumpserver.wisp.ServiceOuterClass.AgentReadyOrBuilder> readyBuilder_;
+      /**
+       * <code>.message.AgentReady ready = 1;</code>
+       * @return Whether the ready field is set.
+       */
+      @java.lang.Override
+      public boolean hasReady() {
+        return eventCase_ == 1;
+      }
+      /**
+       * <code>.message.AgentReady ready = 1;</code>
+       * @return The ready.
+       */
+      @java.lang.Override
+      public org.jumpserver.wisp.ServiceOuterClass.AgentReady getReady() {
+        if (readyBuilder_ == null) {
+          if (eventCase_ == 1) {
+            return (org.jumpserver.wisp.ServiceOuterClass.AgentReady) event_;
+          }
+          return org.jumpserver.wisp.ServiceOuterClass.AgentReady.getDefaultInstance();
+        } else {
+          if (eventCase_ == 1) {
+            return readyBuilder_.getMessage();
+          }
+          return org.jumpserver.wisp.ServiceOuterClass.AgentReady.getDefaultInstance();
+        }
+      }
+      /**
+       * <code>.message.AgentReady ready = 1;</code>
+       */
+      public Builder setReady(org.jumpserver.wisp.ServiceOuterClass.AgentReady value) {
+        if (readyBuilder_ == null) {
+          if (value == null) {
+            throw new NullPointerException();
+          }
+          event_ = value;
+          onChanged();
+        } else {
+          readyBuilder_.setMessage(value);
+        }
+        eventCase_ = 1;
+        return this;
+      }
+      /**
+       * <code>.message.AgentReady ready = 1;</code>
+       */
+      public Builder setReady(
+          org.jumpserver.wisp.ServiceOuterClass.AgentReady.Builder builderForValue) {
+        if (readyBuilder_ == null) {
+          event_ = builderForValue.build();
+          onChanged();
+        } else {
+          readyBuilder_.setMessage(builderForValue.build());
+        }
+        eventCase_ = 1;
+        return this;
+      }
+      /**
+       * <code>.message.AgentReady ready = 1;</code>
+       */
+      public Builder mergeReady(org.jumpserver.wisp.ServiceOuterClass.AgentReady value) {
+        if (readyBuilder_ == null) {
+          if (eventCase_ == 1 &&
+              event_ != org.jumpserver.wisp.ServiceOuterClass.AgentReady.getDefaultInstance()) {
+            event_ = org.jumpserver.wisp.ServiceOuterClass.AgentReady.newBuilder((org.jumpserver.wisp.ServiceOuterClass.AgentReady) event_)
+                .mergeFrom(value).buildPartial();
+          } else {
+            event_ = value;
+          }
+          onChanged();
+        } else {
+          if (eventCase_ == 1) {
+            readyBuilder_.mergeFrom(value);
+          } else {
+            readyBuilder_.setMessage(value);
+          }
+        }
+        eventCase_ = 1;
+        return this;
+      }
+      /**
+       * <code>.message.AgentReady ready = 1;</code>
+       */
+      public Builder clearReady() {
+        if (readyBuilder_ == null) {
+          if (eventCase_ == 1) {
+            eventCase_ = 0;
+            event_ = null;
+            onChanged();
+          }
+        } else {
+          if (eventCase_ == 1) {
+            eventCase_ = 0;
+            event_ = null;
+          }
+          readyBuilder_.clear();
+        }
+        return this;
+      }
+      /**
+       * <code>.message.AgentReady ready = 1;</code>
+       */
+      public org.jumpserver.wisp.ServiceOuterClass.AgentReady.Builder getReadyBuilder() {
+        return internalGetReadyFieldBuilder().getBuilder();
+      }
+      /**
+       * <code>.message.AgentReady ready = 1;</code>
+       */
+      @java.lang.Override
+      public org.jumpserver.wisp.ServiceOuterClass.AgentReadyOrBuilder getReadyOrBuilder() {
+        if ((eventCase_ == 1) && (readyBuilder_ != null)) {
+          return readyBuilder_.getMessageOrBuilder();
+        } else {
+          if (eventCase_ == 1) {
+            return (org.jumpserver.wisp.ServiceOuterClass.AgentReady) event_;
+          }
+          return org.jumpserver.wisp.ServiceOuterClass.AgentReady.getDefaultInstance();
+        }
+      }
+      /**
+       * <code>.message.AgentReady ready = 1;</code>
+       */
+      private com.google.protobuf.SingleFieldBuilder<
+          org.jumpserver.wisp.ServiceOuterClass.AgentReady, org.jumpserver.wisp.ServiceOuterClass.AgentReady.Builder, org.jumpserver.wisp.ServiceOuterClass.AgentReadyOrBuilder>
+          internalGetReadyFieldBuilder() {
+        if (readyBuilder_ == null) {
+          if (!(eventCase_ == 1)) {
+            event_ = org.jumpserver.wisp.ServiceOuterClass.AgentReady.getDefaultInstance();
+          }
+          readyBuilder_ = new com.google.protobuf.SingleFieldBuilder<
+              org.jumpserver.wisp.ServiceOuterClass.AgentReady, org.jumpserver.wisp.ServiceOuterClass.AgentReady.Builder, org.jumpserver.wisp.ServiceOuterClass.AgentReadyOrBuilder>(
+                  (org.jumpserver.wisp.ServiceOuterClass.AgentReady) event_,
+                  getParentForChildren(),
+                  isClean());
+          event_ = null;
+        }
+        eventCase_ = 1;
+        onChanged();
+        return readyBuilder_;
+      }
+
+      private com.google.protobuf.SingleFieldBuilder<
+          org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage, org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage.Builder, org.jumpserver.wisp.ServiceOuterClass.AgentChatMessageOrBuilder> chatBuilder_;
+      /**
+       * <code>.message.AgentChatMessage chat = 2;</code>
+       * @return Whether the chat field is set.
+       */
+      @java.lang.Override
+      public boolean hasChat() {
+        return eventCase_ == 2;
+      }
+      /**
+       * <code>.message.AgentChatMessage chat = 2;</code>
+       * @return The chat.
+       */
+      @java.lang.Override
+      public org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage getChat() {
+        if (chatBuilder_ == null) {
+          if (eventCase_ == 2) {
+            return (org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage) event_;
+          }
+          return org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage.getDefaultInstance();
+        } else {
+          if (eventCase_ == 2) {
+            return chatBuilder_.getMessage();
+          }
+          return org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage.getDefaultInstance();
+        }
+      }
+      /**
+       * <code>.message.AgentChatMessage chat = 2;</code>
+       */
+      public Builder setChat(org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage value) {
+        if (chatBuilder_ == null) {
+          if (value == null) {
+            throw new NullPointerException();
+          }
+          event_ = value;
+          onChanged();
+        } else {
+          chatBuilder_.setMessage(value);
+        }
+        eventCase_ = 2;
+        return this;
+      }
+      /**
+       * <code>.message.AgentChatMessage chat = 2;</code>
+       */
+      public Builder setChat(
+          org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage.Builder builderForValue) {
+        if (chatBuilder_ == null) {
+          event_ = builderForValue.build();
+          onChanged();
+        } else {
+          chatBuilder_.setMessage(builderForValue.build());
+        }
+        eventCase_ = 2;
+        return this;
+      }
+      /**
+       * <code>.message.AgentChatMessage chat = 2;</code>
+       */
+      public Builder mergeChat(org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage value) {
+        if (chatBuilder_ == null) {
+          if (eventCase_ == 2 &&
+              event_ != org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage.getDefaultInstance()) {
+            event_ = org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage.newBuilder((org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage) event_)
+                .mergeFrom(value).buildPartial();
+          } else {
+            event_ = value;
+          }
+          onChanged();
+        } else {
+          if (eventCase_ == 2) {
+            chatBuilder_.mergeFrom(value);
+          } else {
+            chatBuilder_.setMessage(value);
+          }
+        }
+        eventCase_ = 2;
+        return this;
+      }
+      /**
+       * <code>.message.AgentChatMessage chat = 2;</code>
+       */
+      public Builder clearChat() {
+        if (chatBuilder_ == null) {
+          if (eventCase_ == 2) {
+            eventCase_ = 0;
+            event_ = null;
+            onChanged();
+          }
+        } else {
+          if (eventCase_ == 2) {
+            eventCase_ = 0;
+            event_ = null;
+          }
+          chatBuilder_.clear();
+        }
+        return this;
+      }
+      /**
+       * <code>.message.AgentChatMessage chat = 2;</code>
+       */
+      public org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage.Builder getChatBuilder() {
+        return internalGetChatFieldBuilder().getBuilder();
+      }
+      /**
+       * <code>.message.AgentChatMessage chat = 2;</code>
+       */
+      @java.lang.Override
+      public org.jumpserver.wisp.ServiceOuterClass.AgentChatMessageOrBuilder getChatOrBuilder() {
+        if ((eventCase_ == 2) && (chatBuilder_ != null)) {
+          return chatBuilder_.getMessageOrBuilder();
+        } else {
+          if (eventCase_ == 2) {
+            return (org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage) event_;
+          }
+          return org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage.getDefaultInstance();
+        }
+      }
+      /**
+       * <code>.message.AgentChatMessage chat = 2;</code>
+       */
+      private com.google.protobuf.SingleFieldBuilder<
+          org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage, org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage.Builder, org.jumpserver.wisp.ServiceOuterClass.AgentChatMessageOrBuilder>
+          internalGetChatFieldBuilder() {
+        if (chatBuilder_ == null) {
+          if (!(eventCase_ == 2)) {
+            event_ = org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage.getDefaultInstance();
+          }
+          chatBuilder_ = new com.google.protobuf.SingleFieldBuilder<
+              org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage, org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage.Builder, org.jumpserver.wisp.ServiceOuterClass.AgentChatMessageOrBuilder>(
+                  (org.jumpserver.wisp.ServiceOuterClass.AgentChatMessage) event_,
+                  getParentForChildren(),
+                  isClean());
+          event_ = null;
+        }
+        eventCase_ = 2;
+        onChanged();
+        return chatBuilder_;
+      }
+
+      private com.google.protobuf.SingleFieldBuilder<
+          org.jumpserver.wisp.ServiceOuterClass.AgentToolCall, org.jumpserver.wisp.ServiceOuterClass.AgentToolCall.Builder, org.jumpserver.wisp.ServiceOuterClass.AgentToolCallOrBuilder> toolCallBuilder_;
+      /**
+       * <code>.message.AgentToolCall tool_call = 3;</code>
+       * @return Whether the toolCall field is set.
+       */
+      @java.lang.Override
+      public boolean hasToolCall() {
+        return eventCase_ == 3;
+      }
+      /**
+       * <code>.message.AgentToolCall tool_call = 3;</code>
+       * @return The toolCall.
+       */
+      @java.lang.Override
+      public org.jumpserver.wisp.ServiceOuterClass.AgentToolCall getToolCall() {
+        if (toolCallBuilder_ == null) {
+          if (eventCase_ == 3) {
+            return (org.jumpserver.wisp.ServiceOuterClass.AgentToolCall) event_;
+          }
+          return org.jumpserver.wisp.ServiceOuterClass.AgentToolCall.getDefaultInstance();
+        } else {
+          if (eventCase_ == 3) {
+            return toolCallBuilder_.getMessage();
+          }
+          return org.jumpserver.wisp.ServiceOuterClass.AgentToolCall.getDefaultInstance();
+        }
+      }
+      /**
+       * <code>.message.AgentToolCall tool_call = 3;</code>
+       */
+      public Builder setToolCall(org.jumpserver.wisp.ServiceOuterClass.AgentToolCall value) {
+        if (toolCallBuilder_ == null) {
+          if (value == null) {
+            throw new NullPointerException();
+          }
+          event_ = value;
+          onChanged();
+        } else {
+          toolCallBuilder_.setMessage(value);
+        }
+        eventCase_ = 3;
+        return this;
+      }
+      /**
+       * <code>.message.AgentToolCall tool_call = 3;</code>
+       */
+      public Builder setToolCall(
+          org.jumpserver.wisp.ServiceOuterClass.AgentToolCall.Builder builderForValue) {
+        if (toolCallBuilder_ == null) {
+          event_ = builderForValue.build();
+          onChanged();
+        } else {
+          toolCallBuilder_.setMessage(builderForValue.build());
+        }
+        eventCase_ = 3;
+        return this;
+      }
+      /**
+       * <code>.message.AgentToolCall tool_call = 3;</code>
+       */
+      public Builder mergeToolCall(org.jumpserver.wisp.ServiceOuterClass.AgentToolCall value) {
+        if (toolCallBuilder_ == null) {
+          if (eventCase_ == 3 &&
+              event_ != org.jumpserver.wisp.ServiceOuterClass.AgentToolCall.getDefaultInstance()) {
+            event_ = org.jumpserver.wisp.ServiceOuterClass.AgentToolCall.newBuilder((org.jumpserver.wisp.ServiceOuterClass.AgentToolCall) event_)
+                .mergeFrom(value).buildPartial();
+          } else {
+            event_ = value;
+          }
+          onChanged();
+        } else {
+          if (eventCase_ == 3) {
+            toolCallBuilder_.mergeFrom(value);
+          } else {
+            toolCallBuilder_.setMessage(value);
+          }
+        }
+        eventCase_ = 3;
+        return this;
+      }
+      /**
+       * <code>.message.AgentToolCall tool_call = 3;</code>
+       */
+      public Builder clearToolCall() {
+        if (toolCallBuilder_ == null) {
+          if (eventCase_ == 3) {
+            eventCase_ = 0;
+            event_ = null;
+            onChanged();
+          }
+        } else {
+          if (eventCase_ == 3) {
+            eventCase_ = 0;
+            event_ = null;
+          }
+          toolCallBuilder_.clear();
+        }
+        return this;
+      }
+      /**
+       * <code>.message.AgentToolCall tool_call = 3;</code>
+       */
+      public org.jumpserver.wisp.ServiceOuterClass.AgentToolCall.Builder getToolCallBuilder() {
+        return internalGetToolCallFieldBuilder().getBuilder();
+      }
+      /**
+       * <code>.message.AgentToolCall tool_call = 3;</code>
+       */
+      @java.lang.Override
+      public org.jumpserver.wisp.ServiceOuterClass.AgentToolCallOrBuilder getToolCallOrBuilder() {
+        if ((eventCase_ == 3) && (toolCallBuilder_ != null)) {
+          return toolCallBuilder_.getMessageOrBuilder();
+        } else {
+          if (eventCase_ == 3) {
+            return (org.jumpserver.wisp.ServiceOuterClass.AgentToolCall) event_;
+          }
+          return org.jumpserver.wisp.ServiceOuterClass.AgentToolCall.getDefaultInstance();
+        }
+      }
+      /**
+       * <code>.message.AgentToolCall tool_call = 3;</code>
+       */
+      private com.google.protobuf.SingleFieldBuilder<
+          org.jumpserver.wisp.ServiceOuterClass.AgentToolCall, org.jumpserver.wisp.ServiceOuterClass.AgentToolCall.Builder, org.jumpserver.wisp.ServiceOuterClass.AgentToolCallOrBuilder>
+          internalGetToolCallFieldBuilder() {
+        if (toolCallBuilder_ == null) {
+          if (!(eventCase_ == 3)) {
+            event_ = org.jumpserver.wisp.ServiceOuterClass.AgentToolCall.getDefaultInstance();
+          }
+          toolCallBuilder_ = new com.google.protobuf.SingleFieldBuilder<
+              org.jumpserver.wisp.ServiceOuterClass.AgentToolCall, org.jumpserver.wisp.ServiceOuterClass.AgentToolCall.Builder, org.jumpserver.wisp.ServiceOuterClass.AgentToolCallOrBuilder>(
+                  (org.jumpserver.wisp.ServiceOuterClass.AgentToolCall) event_,
+                  getParentForChildren(),
+                  isClean());
+          event_ = null;
+        }
+        eventCase_ = 3;
+        onChanged();
+        return toolCallBuilder_;
+      }
+
+      private com.google.protobuf.SingleFieldBuilder<
+          org.jumpserver.wisp.ServiceOuterClass.AgentError, org.jumpserver.wisp.ServiceOuterClass.AgentError.Builder, org.jumpserver.wisp.ServiceOuterClass.AgentErrorOrBuilder> errorBuilder_;
+      /**
+       * <code>.message.AgentError error = 4;</code>
+       * @return Whether the error field is set.
+       */
+      @java.lang.Override
+      public boolean hasError() {
+        return eventCase_ == 4;
+      }
+      /**
+       * <code>.message.AgentError error = 4;</code>
+       * @return The error.
+       */
+      @java.lang.Override
+      public org.jumpserver.wisp.ServiceOuterClass.AgentError getError() {
+        if (errorBuilder_ == null) {
+          if (eventCase_ == 4) {
+            return (org.jumpserver.wisp.ServiceOuterClass.AgentError) event_;
+          }
+          return org.jumpserver.wisp.ServiceOuterClass.AgentError.getDefaultInstance();
+        } else {
+          if (eventCase_ == 4) {
+            return errorBuilder_.getMessage();
+          }
+          return org.jumpserver.wisp.ServiceOuterClass.AgentError.getDefaultInstance();
+        }
+      }
+      /**
+       * <code>.message.AgentError error = 4;</code>
+       */
+      public Builder setError(org.jumpserver.wisp.ServiceOuterClass.AgentError value) {
+        if (errorBuilder_ == null) {
+          if (value == null) {
+            throw new NullPointerException();
+          }
+          event_ = value;
+          onChanged();
+        } else {
+          errorBuilder_.setMessage(value);
+        }
+        eventCase_ = 4;
+        return this;
+      }
+      /**
+       * <code>.message.AgentError error = 4;</code>
+       */
+      public Builder setError(
+          org.jumpserver.wisp.ServiceOuterClass.AgentError.Builder builderForValue) {
+        if (errorBuilder_ == null) {
+          event_ = builderForValue.build();
+          onChanged();
+        } else {
+          errorBuilder_.setMessage(builderForValue.build());
+        }
+        eventCase_ = 4;
+        return this;
+      }
+      /**
+       * <code>.message.AgentError error = 4;</code>
+       */
+      public Builder mergeError(org.jumpserver.wisp.ServiceOuterClass.AgentError value) {
+        if (errorBuilder_ == null) {
+          if (eventCase_ == 4 &&
+              event_ != org.jumpserver.wisp.ServiceOuterClass.AgentError.getDefaultInstance()) {
+            event_ = org.jumpserver.wisp.ServiceOuterClass.AgentError.newBuilder((org.jumpserver.wisp.ServiceOuterClass.AgentError) event_)
+                .mergeFrom(value).buildPartial();
+          } else {
+            event_ = value;
+          }
+          onChanged();
+        } else {
+          if (eventCase_ == 4) {
+            errorBuilder_.mergeFrom(value);
+          } else {
+            errorBuilder_.setMessage(value);
+          }
+        }
+        eventCase_ = 4;
+        return this;
+      }
+      /**
+       * <code>.message.AgentError error = 4;</code>
+       */
+      public Builder clearError() {
+        if (errorBuilder_ == null) {
+          if (eventCase_ == 4) {
+            eventCase_ = 0;
+            event_ = null;
+            onChanged();
+          }
+        } else {
+          if (eventCase_ == 4) {
+            eventCase_ = 0;
+            event_ = null;
+          }
+          errorBuilder_.clear();
+        }
+        return this;
+      }
+      /**
+       * <code>.message.AgentError error = 4;</code>
+       */
+      public org.jumpserver.wisp.ServiceOuterClass.AgentError.Builder getErrorBuilder() {
+        return internalGetErrorFieldBuilder().getBuilder();
+      }
+      /**
+       * <code>.message.AgentError error = 4;</code>
+       */
+      @java.lang.Override
+      public org.jumpserver.wisp.ServiceOuterClass.AgentErrorOrBuilder getErrorOrBuilder() {
+        if ((eventCase_ == 4) && (errorBuilder_ != null)) {
+          return errorBuilder_.getMessageOrBuilder();
+        } else {
+          if (eventCase_ == 4) {
+            return (org.jumpserver.wisp.ServiceOuterClass.AgentError) event_;
+          }
+          return org.jumpserver.wisp.ServiceOuterClass.AgentError.getDefaultInstance();
+        }
+      }
+      /**
+       * <code>.message.AgentError error = 4;</code>
+       */
+      private com.google.protobuf.SingleFieldBuilder<
+          org.jumpserver.wisp.ServiceOuterClass.AgentError, org.jumpserver.wisp.ServiceOuterClass.AgentError.Builder, org.jumpserver.wisp.ServiceOuterClass.AgentErrorOrBuilder>
+          internalGetErrorFieldBuilder() {
+        if (errorBuilder_ == null) {
+          if (!(eventCase_ == 4)) {
+            event_ = org.jumpserver.wisp.ServiceOuterClass.AgentError.getDefaultInstance();
+          }
+          errorBuilder_ = new com.google.protobuf.SingleFieldBuilder<
+              org.jumpserver.wisp.ServiceOuterClass.AgentError, org.jumpserver.wisp.ServiceOuterClass.AgentError.Builder, org.jumpserver.wisp.ServiceOuterClass.AgentErrorOrBuilder>(
+                  (org.jumpserver.wisp.ServiceOuterClass.AgentError) event_,
+                  getParentForChildren(),
+                  isClean());
+          event_ = null;
+        }
+        eventCase_ = 4;
+        onChanged();
+        return errorBuilder_;
+      }
+
+      // @@protoc_insertion_point(builder_scope:message.AgentServerEvent)
+    }
+
+    // @@protoc_insertion_point(class_scope:message.AgentServerEvent)
+    private static final org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent DEFAULT_INSTANCE;
+    static {
+      DEFAULT_INSTANCE = new org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent();
+    }
+
+    public static org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent getDefaultInstance() {
+      return DEFAULT_INSTANCE;
+    }
+
+    private static final com.google.protobuf.Parser<AgentServerEvent>
+        PARSER = new com.google.protobuf.AbstractParser<AgentServerEvent>() {
+      @java.lang.Override
+      public AgentServerEvent parsePartialFrom(
+          com.google.protobuf.CodedInputStream input,
+          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          throws com.google.protobuf.InvalidProtocolBufferException {
+        Builder builder = newBuilder();
+        try {
+          builder.mergeFrom(input, extensionRegistry);
+        } catch (com.google.protobuf.InvalidProtocolBufferException e) {
+          throw e.setUnfinishedMessage(builder.buildPartial());
+        } catch (com.google.protobuf.UninitializedMessageException e) {
+          throw e.asInvalidProtocolBufferException().setUnfinishedMessage(builder.buildPartial());
+        } catch (java.io.IOException e) {
+          throw new com.google.protobuf.InvalidProtocolBufferException(e)
+              .setUnfinishedMessage(builder.buildPartial());
+        }
+        return builder.buildPartial();
+      }
+    };
+
+    public static com.google.protobuf.Parser<AgentServerEvent> parser() {
+      return PARSER;
+    }
+
+    @java.lang.Override
+    public com.google.protobuf.Parser<AgentServerEvent> getParserForType() {
+      return PARSER;
+    }
+
+    @java.lang.Override
+    public org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent getDefaultInstanceForType() {
+      return DEFAULT_INSTANCE;
+    }
+
+  }
+
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_JoinFaceMonitorRequest_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_JoinFaceMonitorRequest_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_JoinFaceMonitorResponse_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_JoinFaceMonitorResponse_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_FaceMonitorCallbackRequest_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_FaceMonitorCallbackRequest_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_FaceMonitorCallbackResponse_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_FaceMonitorCallbackResponse_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_FaceRecognitionCallbackRequest_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_FaceRecognitionCallbackRequest_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_FaceRecognitionCallbackResponse_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_FaceRecognitionCallbackResponse_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_AssetLoginTicketRequest_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_AssetLoginTicketRequest_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_AssetLoginTicketResponse_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_AssetLoginTicketResponse_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_Status_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_Status_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_TokenRequest_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_TokenRequest_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_TokenResponse_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_TokenResponse_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_SessionCreateRequest_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_SessionCreateRequest_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_SessionCreateResponse_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_SessionCreateResponse_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_SessionFinishRequest_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_SessionFinishRequest_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_SessionFinishResp_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_SessionFinishResp_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_ReplayRequest_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_ReplayRequest_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_ReplayResponse_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_ReplayResponse_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_CommandRequest_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_CommandRequest_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_CommandResponse_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_CommandResponse_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_FinishedTaskRequest_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_FinishedTaskRequest_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_TaskResponse_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_TaskResponse_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_RemainReplayRequest_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_RemainReplayRequest_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_RemainReplayResponse_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_RemainReplayResponse_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_StatusResponse_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_StatusResponse_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_CommandConfirmRequest_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_CommandConfirmRequest_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_ReqInfo_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_ReqInfo_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_CommandConfirmResponse_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_CommandConfirmResponse_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_TicketInfo_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_TicketInfo_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_TicketRequest_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_TicketRequest_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_TicketStateResponse_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_TicketStateResponse_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_TicketState_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_TicketState_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_ForwardRequest_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_ForwardRequest_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_ForwardDeleteRequest_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_ForwardDeleteRequest_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_ForwardResponse_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_ForwardResponse_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_PublicSettingResponse_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_PublicSettingResponse_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_Empty_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_Empty_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_ListenPortResponse_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_ListenPortResponse_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_PortInfoRequest_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_PortInfoRequest_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_PortInfoResponse_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_PortInfoResponse_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_PortInfo_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_PortInfo_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_PortFailure_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_PortFailure_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_PortFailureRequest_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_PortFailureRequest_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_CookiesRequest_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_CookiesRequest_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_UserResponse_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_UserResponse_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_SessionLifecycleLogRequest_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_SessionLifecycleLogRequest_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_AccountDetailResponse_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_AccountDetailResponse_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_HTTPRequest_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_HTTPRequest_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_HTTPRequest_QueryEntry_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_HTTPRequest_QueryEntry_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_HTTPRequest_HeaderEntry_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_HTTPRequest_HeaderEntry_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_HTTPResponse_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_HTTPResponse_fieldAccessorTable;
+  private static final com.google.protobuf.Descriptors.Descriptor
+    internal_static_message_AgentSessionOpen_descriptor;
+  private static final
+    com.google.protobuf.GeneratedMessage.FieldAccessorTable
+      internal_static_message_AgentSessionOpen_fieldAccessorTable;
+  private static final com.google.protobuf.Descriptors.Descriptor
+    internal_static_message_AgentRequest_descriptor;
+  private static final
+    com.google.protobuf.GeneratedMessage.FieldAccessorTable
+      internal_static_message_AgentRequest_fieldAccessorTable;
+  private static final com.google.protobuf.Descriptors.Descriptor
+    internal_static_message_AgentToolResult_descriptor;
+  private static final
+    com.google.protobuf.GeneratedMessage.FieldAccessorTable
+      internal_static_message_AgentToolResult_fieldAccessorTable;
+  private static final com.google.protobuf.Descriptors.Descriptor
+    internal_static_message_AgentCancel_descriptor;
+  private static final
+    com.google.protobuf.GeneratedMessage.FieldAccessorTable
+      internal_static_message_AgentCancel_fieldAccessorTable;
+  private static final com.google.protobuf.Descriptors.Descriptor
+    internal_static_message_AgentClientEvent_descriptor;
+  private static final
+    com.google.protobuf.GeneratedMessage.FieldAccessorTable
+      internal_static_message_AgentClientEvent_fieldAccessorTable;
+  private static final com.google.protobuf.Descriptors.Descriptor
+    internal_static_message_AgentReady_descriptor;
+  private static final
+    com.google.protobuf.GeneratedMessage.FieldAccessorTable
+      internal_static_message_AgentReady_fieldAccessorTable;
+  private static final com.google.protobuf.Descriptors.Descriptor
+    internal_static_message_AgentChatMessage_descriptor;
+  private static final
+    com.google.protobuf.GeneratedMessage.FieldAccessorTable
+      internal_static_message_AgentChatMessage_fieldAccessorTable;
+  private static final com.google.protobuf.Descriptors.Descriptor
+    internal_static_message_AgentToolCall_descriptor;
+  private static final
+    com.google.protobuf.GeneratedMessage.FieldAccessorTable
+      internal_static_message_AgentToolCall_fieldAccessorTable;
+  private static final com.google.protobuf.Descriptors.Descriptor
+    internal_static_message_AgentError_descriptor;
+  private static final
+    com.google.protobuf.GeneratedMessage.FieldAccessorTable
+      internal_static_message_AgentError_fieldAccessorTable;
+  private static final com.google.protobuf.Descriptors.Descriptor
+    internal_static_message_AgentServerEvent_descriptor;
+  private static final
+    com.google.protobuf.GeneratedMessage.FieldAccessorTable
+      internal_static_message_AgentServerEvent_fieldAccessorTable;
 
   public static com.google.protobuf.Descriptors.FileDescriptor
       getDescriptor() {
@@ -36820,57 +46882,86 @@ java.lang.String defaultValue) {
       "\030\002 \001(\t:\0028\001\032-\n\013HeaderEntry\022\013\n\003key\030\001 \001(\t\022\r" +
       "\n\005value\030\002 \001(\t:\0028\001\"=\n\014HTTPResponse\022\037\n\006sta" +
       "tus\030\001 \001(\0132\017.message.Status\022\014\n\004body\030\002 \001(\014" +
-      "2\245\017\n\007Service\022C\n\020GetTokenAuthInfo\022\025.messa" +
-      "ge.TokenRequest\032\026.message.TokenResponse\"" +
-      "\000\022>\n\nRenewToken\022\025.message.TokenRequest\032\027" +
-      ".message.StatusResponse\"\000\022P\n\rCreateSessi" +
-      "on\022\035.message.SessionCreateRequest\032\036.mess" +
-      "age.SessionCreateResponse\"\000\022L\n\rFinishSes" +
-      "sion\022\035.message.SessionFinishRequest\032\032.me" +
-      "ssage.SessionFinishResp\"\000\022E\n\020UploadRepla" +
-      "yFile\022\026.message.ReplayRequest\032\027.message." +
-      "ReplayResponse\"\000\022D\n\rUploadCommand\022\027.mess" +
-      "age.CommandRequest\032\030.message.CommandResp" +
-      "onse\"\000\022I\n\014DispatchTask\022\034.message.Finishe" +
-      "dTaskRequest\032\025.message.TaskResponse\"\000(\0010" +
-      "\001\022R\n\021ScanRemainReplays\022\034.message.RemainR" +
-      "eplayRequest\032\035.message.RemainReplayRespo" +
-      "nse\"\000\022X\n\023CreateCommandTicket\022\036.message.C" +
-      "ommandConfirmRequest\032\037.message.CommandCo" +
-      "nfirmResponse\"\000\022f\n\035CheckOrCreateAssetLog" +
-      "inTicket\022 .message.AssetLoginTicketReque" +
-      "st\032!.message.AssetLoginTicketResponse\"\000\022" +
-      "J\n\020CheckTicketState\022\026.message.TicketRequ" +
-      "est\032\034.message.TicketStateResponse\"\000\022A\n\014C" +
-      "ancelTicket\022\026.message.TicketRequest\032\027.me" +
-      "ssage.StatusResponse\"\000\022D\n\rCreateForward\022" +
-      "\027.message.ForwardRequest\032\030.message.Forwa" +
-      "rdResponse\"\000\022I\n\rDeleteForward\022\035.message." +
-      "ForwardDeleteRequest\032\027.message.StatusRes" +
-      "ponse\"\000\022D\n\020GetPublicSetting\022\016.message.Em" +
-      "pty\032\036.message.PublicSettingResponse\"\000\022?\n" +
-      "\016GetListenPorts\022\016.message.Empty\032\033.messag" +
-      "e.ListenPortResponse\"\000\022D\n\013GetPortInfo\022\030." +
-      "message.PortInfoRequest\032\031.message.PortIn" +
-      "foResponse\"\000\022K\n\021HandlePortFailure\022\033.mess" +
-      "age.PortFailureRequest\032\027.message.StatusR" +
-      "esponse\"\000\022F\n\022CheckUserByCookies\022\027.messag" +
-      "e.CookiesRequest\032\025.message.UserResponse\"" +
-      "\000\022[\n\031RecordSessionLifecycleLog\022#.message" +
-      ".SessionLifecycleLogRequest\032\027.message.St" +
-      "atusResponse\"\000\022n\n\027FaceRecognitionCallbac" +
-      "k\022\'.message.FaceRecognitionCallbackReque" +
-      "st\032(.message.FaceRecognitionCallbackResp" +
-      "onse\"\000\022b\n\023FaceMonitorCallback\022#.message." +
-      "FaceMonitorCallbackRequest\032$.message.Fac" +
-      "eMonitorCallbackResponse\"\000\022V\n\017JoinFaceMo" +
-      "nitor\022\037.message.JoinFaceMonitorRequest\032 " +
-      ".message.JoinFaceMonitorResponse\"\000\022B\n\016Ge" +
-      "tAccountChat\022\016.message.Empty\032\036.message.A" +
-      "ccountDetailResponse\"\000\0228\n\007CallAPI\022\024.mess" +
-      "age.HTTPRequest\032\025.message.HTTPResponse\"\000" +
-      "B \n\023org.jumpserver.wispZ\t/protobufb\006prot" +
-      "o3"
+      "\"\253\001\n\020AgentSessionOpen\022\022\n\nsession_id\030\001 \001(" +
+      "\t\022\017\n\007user_id\030\002 \001(\t\022\027\n\017organization_id\030\003 " +
+      "\001(\t\022\020\n\010asset_id\030\004 \001(\t\022\022\n\naccount_id\030\005 \001(" +
+      "\t\022\020\n\010protocol\030\006 \001(\t\022\020\n\010language\030\007 \001(\t\022\017\n" +
+      "\007surface\030\010 \001(\t\"U\n\014AgentRequest\022\n\n\002id\030\001 \001" +
+      "(\t\022\021\n\toperation\030\002 \001(\t\022\020\n\010question\030\003 \001(\t\022" +
+      "\024\n\014context_json\030\004 \001(\t\"A\n\017AgentToolResult" +
+      "\022\n\n\002id\030\001 \001(\t\022\023\n\013result_json\030\002 \001(\t\022\r\n\005err" +
+      "or\030\003 \001(\t\"!\n\013AgentCancel\022\022\n\nrequest_id\030\001 " +
+      "\001(\t\"\352\001\n\020AgentClientEvent\022)\n\004open\030\001 \001(\0132\031" +
+      ".message.AgentSessionOpenH\000\022(\n\007request\030\002" +
+      " \001(\0132\025.message.AgentRequestH\000\022/\n\013tool_re" +
+      "sult\030\003 \001(\0132\030.message.AgentToolResultH\000\022&" +
+      "\n\006cancel\030\004 \001(\0132\024.message.AgentCancelH\000\022\037" +
+      "\n\005close\030\005 \001(\0132\016.message.EmptyH\000B\007\n\005event" +
+      "\"s\n\nAgentReady\022\017\n\007enabled\030\001 \001(\010\022\016\n\006reaso" +
+      "n\030\002 \001(\t\022\022\n\nsession_id\030\003 \001(\t\022\017\n\007surface\030\004" +
+      " \001(\t\022\020\n\010provider\030\005 \001(\t\022\r\n\005model\030\006 \001(\t\"(\n" +
+      "\020AgentChatMessage\022\024\n\014message_json\030\001 \001(\t\"" +
+      "A\n\rAgentToolCall\022\n\n\002id\030\001 \001(\t\022\014\n\004name\030\002 \001" +
+      "(\t\022\026\n\016arguments_json\030\003 \001(\t\"?\n\nAgentError" +
+      "\022\014\n\004code\030\001 \001(\t\022\017\n\007message\030\002 \001(\t\022\022\n\nreque" +
+      "st_id\030\003 \001(\t\"\277\001\n\020AgentServerEvent\022$\n\005read" +
+      "y\030\001 \001(\0132\023.message.AgentReadyH\000\022)\n\004chat\030\002" +
+      " \001(\0132\031.message.AgentChatMessageH\000\022+\n\ttoo" +
+      "l_call\030\003 \001(\0132\026.message.AgentToolCallH\000\022$" +
+      "\n\005error\030\004 \001(\0132\023.message.AgentErrorH\000B\007\n\005" +
+      "event2\361\017\n\007Service\022C\n\020GetTokenAuthInfo\022\025." +
+      "message.TokenRequest\032\026.message.TokenResp" +
+      "onse\"\000\022>\n\nRenewToken\022\025.message.TokenRequ" +
+      "est\032\027.message.StatusResponse\"\000\022P\n\rCreate" +
+      "Session\022\035.message.SessionCreateRequest\032\036" +
+      ".message.SessionCreateResponse\"\000\022L\n\rFini" +
+      "shSession\022\035.message.SessionFinishRequest" +
+      "\032\032.message.SessionFinishResp\"\000\022E\n\020Upload" +
+      "ReplayFile\022\026.message.ReplayRequest\032\027.mes" +
+      "sage.ReplayResponse\"\000\022D\n\rUploadCommand\022\027" +
+      ".message.CommandRequest\032\030.message.Comman" +
+      "dResponse\"\000\022I\n\014DispatchTask\022\034.message.Fi" +
+      "nishedTaskRequest\032\025.message.TaskResponse" +
+      "\"\000(\0010\001\022R\n\021ScanRemainReplays\022\034.message.Re" +
+      "mainReplayRequest\032\035.message.RemainReplay" +
+      "Response\"\000\022X\n\023CreateCommandTicket\022\036.mess" +
+      "age.CommandConfirmRequest\032\037.message.Comm" +
+      "andConfirmResponse\"\000\022f\n\035CheckOrCreateAss" +
+      "etLoginTicket\022 .message.AssetLoginTicket" +
+      "Request\032!.message.AssetLoginTicketRespon" +
+      "se\"\000\022J\n\020CheckTicketState\022\026.message.Ticke" +
+      "tRequest\032\034.message.TicketStateResponse\"\000" +
+      "\022A\n\014CancelTicket\022\026.message.TicketRequest" +
+      "\032\027.message.StatusResponse\"\000\022D\n\rCreateFor" +
+      "ward\022\027.message.ForwardRequest\032\030.message." +
+      "ForwardResponse\"\000\022I\n\rDeleteForward\022\035.mes" +
+      "sage.ForwardDeleteRequest\032\027.message.Stat" +
+      "usResponse\"\000\022D\n\020GetPublicSetting\022\016.messa" +
+      "ge.Empty\032\036.message.PublicSettingResponse" +
+      "\"\000\022?\n\016GetListenPorts\022\016.message.Empty\032\033.m" +
+      "essage.ListenPortResponse\"\000\022D\n\013GetPortIn" +
+      "fo\022\030.message.PortInfoRequest\032\031.message.P" +
+      "ortInfoResponse\"\000\022K\n\021HandlePortFailure\022\033" +
+      ".message.PortFailureRequest\032\027.message.St" +
+      "atusResponse\"\000\022F\n\022CheckUserByCookies\022\027.m" +
+      "essage.CookiesRequest\032\025.message.UserResp" +
+      "onse\"\000\022[\n\031RecordSessionLifecycleLog\022#.me" +
+      "ssage.SessionLifecycleLogRequest\032\027.messa" +
+      "ge.StatusResponse\"\000\022n\n\027FaceRecognitionCa" +
+      "llback\022\'.message.FaceRecognitionCallback" +
+      "Request\032(.message.FaceRecognitionCallbac" +
+      "kResponse\"\000\022b\n\023FaceMonitorCallback\022#.mes" +
+      "sage.FaceMonitorCallbackRequest\032$.messag" +
+      "e.FaceMonitorCallbackResponse\"\000\022V\n\017JoinF" +
+      "aceMonitor\022\037.message.JoinFaceMonitorRequ" +
+      "est\032 .message.JoinFaceMonitorResponse\"\000\022" +
+      "B\n\016GetAccountChat\022\016.message.Empty\032\036.mess" +
+      "age.AccountDetailResponse\"\000\0228\n\007CallAPI\022\024" +
+      ".message.HTTPRequest\032\025.message.HTTPRespo" +
+      "nse\"\000\022J\n\014AgentSession\022\031.message.AgentCli" +
+      "entEvent\032\031.message.AgentServerEvent\"\000(\0010" +
+      "\001B \n\023org.jumpserver.wispZ\t/protobufb\006pro" +
+      "to3"
     };
     descriptor = com.google.protobuf.Descriptors.FileDescriptor
       .internalBuildGeneratedFileFrom(descriptorData,
@@ -37178,6 +47269,66 @@ java.lang.String defaultValue) {
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_message_HTTPResponse_descriptor,
         new java.lang.String[] { "Status", "Body", });
+    internal_static_message_AgentSessionOpen_descriptor =
+      getDescriptor().getMessageTypes().get(48);
+    internal_static_message_AgentSessionOpen_fieldAccessorTable = new
+      com.google.protobuf.GeneratedMessage.FieldAccessorTable(
+        internal_static_message_AgentSessionOpen_descriptor,
+        new java.lang.String[] { "SessionId", "UserId", "OrganizationId", "AssetId", "AccountId", "Protocol", "Language", "Surface", });
+    internal_static_message_AgentRequest_descriptor =
+      getDescriptor().getMessageTypes().get(49);
+    internal_static_message_AgentRequest_fieldAccessorTable = new
+      com.google.protobuf.GeneratedMessage.FieldAccessorTable(
+        internal_static_message_AgentRequest_descriptor,
+        new java.lang.String[] { "Id", "Operation", "Question", "ContextJson", });
+    internal_static_message_AgentToolResult_descriptor =
+      getDescriptor().getMessageTypes().get(50);
+    internal_static_message_AgentToolResult_fieldAccessorTable = new
+      com.google.protobuf.GeneratedMessage.FieldAccessorTable(
+        internal_static_message_AgentToolResult_descriptor,
+        new java.lang.String[] { "Id", "ResultJson", "Error", });
+    internal_static_message_AgentCancel_descriptor =
+      getDescriptor().getMessageTypes().get(51);
+    internal_static_message_AgentCancel_fieldAccessorTable = new
+      com.google.protobuf.GeneratedMessage.FieldAccessorTable(
+        internal_static_message_AgentCancel_descriptor,
+        new java.lang.String[] { "RequestId", });
+    internal_static_message_AgentClientEvent_descriptor =
+      getDescriptor().getMessageTypes().get(52);
+    internal_static_message_AgentClientEvent_fieldAccessorTable = new
+      com.google.protobuf.GeneratedMessage.FieldAccessorTable(
+        internal_static_message_AgentClientEvent_descriptor,
+        new java.lang.String[] { "Open", "Request", "ToolResult", "Cancel", "Close", "Event", });
+    internal_static_message_AgentReady_descriptor =
+      getDescriptor().getMessageTypes().get(53);
+    internal_static_message_AgentReady_fieldAccessorTable = new
+      com.google.protobuf.GeneratedMessage.FieldAccessorTable(
+        internal_static_message_AgentReady_descriptor,
+        new java.lang.String[] { "Enabled", "Reason", "SessionId", "Surface", "Provider", "Model", });
+    internal_static_message_AgentChatMessage_descriptor =
+      getDescriptor().getMessageTypes().get(54);
+    internal_static_message_AgentChatMessage_fieldAccessorTable = new
+      com.google.protobuf.GeneratedMessage.FieldAccessorTable(
+        internal_static_message_AgentChatMessage_descriptor,
+        new java.lang.String[] { "MessageJson", });
+    internal_static_message_AgentToolCall_descriptor =
+      getDescriptor().getMessageTypes().get(55);
+    internal_static_message_AgentToolCall_fieldAccessorTable = new
+      com.google.protobuf.GeneratedMessage.FieldAccessorTable(
+        internal_static_message_AgentToolCall_descriptor,
+        new java.lang.String[] { "Id", "Name", "ArgumentsJson", });
+    internal_static_message_AgentError_descriptor =
+      getDescriptor().getMessageTypes().get(56);
+    internal_static_message_AgentError_fieldAccessorTable = new
+      com.google.protobuf.GeneratedMessage.FieldAccessorTable(
+        internal_static_message_AgentError_descriptor,
+        new java.lang.String[] { "Code", "Message", "RequestId", });
+    internal_static_message_AgentServerEvent_descriptor =
+      getDescriptor().getMessageTypes().get(57);
+    internal_static_message_AgentServerEvent_fieldAccessorTable = new
+      com.google.protobuf.GeneratedMessage.FieldAccessorTable(
+        internal_static_message_AgentServerEvent_descriptor,
+        new java.lang.String[] { "Ready", "Chat", "ToolCall", "Error", "Event", });
     descriptor.resolveAllFeaturesImmutable();
     org.jumpserver.wisp.Common.getDescriptor();
     com.google.protobuf.StructProto.getDescriptor();
