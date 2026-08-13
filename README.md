@@ -33,17 +33,38 @@ directly, and connects Chen to `wisp:9090` over the Compose network.
 
 ### Use a Wisp image
 
-`docker-compose.wisp-dev.yml` uses `ghcr.io/jumpserver/wisp:latest` by default.
-Set `WISP_IMAGE` to use a branch image, private-registry image, or a locally
-built image instead:
+`make dev` defaults to `ghcr.io/jumpserver/wisp:<chen-branch>`. The branch is
+resolved from the current branch's tracking branch first, then from the local
+branch. JumpServer-style branches such as `pr@new_terminal@feat_ai` resolve to
+their base branch (`new_terminal`), and characters that cannot appear in a
+Docker tag are replaced with `-`. A detached checkout falls back to `latest`.
+
+Check the result without starting containers:
 
 ```bash
+make dev-wisp-image
+```
+
+The matching tag must have been published in the Wisp container registry. If
+it is not available, select a known tag with `WISP_TAG`, use `WISP_SOURCE` as
+described below, or set `WISP_IMAGE` to a private-registry or locally built
+image:
+
+```bash
+make dev WISP_TAG=latest
+
 make dev \
   WISP_IMAGE=registry.example.com/wisp:my-branch \
   WISP_PULL_POLICY=always
 ```
 
-For an image already built locally, set `WISP_PULL_POLICY=never`.
+Use `WISP_BRANCH` to resolve a tag from a branch other than the checked-out
+Chen branch. `WISP_IMAGE_REPOSITORY` changes only the registry/repository while
+retaining automatic tag selection. For an image already built locally, set
+`WISP_PULL_POLICY=never`.
+
+Calling `docker compose` directly (without the Makefile) retains the Compose
+file's `ghcr.io/jumpserver/wisp:latest` fallback.
 
 ### Build from Wisp source
 
