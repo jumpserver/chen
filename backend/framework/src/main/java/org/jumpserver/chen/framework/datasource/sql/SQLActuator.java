@@ -23,9 +23,13 @@ public interface SQLActuator {
 
     SQLQueryResult execute(SQLExecutePlan plan) throws SQLException;
 
+    SQLQueryResult executeRaw(SQLExecutePlan plan) throws SQLException;
+
     SQLQueryResult execute(SQL sql) throws SQLException;
 
     SQLQueryResult executeWithAudit(SQLExecutePlan plan) throws SQLException;
+
+    SQLQueryResult executeRawWithAudit(SQLExecutePlan plan) throws SQLException;
 
     SQLQueryResult executeWithAudit(SQL sql) throws SQLException;
 

@@ -133,12 +133,21 @@ public abstract class BaseSQLActuator implements SQLActuator {
 
     @Override
     public SQLQueryResult execute(SQLExecutePlan plan) throws SQLException {
+        return this.execute(plan, true);
+    }
+
+    @Override
+    public SQLQueryResult executeRaw(SQLExecutePlan plan) throws SQLException {
+        return this.execute(plan, false);
+    }
+
+    private SQLQueryResult execute(SQLExecutePlan plan, boolean enrichResult) throws SQLException {
         String sql = plan.getTargetSQL();
         SQLQueryResult result = new SQLQueryResult(sql);
         result.setAclResult(plan.getAclResult());
         try {
             Statement statement = plan.createStatement();
-            this.executeStatement(plan, statement, result);
+            this.executeStatement(plan, statement, result, enrichResult);
         } finally {
             if (plan.getConnection() instanceof DruidPooledConnection) {
                 plan.getConnection().close();
@@ -147,7 +156,12 @@ public abstract class BaseSQLActuator implements SQLActuator {
         return result;
     }
 
-    private void executeStatement(SQLExecutePlan plan, Statement statement, SQLQueryResult result) throws SQLException {
+    private void executeStatement(
+            SQLExecutePlan plan,
+            Statement statement,
+            SQLQueryResult result,
+            boolean enrichResult
+    ) throws SQLException {
         try (statement) {
             result.setStartTime(new Time(System.currentTimeMillis()));
 
@@ -157,47 +171,51 @@ public abstract class BaseSQLActuator implements SQLActuator {
             result.setQueryFinishedTime(new Time(System.currentTimeMillis()));
 
             if (hasResult) {
-                var resultSet = statement.getResultSet();
-                var metaData = resultSet.getMetaData();
-                var columnCount = metaData.getColumnCount();
-
-                for (int i = 1; i <= columnCount; i++) {
-                    result.getFields().add(buildField(metaData, i));
+                try (ResultSet resultSet = statement.getResultSet()) {
+                    this.readResultSet(resultSet, result);
                 }
-
-                while (resultSet.next()) {
-                    List<Object> fs = new ArrayList<>();
-                    for (int i = 1; i <= columnCount; i++) {
-                        try {
-                            fs.add(this.normalizeJdbcValue(resultSet.getObject(i)));
-                        } catch (NoClassDefFoundError e) {
-                            log.error(e.getMessage());
-                        }
-                    }
-                    result.getData().add(fs);
-                }
-                resultSet.close();
-                markGeneratedColumns(plan.getConnection(), this.getDruidDbType(), result.getFields());
                 result.setFetchFinishedTime(new Time(System.currentTimeMillis()));
-                this.analyzeResultEditability(plan, result);
-
-                // 数据脱敏
-                this.handleDataMasking(result);
-
-                var total = this.count(plan);
-                if (total < 0) {
-                    result.setTotal(result.getData().size());
-                } else {
-                    result.setPaged(true);
-                    result.setTotal(total);
+                if (enrichResult) {
+                    markGeneratedColumns(plan.getConnection(), this.getDruidDbType(), result.getFields());
+                    this.analyzeResultEditability(plan, result);
                 }
-
+                this.handleDataMasking(result);
+                if (enrichResult) {
+                    var total = this.count(plan);
+                    if (total < 0) {
+                        result.setTotal(result.getData().size());
+                    } else {
+                        result.setPaged(true);
+                        result.setTotal(total);
+                    }
+                } else {
+                    result.setTotal(result.getData().size());
+                }
             } else {
                 result.setUpdateCount(statement.getUpdateCount());
             }
             result.setEndTime(new Time(System.currentTimeMillis()));
         } catch (Exception e) {
             throw new SQLException(e.getMessage());
+        }
+    }
+
+    private void readResultSet(ResultSet resultSet, SQLQueryResult result) throws SQLException {
+        var metaData = resultSet.getMetaData();
+        var columnCount = metaData.getColumnCount();
+        for (int index = 1; index <= columnCount; index++) {
+            result.getFields().add(buildField(metaData, index));
+        }
+        while (resultSet.next()) {
+            List<Object> row = new ArrayList<>();
+            for (int index = 1; index <= columnCount; index++) {
+                try {
+                    row.add(this.normalizeJdbcValue(resultSet.getObject(index)));
+                } catch (NoClassDefFoundError e) {
+                    log.error(e.getMessage());
+                }
+            }
+            result.getData().add(row);
         }
     }
 
@@ -622,6 +640,16 @@ public abstract class BaseSQLActuator implements SQLActuator {
         var sess = SessionManager.getCurrentSession();
         try {
             return sess.withAudit(plan.getTargetSQL(), () -> this.execute(plan));
+        } catch (CommandRejectException e) {
+            throw new SQLException(e.getMessage());
+        }
+    }
+
+    @Override
+    public SQLQueryResult executeRawWithAudit(SQLExecutePlan plan) throws SQLException {
+        var sess = SessionManager.getCurrentSession();
+        try {
+            return sess.withAudit(plan.getTargetSQL(), () -> this.executeRaw(plan));
         } catch (CommandRejectException e) {
             throw new SQLException(e.getMessage());
         }
