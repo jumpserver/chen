@@ -816,23 +816,30 @@ public class QueryConsole extends AbstractConsole {
     }
 
     private void runRawConsoleSQL(String sql, Session session) throws SQLException {
-        ConsoleStatementBoundaryScanner.requireSingleStatement(sql);
+        ConsoleStatementBoundaryScanner.requireSingleStatement(sql, this.datasource.getDruidDbType());
         Connection connection = this.getConnection();
         ACLResult aclResult = session.checkACL(sql, connection);
         if (!this.canExecuteStatement(session, sql, aclResult)) {
             return;
         }
 
-        DataView dataView = new DataView(
-                UUID.randomUUID().toString(), sql, this.getPacketIO(), this.getConsoleLogger()
-        );
-        dataView.setSql(sql);
-        dataView.setLoadDataInterface((ignored) -> this.executeRawConsoleSQL(sql, aclResult, connection));
-        dataView.loadData();
-        if (!dataView.isHasTable()) {
-            this.logAffectedRows(dataView);
-        } else {
-            this.sendDataView(dataView, true);
+        SQLQueryResult executionResult = this.executeRawConsoleSQL(sql, aclResult, connection);
+        if (executionResult.getResults().isEmpty()) {
+            this.getConsoleLogger().success("%s", MessageUtils.get("ExecuteSuccess"));
+        }
+        for (SQLQueryResult result : executionResult.getResults()) {
+            this.getConsoleLogger().success(result);
+            if (!result.isHasResultSet()) {
+                continue;
+            }
+
+            DataView dataView = new DataView(
+                    UUID.randomUUID().toString(), sql, this.getPacketIO(), this.getConsoleLogger()
+            );
+            dataView.setSql(sql);
+            dataView.setLoadDataInterface((ignored) -> result);
+            dataView.loadData();
+            this.sendDataView(dataView, false);
         }
     }
 
@@ -847,10 +854,8 @@ public class QueryConsole extends AbstractConsole {
         this.getState().setCanCancel(true);
         this.stateManager.commit();
         try {
-            this.getConsoleLogger().info("execute raw sql: %s", sql);
-            SQLQueryResult result = actuator.executeRawWithAudit(plan);
-            this.getConsoleLogger().success(result);
-            return result;
+            this.getConsoleLogger().info("execute sql: %s", sql);
+            return actuator.executeRawWithAudit(plan);
         } finally {
             if (this.currentExecution == execution) {
                 this.currentExecution = null;

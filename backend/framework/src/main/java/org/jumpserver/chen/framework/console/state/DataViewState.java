@@ -12,6 +12,8 @@ public class DataViewState extends State {
     private int page;
     private int limit;
     private int total;
+    private boolean truncated;
+    private int rowLimit;
     private boolean pinned;
     private boolean paged;
     private String filter;

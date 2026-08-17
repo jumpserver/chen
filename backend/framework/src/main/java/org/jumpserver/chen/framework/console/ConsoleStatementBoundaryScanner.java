@@ -1,9 +1,12 @@
 package org.jumpserver.chen.framework.console;
 
+import com.alibaba.druid.DbType;
+import com.alibaba.druid.sql.SQLUtils;
+
 import java.sql.SQLException;
 
 /**
- * Finds top-level SQL statement boundaries without parsing database syntax.
+ * Validates that raw console input is one database command without rewriting it.
  */
 final class ConsoleStatementBoundaryScanner {
     private static final String MULTIPLE_STATEMENTS_ERROR =
@@ -12,11 +15,29 @@ final class ConsoleStatementBoundaryScanner {
     private ConsoleStatementBoundaryScanner() {
     }
 
-    static void requireSingleStatement(String sql) throws SQLException {
+    static void requireSingleStatement(String sql, DbType dbType) throws SQLException {
         if (sql == null || sql.isBlank()) {
             throw new SQLException("Console raw execution requires a database command");
         }
 
+        try {
+            var statements = SQLUtils.parseStatements(sql, dbType);
+            if (statements.size() == 1) {
+                return;
+            }
+            if (statements.size() > 1) {
+                throw new SQLException(MULTIPLE_STATEMENTS_ERROR);
+            }
+        } catch (RuntimeException ignored) {
+            // Raw mode exists for commands the dialect parser does not understand. The conservative
+            // fallback below recognizes only top-level delimiters and keeps quoted/dollar-quoted
+            // procedure bodies opaque; it never changes the command sent to the JDBC driver.
+        }
+
+        requireSingleOpaqueStatement(sql);
+    }
+
+    private static void requireSingleOpaqueStatement(String sql) throws SQLException {
         int completedStatements = 0;
         boolean hasStatementContent = false;
         int blockCommentDepth = 0;

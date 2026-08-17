@@ -131,6 +131,8 @@ public class DataView extends SQLResult {
         }
 
         this.state.setPaged(result.isPaged());
+        this.state.setTruncated(result.isTruncated());
+        this.state.setRowLimit(result.getRowLimit());
 
         this.data.getFields().clear();
         this.data.getData().clear();
