@@ -31,6 +31,7 @@ import org.jumpserver.chen.framework.datasource.edit.UserManagedSaveExecutionCon
 import org.jumpserver.chen.framework.datasource.sql.SQL;
 import org.jumpserver.chen.framework.datasource.sql.SQLActuator;
 import org.jumpserver.chen.framework.datasource.sql.SQLExecutePlan;
+import org.jumpserver.chen.framework.datasource.sql.SQLQueryResult;
 import org.jumpserver.chen.framework.i18n.MessageUtils;
 import org.jumpserver.chen.framework.jms.acl.ACLResult;
 import org.jumpserver.chen.framework.jms.entity.CommandRecord;
@@ -52,6 +53,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -99,7 +101,7 @@ public class QueryConsole extends AbstractConsole {
     // SQL Server, Dameng or DB2, so the server-side probe is the real source of truth for whether
     // a user transaction is open before a DataView save commits or stages behind a savepoint.
     private volatile QueryTransactionStateInspector transactionStateInspector;
-    private volatile SQLExecutePlan currentPlan;
+    private volatile ActiveExecution currentExecution;
     private StateManager<QueryConsoleState> stateManager;
     private final Map<String, DataView> dataViews = new LinkedHashMap<>();
     // Manual context changes remain restricted to values returned by the current server-side actuator.
@@ -633,10 +635,10 @@ public class QueryConsole extends AbstractConsole {
     public void onCancel() {
         this.getState().setExecutionStatus(EXECUTION_STATUS_CANCELLED);
         try {
-            var plan = this.currentPlan;
-            if (plan != null) {
-                plan.cancel();
-                this.getConsoleLogger().warn("cancel query: %s", plan.getTargetSQL());
+            var execution = this.currentExecution;
+            if (execution != null) {
+                execution.cancelAction().cancel();
+                this.getConsoleLogger().warn("cancel query: %s", execution.sql());
             }
         } catch (SQLException | RuntimeException e) {
             log.error("cancel failed ", e);
@@ -767,22 +769,10 @@ public class QueryConsole extends AbstractConsole {
         var session = SessionManager.getCurrentSession();
 
         try {
-            var stmts = this.getSqlActuator().parseSQL(SQL.of(sql));
-            var clearOthers = true;
-            for (String stmt : stmts) {
-                var aclResult = session.checkACL(stmt, this.getConnection());
-                if (!this.canExecuteStatement(session, stmt, aclResult)) {
-                    break;
-                }
-                var dataView = this.runSingleSQL(stmt, aclResult);
-                if (!dataView.isHasTable()) {
-                    this.getConsoleLogger().success("%s , %s: %d",
-                            MessageUtils.get("ExecuteSuccess"),
-                            MessageUtils.get("AffectedRows"), dataView.getUpdateCount());
-                } else {
-                    this.sendDataView(dataView, clearOthers);
-                    clearOthers = false;
-                }
+            if (this.consoleMode) {
+                this.runRawConsoleSQL(sql, session);
+            } else {
+                this.runQuerySQL(sql, session);
             }
             this.ensureCurrentSchema();
         } catch (ParserException e) {
@@ -805,6 +795,80 @@ public class QueryConsole extends AbstractConsole {
             this.getState().setCanCancel(false);
             this.stateManager.commit();
         }
+    }
+
+    private void runQuerySQL(String sql, Session session) throws SQLException {
+        var statements = this.getSqlActuator().parseSQL(SQL.of(sql));
+        var clearOthers = true;
+        for (String statement : statements) {
+            var aclResult = session.checkACL(statement, this.getConnection());
+            if (!this.canExecuteStatement(session, statement, aclResult)) {
+                break;
+            }
+            var dataView = this.runSingleSQL(statement, aclResult);
+            if (!dataView.isHasTable()) {
+                this.logAffectedRows(dataView);
+            } else {
+                this.sendDataView(dataView, clearOthers);
+                clearOthers = false;
+            }
+        }
+    }
+
+    private void runRawConsoleSQL(String sql, Session session) throws SQLException {
+        ConsoleStatementBoundaryScanner.requireSingleStatement(sql, this.datasource.getDruidDbType());
+        Connection connection = this.getConnection();
+        ACLResult aclResult = session.checkACL(sql, connection);
+        if (!this.canExecuteStatement(session, sql, aclResult)) {
+            return;
+        }
+
+        SQLQueryResult executionResult = this.executeRawConsoleSQL(sql, aclResult, connection);
+        if (executionResult.getResults().isEmpty()) {
+            this.getConsoleLogger().success("%s", MessageUtils.get("ExecuteSuccess"));
+        }
+        for (SQLQueryResult result : executionResult.getResults()) {
+            this.getConsoleLogger().success(result);
+            if (!result.isHasResultSet()) {
+                continue;
+            }
+
+            DataView dataView = new DataView(
+                    UUID.randomUUID().toString(), sql, this.getPacketIO(), this.getConsoleLogger()
+            );
+            dataView.setSql(sql);
+            dataView.setLoadDataInterface((ignored) -> result);
+            dataView.loadData();
+            this.sendDataView(dataView, false);
+        }
+    }
+
+    private SQLQueryResult executeRawConsoleSQL(String sql, ACLResult aclResult, Connection connection)
+            throws SQLException {
+        SQLActuator actuator = this.datasource.getConnectionManager().getSqlActuator().withConnection(connection);
+        SQLExecutePlan plan = actuator.createPlan(SQL.of(sql));
+        plan.setAclResult(aclResult);
+        Statement statement = plan.createStatement();
+        ActiveExecution execution = new ActiveExecution(sql, statement::cancel);
+        this.currentExecution = execution;
+        this.getState().setCanCancel(true);
+        this.stateManager.commit();
+        try {
+            this.getConsoleLogger().info("execute sql: %s", sql);
+            return actuator.executeRawWithAudit(plan);
+        } finally {
+            if (this.currentExecution == execution) {
+                this.currentExecution = null;
+            }
+            this.getState().setCanCancel(false);
+            this.stateManager.commit();
+        }
+    }
+
+    private void logAffectedRows(DataView dataView) {
+        this.getConsoleLogger().success("%s , %s: %d",
+                MessageUtils.get("ExecuteSuccess"),
+                MessageUtils.get("AffectedRows"), dataView.getUpdateCount());
     }
 
     private void sendSQLError(String kind, String title, String message, String sql, SQLException exception) {
@@ -928,7 +992,8 @@ public class QueryConsole extends AbstractConsole {
                     .createPlan(SQL.of(sourceSQL));
             plan.setAclResult(aclResult);
             plan.setSqlQueryParams(sqlQueryParams);
-            this.currentPlan = plan;
+            ActiveExecution execution = new ActiveExecution(sourceSQL, plan::cancel);
+            this.currentExecution = execution;
             this.getState().setCanCancel(true);
             this.stateManager.commit();
 
@@ -939,7 +1004,9 @@ public class QueryConsole extends AbstractConsole {
                 this.getConsoleLogger().success(result);
                 return result;
             } finally {
-                this.currentPlan = null;
+                if (this.currentExecution == execution) {
+                    this.currentExecution = null;
+                }
                 this.getState().setCanCancel(false);
                 this.stateManager.commit();
             }
@@ -1019,12 +1086,12 @@ public class QueryConsole extends AbstractConsole {
             currentSession.getController().cancelDialogs(this.getPacketIO().getWsSession().getId());
         }
 
-        var plan = this.currentPlan;
-        if (plan != null) {
+        var execution = this.currentExecution;
+        if (execution != null) {
             try {
                 // flush
                 var session = SessionManager.getCurrentSession();
-                var lastCmd = plan.getTargetSQL();
+                var lastCmd = execution.sql();
                 var cmdRecord = new CommandRecord(lastCmd);
                 cmdRecord.setError("Abnormal exit");
                 if (session != null) {
@@ -1043,5 +1110,13 @@ public class QueryConsole extends AbstractConsole {
             this.executionLock.unlock();
         }
         log.info("console closed");
+    }
+
+    @FunctionalInterface
+    private interface ExecutionCancel {
+        void cancel() throws SQLException;
+    }
+
+    private record ActiveExecution(String sql, ExecutionCancel cancelAction) {
     }
 }

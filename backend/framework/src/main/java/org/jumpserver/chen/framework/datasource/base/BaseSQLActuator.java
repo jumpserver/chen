@@ -44,6 +44,7 @@ public abstract class BaseSQLActuator implements SQLActuator {
     private final DbType druidDbType;
     // Keep large JDBC text values bounded so one cell cannot fail or stall the whole result view.
     private static final int MAX_TEXT_DISPLAY_LENGTH = 1024 * 1024;
+    private static final int RAW_RESULT_ROW_LIMIT = 1000;
     private static final String TRUNCATED_SUFFIX = "...[truncated]";
     private ConnectionManager connectionManager;
     private Connection connection;
@@ -133,12 +134,32 @@ public abstract class BaseSQLActuator implements SQLActuator {
 
     @Override
     public SQLQueryResult execute(SQLExecutePlan plan) throws SQLException {
+        return this.execute(plan, true);
+    }
+
+    @Override
+    public SQLQueryResult executeRaw(SQLExecutePlan plan) throws SQLException {
+        SQLQueryResult executionResult = new SQLQueryResult(plan.getTargetSQL());
+        executionResult.setAclResult(plan.getAclResult());
+        executionResult.setHasResultSet(false);
+        try {
+            Statement statement = plan.createStatement();
+            this.executeRawStatement(plan, statement, executionResult);
+        } finally {
+            if (plan.getConnection() instanceof DruidPooledConnection) {
+                plan.getConnection().close();
+            }
+        }
+        return executionResult;
+    }
+
+    private SQLQueryResult execute(SQLExecutePlan plan, boolean enrichResult) throws SQLException {
         String sql = plan.getTargetSQL();
         SQLQueryResult result = new SQLQueryResult(sql);
         result.setAclResult(plan.getAclResult());
         try {
             Statement statement = plan.createStatement();
-            this.executeStatement(plan, statement, result);
+            this.executeStatement(plan, statement, result, enrichResult);
         } finally {
             if (plan.getConnection() instanceof DruidPooledConnection) {
                 plan.getConnection().close();
@@ -147,7 +168,12 @@ public abstract class BaseSQLActuator implements SQLActuator {
         return result;
     }
 
-    private void executeStatement(SQLExecutePlan plan, Statement statement, SQLQueryResult result) throws SQLException {
+    private void executeStatement(
+            SQLExecutePlan plan,
+            Statement statement,
+            SQLQueryResult result,
+            boolean enrichResult
+    ) throws SQLException {
         try (statement) {
             result.setStartTime(new Time(System.currentTimeMillis()));
 
@@ -157,48 +183,129 @@ public abstract class BaseSQLActuator implements SQLActuator {
             result.setQueryFinishedTime(new Time(System.currentTimeMillis()));
 
             if (hasResult) {
-                var resultSet = statement.getResultSet();
-                var metaData = resultSet.getMetaData();
-                var columnCount = metaData.getColumnCount();
-
-                for (int i = 1; i <= columnCount; i++) {
-                    result.getFields().add(buildField(metaData, i));
+                try (ResultSet resultSet = statement.getResultSet()) {
+                    this.readResultSet(resultSet, result, Integer.MAX_VALUE);
                 }
-
-                while (resultSet.next()) {
-                    List<Object> fs = new ArrayList<>();
-                    for (int i = 1; i <= columnCount; i++) {
-                        try {
-                            fs.add(this.normalizeJdbcValue(resultSet.getObject(i)));
-                        } catch (NoClassDefFoundError e) {
-                            log.error(e.getMessage());
-                        }
-                    }
-                    result.getData().add(fs);
-                }
-                resultSet.close();
-                markGeneratedColumns(plan.getConnection(), this.getDruidDbType(), result.getFields());
                 result.setFetchFinishedTime(new Time(System.currentTimeMillis()));
-                this.analyzeResultEditability(plan, result);
-
-                // 数据脱敏
-                this.handleDataMasking(result);
-
-                var total = this.count(plan);
-                if (total < 0) {
-                    result.setTotal(result.getData().size());
-                } else {
-                    result.setPaged(true);
-                    result.setTotal(total);
+                if (enrichResult) {
+                    markGeneratedColumns(plan.getConnection(), this.getDruidDbType(), result.getFields());
+                    this.analyzeResultEditability(plan, result);
                 }
-
+                this.handleDataMasking(result);
+                if (enrichResult) {
+                    var total = this.count(plan);
+                    if (total < 0) {
+                        result.setTotal(result.getData().size());
+                    } else {
+                        result.setPaged(true);
+                        result.setTotal(total);
+                    }
+                } else {
+                    result.setTotal(result.getData().size());
+                }
             } else {
                 result.setUpdateCount(statement.getUpdateCount());
             }
             result.setEndTime(new Time(System.currentTimeMillis()));
+        } catch (SQLException e) {
+            throw e;
         } catch (Exception e) {
-            throw new SQLException(e.getMessage());
+            throw new SQLException(e.getMessage(), e);
         }
+    }
+
+    private void executeRawStatement(
+            SQLExecutePlan plan,
+            Statement statement,
+            SQLQueryResult executionResult
+    ) throws SQLException {
+        long executionStartedAt = System.currentTimeMillis();
+        executionResult.setStartTime(new Time(executionStartedAt));
+
+        try (statement) {
+            try {
+                // Ask the driver for one sentinel row so truncation can be detected without rewriting SQL.
+                statement.setMaxRows(RAW_RESULT_ROW_LIMIT + 1);
+            } catch (SQLException e) {
+                log.debug("JDBC driver does not support Statement.setMaxRows", e);
+            }
+
+            long resultStartedAt = executionStartedAt;
+            boolean hasResultSet = statement.execute(plan.getTargetSQL());
+            while (true) {
+                long queryFinishedAt = System.currentTimeMillis();
+                if (hasResultSet) {
+                    SQLQueryResult result = newRawResult(plan, resultStartedAt, queryFinishedAt, true);
+                    try (ResultSet resultSet = statement.getResultSet()) {
+                        result.setTruncated(this.readResultSet(resultSet, result, RAW_RESULT_ROW_LIMIT));
+                    }
+                    result.setRowLimit(RAW_RESULT_ROW_LIMIT);
+                    result.setTotal(result.getData().size());
+                    result.setFetchFinishedTime(new Time(System.currentTimeMillis()));
+                    result.setEndTime(result.getFetchFinishedTime());
+                    this.handleDataMasking(result);
+                    executionResult.getResults().add(result);
+                } else {
+                    int updateCount = statement.getUpdateCount();
+                    if (updateCount == -1) {
+                        break;
+                    }
+                    SQLQueryResult result = newRawResult(plan, resultStartedAt, queryFinishedAt, false);
+                    result.setUpdateCount(updateCount);
+                    result.setEndTime(new Time(System.currentTimeMillis()));
+                    executionResult.getResults().add(result);
+                }
+
+                resultStartedAt = System.currentTimeMillis();
+                hasResultSet = statement.getMoreResults(Statement.CLOSE_CURRENT_RESULT);
+            }
+
+            Time finishedAt = new Time(System.currentTimeMillis());
+            executionResult.setQueryFinishedTime(finishedAt);
+            executionResult.setFetchFinishedTime(finishedAt);
+            executionResult.setEndTime(finishedAt);
+        } catch (SQLException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new SQLException(e.getMessage(), e);
+        }
+    }
+
+    private SQLQueryResult newRawResult(
+            SQLExecutePlan plan,
+            long startedAt,
+            long queryFinishedAt,
+            boolean hasResultSet
+    ) {
+        SQLQueryResult result = new SQLQueryResult(plan.getTargetSQL());
+        result.setAclResult(plan.getAclResult());
+        result.setHasResultSet(hasResultSet);
+        result.setStartTime(new Time(startedAt));
+        result.setQueryFinishedTime(new Time(queryFinishedAt));
+        return result;
+    }
+
+    private boolean readResultSet(ResultSet resultSet, SQLQueryResult result, int rowLimit) throws SQLException {
+        var metaData = resultSet.getMetaData();
+        var columnCount = metaData.getColumnCount();
+        for (int index = 1; index <= columnCount; index++) {
+            result.getFields().add(buildField(metaData, index));
+        }
+        while (resultSet.next()) {
+            if (result.getData().size() >= rowLimit) {
+                return true;
+            }
+            List<Object> row = new ArrayList<>();
+            for (int index = 1; index <= columnCount; index++) {
+                try {
+                    row.add(this.normalizeJdbcValue(resultSet.getObject(index)));
+                } catch (NoClassDefFoundError e) {
+                    log.error(e.getMessage());
+                }
+            }
+            result.getData().add(row);
+        }
+        return false;
     }
 
     private void analyzeResultEditability(SQLExecutePlan plan, SQLQueryResult result) {
@@ -527,10 +634,13 @@ public abstract class BaseSQLActuator implements SQLActuator {
     }
 
     private boolean matchField(Field field, String pattern) {
-        List<String> names = List.of(field.getColumnName(), field.getLabel());
+        String[] names = {field.getColumnName(), field.getLabel()};
         String[] ps = pattern.split(",");
 
         for (String name : names) {
+            if (name == null) {
+                continue;
+            }
             for (String p : ps) {
                 p = p.trim();
                 if (p.isEmpty()) continue;
@@ -622,6 +732,16 @@ public abstract class BaseSQLActuator implements SQLActuator {
         var sess = SessionManager.getCurrentSession();
         try {
             return sess.withAudit(plan.getTargetSQL(), () -> this.execute(plan));
+        } catch (CommandRejectException e) {
+            throw new SQLException(e.getMessage());
+        }
+    }
+
+    @Override
+    public SQLQueryResult executeRawWithAudit(SQLExecutePlan plan) throws SQLException {
+        var sess = SessionManager.getCurrentSession();
+        try {
+            return sess.withAudit(plan.getTargetSQL(), () -> this.executeRaw(plan));
         } catch (CommandRejectException e) {
             throw new SQLException(e.getMessage());
         }
