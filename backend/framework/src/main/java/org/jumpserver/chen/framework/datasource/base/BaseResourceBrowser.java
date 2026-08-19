@@ -2,6 +2,7 @@ package org.jumpserver.chen.framework.datasource.base;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.jumpserver.chen.framework.datasource.ConnectionManager;
 import org.jumpserver.chen.framework.datasource.ResourceBrowser;
 import org.jumpserver.chen.framework.datasource.hints.SQLHintsHandler;
@@ -12,6 +13,7 @@ import org.jumpserver.chen.framework.datasource.metadata.RelationKind;
 import org.jumpserver.chen.framework.datasource.metadata.RelationScope;
 import org.jumpserver.chen.framework.datasource.sql.SQLActuator;
 import org.jumpserver.chen.framework.session.SessionManager;
+import org.jumpserver.chen.framework.utils.SqlIdentifierUtils;
 import org.jumpserver.chen.framework.utils.TreeUtils;
 
 import java.lang.reflect.InvocationTargetException;
@@ -275,6 +277,35 @@ public abstract class BaseResourceBrowser implements ResourceBrowser {
 
     public SQLActuator getSQLActuator() {
         return this.connectionManager.getSqlActuator();
+    }
+
+    @Override
+    public RelationScope resolveScope(ResourceNodeSnapshot node, String context) throws SQLException {
+        if (node == null) {
+            throw new IllegalArgumentException("Invalid metadata context");
+        }
+        var contextKey = this.connectionManager.getContextKey();
+        var databaseContextKey = this.connectionManager.getDatabaseContextKey();
+        var currentContext = StringUtils.defaultString(context).trim();
+        var catalog = node.database();
+        if (StringUtils.equals(contextKey, databaseContextKey) && StringUtils.isNotBlank(currentContext)) {
+            var allowedContexts = this.connectionManager.getSqlActuator().getSchemas();
+            if (!allowedContexts.contains(currentContext)) {
+                throw new IllegalArgumentException("Unknown database metadata context");
+            }
+            catalog = currentContext;
+        }
+        SqlIdentifierUtils.validateDatabaseName(catalog);
+        String schema = null;
+        if (StringUtils.equals(contextKey, "schema")) {
+            schema = StringUtils.defaultIfBlank(currentContext, node.schema());
+            if (StringUtils.isNotBlank(catalog) && schema.startsWith(catalog + ".")) {
+                schema = schema.substring(catalog.length() + 1);
+            }
+        } else if (StringUtils.equals(node.database(), catalog)) {
+            schema = node.schema();
+        }
+        return new RelationScope(catalog, schema);
     }
 
     protected MetadataCatalog metadataCatalog() {

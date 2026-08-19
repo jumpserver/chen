@@ -38,6 +38,10 @@ public class MetadataCatalog {
         this.provider = Objects.requireNonNull(provider);
     }
 
+    public MetadataCapabilities capabilities() {
+        return this.provider.capabilities();
+    }
+
     // -- containers ---------------------------------------------------------
 
     public List<CatalogMetadata> listCatalogs() throws SQLException {

@@ -2,6 +2,7 @@ package org.jumpserver.chen.framework.datasource;
 
 import org.jumpserver.chen.framework.datasource.entity.resource.*;
 import org.jumpserver.chen.framework.datasource.hints.SQLHintsHandler;
+import org.jumpserver.chen.framework.datasource.metadata.RelationScope;
 import org.jumpserver.chen.framework.datasource.sql.SQLActuator;
 
 import java.sql.SQLException;
@@ -23,6 +24,8 @@ public interface ResourceBrowser {
     List<View> getViews(String schema) throws SQLException;
 
     List<Field> getFields(String schema, String table) throws SQLException;
+
+    RelationScope resolveScope(ResourceNodeSnapshot node, String context) throws SQLException;
 
     ResourceNodeSnapshot getIndexedNode(String key);
 
