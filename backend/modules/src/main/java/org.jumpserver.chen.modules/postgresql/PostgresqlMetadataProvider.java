@@ -7,7 +7,9 @@ import org.jumpserver.chen.framework.datasource.metadata.ColumnMetadata;
 import org.jumpserver.chen.framework.datasource.metadata.IndexMetadata;
 import org.jumpserver.chen.framework.datasource.metadata.MetadataCapabilities;
 import org.jumpserver.chen.framework.datasource.metadata.ObjectProperties;
+import org.jumpserver.chen.framework.datasource.metadata.ForeignKeyMetadata;
 import org.jumpserver.chen.framework.datasource.metadata.ObjectRef;
+import org.jumpserver.chen.framework.datasource.metadata.PrimaryKeyMetadata;
 import org.jumpserver.chen.framework.datasource.metadata.ObjectStatistics;
 import org.jumpserver.chen.framework.datasource.metadata.RelationKind;
 import org.jumpserver.chen.framework.datasource.metadata.RelationMetadata;
@@ -27,7 +29,7 @@ public class PostgresqlMetadataProvider extends BaseDatabaseMetadataProvider {
     }
 
     private static final MetadataCapabilities CAPABILITIES = new MetadataCapabilities(
-            true, true, true, true, true, false, false, true, false,
+            true, true, true, true, true, true, true, true, false,
             true, true, false, false, false, true, true
     );
 
@@ -182,5 +184,46 @@ public class PostgresqlMetadataProvider extends BaseDatabaseMetadataProvider {
     @Override
     public ObjectProperties objectProperties(ObjectRef ref) throws SQLException {
         return loadObjectProperties(ref, SQL_TABLE_PROPERTIES);
+    }
+
+    private static final String SQL_PRIMARY_KEYS = """
+            SELECT tc.relname AS table_name, a.attname AS column_name, con.conname AS name
+            FROM pg_constraint con
+            JOIN pg_class tc ON tc.oid = con.conrelid
+            JOIN pg_namespace n ON n.oid = tc.relnamespace
+            JOIN LATERAL unnest(con.conkey) WITH ORDINALITY k(attnum, ord) ON true
+            JOIN pg_attribute a ON a.attrelid = tc.oid AND a.attnum = k.attnum
+            WHERE con.contype = 'p' AND n.nspname = ? AND tc.relname IN (__IN__)
+            ORDER BY tc.relname, con.conname, k.ord
+            """;
+
+    private static final String SQL_FOREIGN_KEYS = """
+            SELECT tc.relname AS table_name, a.attname AS column_name, con.conname AS name,
+                   ns.nspname AS referenced_schema, rc.relname AS referenced_table, ra.attname AS referenced_column
+            FROM pg_constraint con
+            JOIN pg_class tc ON tc.oid = con.conrelid
+            JOIN pg_namespace n ON n.oid = tc.relnamespace
+            JOIN LATERAL unnest(con.conkey) WITH ORDINALITY k(attnum, ord) ON true
+            JOIN pg_attribute a ON a.attrelid = tc.oid AND a.attnum = k.attnum
+            JOIN LATERAL unnest(con.confkey) WITH ORDINALITY rk(attnum, ord) ON rk.ord = k.ord
+            JOIN pg_class rc ON rc.oid = con.confrelid
+            JOIN pg_namespace ns ON ns.oid = rc.relnamespace
+            JOIN pg_attribute ra ON ra.attrelid = rc.oid AND ra.attnum = rk.attnum
+            WHERE con.contype = 'f' AND n.nspname = ? AND tc.relname IN (__IN__)
+            ORDER BY tc.relname, con.conname, k.ord
+            """;
+
+    @Override
+    public List<PrimaryKeyMetadata> listPrimaryKeys(List<ObjectRef> relations) throws SQLException {
+        var first = relations.get(0);
+        return groupPrimaryKeys(queryKeys(SQL_PRIMARY_KEYS, relations, first.schema()),
+                new RelationScope(first.catalog(), first.schema()));
+    }
+
+    @Override
+    public List<ForeignKeyMetadata> listForeignKeys(List<ObjectRef> relations) throws SQLException {
+        var first = relations.get(0);
+        return groupForeignKeys(queryKeys(SQL_FOREIGN_KEYS, relations, first.schema()),
+                new RelationScope(first.catalog(), first.schema()));
     }
 }

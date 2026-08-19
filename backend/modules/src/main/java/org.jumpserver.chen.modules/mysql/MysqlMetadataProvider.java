@@ -4,10 +4,12 @@ import org.jumpserver.chen.framework.datasource.ConnectionManager;
 import org.jumpserver.chen.framework.datasource.metadata.BaseDatabaseMetadataProvider;
 import org.jumpserver.chen.framework.datasource.metadata.ColumnMetadata;
 import org.jumpserver.chen.framework.datasource.metadata.IndexMetadata;
+import org.jumpserver.chen.framework.datasource.metadata.ForeignKeyMetadata;
 import org.jumpserver.chen.framework.datasource.metadata.MetadataCapabilities;
 import org.jumpserver.chen.framework.datasource.metadata.ObjectProperties;
 import org.jumpserver.chen.framework.datasource.metadata.ObjectRef;
 import org.jumpserver.chen.framework.datasource.metadata.ObjectStatistics;
+import org.jumpserver.chen.framework.datasource.metadata.PrimaryKeyMetadata;
 import org.jumpserver.chen.framework.datasource.metadata.RelationKind;
 import org.jumpserver.chen.framework.datasource.metadata.RelationMetadata;
 import org.jumpserver.chen.framework.datasource.metadata.RelationScope;
@@ -25,7 +27,7 @@ public class MysqlMetadataProvider extends BaseDatabaseMetadataProvider {
     }
 
     private static final MetadataCapabilities CAPABILITIES = new MetadataCapabilities(
-            false, true, true, true, true, false, false, true, true,
+            false, true, true, true, true, true, true, true, true,
             true, true, true, true, true, true, false
     );
 
@@ -164,6 +166,38 @@ public class MysqlMetadataProvider extends BaseDatabaseMetadataProvider {
     @Override
     public ObjectProperties objectProperties(ObjectRef ref) throws SQLException {
         return loadObjectProperties(ref, SQL_TABLE_PROPERTIES);
+    }
+
+    private static final String SQL_PRIMARY_KEYS = """
+            SELECT k.TABLE_NAME AS table_name, k.COLUMN_NAME AS column_name, k.CONSTRAINT_NAME AS name
+            FROM information_schema.KEY_COLUMN_USAGE k
+            JOIN information_schema.TABLE_CONSTRAINTS t
+              ON k.CONSTRAINT_SCHEMA = t.CONSTRAINT_SCHEMA AND k.CONSTRAINT_NAME = t.CONSTRAINT_NAME AND k.TABLE_NAME = t.TABLE_NAME
+            WHERE t.CONSTRAINT_TYPE = 'PRIMARY KEY' AND t.TABLE_SCHEMA = ? AND k.TABLE_NAME IN (__IN__)
+            ORDER BY k.TABLE_NAME, k.ORDINAL_POSITION
+            """;
+
+    private static final String SQL_FOREIGN_KEYS = """
+            SELECT k.TABLE_NAME AS table_name, k.COLUMN_NAME AS column_name, k.CONSTRAINT_NAME AS name,
+                   k.REFERENCED_TABLE_SCHEMA AS referenced_schema, k.REFERENCED_TABLE_NAME AS referenced_table,
+                   k.REFERENCED_COLUMN_NAME AS referenced_column
+            FROM information_schema.KEY_COLUMN_USAGE k
+            WHERE k.TABLE_SCHEMA = ? AND k.REFERENCED_TABLE_NAME IS NOT NULL AND k.TABLE_NAME IN (__IN__)
+            ORDER BY k.TABLE_NAME, k.CONSTRAINT_NAME, k.ORDINAL_POSITION
+            """;
+
+    @Override
+    public List<PrimaryKeyMetadata> listPrimaryKeys(List<ObjectRef> relations) throws SQLException {
+        var first = relations.get(0);
+        return groupPrimaryKeys(queryKeys(SQL_PRIMARY_KEYS, relations, first.schema()),
+                new RelationScope(first.catalog(), first.schema()));
+    }
+
+    @Override
+    public List<ForeignKeyMetadata> listForeignKeys(List<ObjectRef> relations) throws SQLException {
+        var first = relations.get(0);
+        return groupForeignKeys(queryKeys(SQL_FOREIGN_KEYS, relations, first.schema()),
+                new RelationScope(first.catalog(), first.schema()));
     }
 
     @Override

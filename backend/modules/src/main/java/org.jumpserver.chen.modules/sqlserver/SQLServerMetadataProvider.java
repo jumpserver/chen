@@ -6,7 +6,9 @@ import org.jumpserver.chen.framework.datasource.metadata.CatalogMetadata;
 import org.jumpserver.chen.framework.datasource.metadata.ColumnMetadata;
 import org.jumpserver.chen.framework.datasource.metadata.IndexMetadata;
 import org.jumpserver.chen.framework.datasource.metadata.MetadataCapabilities;
+import org.jumpserver.chen.framework.datasource.metadata.ForeignKeyMetadata;
 import org.jumpserver.chen.framework.datasource.metadata.ObjectRef;
+import org.jumpserver.chen.framework.datasource.metadata.PrimaryKeyMetadata;
 import org.jumpserver.chen.framework.datasource.metadata.ObjectStatistics;
 import org.jumpserver.chen.framework.datasource.metadata.RelationKind;
 import org.jumpserver.chen.framework.datasource.metadata.RelationMetadata;
@@ -25,7 +27,7 @@ public class SQLServerMetadataProvider extends BaseDatabaseMetadataProvider {
     }
 
     private static final MetadataCapabilities CAPABILITIES = new MetadataCapabilities(
-            true, true, true, true, true, false, false, true, false,
+            true, true, true, true, true, true, true, true, false,
             true, true, false, false, false, true, true
     );
 
@@ -180,5 +182,45 @@ public class SQLServerMetadataProvider extends BaseDatabaseMetadataProvider {
             ));
         }
         return result;
+    }
+
+    private static final String SQL_PRIMARY_KEYS = """
+            SELECT t.name AS table_name, c.name AS column_name, kc.name AS name
+            FROM sys.key_constraints kc
+            JOIN sys.tables t ON t.object_id = kc.parent_object_id
+            JOIN sys.schemas s ON s.schema_id = t.schema_id
+            JOIN sys.index_columns ic ON ic.object_id = t.object_id AND ic.index_id = kc.unique_index_id
+            JOIN sys.columns c ON c.object_id = ic.object_id AND c.column_id = ic.column_id
+            WHERE kc.type = 'PK' AND s.name = ? AND t.name IN (__IN__)
+            ORDER BY t.name, kc.name, ic.key_ordinal
+            """;
+
+    private static final String SQL_FOREIGN_KEYS = """
+            SELECT t.name AS table_name, c.name AS column_name, fk.name AS name,
+                   rs.name AS referenced_schema, rt.name AS referenced_table, rc.name AS referenced_column
+            FROM sys.foreign_keys fk
+            JOIN sys.tables t ON t.object_id = fk.parent_object_id
+            JOIN sys.schemas s ON s.schema_id = t.schema_id
+            JOIN sys.foreign_key_columns fkc ON fkc.constraint_object_id = fk.object_id
+            JOIN sys.columns c ON c.object_id = fkc.parent_object_id AND c.column_id = fkc.parent_column_id
+            JOIN sys.tables rt ON rt.object_id = fk.referenced_object_id
+            JOIN sys.schemas rs ON rs.schema_id = rt.schema_id
+            JOIN sys.columns rc ON rc.object_id = fkc.referenced_object_id AND rc.column_id = fkc.referenced_column_id
+            WHERE s.name = ? AND t.name IN (__IN__)
+            ORDER BY t.name, fk.name, fkc.constraint_column_id
+            """;
+
+    @Override
+    public List<PrimaryKeyMetadata> listPrimaryKeys(List<ObjectRef> relations) throws SQLException {
+        var first = relations.get(0);
+        return groupPrimaryKeys(queryKeys(SQL_PRIMARY_KEYS, relations, first.schema()),
+                new RelationScope(first.catalog(), first.schema()));
+    }
+
+    @Override
+    public List<ForeignKeyMetadata> listForeignKeys(List<ObjectRef> relations) throws SQLException {
+        var first = relations.get(0);
+        return groupForeignKeys(queryKeys(SQL_FOREIGN_KEYS, relations, first.schema()),
+                new RelationScope(first.catalog(), first.schema()));
     }
 }

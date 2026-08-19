@@ -6,7 +6,9 @@ import org.jumpserver.chen.framework.datasource.metadata.ColumnMetadata;
 import org.jumpserver.chen.framework.datasource.metadata.IndexMetadata;
 import org.jumpserver.chen.framework.datasource.metadata.MetadataCapabilities;
 import org.jumpserver.chen.framework.datasource.metadata.ObjectProperties;
+import org.jumpserver.chen.framework.datasource.metadata.ForeignKeyMetadata;
 import org.jumpserver.chen.framework.datasource.metadata.ObjectRef;
+import org.jumpserver.chen.framework.datasource.metadata.PrimaryKeyMetadata;
 import org.jumpserver.chen.framework.datasource.metadata.ObjectStatistics;
 import org.jumpserver.chen.framework.datasource.metadata.RelationKind;
 import org.jumpserver.chen.framework.datasource.metadata.RelationMetadata;
@@ -25,7 +27,7 @@ public class DmMetadataProvider extends BaseDatabaseMetadataProvider {
     }
 
     private static final MetadataCapabilities CAPABILITIES = new MetadataCapabilities(
-            false, true, true, true, true, false, false, true, false,
+            false, true, true, true, true, true, true, true, false,
             true, false, false, false, false, true, true
     );
 
@@ -160,5 +162,38 @@ public class DmMetadataProvider extends BaseDatabaseMetadataProvider {
     @Override
     public ObjectProperties objectProperties(ObjectRef ref) throws SQLException {
         return loadObjectProperties(ref, SQL_TABLE_PROPERTIES);
+    }
+
+    private static final String SQL_PRIMARY_KEYS = """
+            SELECT c.table_name AS table_name, cc.column_name AS column_name, c.constraint_name AS name
+            FROM all_constraints c
+            JOIN all_cons_columns cc ON cc.owner = c.owner AND cc.constraint_name = c.constraint_name AND cc.table_name = c.table_name
+            WHERE c.constraint_type = 'P' AND c.owner = ? AND c.table_name IN (__IN__)
+            ORDER BY c.table_name, c.constraint_name, cc.position
+            """;
+
+    private static final String SQL_FOREIGN_KEYS = """
+            SELECT c.table_name AS table_name, cc.column_name AS column_name, c.constraint_name AS name,
+                   rc.owner AS referenced_schema, rc.table_name AS referenced_table, rcc.column_name AS referenced_column
+            FROM all_constraints c
+            JOIN all_cons_columns cc ON cc.owner = c.owner AND cc.constraint_name = c.constraint_name AND cc.table_name = c.table_name
+            JOIN all_constraints rc ON rc.owner = c.r_owner AND rc.constraint_name = c.r_constraint_name
+            JOIN all_cons_columns rcc ON rcc.owner = rc.owner AND rcc.constraint_name = rc.constraint_name AND rcc.position = cc.position
+            WHERE c.constraint_type = 'R' AND c.owner = ? AND c.table_name IN (__IN__)
+            ORDER BY c.table_name, c.constraint_name, cc.position
+            """;
+
+    @Override
+    public List<PrimaryKeyMetadata> listPrimaryKeys(List<ObjectRef> relations) throws SQLException {
+        var first = relations.get(0);
+        return groupPrimaryKeys(queryKeys(SQL_PRIMARY_KEYS, relations, first.schema()),
+                new RelationScope(first.catalog(), first.schema()));
+    }
+
+    @Override
+    public List<ForeignKeyMetadata> listForeignKeys(List<ObjectRef> relations) throws SQLException {
+        var first = relations.get(0);
+        return groupForeignKeys(queryKeys(SQL_FOREIGN_KEYS, relations, first.schema()),
+                new RelationScope(first.catalog(), first.schema()));
     }
 }

@@ -274,6 +274,96 @@ public abstract class BaseDatabaseMetadataProvider implements DatabaseMetadataPr
         return new ObjectProperties(ref, items);
     }
 
+    /**
+     * Runs a key query whose rows are (table_name, column_name, name[, referenced_*])
+     * restricted to {@code table IN (…)}, and groups them by owner.
+     */
+    protected List<Map<String, Object>> queryKeys(String sqlTemplate, List<ObjectRef> relations, String schema)
+            throws SQLException {
+        if (relations.isEmpty()) {
+            return List.of();
+        }
+        var result = new ArrayList<Map<String, Object>>();
+        for (var batch : chunk(relations.stream().map(ObjectRef::name).toList(), 500)) {
+            var placeholders = String.join(",", Collections.nCopies(batch.size(), "?"));
+            var params = new ArrayList<Object>();
+            params.add(schema);
+            params.addAll(batch);
+            result.addAll(query(sqlTemplate.replace("__IN__", placeholders), params));
+        }
+        return result;
+    }
+
+    protected List<PrimaryKeyMetadata> groupPrimaryKeys(List<Map<String, Object>> rows, RelationScope scope) {
+        var grouped = new LinkedHashMap<String, MutablePrimaryKey>();
+        for (var row : rows) {
+            var table = stringValue(row, "table_name");
+            var pk = grouped.computeIfAbsent(table, ignored -> new MutablePrimaryKey(stringValue(row, "name"), table));
+            var column = stringValue(row, "column_name");
+            if (column != null && !column.isBlank()) {
+                pk.columns.add(column);
+            }
+        }
+        var result = new ArrayList<PrimaryKeyMetadata>(grouped.size());
+        for (var pk : grouped.values()) {
+            result.add(new PrimaryKeyMetadata(
+                    new ObjectRef(scope.catalog(), scope.schema(), pk.table, RelationKind.TABLE),
+                    pk.name,
+                    List.copyOf(pk.columns)
+            ));
+        }
+        return result;
+    }
+
+    protected List<ForeignKeyMetadata> groupForeignKeys(List<Map<String, Object>> rows, RelationScope scope) {
+        var grouped = new LinkedHashMap<String, MutableForeignKey>();
+        for (var row : rows) {
+            var table = stringValue(row, "table_name");
+            var name = stringValue(row, "name");
+            var fk = grouped.computeIfAbsent(table + " " + name, ignored -> new MutableForeignKey(name, table));
+            fk.columns.add(stringValue(row, "column_name"));
+            fk.referencedSchema = stringValue(row, "referenced_schema");
+            fk.referencedTable = stringValue(row, "referenced_table");
+            fk.referencedColumns.add(stringValue(row, "referenced_column"));
+        }
+        var result = new ArrayList<ForeignKeyMetadata>(grouped.size());
+        for (var fk : grouped.values()) {
+            result.add(new ForeignKeyMetadata(
+                    new ObjectRef(scope.catalog(), scope.schema(), fk.table, RelationKind.TABLE),
+                    fk.name,
+                    List.copyOf(fk.columns),
+                    new ObjectRef(scope.catalog(), fk.referencedSchema, fk.referencedTable, RelationKind.TABLE),
+                    List.copyOf(fk.referencedColumns)
+            ));
+        }
+        return result;
+    }
+
+    private static final class MutablePrimaryKey {
+        private final String name;
+        private final String table;
+        private final List<String> columns = new ArrayList<>();
+
+        private MutablePrimaryKey(String name, String table) {
+            this.name = name;
+            this.table = table;
+        }
+    }
+
+    private static final class MutableForeignKey {
+        private final String name;
+        private final String table;
+        private final List<String> columns = new ArrayList<>();
+        private final List<String> referencedColumns = new ArrayList<>();
+        private String referencedSchema;
+        private String referencedTable;
+
+        private MutableForeignKey(String name, String table) {
+            this.name = name;
+            this.table = table;
+        }
+    }
+
     private static UnsupportedOperationException unsupported(String category) {
         return new UnsupportedOperationException("Metadata category not supported: " + category);
     }

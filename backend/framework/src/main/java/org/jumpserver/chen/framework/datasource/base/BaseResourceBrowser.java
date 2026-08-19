@@ -7,10 +7,8 @@ import org.jumpserver.chen.framework.datasource.ConnectionManager;
 import org.jumpserver.chen.framework.datasource.ResourceBrowser;
 import org.jumpserver.chen.framework.datasource.entity.resource.*;
 import org.jumpserver.chen.framework.datasource.metadata.MetadataCatalog;
-import org.jumpserver.chen.framework.datasource.metadata.ObjectRef;
 import org.jumpserver.chen.framework.datasource.metadata.RelationKind;
 import org.jumpserver.chen.framework.datasource.metadata.RelationScope;
-import org.jumpserver.chen.framework.datasource.sql.SQLActuator;
 import org.jumpserver.chen.framework.session.SessionManager;
 import org.jumpserver.chen.framework.utils.SqlIdentifierUtils;
 import org.jumpserver.chen.framework.utils.TreeUtils;
@@ -112,9 +110,12 @@ public abstract class BaseResourceBrowser implements ResourceBrowser {
     }
 
     public List<TreeNode> getDatasourceChildNodes(TreeNode parent) throws SQLException {
-        return this.getSchemas()
-                .stream()
-                .map(schema -> schema.toResourceNode(parent))
+        return this.metadataCatalog().listSchemas(null).stream()
+                .map(schema -> {
+                    var entity = new Schema();
+                    entity.setName(schema.name());
+                    return entity.toResourceNode(parent);
+                })
                 .toList();
     }
 
@@ -221,54 +222,6 @@ public abstract class BaseResourceBrowser implements ResourceBrowser {
         this.nodeIndex.keySet().removeIf(key -> key.startsWith(prefix));
     }
 
-    public List<Schema> getSchemas() throws SQLException {
-        return this.metadataCatalog().listSchemas(null).stream()
-                .map(schema -> {
-                    var entity = new Schema();
-                    entity.setName(schema.name());
-                    return entity;
-                })
-                .toList();
-    }
-
-    public List<Table> getTables(String schema) throws SQLException {
-        return this.metadataCatalog().listRelations(new RelationScope(null, schema), Set.of(RelationKind.TABLE)).stream()
-                .map(relation -> {
-                    var table = new Table();
-                    table.setName(relation.ref().name());
-                    table.setSchema(schema);
-                    return table;
-                })
-                .toList();
-    }
-
-    public List<View> getViews(String schema) throws SQLException {
-        return this.metadataCatalog().listRelations(new RelationScope(null, schema), Set.of(RelationKind.VIEW)).stream()
-                .map(relation -> {
-                    var view = new View();
-                    view.setName(relation.ref().name());
-                    view.setSchema(schema);
-                    return view;
-                })
-                .toList();
-    }
-
-    public List<Field> getFields(String schema, String table) throws SQLException {
-        var ref = new ObjectRef(null, schema, table, RelationKind.TABLE);
-        return this.metadataCatalog().listColumns(List.of(ref)).stream()
-                .map(column -> {
-                    var field = new Field();
-                    field.setName(column.name());
-                    field.setType(column.nativeType());
-                    field.setNullable(column.nullable());
-                    return field;
-                })
-                .toList();
-    }
-
-    public SQLActuator getSQLActuator() {
-        return this.connectionManager.getSqlActuator();
-    }
 
     @Override
     public RelationScope resolveScope(ResourceNodeSnapshot node, String context) throws SQLException {
