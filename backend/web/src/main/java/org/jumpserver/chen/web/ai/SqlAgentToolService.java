@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 @Service
 public class SqlAgentToolService {
@@ -38,9 +39,15 @@ public class SqlAgentToolService {
     private static final int MAX_IDENTIFIER_BYTES = 1024;
     private static final int MAX_OBJECTS = 50;
     private static final int MAX_ANALYSIS_COLUMNS = 512;
-    private static final int MAX_INSPECT_TABLES = 8;
+    static final int MAX_INSPECT_TABLES = 8;
+    static final int MAX_DISCOVER_TABLES = 100;
+    static final String DISCOVER_TABLES_QUERY = "*";
     private static final int MAX_INSPECT_COLUMNS = 96;
     private static final int MAX_INSPECT_RELATIONS = 48;
+    static final List<String> INSPECT_SCHEMA_DATA_CATEGORIES = List.of(
+            "connection_metadata", "tables", "columns", "primary_keys",
+            "foreign_keys", "indexes", "comments", "default_values"
+    );
     private static final Set<String> CONTEXT_NODE_TYPES =
             Set.of("datasource", "database", "schema", "table", "view");
     private static final Set<String> TOOL_NAMES = Set.of("inspect_schema", "validate_sql");
@@ -133,6 +140,7 @@ public class SqlAgentToolService {
         String targetSql = hasSelection ? selectedSql : documentSql;
         Map<String, Object> sqlAnalysis = StringUtils.isBlank(targetSql)
                 ? null : validateSQL(datasource.getDruidDbType(), targetSql);
+        assertAllowedAiScope(dialect, database, schema, targetSql, sqlAnalysis);
         JsonObject sanitized = new JsonObject();
         sanitized.addProperty("dialect", dialect);
         addNullableString(sanitized, "database", database);
@@ -171,6 +179,7 @@ public class SqlAgentToolService {
         }
         return new AgentRequestContext(
                 dialect, database, schema, node.table(), node.key(),
+                consoleId, currentContext,
                 sanitizedJson
         );
     }
@@ -180,6 +189,7 @@ public class SqlAgentToolService {
         if (session == null || context == null || session.isClosing() || !session.isActive()) {
             throw new IllegalStateException("The database session is not active");
         }
+        assertRequestContextCurrent(session, context);
         toolName = StringUtils.defaultString(toolName).trim().toLowerCase(Locale.ROOT);
         if (!TOOL_NAMES.contains(toolName)) {
             throw new IllegalArgumentException("Unsupported SQL assistant tool");
@@ -187,12 +197,7 @@ public class SqlAgentToolService {
         if (argumentsJson == null || argumentsJson.length() > 32 * 1024) {
             throw new IllegalArgumentException("Invalid SQL assistant tool arguments");
         }
-        JsonObject arguments;
-        try {
-            arguments = JsonParser.parseString(argumentsJson).getAsJsonObject();
-        } catch (RuntimeException e) {
-            throw new IllegalArgumentException("Invalid SQL assistant tool arguments", e);
-        }
+        JsonObject arguments = parseToolArguments(argumentsJson);
 
         Datasource datasource = session.getDatasource();
         ConnectionManager connectionManager = datasource.getConnectionManager();
@@ -205,6 +210,75 @@ public class SqlAgentToolService {
             default -> throw new IllegalArgumentException("Unsupported SQL assistant tool");
         };
         return GSON.toJson(result);
+    }
+
+    MetadataApprovalScope resolveMetadataApprovalScope(
+            AgentRequestContext context,
+            String argumentsJson
+    ) {
+        if (context == null) {
+            throw new IllegalArgumentException("Invalid SQL editor context");
+        }
+        return resolveMetadataApprovalScope(context, parseToolArguments(argumentsJson));
+    }
+
+    private MetadataApprovalScope resolveMetadataApprovalScope(
+            AgentRequestContext context,
+            JsonObject arguments
+    ) {
+        String query = boundedString(arguments, "query", MAX_IDENTIFIER_BYTES, false).trim();
+        List<String> requestedTables = boundedStringList(arguments, "tables", MAX_INSPECT_TABLES);
+        if (query.isBlank() && requestedTables.isEmpty()) {
+            throw new IllegalArgumentException("Schema inspection query or tables are required");
+        }
+        boolean discovery = DISCOVER_TABLES_QUERY.equals(query);
+        if (discovery && !requestedTables.isEmpty()) {
+            throw new IllegalArgumentException("Table discovery cannot include explicit tables");
+        }
+
+        String activeSchema = normalizeMetadataSchema(context.database(), context.schema());
+        if (isBlockedSystemScope(context.dialect(), context.database(), activeSchema)) {
+            throw new IllegalArgumentException("System database metadata is not available to the SQL assistant");
+        }
+        if (requiresSchemaScope(context.dialect()) && activeSchema.isBlank()) {
+            throw new IllegalArgumentException("Schema inspection requires an active schema");
+        }
+        if (requiresDatabaseScope(context.dialect()) && StringUtils.isBlank(context.database())) {
+            throw new IllegalArgumentException("Schema inspection requires an active database");
+        }
+        String requestedSchema = normalizeMetadataSchema(
+                context.database(), boundedString(arguments, "schema", MAX_IDENTIFIER_BYTES, false)
+        );
+        if (StringUtils.isNotBlank(requestedSchema)
+                && !requestedSchema.equalsIgnoreCase(activeSchema)) {
+            throw new IllegalArgumentException("Schema inspection must stay in the active schema");
+        }
+
+        List<String> tables = new ArrayList<>(requestedTables.size());
+        for (String requestedTable : requestedTables) {
+            List<String> parts = qualifiedIdentifierParts(requestedTable);
+            validateTableQualifier(parts, context.database(), activeSchema);
+            tables.add(parts.get(parts.size() - 1));
+        }
+        return new MetadataApprovalScope(
+                StringUtils.defaultString(context.database()),
+                StringUtils.defaultString(activeSchema),
+                context.nodeKey(),
+                List.copyOf(tables),
+                query,
+                discovery
+        );
+    }
+
+    private static JsonObject parseToolArguments(String argumentsJson) {
+        if (argumentsJson == null || argumentsJson.length() > 32 * 1024) {
+            throw new IllegalArgumentException("Invalid SQL assistant tool arguments");
+        }
+        try {
+            return JsonParser.parseString(argumentsJson).getAsJsonObject();
+        } catch (RuntimeException e) {
+            throw new IllegalArgumentException("Invalid SQL assistant tool arguments", e);
+        }
     }
 
     static Map<String, Object> validateSQL(DbType dbType, String sql) {
@@ -262,59 +336,75 @@ public class SqlAgentToolService {
     private Map<String, Object> inspectSchema(
             ConnectionManager manager, AgentRequestContext context, JsonObject arguments
     ) throws SQLException {
-        String query = boundedString(arguments, "query", MAX_IDENTIFIER_BYTES, false).trim();
-        List<String> requestedTables = boundedStringList(arguments, "tables", MAX_INSPECT_TABLES);
-        if (query.isBlank() && requestedTables.isEmpty()) {
-            throw new IllegalArgumentException("Schema inspection query or tables are required");
-        }
-        String requestedSchema = boundedString(arguments, "schema", MAX_IDENTIFIER_BYTES, false);
+        MetadataApprovalScope approvedScope = resolveMetadataApprovalScope(context, arguments);
+        String query = approvedScope.query();
+        List<String> requestedTables = approvedScope.tables();
+        int maximumTables = approvedScope.discovery() ? MAX_DISCOVER_TABLES : MAX_INSPECT_TABLES;
         try (Connection connection = manager.getConnection()) {
             DatabaseMetaData metadata = connection.getMetaData();
-            MetadataScope scope = metadataScope(connection, context, requestedSchema);
+            MetadataScope scope = metadataScope(connection, context, approvedScope.schema());
             Map<String, Map<String, Object>> candidates = new LinkedHashMap<>();
             List<String> missingTables = new ArrayList<>();
             for (String requestedTable : requestedTables) {
                 String table = unqualifiedTableName(requestedTable);
-                Map<String, Object> item = findTable(metadata, scope, table);
+                Map<String, Object> item = findTable(metadata, scope, context, table);
                 if (item == null) {
                     missingTables.add(requestedTable);
                 } else {
                     candidates.putIfAbsent(metadataKey(item), item);
                 }
             }
-            if (!query.isBlank() && candidates.size() < MAX_INSPECT_TABLES) {
-                String pattern = "%" + escapeMetadataPattern(query, metadata.getSearchStringEscape()) + "%";
+            if (!query.isBlank() && candidates.size() < maximumTables) {
+                String pattern = approvedScope.discovery()
+                        ? "%"
+                        : "%" + escapeMetadataPattern(query, metadata.getSearchStringEscape()) + "%";
                 try (ResultSet rows = metadata.getTables(
                         scope.catalog(), scope.schema(), pattern,
                         new String[]{"TABLE", "VIEW", "MATERIALIZED VIEW"}
                 )) {
-                    while (rows.next() && candidates.size() < MAX_INSPECT_TABLES) {
+                    while (rows.next() && candidates.size() < maximumTables) {
                         Map<String, Object> item = tableInfo(rows);
-                        candidates.putIfAbsent(metadataKey(item), item);
+                        if (isMetadataItemWithinScope(item, scope, context.dialect())) {
+                            candidates.putIfAbsent(metadataKey(item), item);
+                        }
                     }
                 }
             }
+            Set<String> allowedTables = candidates.values().stream()
+                    .map(item -> String.valueOf(item.get("name")).toLowerCase(Locale.ROOT))
+                    .collect(java.util.stream.Collectors.toUnmodifiableSet());
             List<Map<String, Object>> objects = new ArrayList<>(candidates.size());
             for (Map<String, Object> tableInfo : candidates.values()) {
-                objects.add(describeTable(metadata, scope, tableInfo));
+                if (approvedScope.discovery()) {
+                    objects.add(tableInfo);
+                } else {
+                    objects.add(describeTable(
+                            metadata, scope, tableInfo, allowedTables, context.dialect()
+                    ));
+                }
             }
             Map<String, Object> result = new LinkedHashMap<>();
             result.put("connection", jdbcConnectionContext(metadata, context));
             result.put("requestedScope", metadataScopeMap(
                     context.database(),
-                    StringUtils.defaultIfBlank(requestedSchema, context.schema())
+                    approvedScope.schema()
             ));
             result.put("resolvedScope", metadataScopeMap(scope.catalog(), scope.schema()));
             result.put("objects", objects);
             result.put("missingTables", missingTables);
             result.put("matchCount", objects.size());
-            result.put("truncated", candidates.size() == MAX_INSPECT_TABLES);
+            result.put("discovery", approvedScope.discovery());
+            result.put("truncated", candidates.size() == maximumTables);
             return result;
         }
     }
 
     private Map<String, Object> describeTable(
-            DatabaseMetaData metadata, MetadataScope scope, Map<String, Object> tableInfo
+            DatabaseMetaData metadata,
+            MetadataScope scope,
+            Map<String, Object> tableInfo,
+            Set<String> allowedTables,
+            String dialect
     ) throws SQLException {
         String table = String.valueOf(tableInfo.get("name"));
         List<Map<String, Object>> columns = readColumns(metadata, scope, table, MAX_INSPECT_COLUMNS);
@@ -324,13 +414,20 @@ public class SqlAgentToolService {
         }
         Map<String, Object> result = new LinkedHashMap<>(tableInfo);
         result.put("columns", columns);
-        result.put("foreignKeys", readForeignKeys(metadata, scope, table, MAX_INSPECT_RELATIONS));
+        result.put("foreignKeys", readForeignKeys(
+                metadata, scope, table, MAX_INSPECT_RELATIONS, allowedTables, dialect
+        ));
         result.put("indexes", readIndexes(metadata, scope, table, MAX_INSPECT_RELATIONS));
         result.put("truncated", columns.size() == MAX_INSPECT_COLUMNS);
         return result;
     }
 
-    private Map<String, Object> findTable(DatabaseMetaData metadata, MetadataScope scope, String table)
+    private Map<String, Object> findTable(
+            DatabaseMetaData metadata,
+            MetadataScope scope,
+            AgentRequestContext context,
+            String table
+    )
             throws SQLException {
         String pattern = escapeMetadataPattern(table, metadata.getSearchStringEscape());
         try (ResultSet rows = metadata.getTables(
@@ -339,7 +436,10 @@ public class SqlAgentToolService {
         )) {
             while (rows.next()) {
                 if (table.equalsIgnoreCase(rows.getString("TABLE_NAME"))) {
-                    return tableInfo(rows);
+                    Map<String, Object> item = tableInfo(rows);
+                    if (isMetadataItemWithinScope(item, scope, context.dialect())) {
+                        return item;
+                    }
                 }
             }
             return null;
@@ -354,6 +454,24 @@ public class SqlAgentToolService {
         result.put("type", rows.getString("TABLE_TYPE"));
         result.put("comment", rows.getString("REMARKS"));
         return result;
+    }
+
+    private static boolean isMetadataItemWithinScope(
+            Map<String, Object> item,
+            MetadataScope scope,
+            String dialect
+    ) {
+        String database = StringUtils.defaultString((String) item.get("database"));
+        String schema = StringUtils.defaultString((String) item.get("schema"));
+        if (StringUtils.isNotBlank(scope.catalog())
+                && !scope.catalog().equalsIgnoreCase(database)) {
+            return false;
+        }
+        if (StringUtils.isNotBlank(scope.schema())
+                && !scope.schema().equalsIgnoreCase(schema)) {
+            return false;
+        }
+        return !isBlockedSystemScope(dialect, database, schema);
     }
 
     private static String metadataKey(Map<String, Object> item) {
@@ -399,17 +517,34 @@ public class SqlAgentToolService {
     }
 
     private List<Map<String, Object>> readForeignKeys(
-            DatabaseMetaData metadata, MetadataScope scope, String table, int maximum
+            DatabaseMetaData metadata,
+            MetadataScope scope,
+            String table,
+            int maximum,
+            Set<String> allowedTables,
+            String dialect
     )
             throws SQLException {
         List<Map<String, Object>> keys = new ArrayList<>();
         try (ResultSet rows = metadata.getImportedKeys(scope.catalog(), scope.schema(), table)) {
             while (rows.next() && keys.size() < maximum) {
+                String referencedDatabase = rows.getString("PKTABLE_CAT");
+                String referencedSchema = rows.getString("PKTABLE_SCHEM");
+                String referencedTable = rows.getString("PKTABLE_NAME");
+                if ((StringUtils.isNotBlank(scope.catalog())
+                        && !scope.catalog().equalsIgnoreCase(StringUtils.defaultString(referencedDatabase)))
+                        || (StringUtils.isNotBlank(scope.schema())
+                        && !scope.schema().equalsIgnoreCase(StringUtils.defaultString(referencedSchema)))
+                        || isBlockedSystemScope(dialect, referencedDatabase, referencedSchema)
+                        || StringUtils.isBlank(referencedTable)
+                        || !allowedTables.contains(referencedTable.toLowerCase(Locale.ROOT))) {
+                    continue;
+                }
                 Map<String, Object> key = new LinkedHashMap<>();
                 key.put("name", rows.getString("FK_NAME"));
                 key.put("column", rows.getString("FKCOLUMN_NAME"));
-                key.put("referencedSchema", rows.getString("PKTABLE_SCHEM"));
-                key.put("referencedTable", rows.getString("PKTABLE_NAME"));
+                key.put("referencedSchema", referencedSchema);
+                key.put("referencedTable", referencedTable);
                 key.put("referencedColumn", rows.getString("PKCOLUMN_NAME"));
                 keys.add(key);
             }
@@ -463,6 +598,193 @@ public class SqlAgentToolService {
             normalized = normalized.substring(catalog.length() + 1);
         }
         return normalized;
+    }
+
+    private static void assertRequestContextCurrent(Session session, AgentRequestContext expected) {
+        ResourceNodeSnapshot node;
+        String currentContext = "";
+        if (StringUtils.isBlank(expected.consoleId())) {
+            node = session.getDatasource().getResourceBrowser().getIndexedNode(expected.nodeKey());
+        } else {
+            var console = session.getConsoles().get(expected.consoleId());
+            if (console == null || !expected.nodeKey().equals(console.getNodeKey())) {
+                throw new IllegalStateException("The database workspace context has changed");
+            }
+            var consoleContext = console.getContext();
+            node = new ResourceNodeSnapshot(
+                    consoleContext.nodeKey(), consoleContext.nodeType(), consoleContext.database(),
+                    consoleContext.schema(), consoleContext.table(), null
+            );
+            if (console instanceof QueryConsole queryConsole) {
+                currentContext = queryConsole.getCurrentContext();
+            }
+        }
+        if (node == null || !expected.nodeKey().equals(node.key())) {
+            throw new IllegalStateException("The database workspace context has changed");
+        }
+
+        String database = node.database();
+        String schema = node.schema();
+        ConnectionManager manager = session.getDatasource().getConnectionManager();
+        if (StringUtils.isNotBlank(currentContext)) {
+            if (StringUtils.equals(manager.getContextKey(), manager.getDatabaseContextKey())) {
+                database = currentContext;
+            } else {
+                schema = currentContext;
+            }
+        }
+        schema = normalizeMetadataSchema(database, schema);
+        if (!StringUtils.equals(database, expected.database())
+                || !StringUtils.equalsIgnoreCase(schema, expected.schema())
+                || !StringUtils.equals(currentContext, expected.currentContext())) {
+            throw new IllegalStateException("The database workspace context has changed");
+        }
+    }
+
+    private static void assertAllowedAiScope(
+            String dialect,
+            String database,
+            String schema,
+            String sql,
+            Map<String, Object> sqlAnalysis
+    ) {
+        boolean sqlIsValid = sqlAnalysis == null || Boolean.TRUE.equals(sqlAnalysis.get("valid"));
+        if (isBlockedSystemScope(dialect, database, schema)
+                || (!sqlIsValid && containsBlockedSystemQualifier(dialect, sql))) {
+            throw new IllegalArgumentException("System database objects are not available to the SQL assistant");
+        }
+        if (sqlAnalysis == null) {
+            return;
+        }
+        Object tablesValue = sqlAnalysis.get("tables");
+        if (!(tablesValue instanceof Collection<?> tables)) {
+            return;
+        }
+        for (Object value : tables) {
+            List<String> parts;
+            try {
+                parts = qualifiedIdentifierParts(String.valueOf(value));
+            } catch (IllegalArgumentException ignored) {
+                continue;
+            }
+            if (parts.size() == 2 && (isBlockedSystemDatabase(dialect, parts.get(0))
+                    || isBlockedSystemSchema(dialect, parts.get(0)))) {
+                throw new IllegalArgumentException("System database objects are not available to the SQL assistant");
+            }
+            if (parts.size() == 3 && (isBlockedSystemDatabase(dialect, parts.get(0))
+                    || isBlockedSystemSchema(dialect, parts.get(1)))) {
+                throw new IllegalArgumentException("System database objects are not available to the SQL assistant");
+            }
+        }
+    }
+
+    private static boolean isBlockedSystemScope(String dialect, String database, String schema) {
+        return isBlockedSystemDatabase(dialect, database) || isBlockedSystemSchema(dialect, schema);
+    }
+
+    private static boolean containsBlockedSystemQualifier(String dialect, String sql) {
+        if (StringUtils.isBlank(sql)) {
+            return false;
+        }
+        String normalized = sql.toLowerCase(Locale.ROOT)
+                .replace("\"", "")
+                .replace("`", "")
+                .replace("[", "")
+                .replace("]", "");
+        Set<String> identifiers = new LinkedHashSet<>();
+        identifiers.add("information_schema");
+        String db = StringUtils.defaultString(dialect).toLowerCase(Locale.ROOT);
+        switch (db) {
+            case "mysql", "mariadb" -> identifiers.addAll(Set.of("mysql", "performance_schema", "sys"));
+            case "postgresql", "postgres" -> identifiers.addAll(Set.of("pg_catalog", "pg_toast"));
+            case "sqlserver" -> identifiers.addAll(Set.of("master", "model", "msdb", "tempdb", "sys"));
+            case "oracle" -> identifiers.addAll(Set.of("sys", "system", "xdb", "mdsys", "ctxsys", "audsys"));
+            case "db2" -> identifiers.addAll(Set.of(
+                    "sysibm", "syscat", "sysstat", "sysfun", "sysproc", "systools"
+            ));
+            case "clickhouse" -> identifiers.add("system");
+            case "dm", "dameng" -> identifiers.addAll(Set.of("sys", "system", "sysauditor"));
+            default -> {
+            }
+        }
+        for (String identifier : identifiers) {
+            Pattern qualifier = Pattern.compile(
+                    "(?<![a-z0-9_$])" + Pattern.quote(identifier) + "\\s*\\."
+            );
+            if (qualifier.matcher(normalized).find()) {
+                return true;
+            }
+        }
+        return Set.of("postgresql", "postgres").contains(db)
+                && Pattern.compile("(?<![a-z0-9_$])pg_(?:temp|toast_temp)_[a-z0-9_$]+\\s*\\.")
+                .matcher(normalized)
+                .find();
+    }
+
+    private static boolean isBlockedSystemDatabase(String dialect, String database) {
+        String value = normalizePolicyIdentifier(database);
+        String db = StringUtils.defaultString(dialect).toLowerCase(Locale.ROOT);
+        if (value.isBlank()) {
+            return false;
+        }
+        if ("information_schema".equals(value)) {
+            return true;
+        }
+        return switch (db) {
+            case "mysql", "mariadb" -> Set.of("mysql", "performance_schema", "sys").contains(value);
+            case "sqlserver" -> Set.of("master", "model", "msdb", "tempdb").contains(value);
+            case "clickhouse" -> "system".equals(value);
+            default -> false;
+        };
+    }
+
+    private static boolean isBlockedSystemSchema(String dialect, String schema) {
+        String value = normalizePolicyIdentifier(schema);
+        String db = StringUtils.defaultString(dialect).toLowerCase(Locale.ROOT);
+        if (value.isBlank()) {
+            return false;
+        }
+        if ("information_schema".equals(value)) {
+            return true;
+        }
+        return switch (db) {
+            case "postgresql", "postgres" -> value.equals("pg_catalog")
+                    || value.equals("pg_toast")
+                    || value.startsWith("pg_temp_")
+                    || value.startsWith("pg_toast_temp_");
+            case "sqlserver" -> value.equals("sys");
+            case "oracle" -> Set.of(
+                    "sys", "system", "xdb", "mdsys", "ctxsys", "audsys"
+            ).contains(value);
+            case "db2" -> Set.of(
+                    "sysibm", "syscat", "sysstat", "sysfun", "sysproc", "systools"
+            ).contains(value);
+            case "clickhouse" -> value.equals("system");
+            case "dm", "dameng" -> Set.of("sys", "system", "sysauditor").contains(value);
+            default -> false;
+        };
+    }
+
+    private static String normalizePolicyIdentifier(String value) {
+        String normalized = StringUtils.trimToEmpty(value);
+        if (normalized.length() >= 2 && ((normalized.startsWith("\"") && normalized.endsWith("\""))
+                || (normalized.startsWith("`") && normalized.endsWith("`"))
+                || (normalized.startsWith("[") && normalized.endsWith("]")))) {
+            normalized = normalized.substring(1, normalized.length() - 1);
+        }
+        return normalized.toLowerCase(Locale.ROOT);
+    }
+
+    private static boolean requiresSchemaScope(String dialect) {
+        return !Set.of("mysql", "mariadb").contains(
+                StringUtils.defaultString(dialect).toLowerCase(Locale.ROOT)
+        );
+    }
+
+    private static boolean requiresDatabaseScope(String dialect) {
+        return Set.of("mysql", "mariadb", "clickhouse", "sqlserver").contains(
+                StringUtils.defaultString(dialect).toLowerCase(Locale.ROOT)
+        );
     }
 
     private static JsonObject connectionContext(
@@ -669,20 +991,77 @@ public class SqlAgentToolService {
     }
 
     private static String unqualifiedTableName(String value) {
-        String result = StringUtils.trimToEmpty(value);
-        int separator = result.lastIndexOf('.');
-        if (separator >= 0) {
-            result = result.substring(separator + 1).trim();
+        List<String> parts = qualifiedIdentifierParts(value);
+        return parts.get(parts.size() - 1);
+    }
+
+    private static List<String> qualifiedIdentifierParts(String value) {
+        String input = StringUtils.trimToEmpty(value);
+        if (input.isBlank()) {
+            throw new IllegalArgumentException("Invalid table name");
         }
+        List<String> parts = new ArrayList<>();
+        StringBuilder part = new StringBuilder();
+        char quote = 0;
+        for (int index = 0; index < input.length(); index++) {
+            char current = input.charAt(index);
+            if (quote == 0 && (current == '"' || current == '`' || current == '[')) {
+                quote = current == '[' ? ']' : current;
+                part.append(current);
+                continue;
+            }
+            if (quote != 0 && current == quote) {
+                if (index + 1 < input.length() && input.charAt(index + 1) == quote) {
+                    part.append(current).append(current);
+                    index++;
+                    continue;
+                }
+                quote = 0;
+                part.append(current);
+                continue;
+            }
+            if (quote == 0 && current == '.') {
+                parts.add(normalizeIdentifierPart(part.toString()));
+                part.setLength(0);
+                continue;
+            }
+            part.append(current);
+        }
+        if (quote != 0) {
+            throw new IllegalArgumentException("Invalid table name");
+        }
+        parts.add(normalizeIdentifierPart(part.toString()));
+        if (parts.size() > 3) {
+            throw new IllegalArgumentException("Invalid table name");
+        }
+        return List.copyOf(parts);
+    }
+
+    private static String normalizeIdentifierPart(String value) {
+        String result = StringUtils.trimToEmpty(value);
         if (result.length() >= 2 && ((result.startsWith("\"") && result.endsWith("\""))
                 || (result.startsWith("`") && result.endsWith("`"))
                 || (result.startsWith("[") && result.endsWith("]")))) {
             result = result.substring(1, result.length() - 1);
         }
-        if (result.isBlank()) {
+        if (result.isBlank() || result.length() > MAX_IDENTIFIER_BYTES) {
             throw new IllegalArgumentException("Invalid table name");
         }
         return result;
+    }
+
+    private static void validateTableQualifier(List<String> parts, String database, String schema) {
+        if (parts.size() >= 2) {
+            String qualifier = parts.get(parts.size() - 2);
+            if (!qualifier.equalsIgnoreCase(StringUtils.defaultString(schema))
+                    && !qualifier.equalsIgnoreCase(StringUtils.defaultString(database))) {
+                throw new IllegalArgumentException("Table inspection must stay in the active schema");
+            }
+        }
+        if (parts.size() == 3
+                && !parts.get(0).equalsIgnoreCase(StringUtils.defaultString(database))) {
+            throw new IllegalArgumentException("Table inspection must stay in the active database");
+        }
     }
 
     private static String boundedString(JsonObject object, String name, int maximum, boolean required) {
@@ -704,8 +1083,42 @@ public class SqlAgentToolService {
             String schema,
             String table,
             String nodeKey,
+            String consoleId,
+            String currentContext,
             String sanitizedJson
     ) {
+    }
+
+    record MetadataApprovalScope(
+            String database,
+            String schema,
+            String nodeKey,
+            List<String> tables,
+            String query,
+            boolean discovery
+    ) {
+        boolean covers(MetadataApprovalScope requested) {
+            if (requested == null
+                    || !database.equalsIgnoreCase(requested.database)
+                    || !schema.equalsIgnoreCase(requested.schema)
+                    || !nodeKey.equals(requested.nodeKey)) {
+                return false;
+            }
+            if (discovery) {
+                return requested.discovery || (requested.query.isBlank()
+                        && !requested.tables.isEmpty()
+                        && requested.tables.size() <= MAX_INSPECT_TABLES);
+            }
+            if (!query.equalsIgnoreCase(requested.query)) {
+                return false;
+            }
+            Set<String> allowedTables = tables.stream()
+                    .map(value -> value.toLowerCase(Locale.ROOT))
+                    .collect(java.util.stream.Collectors.toSet());
+            return requested.tables.stream()
+                    .map(value -> value.toLowerCase(Locale.ROOT))
+                    .allMatch(allowedTables::contains);
+        }
     }
 
     private record MetadataScope(String catalog, String schema) {
