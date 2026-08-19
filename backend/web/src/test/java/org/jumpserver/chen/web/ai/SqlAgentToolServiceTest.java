@@ -5,6 +5,7 @@ import com.google.gson.JsonParser;
 import org.junit.jupiter.api.Test;
 import org.jumpserver.chen.framework.console.Console;
 import org.jumpserver.chen.framework.console.context.ConsoleContext;
+import org.jumpserver.chen.framework.datasource.ConnectionManager;
 import org.jumpserver.chen.framework.datasource.Datasource;
 import org.jumpserver.chen.framework.datasource.ResourceBrowser;
 import org.jumpserver.chen.framework.datasource.entity.DBConnectInfo;
@@ -25,6 +26,7 @@ class SqlAgentToolServiceTest {
         String nodeKey = "datasource:root,schema:public,folder:tables,table:settings_setting";
         var session = mock(Session.class);
         var datasource = mock(Datasource.class);
+        var connectionManager = mock(ConnectionManager.class);
         var resourceBrowser = mock(ResourceBrowser.class);
         var console = mock(Console.class);
         var connectInfo = new DBConnectInfo();
@@ -34,12 +36,15 @@ class SqlAgentToolServiceTest {
         when(session.getDatasource()).thenReturn(datasource);
         when(session.getConsoles()).thenReturn(Map.of("console-1", console));
         when(datasource.getConnectInfo()).thenReturn(connectInfo);
+        when(datasource.getConnectionManager()).thenReturn(connectionManager);
         when(datasource.getDruidDbType()).thenReturn(DbType.postgresql);
         when(datasource.getResourceBrowser()).thenReturn(resourceBrowser);
+        when(connectionManager.getContextKey()).thenReturn("schema");
+        when(connectionManager.getDatabaseContextKey()).thenReturn("database");
         when(resourceBrowser.getIndexedNode(nodeKey)).thenReturn(null);
         when(console.getNodeKey()).thenReturn(nodeKey);
         when(console.getContext()).thenReturn(new ConsoleContext(
-                nodeKey, "table", null, "public", "settings_setting"
+                nodeKey, "table", "jumpserver", "jumpserver.public", "settings_setting"
         ));
 
         var resolved = new SqlAgentToolService().resolveRequestContext(session, """
@@ -55,14 +60,38 @@ class SqlAgentToolServiceTest {
                 """.formatted(nodeKey), "repair");
 
         assertEquals(nodeKey, resolved.nodeKey());
+        assertEquals("jumpserver", resolved.database());
         assertEquals("public", resolved.schema());
         assertEquals("settings_setting", resolved.table());
         var sanitized = JsonParser.parseString(resolved.sanitizedJson()).getAsJsonObject();
+        assertEquals("public", sanitized.get("schema").getAsString());
+        assertEquals("jumpserver.public", sanitized.get("displaySchema").getAsString());
+        assertEquals("table", sanitized.get("nodeType").getAsString());
+        assertEquals("settings_setting", sanitized.get("table").getAsString());
+        var connection = sanitized.getAsJsonObject("connectionContext");
+        assertEquals("jumpserver.public", connection.get("displaySchema").getAsString());
+        assertEquals("public", connection.get("resolvedSchema").getAsString());
+        assertEquals("\"", connection.get("identifierQuote").getAsString());
+        assertFalse(connection.get("businessRowAccess").getAsBoolean());
         assertEquals("", sanitized.get("documentSql").getAsString());
         assertEquals("SELECT id FROM settings_setting", sanitized.get("selectedSql").getAsString());
         assertEquals("settings_setting",
                 sanitized.getAsJsonArray("referencedTables").get(0).getAsString());
         assertTrue(sanitized.has("currentSqlAnalysis"));
+    }
+
+    @Test
+    void normalizesCatalogQualifiedSchemaForJdbcMetadata() {
+        assertEquals("public", SqlAgentToolService.normalizeMetadataSchema(
+                "jumpserver", "jumpserver.public"
+        ));
+        assertEquals("public", SqlAgentToolService.normalizeMetadataSchema(
+                "jumpserver", "public"
+        ));
+        assertEquals("Public", SqlAgentToolService.normalizeMetadataSchema(
+                "JumpServer", "jumpserver.Public"
+        ));
+        assertEquals("", SqlAgentToolService.normalizeMetadataSchema("jumpserver", null));
     }
 
     @Test

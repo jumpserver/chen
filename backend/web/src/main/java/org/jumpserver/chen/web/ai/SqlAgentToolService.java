@@ -100,9 +100,9 @@ public class SqlAgentToolService {
         String database = node.database();
         String schema = node.schema();
         String currentContext = "";
+        ConnectionManager manager = session.getDatasource().getConnectionManager();
         if (console instanceof QueryConsole queryConsole) {
             currentContext = queryConsole.getCurrentContext();
-            ConnectionManager manager = session.getDatasource().getConnectionManager();
             if (StringUtils.isNotBlank(currentContext)) {
                 if (StringUtils.equals(manager.getContextKey(), manager.getDatabaseContextKey())) {
                     database = currentContext;
@@ -111,6 +111,8 @@ public class SqlAgentToolService {
                 }
             }
         }
+        String displaySchema = schema;
+        schema = normalizeMetadataSchema(database, schema);
 
         String documentSql = boundedString(submitted, "documentSql", MAX_SQL_BYTES, false);
         int selectionFrom = nonNegativeInt(submitted, "selectionFrom");
@@ -140,7 +142,10 @@ public class SqlAgentToolService {
         sanitized.addProperty("dialect", dialect);
         addNullableString(sanitized, "database", database);
         addNullableString(sanitized, "schema", schema);
+        addNullableString(sanitized, "displaySchema", displaySchema);
         sanitized.addProperty("nodeKey", node.key());
+        sanitized.addProperty("nodeType", node.type());
+        addNullableString(sanitized, "table", node.table());
         sanitized.addProperty("consoleId", consoleId);
         sanitized.addProperty("paneId", boundedString(submitted, "paneId", 256, false));
         sanitized.addProperty("tabId", boundedString(submitted, "tabId", 256, false));
@@ -152,6 +157,10 @@ public class SqlAgentToolService {
         sanitized.addProperty("selectionTo", selectionTo);
         sanitized.addProperty("selectedSql", selectedSql);
         sanitized.addProperty("documentSql", hasSelection ? "" : documentSql);
+        sanitized.add("connectionContext", connectionContext(
+                dialect, database, displaySchema, schema, currentContext,
+                manager.getContextKey(), manager.getDatabaseContextKey(), node
+        ));
         if (sqlAnalysis != null) {
             sanitized.add("currentSqlAnalysis", GSON.toJsonTree(sqlAnalysis));
             sanitized.add("referencedTables", GSON.toJsonTree(sqlAnalysis.get("tables")));
@@ -302,16 +311,25 @@ public class SqlAgentToolService {
             objects.add(this.serializeRelation(relation, columns, primaryKeys, foreignKeys, indexes));
         }
         Map<String, Object> result = new LinkedHashMap<>();
+        result.put("connection", metadataConnectionContext(context));
+        result.put("requestedScope", metadataScopeMap(
+                context.database(),
+                StringUtils.defaultIfBlank(requestedSchema, context.schema())
+        ));
+        result.put("resolvedScope", metadataScopeMap(scope.catalog(), scope.schema()));
         result.put("objects", objects);
         result.put("missingTables", missingTables);
+        result.put("matchCount", objects.size());
         result.put("truncated", candidates.size() == MAX_INSPECT_TABLES);
         return result;
     }
 
     private RelationScope catalogScope(AgentRequestContext context, String requestedSchema) {
-        String schema = StringUtils.defaultIfBlank(requestedSchema, context.schema());
-        String dialect = context.dialect();
         String database = StringUtils.defaultString(context.database());
+        String schema = normalizeMetadataSchema(
+                database, StringUtils.defaultIfBlank(requestedSchema, context.schema())
+        );
+        String dialect = context.dialect();
         if ("mysql".equals(dialect) || "mariadb".equals(dialect)) {
             return new RelationScope(null, StringUtils.defaultIfBlank(database, schema));
         }
@@ -326,6 +344,64 @@ public class SqlAgentToolService {
                 .filter(relation -> relation.ref().name().equalsIgnoreCase(name))
                 .findFirst()
                 .orElse(null);
+    }
+
+    static String normalizeMetadataSchema(String database, String schema) {
+        String normalized = StringUtils.trimToEmpty(schema);
+        String catalog = StringUtils.trimToEmpty(database);
+        if (StringUtils.isNotBlank(catalog)
+                && StringUtils.startsWithIgnoreCase(normalized, catalog + ".")) {
+            normalized = normalized.substring(catalog.length() + 1);
+        }
+        return normalized;
+    }
+
+    private static JsonObject connectionContext(
+            String dialect,
+            String database,
+            String displaySchema,
+            String resolvedSchema,
+            String currentContext,
+            String contextKey,
+            String databaseContextKey,
+            ResourceNodeSnapshot node
+    ) {
+        JsonObject result = new JsonObject();
+        result.addProperty("dialect", StringUtils.defaultString(dialect));
+        addNullableString(result, "database", database);
+        addNullableString(result, "displaySchema", displaySchema);
+        addNullableString(result, "resolvedSchema", resolvedSchema);
+        addNullableString(result, "currentContext", currentContext);
+        result.addProperty("contextKey", StringUtils.defaultString(contextKey));
+        result.addProperty("databaseContextKey", StringUtils.defaultString(databaseContextKey));
+        result.addProperty("nodeType", StringUtils.defaultString(node.type()));
+        addNullableString(result, "table", node.table());
+        result.addProperty("identifierQuote", identifierQuote(dialect));
+        result.addProperty("draftOnly", true);
+        result.addProperty("businessRowAccess", false);
+        return result;
+    }
+
+    private static String identifierQuote(String dialect) {
+        return switch (StringUtils.defaultString(dialect).toLowerCase(Locale.ROOT)) {
+            case "mysql", "mariadb", "clickhouse" -> "`";
+            case "sqlserver" -> "[]";
+            default -> "\"";
+        };
+    }
+
+    private static Map<String, Object> metadataConnectionContext(AgentRequestContext context) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("dialect", context.dialect());
+        result.put("identifierQuote", identifierQuote(context.dialect()));
+        return result;
+    }
+
+    private static Map<String, Object> metadataScopeMap(String catalog, String schema) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("catalog", StringUtils.defaultString(catalog));
+        result.put("schema", StringUtils.defaultString(schema));
+        return result;
     }
 
     private Map<String, Object> serializeRelation(
