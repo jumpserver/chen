@@ -110,9 +110,12 @@ public abstract class BaseDatabaseMetadataProvider implements DatabaseMetadataPr
                     stringValue(row, "definition")
             ));
             var column = stringValue(row, "column_name");
+            var expression = stringValue(row, "expression");
             if (column != null && !column.isBlank()) {
                 var included = Boolean.TRUE.equals(booleanValue(row, "included"));
                 index.parts.add(new IndexPart(index.parts.size(), column, null, null, included));
+            } else if (expression != null && !expression.isBlank()) {
+                index.parts.add(new IndexPart(index.parts.size(), null, expression, null, false));
             }
             if (index.definition == null) {
                 index.definition = stringValue(row, "definition");

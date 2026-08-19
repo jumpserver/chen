@@ -105,7 +105,7 @@ public class MysqlMetadataProvider extends BaseDatabaseMetadataProvider {
                 ));
             }
         }
-        if (kinds.contains(RelationKind.VIEW) || kinds.contains(RelationKind.MATERIALIZED_VIEW)) {
+        if (kinds.contains(RelationKind.VIEW)) {
             for (var row : query(SQL_VIEWS, List.of(scope.schema()))) {
                 result.add(new RelationMetadata(
                         new ObjectRef(scope.catalog(), scope.schema(), stringValue(row, "name"), RelationKind.VIEW),

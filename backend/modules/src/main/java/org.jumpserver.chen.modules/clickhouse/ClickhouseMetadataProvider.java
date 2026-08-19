@@ -64,9 +64,9 @@ public class ClickhouseMetadataProvider extends BaseDatabaseMetadataProvider {
             SELECT name,
                    table AS table_name,
                    NULL AS column_name,
+                   expr AS expression,
                    NULL AS is_unique,
-                   type AS method,
-                   expr AS definition
+                   type AS method
             FROM system.data_skipping_indices
             WHERE database = ?
             ORDER BY table, name

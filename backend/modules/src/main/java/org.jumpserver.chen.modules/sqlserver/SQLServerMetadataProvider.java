@@ -98,7 +98,7 @@ public class SQLServerMetadataProvider extends BaseDatabaseMetadataProvider {
             LEFT JOIN sys.columns c
               ON c.object_id = ic.object_id AND c.column_id = ic.column_id
             WHERE s.name = ? AND i.name IS NOT NULL AND i.is_hypothetical = 0
-            ORDER BY t.name, i.name, ic.key_ordinal, ic.index_column_id
+            ORDER BY t.name, i.name, ic.is_included_column, ic.key_ordinal, ic.index_column_id
             """;
 
     private static final String SQL_COLUMNS = """
@@ -145,7 +145,7 @@ public class SQLServerMetadataProvider extends BaseDatabaseMetadataProvider {
                 ));
             }
         }
-        if (kinds.contains(RelationKind.VIEW) || kinds.contains(RelationKind.MATERIALIZED_VIEW)) {
+        if (kinds.contains(RelationKind.VIEW)) {
             for (var row : query(SQL_VIEWS, List.of(scope.schema()))) {
                 result.add(new RelationMetadata(
                         new ObjectRef(scope.catalog(), scope.schema(), stringValue(row, "name"), RelationKind.VIEW),

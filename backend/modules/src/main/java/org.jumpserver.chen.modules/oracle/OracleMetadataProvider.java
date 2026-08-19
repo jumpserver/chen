@@ -83,20 +83,31 @@ public class OracleMetadataProvider extends BaseDatabaseMetadataProvider {
             """;
 
     private static final String SQL_INDEXES = """
+            WITH target_schema AS (SELECT ? AS owner FROM dual)
             SELECT i.index_name AS name,
                    i.table_name AS table_name,
                    c.column_name AS column_name,
+                   NULL AS expression,
                    CASE WHEN i.uniqueness = 'UNIQUE' THEN 1 ELSE 0 END AS is_unique,
                    i.index_type AS method,
-                   e.column_expression AS definition
+                   c.column_position AS part_ordinal
             FROM all_indexes i
-            LEFT JOIN all_ind_columns c
+            JOIN target_schema x ON x.owner = i.owner
+            JOIN all_ind_columns c
               ON c.index_owner = i.owner AND c.index_name = i.index_name AND c.table_owner = i.table_owner
-            LEFT JOIN all_ind_expressions e
-              ON e.index_owner = c.index_owner AND e.index_name = c.index_name
-             AND e.table_owner = c.table_owner AND e.column_position = c.column_position
-            WHERE i.owner = ?
-            ORDER BY i.table_name, i.index_name, c.column_position
+            UNION ALL
+            SELECT i.index_name AS name,
+                   i.table_name AS table_name,
+                   NULL AS column_name,
+                   e.column_expression AS expression,
+                   CASE WHEN i.uniqueness = 'UNIQUE' THEN 1 ELSE 0 END AS is_unique,
+                   i.index_type AS method,
+                   e.column_position AS part_ordinal
+            FROM all_indexes i
+            JOIN target_schema x ON x.owner = i.owner
+            JOIN all_ind_expressions e
+              ON e.index_owner = i.owner AND e.index_name = i.index_name AND e.table_owner = i.table_owner
+            ORDER BY table_name, name, part_ordinal
             """;
 
     private static final String SQL_COLUMNS = """
@@ -134,7 +145,7 @@ public class OracleMetadataProvider extends BaseDatabaseMetadataProvider {
                 ));
             }
         }
-        if (kinds.contains(RelationKind.VIEW) || kinds.contains(RelationKind.MATERIALIZED_VIEW)) {
+        if (kinds.contains(RelationKind.VIEW)) {
             for (var row : query(SQL_VIEWS, List.of(scope.schema()))) {
                 result.add(new RelationMetadata(
                         new ObjectRef(scope.catalog(), scope.schema(), stringValue(row, "name"), RelationKind.VIEW),

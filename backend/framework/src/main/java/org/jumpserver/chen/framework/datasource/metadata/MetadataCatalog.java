@@ -79,21 +79,21 @@ public class MetadataCatalog {
         if (relations.isEmpty() || !provider.capabilities().columns()) {
             return List.of();
         }
-        return loadObjectScoped(relations, Category.COLUMNS, provider::listColumns);
+        return loadObjectScoped(relations, Category.COLUMNS, provider::listColumns, DEFAULT_TTL_MILLIS);
     }
 
     public List<PrimaryKeyMetadata> listPrimaryKeys(List<ObjectRef> relations) throws SQLException {
         if (relations.isEmpty() || !provider.capabilities().primaryKeys()) {
             return List.of();
         }
-        return loadObjectScoped(relations, Category.PRIMARY_KEYS, provider::listPrimaryKeys);
+        return loadObjectScoped(relations, Category.PRIMARY_KEYS, provider::listPrimaryKeys, DEFAULT_TTL_MILLIS);
     }
 
     public List<ForeignKeyMetadata> listForeignKeys(List<ObjectRef> relations) throws SQLException {
         if (relations.isEmpty() || !provider.capabilities().foreignKeys()) {
             return List.of();
         }
-        return loadObjectScoped(relations, Category.FOREIGN_KEYS, provider::listForeignKeys);
+        return loadObjectScoped(relations, Category.FOREIGN_KEYS, provider::listForeignKeys, DEFAULT_TTL_MILLIS);
     }
 
     // -- schema-scoped ------------------------------------------------------
@@ -169,14 +169,15 @@ public class MetadataCatalog {
         return value;
     }
 
-    private <T> List<T> loadObjectScoped(List<ObjectRef> relations, Category category, ObjectLoader<T> loader)
+    private <T> List<T> loadObjectScoped(List<ObjectRef> relations, Category category, ObjectLoader<T> loader, long ttlMillis)
             throws SQLException {
         var result = new ArrayList<T>();
         var misses = new ArrayList<ObjectRef>();
+        var now = System.currentTimeMillis();
         for (var ref : relations) {
             var key = new CacheKey(ref.catalog(), ref.schema(), ref.name(), category);
             var existing = cache.get(key);
-            if (existing != null && existing.state() != State.UNSUPPORTED) {
+            if (existing != null && existing.state() != State.UNSUPPORTED && now - existing.loadedAt() < ttlMillis) {
                 result.addAll(castList(existing.value()));
             } else {
                 misses.add(ref);
@@ -186,14 +187,15 @@ public class MetadataCatalog {
             return result;
         }
 
-        var missesByCatalog = new LinkedHashMap<String, List<ObjectRef>>();
+        var missesByScope = new LinkedHashMap<RelationScope, List<ObjectRef>>();
         for (var ref : misses) {
-            missesByCatalog.computeIfAbsent(ref.catalog(), ignored -> new ArrayList<>()).add(ref);
+            missesByScope.computeIfAbsent(new RelationScope(ref.catalog(), ref.schema()), ignored -> new ArrayList<>()).add(ref);
         }
 
-        for (var entry : missesByCatalog.entrySet()) {
-            var catalogRefs = entry.getValue();
-            var fetched = connectionManager.withDatabaseContext(entry.getKey(), () -> loader.load(catalogRefs));
+        for (var entry : missesByScope.entrySet()) {
+            var scope = entry.getKey();
+            var scopeRefs = entry.getValue();
+            var fetched = connectionManager.withDatabaseContext(scope.catalog(), () -> loader.load(scopeRefs));
             var byOwner = new LinkedHashMap<ObjectRef, List<T>>();
             for (var item : fetched) {
                 var owner = ownerOf(item);
@@ -201,7 +203,7 @@ public class MetadataCatalog {
                     byOwner.computeIfAbsent(owner, ignored -> new ArrayList<>()).add(item);
                 }
             }
-            for (var ref : catalogRefs) {
+            for (var ref : scopeRefs) {
                 var items = byOwner.getOrDefault(ref, List.of());
                 var key = new CacheKey(ref.catalog(), ref.schema(), ref.name(), category);
                 cache.put(key, new CacheEntry(
