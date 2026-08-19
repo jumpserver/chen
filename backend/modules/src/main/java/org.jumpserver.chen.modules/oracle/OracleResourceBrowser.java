@@ -5,6 +5,6 @@ import org.jumpserver.chen.framework.datasource.base.BaseResourceBrowser;
 
 public class OracleResourceBrowser extends BaseResourceBrowser {
     public OracleResourceBrowser(ConnectionManager connectionManager) {
-        super(connectionManager, new OracleSQLHintsHandler(connectionManager));
+        super(connectionManager);
     }
 }

@@ -5,6 +5,7 @@ import org.jumpserver.chen.framework.datasource.metadata.BaseDatabaseMetadataPro
 import org.jumpserver.chen.framework.datasource.metadata.ColumnMetadata;
 import org.jumpserver.chen.framework.datasource.metadata.IndexMetadata;
 import org.jumpserver.chen.framework.datasource.metadata.MetadataCapabilities;
+import org.jumpserver.chen.framework.datasource.metadata.ObjectProperties;
 import org.jumpserver.chen.framework.datasource.metadata.ObjectRef;
 import org.jumpserver.chen.framework.datasource.metadata.ObjectStatistics;
 import org.jumpserver.chen.framework.datasource.metadata.RelationKind;
@@ -148,5 +149,16 @@ public class DB2MetadataProvider extends BaseDatabaseMetadataProvider {
             ));
         }
         return result;
+    }
+
+    private static final String SQL_TABLE_PROPERTIES = """
+            SELECT TABNAME, TBSPACE, TABSCHEMA, TYPE, STATUS, COLCOUNT, ACTIVE_BLOCKS, AVGROWSIZE, OWNER, CREATE_TIME
+            FROM syscat.TABLES
+            WHERE TABSCHEMA = ? AND TABNAME = ? AND TBSPACE IS NOT NULL
+            """;
+
+    @Override
+    public ObjectProperties objectProperties(ObjectRef ref) throws SQLException {
+        return loadObjectProperties(ref, SQL_TABLE_PROPERTIES);
     }
 }

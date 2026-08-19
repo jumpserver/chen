@@ -8,6 +8,8 @@ import org.jumpserver.chen.framework.datasource.entity.action.EventEmitter;
 import org.jumpserver.chen.framework.datasource.entity.dialog.detail.DetailDialog;
 import org.jumpserver.chen.framework.datasource.entity.dialog.detail.DetailItem;
 import org.jumpserver.chen.framework.datasource.entity.resource.TreeNode;
+import org.jumpserver.chen.framework.datasource.metadata.ObjectRef;
+import org.jumpserver.chen.framework.datasource.metadata.RelationKind;
 import org.jumpserver.chen.framework.datasource.sql.SQL;
 import org.jumpserver.chen.framework.i18n.MessageUtils;
 import org.jumpserver.chen.framework.session.SessionManager;
@@ -175,6 +177,35 @@ public abstract class BaseActionHandler implements ActionHandler {
                     .label(column.getName())
                     .type("text")
                     .value(result.getData().get(0).get(i) == null ? "" : result.getData().get(0).get(i).toString())
+                    .build());
+        }
+        return EventEmitter.of("new_dialog", detailDialog);
+    }
+
+    public EventEmitter onTableProperties(TreeNode node) throws SQLException {
+        return this.showRelationProperties(node);
+    }
+
+    public EventEmitter onViewProperties(TreeNode node) throws SQLException {
+        return this.showRelationProperties(node);
+    }
+
+    private EventEmitter showRelationProperties(TreeNode node) throws SQLException {
+        var database = TreeUtils.getValue(node.getKey(), "database");
+        var schema = TreeUtils.getValue(node.getKey(), "schema");
+        var table = TreeUtils.getValue(node.getKey(), "table");
+        var kind = "view".equals(node.getType()) ? RelationKind.VIEW : RelationKind.TABLE;
+        var ref = new ObjectRef(database.isEmpty() ? null : database, schema, table, kind);
+        var properties = this.getDatasource().getMetadataCatalog().objectProperties(ref);
+
+        var detailDialog = new DetailDialog(node.getKey(), node.getType() + MessageUtils.get("Properties"));
+        detailDialog.setWidth("50%");
+        for (var item : properties.items()) {
+            detailDialog.addItem(DetailItem.builder()
+                    .name(item.name())
+                    .label(item.name())
+                    .type("text")
+                    .value(item.value() == null ? "" : item.value())
                     .build());
         }
         return EventEmitter.of("new_dialog", detailDialog);

@@ -5,7 +5,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.jumpserver.chen.framework.datasource.ConnectionManager;
 import org.jumpserver.chen.framework.datasource.ResourceBrowser;
-import org.jumpserver.chen.framework.datasource.hints.SQLHintsHandler;
 import org.jumpserver.chen.framework.datasource.entity.resource.*;
 import org.jumpserver.chen.framework.datasource.metadata.MetadataCatalog;
 import org.jumpserver.chen.framework.datasource.metadata.ObjectRef;
@@ -32,18 +31,10 @@ public abstract class BaseResourceBrowser implements ResourceBrowser {
     @Getter
     private final ConnectionManager connectionManager;
 
-    private final SQLHintsHandler sqlHintsHandler;
     private final ConcurrentHashMap<String, ResourceNodeSnapshot> nodeIndex = new ConcurrentHashMap<>();
 
-
-    @Override
-    public SQLHintsHandler getSQLHintsHandler() {
-        return this.sqlHintsHandler;
-    }
-
-    public BaseResourceBrowser(ConnectionManager connectionManager, SQLHintsHandler sqlHintsHandler) {
+    public BaseResourceBrowser(ConnectionManager connectionManager) {
         this.connectionManager = connectionManager;
-        this.sqlHintsHandler = sqlHintsHandler;
     }
 
     @Override

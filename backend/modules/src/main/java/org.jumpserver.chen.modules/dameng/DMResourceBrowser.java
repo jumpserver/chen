@@ -5,6 +5,6 @@ import org.jumpserver.chen.framework.datasource.base.BaseResourceBrowser;
 
 public class DMResourceBrowser extends BaseResourceBrowser {
     public DMResourceBrowser(ConnectionManager connectionManager) {
-        super(connectionManager, new DMSQLHintsHandler(connectionManager));
+        super(connectionManager);
     }
 }

@@ -5,6 +5,6 @@ import org.jumpserver.chen.framework.datasource.base.BaseResourceBrowser;
 
 public class ClickhouseResourceBrowser extends BaseResourceBrowser {
     public ClickhouseResourceBrowser(ConnectionManager connectionManager) {
-        super(connectionManager, new ClickhouseSQLHintsHandler(connectionManager));
+        super(connectionManager);
     }
 }

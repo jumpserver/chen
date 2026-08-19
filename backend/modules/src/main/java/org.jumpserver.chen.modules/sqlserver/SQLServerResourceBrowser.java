@@ -12,7 +12,7 @@ import java.util.List;
 
 public class SQLServerResourceBrowser extends BaseResourceBrowser {
     public SQLServerResourceBrowser(ConnectionManager connectionManager) {
-        super(connectionManager, new SQLServerSQLHintsHandler(connectionManager));
+        super(connectionManager);
     }
 
     @Override

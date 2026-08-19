@@ -5,6 +5,7 @@ import org.jumpserver.chen.framework.datasource.metadata.BaseDatabaseMetadataPro
 import org.jumpserver.chen.framework.datasource.metadata.ColumnMetadata;
 import org.jumpserver.chen.framework.datasource.metadata.IndexMetadata;
 import org.jumpserver.chen.framework.datasource.metadata.MetadataCapabilities;
+import org.jumpserver.chen.framework.datasource.metadata.ObjectProperties;
 import org.jumpserver.chen.framework.datasource.metadata.ObjectRef;
 import org.jumpserver.chen.framework.datasource.metadata.ObjectStatistics;
 import org.jumpserver.chen.framework.datasource.metadata.RelationKind;
@@ -151,6 +152,18 @@ public class MysqlMetadataProvider extends BaseDatabaseMetadataProvider {
         var values = rows.get(0).values().iterator();
         values.next();
         return values.hasNext() ? String.valueOf(values.next()) : null;
+    }
+
+    private static final String SQL_TABLE_PROPERTIES = """
+            SELECT TABLE_NAME, TABLE_SCHEMA, TABLE_TYPE, ENGINE, AVG_ROW_LENGTH, DATA_LENGTH,
+                   MAX_DATA_LENGTH, CREATE_TIME, TABLE_COLLATION
+            FROM INFORMATION_SCHEMA.TABLES
+            WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
+            """;
+
+    @Override
+    public ObjectProperties objectProperties(ObjectRef ref) throws SQLException {
+        return loadObjectProperties(ref, SQL_TABLE_PROPERTIES);
     }
 
     @Override

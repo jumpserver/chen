@@ -5,6 +5,6 @@ import org.jumpserver.chen.framework.datasource.base.BaseResourceBrowser;
 
 public class DB2ResourceBrowser extends BaseResourceBrowser {
     public DB2ResourceBrowser(ConnectionManager connectionManager) {
-        super(connectionManager, new DB2SQLHintsHandler(connectionManager));
+        super(connectionManager);
     }
 }

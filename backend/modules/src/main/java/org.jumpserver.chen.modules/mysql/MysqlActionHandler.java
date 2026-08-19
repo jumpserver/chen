@@ -64,13 +64,6 @@ public class MysqlActionHandler extends BaseActionHandler {
         return this.onShowObjectProperties("schema", SQL_SELECT_SCHEMA_DETAIL, node);
     }
 
-    private static final String SQL_SELECT_TABLE_DETAIL = "select TABLE_NAME,TABLE_SCHEMA,TABLE_TYPE,ENGINE,AVG_ROW_LENGTH,DATA_LENGTH,MAX_DATA_LENGTH,CREATE_TIME,TABLE_COLLATION from information_schema.TABLES WHERE TABLE_NAME = '?'";
-
-    public EventEmitter onTableProperties(TreeNode node) throws SQLException {
-        return this.onShowObjectProperties("table", SQL_SELECT_TABLE_DETAIL, node);
-    }
-
-
     @Override
     public EventEmitter handleForm(FormData formData) throws SQLException {
         return null;

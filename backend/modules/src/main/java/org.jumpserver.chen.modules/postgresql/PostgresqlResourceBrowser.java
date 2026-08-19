@@ -12,7 +12,7 @@ import java.util.List;
 
 public class PostgresqlResourceBrowser extends BaseResourceBrowser {
     public PostgresqlResourceBrowser(ConnectionManager connectionManager) {
-        super(connectionManager, new PostgresqlSQLHintsHandler(connectionManager));
+        super(connectionManager);
     }
 
     @Override

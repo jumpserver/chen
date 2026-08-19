@@ -257,6 +257,23 @@ public abstract class BaseDatabaseMetadataProvider implements DatabaseMetadataPr
         return new ObjectProperties(ref, List.of());
     }
 
+    /**
+     * Runs a single-row vendor properties query and maps its first row to
+     * {@link PropertyItem}s in column order.
+     */
+    protected ObjectProperties loadObjectProperties(ObjectRef ref, String sql) throws SQLException {
+        var rows = query(sql, List.of(ref.schema(), ref.name()));
+        if (rows.isEmpty()) {
+            return new ObjectProperties(ref, List.of());
+        }
+        var items = new ArrayList<PropertyItem>();
+        for (var entry : rows.get(0).entrySet()) {
+            var value = entry.getValue();
+            items.add(new PropertyItem(entry.getKey(), value == null ? null : String.valueOf(value)));
+        }
+        return new ObjectProperties(ref, items);
+    }
+
     private static UnsupportedOperationException unsupported(String category) {
         return new UnsupportedOperationException("Metadata category not supported: " + category);
     }

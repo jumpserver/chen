@@ -5,6 +5,7 @@ import org.jumpserver.chen.framework.datasource.metadata.BaseDatabaseMetadataPro
 import org.jumpserver.chen.framework.datasource.metadata.ColumnMetadata;
 import org.jumpserver.chen.framework.datasource.metadata.IndexMetadata;
 import org.jumpserver.chen.framework.datasource.metadata.MetadataCapabilities;
+import org.jumpserver.chen.framework.datasource.metadata.ObjectProperties;
 import org.jumpserver.chen.framework.datasource.metadata.ObjectRef;
 import org.jumpserver.chen.framework.datasource.metadata.ObjectStatistics;
 import org.jumpserver.chen.framework.datasource.metadata.RelationKind;
@@ -148,5 +149,16 @@ public class DmMetadataProvider extends BaseDatabaseMetadataProvider {
             ));
         }
         return result;
+    }
+
+    private static final String SQL_TABLE_PROPERTIES = """
+            SELECT table_name, tablespace_name, status, num_rows, blocks, avg_row_len, sample_size, owner
+            FROM all_tables
+            WHERE owner = ? AND table_name = ?
+            """;
+
+    @Override
+    public ObjectProperties objectProperties(ObjectRef ref) throws SQLException {
+        return loadObjectProperties(ref, SQL_TABLE_PROPERTIES);
     }
 }

@@ -1,7 +1,6 @@
 package org.jumpserver.chen.framework.datasource;
 
 import org.jumpserver.chen.framework.datasource.entity.resource.*;
-import org.jumpserver.chen.framework.datasource.hints.SQLHintsHandler;
 import org.jumpserver.chen.framework.datasource.metadata.RelationScope;
 import org.jumpserver.chen.framework.datasource.sql.SQLActuator;
 
@@ -30,5 +29,4 @@ public interface ResourceBrowser {
     ResourceNodeSnapshot getIndexedNode(String key);
 
     SQLActuator getSQLActuator();
-    SQLHintsHandler getSQLHintsHandler();
 }

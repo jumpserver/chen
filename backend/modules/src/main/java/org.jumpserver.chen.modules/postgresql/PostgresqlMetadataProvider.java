@@ -6,6 +6,7 @@ import org.jumpserver.chen.framework.datasource.metadata.CatalogMetadata;
 import org.jumpserver.chen.framework.datasource.metadata.ColumnMetadata;
 import org.jumpserver.chen.framework.datasource.metadata.IndexMetadata;
 import org.jumpserver.chen.framework.datasource.metadata.MetadataCapabilities;
+import org.jumpserver.chen.framework.datasource.metadata.ObjectProperties;
 import org.jumpserver.chen.framework.datasource.metadata.ObjectRef;
 import org.jumpserver.chen.framework.datasource.metadata.ObjectStatistics;
 import org.jumpserver.chen.framework.datasource.metadata.RelationKind;
@@ -170,5 +171,16 @@ public class PostgresqlMetadataProvider extends BaseDatabaseMetadataProvider {
             ));
         }
         return result;
+    }
+
+    private static final String SQL_TABLE_PROPERTIES = """
+            SELECT table_name, table_schema, table_type
+            FROM information_schema.tables
+            WHERE table_schema = ? AND table_name = ?
+            """;
+
+    @Override
+    public ObjectProperties objectProperties(ObjectRef ref) throws SQLException {
+        return loadObjectProperties(ref, SQL_TABLE_PROPERTIES);
     }
 }

@@ -56,14 +56,6 @@ public class PostgresqlActionHandler extends BaseActionHandler {
         return this.onShowObjectProperties("database", SQL_SELECT_DATABASE_DETAIL, node);
     }
 
-
-    private static final String SQL_SELECT_TABLE_DETAIL = "SELECT table_name,table_schema,table_type FROM information_schema.tables WHERE  table_name = '?'";
-
-    public EventEmitter onTableProperties(TreeNode node) throws SQLException {
-        return this.onShowObjectProperties("table", SQL_SELECT_TABLE_DETAIL, node);
-    }
-
-
     @Override
     public EventEmitter handleForm(FormData formData) throws SQLException {
         return null;
