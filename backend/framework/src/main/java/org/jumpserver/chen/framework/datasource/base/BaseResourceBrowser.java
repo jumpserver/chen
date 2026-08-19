@@ -5,8 +5,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.jumpserver.chen.framework.datasource.ConnectionManager;
 import org.jumpserver.chen.framework.datasource.ResourceBrowser;
 import org.jumpserver.chen.framework.datasource.hints.SQLHintsHandler;
-import org.jumpserver.chen.framework.datasource.sql.SQL;
 import org.jumpserver.chen.framework.datasource.entity.resource.*;
+import org.jumpserver.chen.framework.datasource.metadata.MetadataCatalog;
+import org.jumpserver.chen.framework.datasource.metadata.ObjectRef;
+import org.jumpserver.chen.framework.datasource.metadata.RelationKind;
+import org.jumpserver.chen.framework.datasource.metadata.RelationScope;
 import org.jumpserver.chen.framework.datasource.sql.SQLActuator;
 import org.jumpserver.chen.framework.session.SessionManager;
 import org.jumpserver.chen.framework.utils.TreeUtils;
@@ -15,8 +18,8 @@ import java.lang.reflect.InvocationTargetException;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 
@@ -132,14 +135,26 @@ public abstract class BaseResourceBrowser implements ResourceBrowser {
     public List<TreeNode> getFolderChildNodes(TreeNode parent) throws SQLException {
         String folder = TreeUtils.getValue(parent.getKey(), "folder");
         String schema = TreeUtils.getValue(parent.getKey(), "schema");
+        String database = TreeUtils.getValue(parent.getKey(), "database");
+        var scope = new RelationScope(database.isEmpty() ? null : database, schema);
         return switch (Objects.requireNonNull(folder)) {
-            case "tables" -> this.getTables(schema)
+            case "tables" -> this.metadataCatalog().listRelations(scope, Set.of(RelationKind.TABLE))
                     .stream()
-                    .map(table -> table.toResourceNode(parent))
+                    .map(relation -> {
+                        var table = new Table();
+                        table.setName(relation.ref().name());
+                        table.setSchema(relation.ref().schema());
+                        return table.toResourceNode(parent);
+                    })
                     .toList();
-            case "views" -> this.getViews(schema)
+            case "views" -> this.metadataCatalog().listRelations(scope, Set.of(RelationKind.VIEW))
                     .stream()
-                    .map(view -> view.toResourceNode(parent))
+                    .map(relation -> {
+                        var view = new View();
+                        view.setName(relation.ref().name());
+                        view.setSchema(relation.ref().schema());
+                        return view.toResourceNode(parent);
+                    })
                     .toList();
             default -> List.of();
         };
@@ -213,52 +228,57 @@ public abstract class BaseResourceBrowser implements ResourceBrowser {
         this.nodeIndex.keySet().removeIf(key -> key.startsWith(prefix));
     }
 
-    public abstract List<Schema> getSchemas() throws SQLException;
-
-    @Override
-    public List<Schema> getSchemas(SQL sql) throws SQLException {
-        var currentSchema = "";
-        List<Schema> schemas = new ArrayList<>();
-        schemas.addAll(this.getSQLActuator().getObjects(sql.getSql(), Schema.class, Map.of("name", 1)));
-        schemas.sort((o1, o2) -> {
-            if (o1.getName().equalsIgnoreCase(currentSchema)) {
-                return -1;
-            } else if (o2.getName().equalsIgnoreCase(currentSchema)) {
-                return 1;
-            } else {
-                return 0;
-            }
-        });
-        return schemas;
+    public List<Schema> getSchemas() throws SQLException {
+        return this.metadataCatalog().listSchemas(null).stream()
+                .map(schema -> {
+                    var entity = new Schema();
+                    entity.setName(schema.name());
+                    return entity;
+                })
+                .toList();
     }
 
-    public abstract List<Table> getTables(String schema) throws SQLException;
-
-    @Override
-    public List<Table> getTables(SQL sql) throws SQLException {
-        return new ArrayList<>(this.getSQLActuator().getObjects(sql.getSql(), Table.class, Map.of("name", 1)));
+    public List<Table> getTables(String schema) throws SQLException {
+        return this.metadataCatalog().listRelations(new RelationScope(null, schema), Set.of(RelationKind.TABLE)).stream()
+                .map(relation -> {
+                    var table = new Table();
+                    table.setName(relation.ref().name());
+                    table.setSchema(schema);
+                    return table;
+                })
+                .toList();
     }
 
-    public abstract List<View> getViews(String schema) throws SQLException;
-
-    @Override
-    public List<View> getViews(SQL sql) throws SQLException {
-        return new ArrayList<>(this.getSQLActuator().getObjects(sql.getSql(), View.class, Map.of("name", 1)));
+    public List<View> getViews(String schema) throws SQLException {
+        return this.metadataCatalog().listRelations(new RelationScope(null, schema), Set.of(RelationKind.VIEW)).stream()
+                .map(relation -> {
+                    var view = new View();
+                    view.setName(relation.ref().name());
+                    view.setSchema(schema);
+                    return view;
+                })
+                .toList();
     }
 
-    public abstract List<Field> getFields(String schema, String table) throws SQLException;
-
-    @Override
-    public List<Field> getFields(SQL sql) throws SQLException {
-        Map<String, Integer> fieldMapping = Map.of(
-                "name", 1,
-                "type", 2,
-                "nullable", 3);
-        return new ArrayList<>(this.getSQLActuator().getObjects(sql.getSql(), Field.class, fieldMapping));
+    public List<Field> getFields(String schema, String table) throws SQLException {
+        var ref = new ObjectRef(null, schema, table, RelationKind.TABLE);
+        return this.metadataCatalog().listColumns(List.of(ref)).stream()
+                .map(column -> {
+                    var field = new Field();
+                    field.setName(column.name());
+                    field.setType(column.nativeType());
+                    field.setNullable(column.nullable());
+                    return field;
+                })
+                .toList();
     }
 
     public SQLActuator getSQLActuator() {
         return this.connectionManager.getSqlActuator();
+    }
+
+    protected MetadataCatalog metadataCatalog() {
+        return this.connectionManager.getDatasource().getMetadataCatalog();
     }
 
 }
