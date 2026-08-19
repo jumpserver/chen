@@ -14,6 +14,9 @@ import org.jumpserver.chen.framework.datasource.metadata.RelationKind;
 import org.jumpserver.chen.framework.datasource.metadata.RelationMetadata;
 import org.jumpserver.chen.framework.datasource.metadata.RelationScope;
 import org.jumpserver.chen.framework.datasource.metadata.SchemaMetadata;
+import org.jumpserver.chen.framework.datasource.metadata.ScopeKind;
+import org.jumpserver.chen.framework.datasource.metadata.ScopeProperties;
+import org.jumpserver.chen.framework.datasource.metadata.ScopeRef;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -74,10 +77,14 @@ public class MysqlMetadataProvider extends BaseDatabaseMetadataProvider {
             """;
 
     private static final String SQL_COLUMNS = """
-            SELECT COLUMN_NAME AS name, TABLE_NAME AS table_name, COLUMN_TYPE AS native_type,
-                   IS_NULLABLE AS nullable
+            SELECT COLUMN_NAME AS name, TABLE_NAME AS table_name, ORDINAL_POSITION AS ordinal,
+                   COLUMN_TYPE AS native_type, DATA_TYPE AS jdbc_type_name,
+                   COALESCE(CHARACTER_MAXIMUM_LENGTH, NUMERIC_PRECISION, DATETIME_PRECISION) AS size,
+                   NUMERIC_SCALE AS scale, IS_NULLABLE AS nullable,
+                   COLUMN_DEFAULT AS default_value, COLUMN_COMMENT AS comment
             FROM INFORMATION_SCHEMA.COLUMNS
             WHERE TABLE_SCHEMA = ? AND TABLE_NAME IN (__IN__)
+            ORDER BY TABLE_NAME, ORDINAL_POSITION
             """;
 
     @Override
@@ -163,9 +170,23 @@ public class MysqlMetadataProvider extends BaseDatabaseMetadataProvider {
             WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
             """;
 
+    private static final String SQL_SCHEMA_PROPERTIES = """
+            SELECT CATALOG_NAME, SCHEMA_NAME, DEFAULT_CHARACTER_SET_NAME, DEFAULT_COLLATION_NAME, SQL_PATH
+            FROM INFORMATION_SCHEMA.SCHEMATA
+            WHERE SCHEMA_NAME = ?
+            """;
+
     @Override
     public ObjectProperties objectProperties(ObjectRef ref) throws SQLException {
         return loadObjectProperties(ref, SQL_TABLE_PROPERTIES);
+    }
+
+    @Override
+    public ScopeProperties scopeProperties(ScopeRef ref) throws SQLException {
+        if (ref.kind() != ScopeKind.SCHEMA) {
+            return super.scopeProperties(ref);
+        }
+        return loadScopeProperties(ref, SQL_SCHEMA_PROPERTIES, List.of(ref.scope().schema()));
     }
 
     private static final String SQL_PRIMARY_KEYS = """

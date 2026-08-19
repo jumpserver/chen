@@ -15,6 +15,9 @@ import org.jumpserver.chen.framework.datasource.metadata.RelationKind;
 import org.jumpserver.chen.framework.datasource.metadata.RelationMetadata;
 import org.jumpserver.chen.framework.datasource.metadata.RelationScope;
 import org.jumpserver.chen.framework.datasource.metadata.SchemaMetadata;
+import org.jumpserver.chen.framework.datasource.metadata.ScopeKind;
+import org.jumpserver.chen.framework.datasource.metadata.ScopeProperties;
+import org.jumpserver.chen.framework.datasource.metadata.ScopeRef;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -88,10 +91,18 @@ public class PostgresqlMetadataProvider extends BaseDatabaseMetadataProvider {
             """;
 
     private static final String SQL_COLUMNS = """
-            SELECT COLUMN_NAME AS name, TABLE_NAME AS table_name, DATA_TYPE AS native_type,
-                   IS_NULLABLE AS nullable
-            FROM INFORMATION_SCHEMA.COLUMNS
-            WHERE TABLE_SCHEMA = ? AND TABLE_NAME IN (__IN__)
+            SELECT c.column_name AS name, c.table_name AS table_name, c.ordinal_position AS ordinal,
+                   CASE WHEN c.data_type IN ('USER-DEFINED', 'ARRAY') THEN c.udt_name ELSE c.data_type END AS native_type,
+                   c.data_type AS jdbc_type_name,
+                   COALESCE(c.character_maximum_length, c.numeric_precision, c.datetime_precision) AS size,
+                   c.numeric_scale AS scale, c.is_nullable AS nullable,
+                   c.column_default AS default_value, col_description(pc.oid, a.attnum) AS comment
+            FROM information_schema.columns c
+            LEFT JOIN pg_namespace n ON n.nspname = c.table_schema
+            LEFT JOIN pg_class pc ON pc.relnamespace = n.oid AND pc.relname = c.table_name
+            LEFT JOIN pg_attribute a ON a.attrelid = pc.oid AND a.attname = c.column_name
+            WHERE c.table_schema = ? AND c.table_name IN (__IN__)
+            ORDER BY c.table_name, c.ordinal_position
             """;
 
     @Override
@@ -181,9 +192,25 @@ public class PostgresqlMetadataProvider extends BaseDatabaseMetadataProvider {
             WHERE table_schema = ? AND table_name = ?
             """;
 
+    private static final String SQL_DATABASE_PROPERTIES = """
+            SELECT datname, pg_database_size(datname) AS size,
+                   pg_size_pretty(pg_database_size(datname)) AS size_pretty,
+                   datcollate, datctype, datistemplate, datallowconn, datconnlimit
+            FROM pg_database
+            WHERE datname = ?
+            """;
+
     @Override
     public ObjectProperties objectProperties(ObjectRef ref) throws SQLException {
         return loadObjectProperties(ref, SQL_TABLE_PROPERTIES);
+    }
+
+    @Override
+    public ScopeProperties scopeProperties(ScopeRef ref) throws SQLException {
+        if (ref.kind() != ScopeKind.CATALOG) {
+            return super.scopeProperties(ref);
+        }
+        return loadScopeProperties(ref, SQL_DATABASE_PROPERTIES, List.of(ref.scope().catalog()));
     }
 
     private static final String SQL_PRIMARY_KEYS = """

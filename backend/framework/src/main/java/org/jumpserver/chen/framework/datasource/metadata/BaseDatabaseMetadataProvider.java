@@ -4,6 +4,7 @@ import org.jumpserver.chen.framework.datasource.ConnectionManager;
 
 import java.math.BigDecimal;
 import java.sql.SQLException;
+import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -74,6 +75,11 @@ public abstract class BaseDatabaseMetadataProvider implements DatabaseMetadataPr
         }
     }
 
+    protected static Integer integerValue(Map<String, Object> row, String key) {
+        var value = longValue(row, key);
+        return value == null ? null : value.intValue();
+    }
+
     protected static Boolean booleanValue(Map<String, Object> row, String key) {
         var value = row.get(key);
         if (value instanceof Boolean bool) {
@@ -89,6 +95,53 @@ public abstract class BaseDatabaseMetadataProvider implements DatabaseMetadataPr
             case "true", "t", "yes", "y", "1" -> true;
             case "false", "f", "no", "n", "0" -> false;
             default -> null;
+        };
+    }
+
+    /** Shared vendor type-name to JDBC type mapping used by all providers. */
+    protected static int jdbcType(String nativeType) {
+        if (nativeType == null || nativeType.isBlank()) {
+            return Types.OTHER;
+        }
+        var type = nativeType.trim().toUpperCase(Locale.ROOT);
+        while ((type.startsWith("NULLABLE(") || type.startsWith("LOWCARDINALITY(")) && type.endsWith(")")) {
+            type = type.substring(type.indexOf('(') + 1, type.length() - 1).trim();
+        }
+        var parameter = type.indexOf('(');
+        if (parameter >= 0) {
+            type = type.substring(0, parameter).trim();
+        }
+        return switch (type) {
+            case "BIT" -> Types.BIT;
+            case "BOOL", "BOOLEAN" -> Types.BOOLEAN;
+            case "TINYINT", "UINT8" -> Types.TINYINT;
+            case "SMALLINT", "INT2", "SMALLSERIAL", "INT16", "UINT16" -> Types.SMALLINT;
+            case "INT", "INTEGER", "INT4", "MEDIUMINT", "SERIAL", "INT32", "UINT32" -> Types.INTEGER;
+            case "BIGINT", "INT8", "BIGSERIAL", "INT64", "UINT64", "INT128", "UINT128", "INT256", "UINT256" -> Types.BIGINT;
+            case "REAL", "FLOAT4", "BINARY_FLOAT" -> Types.REAL;
+            case "FLOAT" -> Types.FLOAT;
+            case "DOUBLE", "DOUBLE PRECISION", "FLOAT8", "BINARY_DOUBLE", "FLOAT32", "FLOAT64" -> Types.DOUBLE;
+            case "DECIMAL", "DEC", "NUMBER", "NUMERIC", "DECFLOAT" -> Types.DECIMAL;
+            case "CHAR", "CHARACTER", "BPCHAR" -> Types.CHAR;
+            case "NCHAR" -> Types.NCHAR;
+            case "VARCHAR", "VARCHAR2", "CHARACTER VARYING", "STRING", "FIXEDSTRING", "ENUM", "SET", "UUID" -> Types.VARCHAR;
+            case "NVARCHAR", "NVARCHAR2" -> Types.NVARCHAR;
+            case "TEXT", "TINYTEXT", "MEDIUMTEXT", "LONGTEXT", "JSON", "JSONB", "XML" -> Types.LONGVARCHAR;
+            case "CLOB" -> Types.CLOB;
+            case "NCLOB" -> Types.NCLOB;
+            case "BINARY" -> Types.BINARY;
+            case "VARBINARY", "RAW", "BYTEA" -> Types.VARBINARY;
+            case "BLOB", "LONGBLOB", "MEDIUMBLOB", "TINYBLOB", "IMAGE" -> Types.BLOB;
+            case "DATE", "DATE32" -> Types.DATE;
+            case "YEAR" -> Types.DATE;
+            case "TIME", "TIME WITHOUT TIME ZONE" -> Types.TIME;
+            case "TIME WITH TIME ZONE", "TIMETZ" -> Types.TIME_WITH_TIMEZONE;
+            case "TIMESTAMP", "DATETIME", "DATETIME2", "SMALLDATETIME", "TIMESTAMP WITHOUT TIME ZONE", "DATETIME64" -> Types.TIMESTAMP;
+            case "TIMESTAMP WITH TIME ZONE", "TIMESTAMPTZ", "DATETIMEOFFSET" -> Types.TIMESTAMP_WITH_TIMEZONE;
+            case "ARRAY" -> Types.ARRAY;
+            case "ROWID", "UROWID" -> Types.ROWID;
+            case "SQLXML" -> Types.SQLXML;
+            default -> Types.OTHER;
         };
     }
 
@@ -142,8 +195,9 @@ public abstract class BaseDatabaseMetadataProvider implements DatabaseMetadataPr
      *
      * <p>{@code sqlTemplate} must contain a {@code __IN__} marker where the
      * (comma-separated) {@code ?} placeholders are inserted, and project the
-     * canonical aliases {@code name}/{@code table_name}/{@code native_type}/
-     * {@code nullable}.</p>
+     * canonical aliases {@code name}/{@code table_name}/{@code ordinal}/
+     * {@code native_type}/{@code jdbc_type_name}/{@code size}/{@code scale}/
+     * {@code nullable}/{@code default_value}/{@code comment}.</p>
      */
     protected List<ColumnMetadata> loadColumns(String sqlTemplate, List<ObjectRef> relations) throws SQLException {
         if (relations.isEmpty()) {
@@ -173,15 +227,20 @@ public abstract class BaseDatabaseMetadataProvider implements DatabaseMetadataPr
                     if (owner == null) {
                         continue;
                     }
+                    var ordinal = integerValue(row, "ordinal");
                     result.add(new ColumnMetadata(
                             owner,
                             stringValue(row, "name"),
-                            0,
+                            ordinal == null ? 0 : ordinal,
                             stringValue(row, "native_type"),
-                            0,
+                            jdbcType(stringValue(row, "jdbc_type_name") == null
+                                    ? stringValue(row, "native_type")
+                                    : stringValue(row, "jdbc_type_name")),
+                            integerValue(row, "size"),
+                            integerValue(row, "scale"),
                             Boolean.TRUE.equals(booleanValue(row, "nullable")),
-                            null,
-                            null
+                            stringValue(row, "default_value"),
+                            stringValue(row, "comment")
                     ));
                 }
             }
@@ -257,6 +316,11 @@ public abstract class BaseDatabaseMetadataProvider implements DatabaseMetadataPr
         return new ObjectProperties(ref, List.of());
     }
 
+    @Override
+    public ScopeProperties scopeProperties(ScopeRef ref) throws SQLException {
+        return new ScopeProperties(ref, List.of());
+    }
+
     /**
      * Runs a single-row vendor properties query and maps its first row to
      * {@link PropertyItem}s in column order.
@@ -272,6 +336,19 @@ public abstract class BaseDatabaseMetadataProvider implements DatabaseMetadataPr
             items.add(new PropertyItem(entry.getKey(), value == null ? null : String.valueOf(value)));
         }
         return new ObjectProperties(ref, items);
+    }
+
+    protected ScopeProperties loadScopeProperties(ScopeRef ref, String sql, List<?> parameters) throws SQLException {
+        var rows = query(sql, parameters);
+        if (rows.isEmpty()) {
+            return new ScopeProperties(ref, List.of());
+        }
+        var items = new ArrayList<PropertyItem>();
+        for (var entry : rows.get(0).entrySet()) {
+            var value = entry.getValue();
+            items.add(new PropertyItem(entry.getKey(), value == null ? null : String.valueOf(value)));
+        }
+        return new ScopeProperties(ref, items);
     }
 
     /**
@@ -320,7 +397,7 @@ public abstract class BaseDatabaseMetadataProvider implements DatabaseMetadataPr
         for (var row : rows) {
             var table = stringValue(row, "table_name");
             var name = stringValue(row, "name");
-            var fk = grouped.computeIfAbsent(table + " " + name, ignored -> new MutableForeignKey(name, table));
+            var fk = grouped.computeIfAbsent(table + "\u0000" + name, ignored -> new MutableForeignKey(name, table));
             fk.columns.add(stringValue(row, "column_name"));
             fk.referencedSchema = stringValue(row, "referenced_schema");
             fk.referencedTable = stringValue(row, "referenced_table");

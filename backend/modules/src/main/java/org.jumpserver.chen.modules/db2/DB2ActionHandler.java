@@ -58,12 +58,6 @@ public class DB2ActionHandler extends BaseActionHandler {
         );
     }
 
-    private static final String SQL_SELECT_SCHEMA_DETAIL = "select * from syscat.schemata where schemaname = '?'";
-
-    public EventEmitter onSchemaProperties(TreeNode node) throws SQLException {
-        return this.onShowObjectProperties("schema", SQL_SELECT_SCHEMA_DETAIL, node);
-    }
-
     @Override
     public EventEmitter handleForm(FormData formData) throws SQLException {
         return null;

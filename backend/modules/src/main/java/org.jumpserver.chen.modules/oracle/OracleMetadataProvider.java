@@ -103,10 +103,16 @@ public class OracleMetadataProvider extends BaseDatabaseMetadataProvider {
             """;
 
     private static final String SQL_COLUMNS = """
-            SELECT COLUMN_NAME AS name, TABLE_NAME AS table_name, DATA_TYPE AS native_type,
-                   NULLABLE AS nullable
-            FROM ALL_TAB_COLUMNS
-            WHERE OWNER = ? AND TABLE_NAME IN (__IN__)
+            SELECT c.COLUMN_NAME AS name, c.TABLE_NAME AS table_name, c.COLUMN_ID AS ordinal,
+                   c.DATA_TYPE AS native_type, c.DATA_TYPE AS jdbc_type_name,
+                   COALESCE(c.CHAR_LENGTH, c.DATA_PRECISION, c.DATA_LENGTH) AS size,
+                   c.DATA_SCALE AS scale, c.NULLABLE AS nullable,
+                   c.DATA_DEFAULT AS default_value, cc.COMMENTS AS comment
+            FROM ALL_TAB_COLUMNS c
+            LEFT JOIN ALL_COL_COMMENTS cc
+              ON cc.OWNER = c.OWNER AND cc.TABLE_NAME = c.TABLE_NAME AND cc.COLUMN_NAME = c.COLUMN_NAME
+            WHERE c.OWNER = ? AND c.TABLE_NAME IN (__IN__)
+            ORDER BY c.TABLE_NAME, c.COLUMN_ID
             """;
 
     @Override

@@ -6,6 +6,9 @@ import org.jumpserver.chen.framework.datasource.metadata.CatalogMetadata;
 import org.jumpserver.chen.framework.datasource.metadata.ColumnMetadata;
 import org.jumpserver.chen.framework.datasource.metadata.IndexMetadata;
 import org.jumpserver.chen.framework.datasource.metadata.MetadataCapabilities;
+import org.jumpserver.chen.framework.datasource.metadata.ScopeKind;
+import org.jumpserver.chen.framework.datasource.metadata.ScopeProperties;
+import org.jumpserver.chen.framework.datasource.metadata.ScopeRef;
 import org.jumpserver.chen.framework.datasource.metadata.ForeignKeyMetadata;
 import org.jumpserver.chen.framework.datasource.metadata.ObjectRef;
 import org.jumpserver.chen.framework.datasource.metadata.PrimaryKeyMetadata;
@@ -104,10 +107,35 @@ public class SQLServerMetadataProvider extends BaseDatabaseMetadataProvider {
             """;
 
     private static final String SQL_COLUMNS = """
-            SELECT column_name AS name, table_name AS table_name, data_type AS native_type,
-                   is_nullable AS nullable
-            FROM information_schema.columns
-            WHERE table_schema = ? AND table_name IN (__IN__)
+            SELECT c.name AS name, o.name AS table_name, c.column_id AS ordinal,
+                   ty.name AS native_type,
+                   CASE WHEN ty.name IN ('timestamp', 'rowversion') THEN 'binary' ELSE ty.name END AS jdbc_type_name,
+                   CASE
+                     WHEN c.max_length = -1 THEN 2147483647
+                     WHEN ty.name IN ('nchar', 'nvarchar') AND c.max_length > 0 THEN c.max_length / 2
+                     WHEN ty.name IN ('char', 'varchar', 'binary', 'varbinary') THEN c.max_length
+                     WHEN ty.name IN ('decimal', 'numeric') THEN c.precision
+                     ELSE NULL
+                   END AS size,
+                   CASE WHEN ty.name IN ('decimal', 'numeric', 'time', 'datetime2', 'datetimeoffset')
+                        THEN c.scale ELSE NULL END AS scale,
+                   c.is_nullable AS nullable, dc.definition AS default_value,
+                   CONVERT(nvarchar(max), ep.value) AS comment
+            FROM sys.columns c
+            JOIN sys.objects o ON o.object_id = c.object_id AND o.type IN ('U', 'V')
+            JOIN sys.schemas s ON s.schema_id = o.schema_id
+            JOIN sys.types ty ON ty.user_type_id = c.user_type_id
+            LEFT JOIN sys.default_constraints dc ON dc.object_id = c.default_object_id
+            LEFT JOIN sys.extended_properties ep
+              ON ep.major_id = c.object_id AND ep.minor_id = c.column_id AND ep.name = 'MS_Description'
+            WHERE s.name = ? AND o.name IN (__IN__)
+            ORDER BY o.name, c.column_id
+            """;
+
+    private static final String SQL_DATABASE_PROPERTIES = """
+            SELECT name, collation_name, state_desc, recovery_model_desc, compatibility_level, create_date
+            FROM sys.databases
+            WHERE name = ?
             """;
 
     @Override
@@ -182,6 +210,14 @@ public class SQLServerMetadataProvider extends BaseDatabaseMetadataProvider {
             ));
         }
         return result;
+    }
+
+    @Override
+    public ScopeProperties scopeProperties(ScopeRef ref) throws SQLException {
+        if (ref.kind() != ScopeKind.CATALOG) {
+            return super.scopeProperties(ref);
+        }
+        return loadScopeProperties(ref, SQL_DATABASE_PROPERTIES, List.of(ref.scope().catalog()));
     }
 
     private static final String SQL_PRIMARY_KEYS = """

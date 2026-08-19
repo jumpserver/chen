@@ -58,12 +58,6 @@ public class MysqlActionHandler extends BaseActionHandler {
         );
     }
 
-    private static final String SQL_SELECT_SCHEMA_DETAIL = "select * from information_schema.SCHEMATA where SCHEMA_NAME = '?'";
-
-    public EventEmitter onSchemaProperties(TreeNode node) throws SQLException {
-        return this.onShowObjectProperties("schema", SQL_SELECT_SCHEMA_DETAIL, node);
-    }
-
     @Override
     public EventEmitter handleForm(FormData formData) throws SQLException {
         return null;

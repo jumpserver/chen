@@ -12,6 +12,9 @@ import org.jumpserver.chen.framework.datasource.metadata.RelationKind;
 import org.jumpserver.chen.framework.datasource.metadata.RelationMetadata;
 import org.jumpserver.chen.framework.datasource.metadata.RelationScope;
 import org.jumpserver.chen.framework.datasource.metadata.SchemaMetadata;
+import org.jumpserver.chen.framework.datasource.metadata.ScopeKind;
+import org.jumpserver.chen.framework.datasource.metadata.ScopeProperties;
+import org.jumpserver.chen.framework.datasource.metadata.ScopeRef;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -74,9 +77,13 @@ public class ClickhouseMetadataProvider extends BaseDatabaseMetadataProvider {
             """;
 
     private static final String SQL_COLUMNS = """
-            SELECT name AS name, table AS table_name, type AS native_type, NULL AS nullable
+            SELECT name AS name, table AS table_name, position AS ordinal,
+                   type AS native_type, type AS jdbc_type_name,
+                   NULL AS size, NULL AS scale, NULL AS nullable,
+                   default_expression AS default_value, comment AS comment
             FROM system.columns
             WHERE database = ? AND table IN (__IN__)
+            ORDER BY table, position
             """;
 
     @Override
@@ -130,7 +137,39 @@ public class ClickhouseMetadataProvider extends BaseDatabaseMetadataProvider {
 
     @Override
     public List<ColumnMetadata> listColumns(List<ObjectRef> relations) throws SQLException {
-        return loadColumns(SQL_COLUMNS, relations);
+        return loadColumns(SQL_COLUMNS, relations).stream()
+                .map(column -> new ColumnMetadata(
+                        column.owner(), column.name(), column.ordinal(), column.nativeType(), column.jdbcType(),
+                        column.size(), column.scale(), isNullableType(column.nativeType()),
+                        column.defaultValue(), column.comment()
+                ))
+                .toList();
+    }
+
+    static boolean isNullableType(String nativeType) {
+        if (nativeType == null) {
+            return false;
+        }
+        for (int index = 0; index < nativeType.length(); index++) {
+            if (!Character.isJavaIdentifierStart(nativeType.charAt(index))) {
+                continue;
+            }
+            int end = index + 1;
+            while (end < nativeType.length() && Character.isJavaIdentifierPart(nativeType.charAt(end))) {
+                end++;
+            }
+            if (nativeType.regionMatches(true, index, "Nullable", 0, end - index)) {
+                int next = end;
+                while (next < nativeType.length() && Character.isWhitespace(nativeType.charAt(next))) {
+                    next++;
+                }
+                if (next < nativeType.length() && nativeType.charAt(next) == '(') {
+                    return true;
+                }
+            }
+            index = end - 1;
+        }
+        return false;
     }
 
     @Override
@@ -168,9 +207,23 @@ public class ClickhouseMetadataProvider extends BaseDatabaseMetadataProvider {
             WHERE database = ? AND name = ?
             """;
 
+    private static final String SQL_SCHEMA_PROPERTIES = """
+            SELECT name, engine, data_path, metadata_path, uuid, comment
+            FROM system.databases
+            WHERE name = ?
+            """;
+
     @Override
     public ObjectProperties objectProperties(ObjectRef ref) throws SQLException {
         return loadObjectProperties(ref, SQL_TABLE_PROPERTIES);
+    }
+
+    @Override
+    public ScopeProperties scopeProperties(ScopeRef ref) throws SQLException {
+        if (ref.kind() != ScopeKind.SCHEMA) {
+            return super.scopeProperties(ref);
+        }
+        return loadScopeProperties(ref, SQL_SCHEMA_PROPERTIES, List.of(ref.scope().schema()));
     }
 
     @Override

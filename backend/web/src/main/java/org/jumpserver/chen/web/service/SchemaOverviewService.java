@@ -3,7 +3,6 @@ package org.jumpserver.chen.web.service;
 import org.apache.commons.lang3.StringUtils;
 import org.jumpserver.chen.framework.datasource.ResourceBrowser;
 import org.jumpserver.chen.framework.datasource.entity.resource.ResourceNodeSnapshot;
-import org.jumpserver.chen.framework.datasource.metadata.IndexPart;
 import org.jumpserver.chen.framework.datasource.metadata.MetadataCapabilities;
 import org.jumpserver.chen.framework.datasource.metadata.MetadataCatalog;
 import org.jumpserver.chen.framework.datasource.metadata.ObjectStatistics;
@@ -85,16 +84,25 @@ public class SchemaOverviewService {
     private List<SchemaOverviewMetadata.IndexMetadata> loadIndexes(MetadataCatalog catalog, RelationScope scope)
             throws SQLException {
         return catalog.listIndexes(scope).stream()
-                .map(index -> new SchemaOverviewMetadata.IndexMetadata(
-                        index.name(),
-                        index.owner().schema(),
-                        index.owner().name(),
-                        index.parts().stream().map(IndexPart::columnName).filter(Objects::nonNull).toList(),
-                        index.unique(),
-                        index.method(),
-                        index.definition()
-                ))
+                .map(this::toIndexMetadata)
                 .toList();
+    }
+
+    SchemaOverviewMetadata.IndexMetadata toIndexMetadata(
+            org.jumpserver.chen.framework.datasource.metadata.IndexMetadata index
+    ) {
+        return new SchemaOverviewMetadata.IndexMetadata(
+                index.name(),
+                index.owner().schema(),
+                index.owner().name(),
+                index.parts().stream()
+                        .map(part -> part.columnName() != null ? part.columnName() : part.expression())
+                        .filter(Objects::nonNull)
+                        .toList(),
+                index.unique(),
+                index.method(),
+                index.definition()
+        );
     }
 
     private SchemaOverviewMetadata.Capabilities toCapabilities(MetadataCapabilities capabilities) {

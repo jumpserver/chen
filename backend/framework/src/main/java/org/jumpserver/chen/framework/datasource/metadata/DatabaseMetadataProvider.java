@@ -56,4 +56,6 @@ public interface DatabaseMetadataProvider {
     String getSchemaDefinition(RelationScope scope) throws SQLException;
 
     ObjectProperties objectProperties(ObjectRef ref) throws SQLException;
+
+    ScopeProperties scopeProperties(ScopeRef ref) throws SQLException;
 }

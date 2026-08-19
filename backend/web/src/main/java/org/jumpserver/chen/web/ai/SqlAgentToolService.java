@@ -203,7 +203,7 @@ public class SqlAgentToolService {
         ConnectionManager connectionManager = datasource.getConnectionManager();
         connectionManager.setDatabaseContext(StringUtils.defaultString(context.database()));
         Object result = switch (toolName) {
-            case "inspect_schema" -> inspectSchema(connectionManager, context, arguments);
+            case "inspect_schema" -> inspectSchema(context, arguments);
             case "validate_sql" -> validateSQL(
                     datasource.getDruidDbType(), boundedString(arguments, "sql", MAX_SQL_BYTES, true)
             );
@@ -264,9 +264,7 @@ public class SqlAgentToolService {
         return result;
     }
 
-    private Map<String, Object> inspectSchema(
-            ConnectionManager manager, AgentRequestContext context, JsonObject arguments
-    ) throws SQLException {
+    private Map<String, Object> inspectSchema(AgentRequestContext context, JsonObject arguments) throws SQLException {
         String query = boundedString(arguments, "query", MAX_IDENTIFIER_BYTES, false).trim();
         List<String> requestedTables = boundedStringList(arguments, "tables", MAX_INSPECT_TABLES);
         if (query.isBlank() && requestedTables.isEmpty()) {
@@ -275,10 +273,13 @@ public class SqlAgentToolService {
         String requestedSchema = boundedString(arguments, "schema", MAX_IDENTIFIER_BYTES, false);
         var catalog = SessionManager.getCurrentSession().getDatasource().getMetadataCatalog();
         var scope = this.catalogScope(context, requestedSchema);
-        var relations = catalog.listRelations(scope, Set.of(RelationKind.TABLE, RelationKind.VIEW));
+        var relations = catalog.listRelations(
+                scope, Set.of(RelationKind.TABLE, RelationKind.VIEW, RelationKind.MATERIALIZED_VIEW)
+        );
 
         var candidates = new LinkedHashMap<String, RelationMetadata>();
         List<String> missingTables = new ArrayList<>();
+        boolean truncated = false;
         for (String requestedTable : requestedTables) {
             String table = unqualifiedTableName(requestedTable);
             var match = this.findRelation(relations, table);
@@ -288,14 +289,18 @@ public class SqlAgentToolService {
                 candidates.putIfAbsent(match.ref().name(), match);
             }
         }
-        if (!query.isBlank() && candidates.size() < MAX_INSPECT_TABLES) {
+        if (!query.isBlank()) {
             var normalized = query.toLowerCase(Locale.ROOT);
             for (var relation : relations) {
-                if (candidates.size() >= MAX_INSPECT_TABLES) {
-                    break;
-                }
                 if (relation.ref().name().toLowerCase(Locale.ROOT).contains(normalized)) {
-                    candidates.putIfAbsent(relation.ref().name(), relation);
+                    if (candidates.containsKey(relation.ref().name())) {
+                        continue;
+                    }
+                    if (candidates.size() >= MAX_INSPECT_TABLES) {
+                        truncated = true;
+                    } else {
+                        candidates.put(relation.ref().name(), relation);
+                    }
                 }
             }
         }
@@ -320,7 +325,7 @@ public class SqlAgentToolService {
         result.put("objects", objects);
         result.put("missingTables", missingTables);
         result.put("matchCount", objects.size());
-        result.put("truncated", candidates.size() == MAX_INSPECT_TABLES);
+        result.put("truncated", truncated);
         return result;
     }
 
@@ -390,9 +395,14 @@ public class SqlAgentToolService {
         };
     }
 
-    private static Map<String, Object> metadataConnectionContext(AgentRequestContext context) {
+    private Map<String, Object> metadataConnectionContext(AgentRequestContext context) {
+        var info = SessionManager.getCurrentSession().getDatasource().getInfo();
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("dialect", context.dialect());
+        result.put("databaseProduct", StringUtils.defaultString(info.getDbType()));
+        result.put("databaseVersion", StringUtils.defaultString(info.getVersion()));
+        result.put("driverName", StringUtils.defaultString(info.getDriverClassName()));
+        result.put("driverVersion", StringUtils.defaultString(info.getDriverVersion()));
         result.put("identifierQuote", identifierQuote(context.dialect()));
         return result;
     }
@@ -404,7 +414,7 @@ public class SqlAgentToolService {
         return result;
     }
 
-    private Map<String, Object> serializeRelation(
+    Map<String, Object> serializeRelation(
             RelationMetadata relation,
             List<ColumnMetadata> columns,
             List<PrimaryKeyMetadata> primaryKeys,
@@ -415,22 +425,29 @@ public class SqlAgentToolService {
         result.put("database", relation.ref().catalog());
         result.put("schema", relation.ref().schema());
         result.put("name", relation.ref().name());
-        result.put("type", relation.ref().kind().code());
+        result.put("type", switch (relation.ref().kind()) {
+            case TABLE -> "TABLE";
+            case VIEW -> "VIEW";
+            case MATERIALIZED_VIEW -> "MATERIALIZED VIEW";
+        });
         result.put("comment", relation.comment());
 
         var pkColumns = primaryKeys.stream()
                 .filter(pk -> pk.owner().equals(relation.ref()))
                 .flatMap(pk -> pk.columns().stream())
                 .collect(java.util.stream.Collectors.toSet());
-        var tableColumns = columns.stream()
+        var relationColumns = columns.stream()
                 .filter(column -> column.owner().equals(relation.ref()))
+                .toList();
+        var tableColumns = relationColumns.stream()
+                .limit(MAX_INSPECT_COLUMNS)
                 .map(column -> {
                     var item = new LinkedHashMap<String, Object>();
                     item.put("name", column.name());
                     item.put("type", column.nativeType());
                     item.put("jdbcType", column.jdbcType());
-                    item.put("size", null);
-                    item.put("scale", null);
+                    item.put("size", column.size());
+                    item.put("scale", column.scale());
                     item.put("nullable", column.nullable());
                     item.put("defaultValue", column.defaultValue());
                     item.put("comment", column.comment());
@@ -457,6 +474,7 @@ public class SqlAgentToolService {
                     }
                     return items.stream();
                 })
+                .limit(MAX_INSPECT_RELATIONS)
                 .toList();
         result.put("foreignKeys", tableForeignKeys);
 
@@ -471,9 +489,10 @@ public class SqlAgentToolService {
                             item.put("position", part.ordinal());
                             return item;
                         }))
+                .limit(MAX_INSPECT_RELATIONS)
                 .toList();
         result.put("indexes", tableIndexes);
-        result.put("truncated", tableColumns.size() == MAX_INSPECT_COLUMNS);
+        result.put("truncated", relationColumns.size() > MAX_INSPECT_COLUMNS);
         return result;
     }
 

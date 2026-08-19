@@ -127,10 +127,18 @@ public class MetadataCatalog {
         return connectionManager.withDatabaseContext(ref.catalog(), () -> provider.objectProperties(ref));
     }
 
+    public ScopeProperties scopeProperties(ScopeRef ref) throws SQLException {
+        return connectionManager.withDatabaseContext(ref.scope().catalog(), () -> provider.scopeProperties(ref));
+    }
+
     // -- invalidation -------------------------------------------------------
 
     public void invalidate(RelationScope scope) {
         invalidatePrefix(scope.catalog(), scope.schema());
+    }
+
+    public void invalidateCatalog(String catalog) {
+        cache.keySet().removeIf(key -> Objects.equals(key.catalog(), catalog));
     }
 
     public void invalidate(ObjectRef ref) {

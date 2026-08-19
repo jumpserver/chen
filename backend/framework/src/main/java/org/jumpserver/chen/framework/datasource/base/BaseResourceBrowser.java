@@ -239,6 +239,11 @@ public abstract class BaseResourceBrowser implements ResourceBrowser {
             }
             catalog = currentContext;
         }
+        if (StringUtils.equals(databaseContextKey, "schema")) {
+            var schema = StringUtils.defaultIfBlank(currentContext, node.schema());
+            SqlIdentifierUtils.validateDatabaseName(schema);
+            return new RelationScope(null, schema);
+        }
         SqlIdentifierUtils.validateDatabaseName(catalog);
         String schema = null;
         if (StringUtils.equals(contextKey, "schema")) {

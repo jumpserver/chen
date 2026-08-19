@@ -14,6 +14,9 @@ import org.jumpserver.chen.framework.datasource.metadata.RelationKind;
 import org.jumpserver.chen.framework.datasource.metadata.RelationMetadata;
 import org.jumpserver.chen.framework.datasource.metadata.RelationScope;
 import org.jumpserver.chen.framework.datasource.metadata.SchemaMetadata;
+import org.jumpserver.chen.framework.datasource.metadata.ScopeKind;
+import org.jumpserver.chen.framework.datasource.metadata.ScopeProperties;
+import org.jumpserver.chen.framework.datasource.metadata.ScopeRef;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -82,10 +85,13 @@ public class DB2MetadataProvider extends BaseDatabaseMetadataProvider {
             """;
 
     private static final String SQL_COLUMNS = """
-            SELECT COLNAME AS name, TABNAME AS table_name, TYPENAME AS native_type,
-                   NULLS AS nullable
+            SELECT RTRIM(COLNAME) AS name, RTRIM(TABNAME) AS table_name, COLNO + 1 AS ordinal,
+                   TYPENAME AS native_type, TYPENAME AS jdbc_type_name,
+                   LENGTH AS size, SCALE AS scale, NULLS AS nullable,
+                   DEFAULT AS default_value, REMARKS AS comment
             FROM syscat.COLUMNS
             WHERE TABSCHEMA = ? AND TABNAME IN (__IN__)
+            ORDER BY TABNAME, COLNO
             """;
 
     @Override
@@ -159,9 +165,23 @@ public class DB2MetadataProvider extends BaseDatabaseMetadataProvider {
             WHERE TABSCHEMA = ? AND TABNAME = ? AND TBSPACE IS NOT NULL
             """;
 
+    private static final String SQL_SCHEMA_PROPERTIES = """
+            SELECT SCHEMANAME, OWNER, DEFINER, CREATE_TIME, REMARKS
+            FROM syscat.SCHEMATA
+            WHERE SCHEMANAME = ?
+            """;
+
     @Override
     public ObjectProperties objectProperties(ObjectRef ref) throws SQLException {
         return loadObjectProperties(ref, SQL_TABLE_PROPERTIES);
+    }
+
+    @Override
+    public ScopeProperties scopeProperties(ScopeRef ref) throws SQLException {
+        if (ref.kind() != ScopeKind.SCHEMA) {
+            return super.scopeProperties(ref);
+        }
+        return loadScopeProperties(ref, SQL_SCHEMA_PROPERTIES, List.of(ref.scope().schema()));
     }
 
     private static final String SQL_PRIMARY_KEYS = """
