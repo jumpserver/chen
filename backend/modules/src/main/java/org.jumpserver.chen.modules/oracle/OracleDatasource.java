@@ -4,6 +4,7 @@ import com.alibaba.druid.DbType;
 import org.jumpserver.chen.framework.datasource.DatasourceFactory;
 import org.jumpserver.chen.framework.datasource.base.BaseDatasource;
 import org.jumpserver.chen.framework.datasource.entity.DBConnectInfo;
+import org.jumpserver.chen.framework.datasource.metadata.MetadataCatalog;
 
 public class OracleDatasource extends BaseDatasource {
 
@@ -13,6 +14,7 @@ public class OracleDatasource extends BaseDatasource {
 
     public OracleDatasource(DBConnectInfo dbConnectInfo) {
         this.connectionManager = new OracleConnectionManager(dbConnectInfo, this);
+        this.metadataCatalog = new MetadataCatalog(this.connectionManager, new OracleMetadataProvider(this.connectionManager));
         this.resourceBrowser = new OracleResourceBrowser(this.connectionManager);
         this.actionHandler = new OracleActionHandler();
     }
