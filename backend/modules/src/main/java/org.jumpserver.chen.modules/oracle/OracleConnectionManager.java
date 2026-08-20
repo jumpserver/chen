@@ -6,6 +6,7 @@ import org.jumpserver.chen.framework.datasource.entity.DBConnectInfo;
 import org.jumpserver.chen.framework.datasource.sql.SQL;
 
 import java.sql.SQLException;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -40,31 +41,23 @@ public class OracleConnectionManager extends BaseConnectionManager {
 
         var pool = Executors.newFixedThreadPool(2);
 
-        CompletableFuture<String> f1 = CompletableFuture.supplyAsync(() -> {
-            try {
-                this.ping(sidUrl, props);
-                return sidUrl;
-            } catch (SQLException e) {
-                return null;
-            }
-        }, pool);
+        CompletableFuture<ConnectionAttempt> f1 = CompletableFuture.supplyAsync(
+                () -> this.attemptConnection(sidUrl, props), pool
+        );
 
-        CompletableFuture<String> f2 = CompletableFuture.supplyAsync(() -> {
-            try {
-                this.ping(serviceUrl, props);
-                return serviceUrl;
-            } catch (SQLException e) {
-                return null;
-            }
-        }, pool);
+        CompletableFuture<ConnectionAttempt> f2 = CompletableFuture.supplyAsync(
+                () -> this.attemptConnection(serviceUrl, props), pool
+        );
 
         CompletableFuture<Void> combinedFuture = CompletableFuture.allOf(f1, f2);
         try {
             combinedFuture.get(); // 等待所有Future完成
             // 判断哪个Future成功完成，并设置jdbcUrl
-            this.jdbcUrl = f1.get() != null ? f1.get() : f2.get();
+            var sidAttempt = f1.get();
+            var serviceNameAttempt = f2.get();
+            this.jdbcUrl = sidAttempt.jdbcUrl() != null ? sidAttempt.jdbcUrl() : serviceNameAttempt.jdbcUrl();
             if (this.jdbcUrl == null) {
-                throw new RuntimeException("Both SID and ServiceName connections failed.");
+                throw connectionFailed(sidAttempt.error(), serviceNameAttempt.error());
             }
         } catch (InterruptedException | ExecutionException e) {
             throw new RuntimeException("Error occurred while pinging database", e);
@@ -72,6 +65,26 @@ public class OracleConnectionManager extends BaseConnectionManager {
             pool.shutdown(); // 不要忘记关闭线程池
         }
     }
+
+    private ConnectionAttempt attemptConnection(String jdbcUrl, Properties props) {
+        try {
+            this.ping(jdbcUrl, props);
+            return new ConnectionAttempt(jdbcUrl, null);
+        } catch (SQLException e) {
+            return new ConnectionAttempt(null, e);
+        }
+    }
+
+    private RuntimeException connectionFailed(SQLException sidError, SQLException serviceNameError) {
+        var message = Objects.equals(sidError.getMessage(), serviceNameError.getMessage())
+                ? sidError.getMessage()
+                : "SID: %s; ServiceName: %s".formatted(sidError.getMessage(), serviceNameError.getMessage());
+        var error = new RuntimeException(message, sidError);
+        error.addSuppressed(serviceNameError);
+        return error;
+    }
+
+    private record ConnectionAttempt(String jdbcUrl, SQLException error) {}
 
     private static final String SQL_GET_VERSION = "select concat(product,concat(version,status)) as version from product_component_version  where  product like 'Oracle%'";
 

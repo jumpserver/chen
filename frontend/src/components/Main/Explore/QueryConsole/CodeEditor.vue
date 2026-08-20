@@ -46,10 +46,10 @@
 
 <script>
 
-import { format } from 'sql-formatter'
 import store from '@/store'
 import Toolbar from '@/framework/components/Toolbar/index.vue'
 import { CodeMirror } from 'vue-codemirror'
+import { formatSqlForEditor, getEditorMode } from '@/utils/sqlEditorSupport'
 
 import 'codemirror/mode/sql/sql.js'
 import 'codemirror/theme/eclipse.css'
@@ -66,27 +66,7 @@ import SelectSnippetDialog from '@/components/Main/Explore/QueryConsole/SelectSn
 import SaveSnippetDialog from '@/components/Main/Explore/QueryConsole/SaveSnippetDialog.vue'
 import { bus } from '@/bus'
 import { appApiUrl } from '@/utils/path'
-
-const formatterMap = {
-  'clickhouse': 'sql',
-  'mariadb': 'mariadb',
-  'mysql': 'mysql',
-  'postgresql': 'postgresql',
-  'oracle': 'plsql',
-  'sqlserver': 'tsql',
-  'db2': 'db2',
-  'dameng': 'dameng'
-}
-const modeMap = {
-  'clickhouse': 'text/x-sql',
-  'mariadb': 'text/x-mariadb',
-  'mysql': 'text/x-mysql',
-  'postgresql': 'text/x-pgsql',
-  'oracle': 'text/x-plsql',
-  'sqlserver': 'text/x-mssql',
-  'db2': 'text/x-sql',
-  'dameng': 'text/x-sql'
-}
+const { buildSQLRunActions } = require('@/utils/sqlChunkProtocol')
 
 export default {
   name: 'CodeEditor',
@@ -119,7 +99,7 @@ export default {
         autoRefresh: true,
         indentWithTabs: true,
         smartIndent: true,
-        mode: modeMap[store.getters.profile?.dbType],
+        mode: getEditorMode(store.getters.profile?.dbType),
         theme: '3024-night',
         lineNumbers: true,
         line: true,
@@ -258,31 +238,16 @@ export default {
     },
     onRun() {
       const sql = this.selectionValue || this.statement
-      const CHUNK_SIZE = 4096
-
-      if (sql.length <= CHUNK_SIZE) {
-        this.$emit('action', { action: 'run_sql', data: sql })
-      } else {
-        const totalChunks = Math.ceil(sql.length / CHUNK_SIZE)
-        for (let i = 0; i < totalChunks; i++) {
-          const chunk = sql.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE)
-          this.$emit('action', {
-            action: 'run_sql_chunk',
-            data: { chunk, index: i, total: totalChunks }
-          })
-        }
-        this.$emit('action', {
-          action: 'run_sql_complete',
-          data: { total: totalChunks }
-        })
-      }
+      buildSQLRunActions(sql).forEach((action) => this.$emit('action', action))
     },
     onStop() {
       this.$emit('action', { action: 'cancel' })
     },
     onFormat() {
-      const lang = formatterMap[store.getters.profile?.dbType]
-      this.statement = format(this.statement, { language: lang })
+      this.statement = formatSqlForEditor(
+        this.statement,
+        store.getters.profile?.dbType
+      )
     },
     onCmReady(cm) {
       this.cm = cm

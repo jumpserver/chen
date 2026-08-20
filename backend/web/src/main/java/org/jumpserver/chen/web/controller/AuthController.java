@@ -32,6 +32,8 @@ public class AuthController {
 
         var lang = getLanguage(request);
         sess.setLocale(lang);
+        // Chen token 是 bearer token；记录所属浏览器 HTTP session，供后续 WS 握手校验。
+        sess.setAttribute(SessionManager.WEB_SESSION_ID_ATTRIBUTE, request.getSession().getId());
 
         var chenToken = SessionManager.registerSession(sess);
         return new AuthResponse(chenToken, lang.toLanguageTag());

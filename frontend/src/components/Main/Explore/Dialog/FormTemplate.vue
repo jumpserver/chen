@@ -52,28 +52,7 @@ import { compileSQL } from '@/utils/sql'
 import 'codemirror/theme/3024-night.css'
 import 'codemirror/mode/sql/sql.js'
 import store from '@/store'
-import { format } from 'sql-formatter'
-
-const formatterMap = {
-  null: 'sql',
-  'mariadb': 'mariadb',
-  'mysql': 'mysql',
-  'postgresql': 'postgresql',
-  'oracle': 'plsql',
-  'db2': 'db2',
-  'dameng': 'dameng'
-}
-
-const modeMap = {
-  null: 'text/x-sql',
-  'mariadb': 'text/x-mariadb',
-  'mysql': 'text/x-mysql',
-  'postgresql': 'text/x-pgsql',
-  'oracle': 'text/x-plsql',
-  'sqlserver': 'text/x-mssql',
-  'db2': 'text/x-sql',
-  'dameng': 'text/x-sql'
-}
+import { formatSqlForEditor, getEditorMode } from '@/utils/sqlEditorSupport'
 
 export default {
   props: {
@@ -102,7 +81,7 @@ export default {
         lineNumbers: true,
         line: true,
         readOnly: true,
-        mode: modeMap[store.getters.profile?.dbType],
+        mode: getEditorMode(store.getters.profile?.dbType),
         cursorBlinkRate: -1
       }
     }
@@ -132,8 +111,7 @@ export default {
         const sql = compileSQL(
           this.formMeta.sqlTemplate, this.sqlParams
         )
-        const lang = formatterMap[store.getters.profile?.dbType]
-        return format(sql, { language: lang })
+        return formatSqlForEditor(sql, store.getters.profile?.dbType)
       },
       set() {}
     }

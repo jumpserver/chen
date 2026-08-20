@@ -40,8 +40,9 @@ const mutations = {
       document.addEventListener('paste', (e) => {
         Message.error(i18n.t('PasteNotAllowed'))
         e.preventDefault()
+        e.stopPropagation()
         navigator.clipboard.writeText('').then(r => {})
-      })
+      }, true)
     }
   },
   SET_I18N_LOADED: (state, loaded) => {

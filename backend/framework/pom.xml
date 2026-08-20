@@ -19,9 +19,9 @@
         </dependency>
 
         <dependency>
-            <groupId>com.alibaba</groupId>
+            <groupId>com.jumpserver</groupId>
             <artifactId>druid</artifactId>
-            <version>1.2.18</version>
+            <version>1.2.28-jms-chen.1</version>
         </dependency>
 
         <dependency>
