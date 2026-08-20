@@ -53,6 +53,9 @@ public class JMSSession extends BaseSession {
     private final long maxIdleTimeDelta;
     private final long expireTime;
 
+    @Getter
+    private final boolean chatAIEnabled;
+
 
     private LocalDateTime maxSessionEndTime;
     private int maxSessionEndHours;
@@ -107,6 +110,7 @@ public class JMSSession extends BaseSession {
         this.commandACLs = tokenResp.getData().getFilterRulesList();
         this.expireTime = tokenResp.getData().getExpireInfo().getExpireAt();
         this.maxIdleTimeDelta = tokenResp.getData().getSetting().getMaxIdleTime();
+        this.chatAIEnabled = tokenResp.getData().getSetting().getChatAiEnabled();
 
         this.maxSessionEndHours = tokenResp.getData().getSetting().getMaxSessionTime();
         this.maxSessionEndTime = LocalDateTime.now().plusHours(tokenResp.getData().getSetting().getMaxSessionTime());

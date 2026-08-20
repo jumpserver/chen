@@ -137,6 +137,10 @@ public class AgentWebSocketHandler extends TextWebSocketHandler {
     }
 
     private void connect(WebSocketSession webSocket, String token, JMSSession session, JsonObject data) {
+        if (!session.isChatAIEnabled()) {
+            sendReadyDisabled(webSocket, session);
+            return;
+        }
         if (connections.containsKey(webSocket.getId())) {
             sendError(webSocket, "invalid_request", "AI session is already connected", "");
             return;
@@ -162,6 +166,10 @@ public class AgentWebSocketHandler extends TextWebSocketHandler {
 
     private void request(WebSocketSession webSocket, String token, JMSSession session, JsonObject data) {
         long startedAt = System.nanoTime();
+        if (!session.isChatAIEnabled()) {
+            sendError(webSocket, "ai_unavailable", "Chat AI is disabled", "");
+            return;
+        }
         AgentConnection connection = connections.get(webSocket.getId());
         if (connection == null) {
             sendError(webSocket, "not_connected", "AI session is not connected", "");
@@ -272,6 +280,17 @@ public class AgentWebSocketHandler extends TextWebSocketHandler {
         ));
     }
 
+    private static void sendReadyDisabled(WebSocketSession webSocket, JMSSession session) {
+        new PacketIO(webSocket).sendPacket("ai_ready", Map.of(
+                "enabled", false,
+                "reason", "Chat AI is disabled",
+                "sessionId", session.getJmsSession().getId(),
+                "surface", "sql",
+                "provider", "",
+                "model", ""
+        ));
+    }
+
     private static void closeWebSocket(WebSocketSession webSocket) {
         try {
             if (webSocket.isOpen()) {
@@ -351,6 +370,7 @@ public class AgentWebSocketHandler extends TextWebSocketHandler {
                     .setProtocol(identity.getProtocol())
                     .setLanguage(language)
                     .setSurface("sql")
+                    .setChatAiEnabled(this.databaseSession.isChatAIEnabled())
                     .build();
             send(ServiceOuterClass.AgentClientEvent.newBuilder().setOpen(open).build());
         }
@@ -411,6 +431,11 @@ public class AgentWebSocketHandler extends TextWebSocketHandler {
             this.enabled = ready.getEnabled();
             this.provider = ready.getProvider();
             this.model = ready.getModel();
+            if (!ready.getEnabled()) {
+                clearPendingApproval();
+                ActiveRequest active = this.activeRequest.getAndSet(null);
+                logRequestTiming(active, "disabled");
+            }
             new PacketIO(this.webSocket).sendPacket("ai_ready", Map.of(
                     "enabled", ready.getEnabled(),
                     "reason", ready.getReason(),
@@ -441,6 +466,10 @@ public class AgentWebSocketHandler extends TextWebSocketHandler {
         }
 
         private void onToolCall(ServiceOuterClass.AgentToolCall call) {
+            if (!this.enabled) {
+                sendToolResult(call.getId(), "", "AI service is disabled");
+                return;
+            }
             ActiveRequest active = this.activeRequest.get();
             if (active == null) {
                 sendToolResult(call.getId(), "", "No active SQL editor context");
@@ -652,6 +681,11 @@ public class AgentWebSocketHandler extends TextWebSocketHandler {
                     String outcome = "success";
                     SessionManager.setContext(this.token);
                     try {
+                        if (!this.databaseSession.isChatAIEnabled()
+                                || !this.enabled || this.activeRequest.get() != active) {
+                            outcome = "disabled";
+                            return;
+                        }
                         String result = toolService.execute(
                                 this.databaseSession,
                                 active.context(),
