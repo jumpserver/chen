@@ -18510,6 +18510,681 @@ public final class Common extends com.google.protobuf.GeneratedFile {
 
   }
 
+  public interface ConnectOptionsOrBuilder extends
+      // @@protoc_insertion_point(interface_extends:message.ConnectOptions)
+      com.google.protobuf.MessageOrBuilder {
+
+    /**
+     * <code>map&lt;string, string&gt; settings = 1;</code>
+     */
+    int getSettingsCount();
+    /**
+     * <code>map&lt;string, string&gt; settings = 1;</code>
+     */
+    boolean containsSettings(
+        java.lang.String key);
+    /**
+     * Use {@link #getSettingsMap()} instead.
+     */
+    @java.lang.Deprecated
+    java.util.Map<java.lang.String, java.lang.String>
+    getSettings();
+    /**
+     * <code>map&lt;string, string&gt; settings = 1;</code>
+     */
+    java.util.Map<java.lang.String, java.lang.String>
+    getSettingsMap();
+    /**
+     * <code>map&lt;string, string&gt; settings = 1;</code>
+     */
+    /* nullable */
+java.lang.String getSettingsOrDefault(
+        java.lang.String key,
+        /* nullable */
+java.lang.String defaultValue);
+    /**
+     * <code>map&lt;string, string&gt; settings = 1;</code>
+     */
+    java.lang.String getSettingsOrThrow(
+        java.lang.String key);
+  }
+  /**
+   * Protobuf type {@code message.ConnectOptions}
+   */
+  public static final class ConnectOptions extends
+      com.google.protobuf.GeneratedMessage implements
+      // @@protoc_insertion_point(message_implements:message.ConnectOptions)
+      ConnectOptionsOrBuilder {
+  private static final long serialVersionUID = 0L;
+    static {
+      com.google.protobuf.RuntimeVersion.validateProtobufGencodeVersion(
+        com.google.protobuf.RuntimeVersion.RuntimeDomain.PUBLIC,
+        /* major= */ 4,
+        /* minor= */ 32,
+        /* patch= */ 1,
+        /* suffix= */ "",
+        ConnectOptions.class.getName());
+    }
+    // Use ConnectOptions.newBuilder() to construct.
+    private ConnectOptions(com.google.protobuf.GeneratedMessage.Builder<?> builder) {
+      super(builder);
+    }
+    private ConnectOptions() {
+    }
+
+    public static final com.google.protobuf.Descriptors.Descriptor
+        getDescriptor() {
+      return org.jumpserver.wisp.Common.internal_static_message_ConnectOptions_descriptor;
+    }
+
+    @SuppressWarnings({"rawtypes"})
+    @java.lang.Override
+    protected com.google.protobuf.MapFieldReflectionAccessor internalGetMapFieldReflection(
+        int number) {
+      switch (number) {
+        case 1:
+          return internalGetSettings();
+        default:
+          throw new RuntimeException(
+              "Invalid map field number: " + number);
+      }
+    }
+    @java.lang.Override
+    protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
+        internalGetFieldAccessorTable() {
+      return org.jumpserver.wisp.Common.internal_static_message_ConnectOptions_fieldAccessorTable
+          .ensureFieldAccessorsInitialized(
+              org.jumpserver.wisp.Common.ConnectOptions.class, org.jumpserver.wisp.Common.ConnectOptions.Builder.class);
+    }
+
+    public static final int SETTINGS_FIELD_NUMBER = 1;
+    private static final class SettingsDefaultEntryHolder {
+      static final com.google.protobuf.MapEntry<
+          java.lang.String, java.lang.String> defaultEntry =
+              com.google.protobuf.MapEntry
+              .<java.lang.String, java.lang.String>newDefaultInstance(
+                  org.jumpserver.wisp.Common.internal_static_message_ConnectOptions_SettingsEntry_descriptor,
+                  com.google.protobuf.WireFormat.FieldType.STRING,
+                  "",
+                  com.google.protobuf.WireFormat.FieldType.STRING,
+                  "");
+    }
+    @SuppressWarnings("serial")
+    private com.google.protobuf.MapField<
+        java.lang.String, java.lang.String> settings_;
+    private com.google.protobuf.MapField<java.lang.String, java.lang.String>
+    internalGetSettings() {
+      if (settings_ == null) {
+        return com.google.protobuf.MapField.emptyMapField(
+            SettingsDefaultEntryHolder.defaultEntry);
+      }
+      return settings_;
+    }
+    public int getSettingsCount() {
+      return internalGetSettings().getMap().size();
+    }
+    /**
+     * <code>map&lt;string, string&gt; settings = 1;</code>
+     */
+    @java.lang.Override
+    public boolean containsSettings(
+        java.lang.String key) {
+      if (key == null) { throw new NullPointerException("map key"); }
+      return internalGetSettings().getMap().containsKey(key);
+    }
+    /**
+     * Use {@link #getSettingsMap()} instead.
+     */
+    @java.lang.Override
+    @java.lang.Deprecated
+    public java.util.Map<java.lang.String, java.lang.String> getSettings() {
+      return getSettingsMap();
+    }
+    /**
+     * <code>map&lt;string, string&gt; settings = 1;</code>
+     */
+    @java.lang.Override
+    public java.util.Map<java.lang.String, java.lang.String> getSettingsMap() {
+      return internalGetSettings().getMap();
+    }
+    /**
+     * <code>map&lt;string, string&gt; settings = 1;</code>
+     */
+    @java.lang.Override
+    public /* nullable */
+java.lang.String getSettingsOrDefault(
+        java.lang.String key,
+        /* nullable */
+java.lang.String defaultValue) {
+      if (key == null) { throw new NullPointerException("map key"); }
+      java.util.Map<java.lang.String, java.lang.String> map =
+          internalGetSettings().getMap();
+      return map.containsKey(key) ? map.get(key) : defaultValue;
+    }
+    /**
+     * <code>map&lt;string, string&gt; settings = 1;</code>
+     */
+    @java.lang.Override
+    public java.lang.String getSettingsOrThrow(
+        java.lang.String key) {
+      if (key == null) { throw new NullPointerException("map key"); }
+      java.util.Map<java.lang.String, java.lang.String> map =
+          internalGetSettings().getMap();
+      if (!map.containsKey(key)) {
+        throw new java.lang.IllegalArgumentException();
+      }
+      return map.get(key);
+    }
+
+    private byte memoizedIsInitialized = -1;
+    @java.lang.Override
+    public final boolean isInitialized() {
+      byte isInitialized = memoizedIsInitialized;
+      if (isInitialized == 1) return true;
+      if (isInitialized == 0) return false;
+
+      memoizedIsInitialized = 1;
+      return true;
+    }
+
+    @java.lang.Override
+    public void writeTo(com.google.protobuf.CodedOutputStream output)
+                        throws java.io.IOException {
+      com.google.protobuf.GeneratedMessage
+        .serializeStringMapTo(
+          output,
+          internalGetSettings(),
+          SettingsDefaultEntryHolder.defaultEntry,
+          1);
+      getUnknownFields().writeTo(output);
+    }
+
+    @java.lang.Override
+    public int getSerializedSize() {
+      int size = memoizedSize;
+      if (size != -1) return size;
+
+      size = 0;
+      for (java.util.Map.Entry<java.lang.String, java.lang.String> entry
+           : internalGetSettings().getMap().entrySet()) {
+        com.google.protobuf.MapEntry<java.lang.String, java.lang.String>
+        settings__ = SettingsDefaultEntryHolder.defaultEntry.newBuilderForType()
+            .setKey(entry.getKey())
+            .setValue(entry.getValue())
+            .build();
+        size += com.google.protobuf.CodedOutputStream
+            .computeMessageSize(1, settings__);
+      }
+      size += getUnknownFields().getSerializedSize();
+      memoizedSize = size;
+      return size;
+    }
+
+    @java.lang.Override
+    public boolean equals(final java.lang.Object obj) {
+      if (obj == this) {
+       return true;
+      }
+      if (!(obj instanceof org.jumpserver.wisp.Common.ConnectOptions)) {
+        return super.equals(obj);
+      }
+      org.jumpserver.wisp.Common.ConnectOptions other = (org.jumpserver.wisp.Common.ConnectOptions) obj;
+
+      if (!internalGetSettings().equals(
+          other.internalGetSettings())) return false;
+      if (!getUnknownFields().equals(other.getUnknownFields())) return false;
+      return true;
+    }
+
+    @java.lang.Override
+    public int hashCode() {
+      if (memoizedHashCode != 0) {
+        return memoizedHashCode;
+      }
+      int hash = 41;
+      hash = (19 * hash) + getDescriptor().hashCode();
+      if (!internalGetSettings().getMap().isEmpty()) {
+        hash = (37 * hash) + SETTINGS_FIELD_NUMBER;
+        hash = (53 * hash) + internalGetSettings().hashCode();
+      }
+      hash = (29 * hash) + getUnknownFields().hashCode();
+      memoizedHashCode = hash;
+      return hash;
+    }
+
+    public static org.jumpserver.wisp.Common.ConnectOptions parseFrom(
+        java.nio.ByteBuffer data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static org.jumpserver.wisp.Common.ConnectOptions parseFrom(
+        java.nio.ByteBuffer data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static org.jumpserver.wisp.Common.ConnectOptions parseFrom(
+        com.google.protobuf.ByteString data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static org.jumpserver.wisp.Common.ConnectOptions parseFrom(
+        com.google.protobuf.ByteString data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static org.jumpserver.wisp.Common.ConnectOptions parseFrom(byte[] data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data);
+    }
+    public static org.jumpserver.wisp.Common.ConnectOptions parseFrom(
+        byte[] data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return PARSER.parseFrom(data, extensionRegistry);
+    }
+    public static org.jumpserver.wisp.Common.ConnectOptions parseFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseWithIOException(PARSER, input);
+    }
+    public static org.jumpserver.wisp.Common.ConnectOptions parseFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseWithIOException(PARSER, input, extensionRegistry);
+    }
+
+    public static org.jumpserver.wisp.Common.ConnectOptions parseDelimitedFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseDelimitedWithIOException(PARSER, input);
+    }
+
+    public static org.jumpserver.wisp.Common.ConnectOptions parseDelimitedFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseDelimitedWithIOException(PARSER, input, extensionRegistry);
+    }
+    public static org.jumpserver.wisp.Common.ConnectOptions parseFrom(
+        com.google.protobuf.CodedInputStream input)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseWithIOException(PARSER, input);
+    }
+    public static org.jumpserver.wisp.Common.ConnectOptions parseFrom(
+        com.google.protobuf.CodedInputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return com.google.protobuf.GeneratedMessage
+          .parseWithIOException(PARSER, input, extensionRegistry);
+    }
+
+    @java.lang.Override
+    public Builder newBuilderForType() { return newBuilder(); }
+    public static Builder newBuilder() {
+      return DEFAULT_INSTANCE.toBuilder();
+    }
+    public static Builder newBuilder(org.jumpserver.wisp.Common.ConnectOptions prototype) {
+      return DEFAULT_INSTANCE.toBuilder().mergeFrom(prototype);
+    }
+    @java.lang.Override
+    public Builder toBuilder() {
+      return this == DEFAULT_INSTANCE
+          ? new Builder() : new Builder().mergeFrom(this);
+    }
+
+    @java.lang.Override
+    protected Builder newBuilderForType(
+        com.google.protobuf.GeneratedMessage.BuilderParent parent) {
+      Builder builder = new Builder(parent);
+      return builder;
+    }
+    /**
+     * Protobuf type {@code message.ConnectOptions}
+     */
+    public static final class Builder extends
+        com.google.protobuf.GeneratedMessage.Builder<Builder> implements
+        // @@protoc_insertion_point(builder_implements:message.ConnectOptions)
+        org.jumpserver.wisp.Common.ConnectOptionsOrBuilder {
+      public static final com.google.protobuf.Descriptors.Descriptor
+          getDescriptor() {
+        return org.jumpserver.wisp.Common.internal_static_message_ConnectOptions_descriptor;
+      }
+
+      @SuppressWarnings({"rawtypes"})
+      protected com.google.protobuf.MapFieldReflectionAccessor internalGetMapFieldReflection(
+          int number) {
+        switch (number) {
+          case 1:
+            return internalGetSettings();
+          default:
+            throw new RuntimeException(
+                "Invalid map field number: " + number);
+        }
+      }
+      @SuppressWarnings({"rawtypes"})
+      protected com.google.protobuf.MapFieldReflectionAccessor internalGetMutableMapFieldReflection(
+          int number) {
+        switch (number) {
+          case 1:
+            return internalGetMutableSettings();
+          default:
+            throw new RuntimeException(
+                "Invalid map field number: " + number);
+        }
+      }
+      @java.lang.Override
+      protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
+          internalGetFieldAccessorTable() {
+        return org.jumpserver.wisp.Common.internal_static_message_ConnectOptions_fieldAccessorTable
+            .ensureFieldAccessorsInitialized(
+                org.jumpserver.wisp.Common.ConnectOptions.class, org.jumpserver.wisp.Common.ConnectOptions.Builder.class);
+      }
+
+      // Construct using org.jumpserver.wisp.Common.ConnectOptions.newBuilder()
+      private Builder() {
+
+      }
+
+      private Builder(
+          com.google.protobuf.GeneratedMessage.BuilderParent parent) {
+        super(parent);
+
+      }
+      @java.lang.Override
+      public Builder clear() {
+        super.clear();
+        bitField0_ = 0;
+        internalGetMutableSettings().clear();
+        return this;
+      }
+
+      @java.lang.Override
+      public com.google.protobuf.Descriptors.Descriptor
+          getDescriptorForType() {
+        return org.jumpserver.wisp.Common.internal_static_message_ConnectOptions_descriptor;
+      }
+
+      @java.lang.Override
+      public org.jumpserver.wisp.Common.ConnectOptions getDefaultInstanceForType() {
+        return org.jumpserver.wisp.Common.ConnectOptions.getDefaultInstance();
+      }
+
+      @java.lang.Override
+      public org.jumpserver.wisp.Common.ConnectOptions build() {
+        org.jumpserver.wisp.Common.ConnectOptions result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(result);
+        }
+        return result;
+      }
+
+      @java.lang.Override
+      public org.jumpserver.wisp.Common.ConnectOptions buildPartial() {
+        org.jumpserver.wisp.Common.ConnectOptions result = new org.jumpserver.wisp.Common.ConnectOptions(this);
+        if (bitField0_ != 0) { buildPartial0(result); }
+        onBuilt();
+        return result;
+      }
+
+      private void buildPartial0(org.jumpserver.wisp.Common.ConnectOptions result) {
+        int from_bitField0_ = bitField0_;
+        if (((from_bitField0_ & 0x00000001) != 0)) {
+          result.settings_ = internalGetSettings();
+          result.settings_.makeImmutable();
+        }
+      }
+
+      @java.lang.Override
+      public Builder mergeFrom(com.google.protobuf.Message other) {
+        if (other instanceof org.jumpserver.wisp.Common.ConnectOptions) {
+          return mergeFrom((org.jumpserver.wisp.Common.ConnectOptions)other);
+        } else {
+          super.mergeFrom(other);
+          return this;
+        }
+      }
+
+      public Builder mergeFrom(org.jumpserver.wisp.Common.ConnectOptions other) {
+        if (other == org.jumpserver.wisp.Common.ConnectOptions.getDefaultInstance()) return this;
+        internalGetMutableSettings().mergeFrom(
+            other.internalGetSettings());
+        bitField0_ |= 0x00000001;
+        this.mergeUnknownFields(other.getUnknownFields());
+        onChanged();
+        return this;
+      }
+
+      @java.lang.Override
+      public final boolean isInitialized() {
+        return true;
+      }
+
+      @java.lang.Override
+      public Builder mergeFrom(
+          com.google.protobuf.CodedInputStream input,
+          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          throws java.io.IOException {
+        if (extensionRegistry == null) {
+          throw new java.lang.NullPointerException();
+        }
+        try {
+          boolean done = false;
+          while (!done) {
+            int tag = input.readTag();
+            switch (tag) {
+              case 0:
+                done = true;
+                break;
+              case 10: {
+                com.google.protobuf.MapEntry<java.lang.String, java.lang.String>
+                settings__ = input.readMessage(
+                    SettingsDefaultEntryHolder.defaultEntry.getParserForType(), extensionRegistry);
+                internalGetMutableSettings().getMutableMap().put(
+                    settings__.getKey(), settings__.getValue());
+                bitField0_ |= 0x00000001;
+                break;
+              } // case 10
+              default: {
+                if (!super.parseUnknownField(input, extensionRegistry, tag)) {
+                  done = true; // was an endgroup tag
+                }
+                break;
+              } // default:
+            } // switch (tag)
+          } // while (!done)
+        } catch (com.google.protobuf.InvalidProtocolBufferException e) {
+          throw e.unwrapIOException();
+        } finally {
+          onChanged();
+        } // finally
+        return this;
+      }
+      private int bitField0_;
+
+      private com.google.protobuf.MapField<
+          java.lang.String, java.lang.String> settings_;
+      private com.google.protobuf.MapField<java.lang.String, java.lang.String>
+          internalGetSettings() {
+        if (settings_ == null) {
+          return com.google.protobuf.MapField.emptyMapField(
+              SettingsDefaultEntryHolder.defaultEntry);
+        }
+        return settings_;
+      }
+      private com.google.protobuf.MapField<java.lang.String, java.lang.String>
+          internalGetMutableSettings() {
+        if (settings_ == null) {
+          settings_ = com.google.protobuf.MapField.newMapField(
+              SettingsDefaultEntryHolder.defaultEntry);
+        }
+        if (!settings_.isMutable()) {
+          settings_ = settings_.copy();
+        }
+        bitField0_ |= 0x00000001;
+        onChanged();
+        return settings_;
+      }
+      public int getSettingsCount() {
+        return internalGetSettings().getMap().size();
+      }
+      /**
+       * <code>map&lt;string, string&gt; settings = 1;</code>
+       */
+      @java.lang.Override
+      public boolean containsSettings(
+          java.lang.String key) {
+        if (key == null) { throw new NullPointerException("map key"); }
+        return internalGetSettings().getMap().containsKey(key);
+      }
+      /**
+       * Use {@link #getSettingsMap()} instead.
+       */
+      @java.lang.Override
+      @java.lang.Deprecated
+      public java.util.Map<java.lang.String, java.lang.String> getSettings() {
+        return getSettingsMap();
+      }
+      /**
+       * <code>map&lt;string, string&gt; settings = 1;</code>
+       */
+      @java.lang.Override
+      public java.util.Map<java.lang.String, java.lang.String> getSettingsMap() {
+        return internalGetSettings().getMap();
+      }
+      /**
+       * <code>map&lt;string, string&gt; settings = 1;</code>
+       */
+      @java.lang.Override
+      public /* nullable */
+java.lang.String getSettingsOrDefault(
+          java.lang.String key,
+          /* nullable */
+java.lang.String defaultValue) {
+        if (key == null) { throw new NullPointerException("map key"); }
+        java.util.Map<java.lang.String, java.lang.String> map =
+            internalGetSettings().getMap();
+        return map.containsKey(key) ? map.get(key) : defaultValue;
+      }
+      /**
+       * <code>map&lt;string, string&gt; settings = 1;</code>
+       */
+      @java.lang.Override
+      public java.lang.String getSettingsOrThrow(
+          java.lang.String key) {
+        if (key == null) { throw new NullPointerException("map key"); }
+        java.util.Map<java.lang.String, java.lang.String> map =
+            internalGetSettings().getMap();
+        if (!map.containsKey(key)) {
+          throw new java.lang.IllegalArgumentException();
+        }
+        return map.get(key);
+      }
+      public Builder clearSettings() {
+        bitField0_ = (bitField0_ & ~0x00000001);
+        internalGetMutableSettings().getMutableMap()
+            .clear();
+        return this;
+      }
+      /**
+       * <code>map&lt;string, string&gt; settings = 1;</code>
+       */
+      public Builder removeSettings(
+          java.lang.String key) {
+        if (key == null) { throw new NullPointerException("map key"); }
+        internalGetMutableSettings().getMutableMap()
+            .remove(key);
+        return this;
+      }
+      /**
+       * Use alternate mutation accessors instead.
+       */
+      @java.lang.Deprecated
+      public java.util.Map<java.lang.String, java.lang.String>
+          getMutableSettings() {
+        bitField0_ |= 0x00000001;
+        return internalGetMutableSettings().getMutableMap();
+      }
+      /**
+       * <code>map&lt;string, string&gt; settings = 1;</code>
+       */
+      public Builder putSettings(
+          java.lang.String key,
+          java.lang.String value) {
+        if (key == null) { throw new NullPointerException("map key"); }
+        if (value == null) { throw new NullPointerException("map value"); }
+        internalGetMutableSettings().getMutableMap()
+            .put(key, value);
+        bitField0_ |= 0x00000001;
+        return this;
+      }
+      /**
+       * <code>map&lt;string, string&gt; settings = 1;</code>
+       */
+      public Builder putAllSettings(
+          java.util.Map<java.lang.String, java.lang.String> values) {
+        internalGetMutableSettings().getMutableMap()
+            .putAll(values);
+        bitField0_ |= 0x00000001;
+        return this;
+      }
+
+      // @@protoc_insertion_point(builder_scope:message.ConnectOptions)
+    }
+
+    // @@protoc_insertion_point(class_scope:message.ConnectOptions)
+    private static final org.jumpserver.wisp.Common.ConnectOptions DEFAULT_INSTANCE;
+    static {
+      DEFAULT_INSTANCE = new org.jumpserver.wisp.Common.ConnectOptions();
+    }
+
+    public static org.jumpserver.wisp.Common.ConnectOptions getDefaultInstance() {
+      return DEFAULT_INSTANCE;
+    }
+
+    private static final com.google.protobuf.Parser<ConnectOptions>
+        PARSER = new com.google.protobuf.AbstractParser<ConnectOptions>() {
+      @java.lang.Override
+      public ConnectOptions parsePartialFrom(
+          com.google.protobuf.CodedInputStream input,
+          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          throws com.google.protobuf.InvalidProtocolBufferException {
+        Builder builder = newBuilder();
+        try {
+          builder.mergeFrom(input, extensionRegistry);
+        } catch (com.google.protobuf.InvalidProtocolBufferException e) {
+          throw e.setUnfinishedMessage(builder.buildPartial());
+        } catch (com.google.protobuf.UninitializedMessageException e) {
+          throw e.asInvalidProtocolBufferException().setUnfinishedMessage(builder.buildPartial());
+        } catch (java.io.IOException e) {
+          throw new com.google.protobuf.InvalidProtocolBufferException(e)
+              .setUnfinishedMessage(builder.buildPartial());
+        }
+        return builder.buildPartial();
+      }
+    };
+
+    public static com.google.protobuf.Parser<ConnectOptions> parser() {
+      return PARSER;
+    }
+
+    @java.lang.Override
+    public com.google.protobuf.Parser<ConnectOptions> getParserForType() {
+      return PARSER;
+    }
+
+    @java.lang.Override
+    public org.jumpserver.wisp.Common.ConnectOptions getDefaultInstanceForType() {
+      return DEFAULT_INSTANCE;
+    }
+
+  }
+
   public interface TokenAuthInfoOrBuilder extends
       // @@protoc_insertion_point(interface_extends:message.TokenAuthInfo)
       com.google.protobuf.MessageOrBuilder {
@@ -18726,6 +19401,21 @@ public final class Common extends com.google.protobuf.GeneratedFile {
      */
     org.jumpserver.wisp.Common.DataMaskingRuleOrBuilder getDataMaskingRulesOrBuilder(
         int index);
+
+    /**
+     * <code>.message.ConnectOptions connect_options = 14;</code>
+     * @return Whether the connectOptions field is set.
+     */
+    boolean hasConnectOptions();
+    /**
+     * <code>.message.ConnectOptions connect_options = 14;</code>
+     * @return The connectOptions.
+     */
+    org.jumpserver.wisp.Common.ConnectOptions getConnectOptions();
+    /**
+     * <code>.message.ConnectOptions connect_options = 14;</code>
+     */
+    org.jumpserver.wisp.Common.ConnectOptionsOrBuilder getConnectOptionsOrBuilder();
   }
   /**
    * Protobuf type {@code message.TokenAuthInfo}
@@ -19193,6 +19883,32 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       return dataMaskingRules_.get(index);
     }
 
+    public static final int CONNECT_OPTIONS_FIELD_NUMBER = 14;
+    private org.jumpserver.wisp.Common.ConnectOptions connectOptions_;
+    /**
+     * <code>.message.ConnectOptions connect_options = 14;</code>
+     * @return Whether the connectOptions field is set.
+     */
+    @java.lang.Override
+    public boolean hasConnectOptions() {
+      return ((bitField0_ & 0x00000080) != 0);
+    }
+    /**
+     * <code>.message.ConnectOptions connect_options = 14;</code>
+     * @return The connectOptions.
+     */
+    @java.lang.Override
+    public org.jumpserver.wisp.Common.ConnectOptions getConnectOptions() {
+      return connectOptions_ == null ? org.jumpserver.wisp.Common.ConnectOptions.getDefaultInstance() : connectOptions_;
+    }
+    /**
+     * <code>.message.ConnectOptions connect_options = 14;</code>
+     */
+    @java.lang.Override
+    public org.jumpserver.wisp.Common.ConnectOptionsOrBuilder getConnectOptionsOrBuilder() {
+      return connectOptions_ == null ? org.jumpserver.wisp.Common.ConnectOptions.getDefaultInstance() : connectOptions_;
+    }
+
     private byte memoizedIsInitialized = -1;
     @java.lang.Override
     public final boolean isInitialized() {
@@ -19245,6 +19961,9 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       }
       for (int i = 0; i < dataMaskingRules_.size(); i++) {
         output.writeMessage(13, dataMaskingRules_.get(i));
+      }
+      if (((bitField0_ & 0x00000080) != 0)) {
+        output.writeMessage(14, getConnectOptions());
       }
       getUnknownFields().writeTo(output);
     }
@@ -19303,6 +20022,10 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       for (int i = 0; i < dataMaskingRules_.size(); i++) {
         size += com.google.protobuf.CodedOutputStream
           .computeMessageSize(13, dataMaskingRules_.get(i));
+      }
+      if (((bitField0_ & 0x00000080) != 0)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeMessageSize(14, getConnectOptions());
       }
       size += getUnknownFields().getSerializedSize();
       memoizedSize = size;
@@ -19366,6 +20089,11 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           .equals(other.getFaceMonitorToken())) return false;
       if (!getDataMaskingRulesList()
           .equals(other.getDataMaskingRulesList())) return false;
+      if (hasConnectOptions() != other.hasConnectOptions()) return false;
+      if (hasConnectOptions()) {
+        if (!getConnectOptions()
+            .equals(other.getConnectOptions())) return false;
+      }
       if (!getUnknownFields().equals(other.getUnknownFields())) return false;
       return true;
     }
@@ -19422,6 +20150,10 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       if (getDataMaskingRulesCount() > 0) {
         hash = (37 * hash) + DATA_MASKING_RULES_FIELD_NUMBER;
         hash = (53 * hash) + getDataMaskingRulesList().hashCode();
+      }
+      if (hasConnectOptions()) {
+        hash = (37 * hash) + CONNECT_OPTIONS_FIELD_NUMBER;
+        hash = (53 * hash) + getConnectOptions().hashCode();
       }
       hash = (29 * hash) + getUnknownFields().hashCode();
       memoizedHashCode = hash;
@@ -19563,6 +20295,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           internalGetSettingFieldBuilder();
           internalGetPlatformFieldBuilder();
           internalGetDataMaskingRulesFieldBuilder();
+          internalGetConnectOptionsFieldBuilder();
         }
       }
       @java.lang.Override
@@ -19628,6 +20361,11 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           dataMaskingRulesBuilder_.clear();
         }
         bitField0_ = (bitField0_ & ~0x00001000);
+        connectOptions_ = null;
+        if (connectOptionsBuilder_ != null) {
+          connectOptionsBuilder_.dispose();
+          connectOptionsBuilder_ = null;
+        }
         return this;
       }
 
@@ -19743,6 +20481,12 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         }
         if (((from_bitField0_ & 0x00000800) != 0)) {
           result.faceMonitorToken_ = faceMonitorToken_;
+        }
+        if (((from_bitField0_ & 0x00002000) != 0)) {
+          result.connectOptions_ = connectOptionsBuilder_ == null
+              ? connectOptions_
+              : connectOptionsBuilder_.build();
+          to_bitField0_ |= 0x00000080;
         }
         result.bitField0_ |= to_bitField0_;
       }
@@ -19873,6 +20617,9 @@ public final class Common extends com.google.protobuf.GeneratedFile {
             }
           }
         }
+        if (other.hasConnectOptions()) {
+          mergeConnectOptions(other.getConnectOptions());
+        }
         this.mergeUnknownFields(other.getUnknownFields());
         onChanged();
         return this;
@@ -20002,6 +20749,13 @@ public final class Common extends com.google.protobuf.GeneratedFile {
                 }
                 break;
               } // case 106
+              case 114: {
+                input.readMessage(
+                    internalGetConnectOptionsFieldBuilder().getBuilder(),
+                    extensionRegistry);
+                bitField0_ |= 0x00002000;
+                break;
+              } // case 114
               default: {
                 if (!super.parseUnknownField(input, extensionRegistry, tag)) {
                   done = true; // was an endgroup tag
@@ -21800,6 +22554,127 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           dataMaskingRules_ = null;
         }
         return dataMaskingRulesBuilder_;
+      }
+
+      private org.jumpserver.wisp.Common.ConnectOptions connectOptions_;
+      private com.google.protobuf.SingleFieldBuilder<
+          org.jumpserver.wisp.Common.ConnectOptions, org.jumpserver.wisp.Common.ConnectOptions.Builder, org.jumpserver.wisp.Common.ConnectOptionsOrBuilder> connectOptionsBuilder_;
+      /**
+       * <code>.message.ConnectOptions connect_options = 14;</code>
+       * @return Whether the connectOptions field is set.
+       */
+      public boolean hasConnectOptions() {
+        return ((bitField0_ & 0x00002000) != 0);
+      }
+      /**
+       * <code>.message.ConnectOptions connect_options = 14;</code>
+       * @return The connectOptions.
+       */
+      public org.jumpserver.wisp.Common.ConnectOptions getConnectOptions() {
+        if (connectOptionsBuilder_ == null) {
+          return connectOptions_ == null ? org.jumpserver.wisp.Common.ConnectOptions.getDefaultInstance() : connectOptions_;
+        } else {
+          return connectOptionsBuilder_.getMessage();
+        }
+      }
+      /**
+       * <code>.message.ConnectOptions connect_options = 14;</code>
+       */
+      public Builder setConnectOptions(org.jumpserver.wisp.Common.ConnectOptions value) {
+        if (connectOptionsBuilder_ == null) {
+          if (value == null) {
+            throw new NullPointerException();
+          }
+          connectOptions_ = value;
+        } else {
+          connectOptionsBuilder_.setMessage(value);
+        }
+        bitField0_ |= 0x00002000;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>.message.ConnectOptions connect_options = 14;</code>
+       */
+      public Builder setConnectOptions(
+          org.jumpserver.wisp.Common.ConnectOptions.Builder builderForValue) {
+        if (connectOptionsBuilder_ == null) {
+          connectOptions_ = builderForValue.build();
+        } else {
+          connectOptionsBuilder_.setMessage(builderForValue.build());
+        }
+        bitField0_ |= 0x00002000;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>.message.ConnectOptions connect_options = 14;</code>
+       */
+      public Builder mergeConnectOptions(org.jumpserver.wisp.Common.ConnectOptions value) {
+        if (connectOptionsBuilder_ == null) {
+          if (((bitField0_ & 0x00002000) != 0) &&
+            connectOptions_ != null &&
+            connectOptions_ != org.jumpserver.wisp.Common.ConnectOptions.getDefaultInstance()) {
+            getConnectOptionsBuilder().mergeFrom(value);
+          } else {
+            connectOptions_ = value;
+          }
+        } else {
+          connectOptionsBuilder_.mergeFrom(value);
+        }
+        if (connectOptions_ != null) {
+          bitField0_ |= 0x00002000;
+          onChanged();
+        }
+        return this;
+      }
+      /**
+       * <code>.message.ConnectOptions connect_options = 14;</code>
+       */
+      public Builder clearConnectOptions() {
+        bitField0_ = (bitField0_ & ~0x00002000);
+        connectOptions_ = null;
+        if (connectOptionsBuilder_ != null) {
+          connectOptionsBuilder_.dispose();
+          connectOptionsBuilder_ = null;
+        }
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>.message.ConnectOptions connect_options = 14;</code>
+       */
+      public org.jumpserver.wisp.Common.ConnectOptions.Builder getConnectOptionsBuilder() {
+        bitField0_ |= 0x00002000;
+        onChanged();
+        return internalGetConnectOptionsFieldBuilder().getBuilder();
+      }
+      /**
+       * <code>.message.ConnectOptions connect_options = 14;</code>
+       */
+      public org.jumpserver.wisp.Common.ConnectOptionsOrBuilder getConnectOptionsOrBuilder() {
+        if (connectOptionsBuilder_ != null) {
+          return connectOptionsBuilder_.getMessageOrBuilder();
+        } else {
+          return connectOptions_ == null ?
+              org.jumpserver.wisp.Common.ConnectOptions.getDefaultInstance() : connectOptions_;
+        }
+      }
+      /**
+       * <code>.message.ConnectOptions connect_options = 14;</code>
+       */
+      private com.google.protobuf.SingleFieldBuilder<
+          org.jumpserver.wisp.Common.ConnectOptions, org.jumpserver.wisp.Common.ConnectOptions.Builder, org.jumpserver.wisp.Common.ConnectOptionsOrBuilder>
+          internalGetConnectOptionsFieldBuilder() {
+        if (connectOptionsBuilder_ == null) {
+          connectOptionsBuilder_ = new com.google.protobuf.SingleFieldBuilder<
+              org.jumpserver.wisp.Common.ConnectOptions, org.jumpserver.wisp.Common.ConnectOptions.Builder, org.jumpserver.wisp.Common.ConnectOptionsOrBuilder>(
+                  getConnectOptions(),
+                  getParentForChildren(),
+                  isClean());
+          connectOptions_ = null;
+        }
+        return connectOptionsBuilder_;
       }
 
       // @@protoc_insertion_point(builder_scope:message.TokenAuthInfo)
@@ -28345,22 +29220,22 @@ java.lang.String defaultValue) {
 
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_User_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_User_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_Account_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_Account_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_LabelValue_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_LabelValue_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_Asset_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_Asset_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
@@ -28418,6 +29293,16 @@ java.lang.String defaultValue) {
   private static final 
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_TerminalTask_fieldAccessorTable;
+  private static final com.google.protobuf.Descriptors.Descriptor
+    internal_static_message_ConnectOptions_descriptor;
+  private static final
+    com.google.protobuf.GeneratedMessage.FieldAccessorTable
+      internal_static_message_ConnectOptions_fieldAccessorTable;
+  private static final com.google.protobuf.Descriptors.Descriptor
+    internal_static_message_ConnectOptions_SettingsEntry_descriptor;
+  private static final
+    com.google.protobuf.GeneratedMessage.FieldAccessorTable
+      internal_static_message_ConnectOptions_SettingsEntry_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_TokenAuthInfo_descriptor;
   private static final 
@@ -28526,51 +29411,56 @@ java.lang.String defaultValue) {
       "essage.TaskAction\022\022\n\nsession_id\030\003 \001(\t\022\025\n" +
       "\rterminated_by\030\004 \001(\t\022\022\n\ncreated_by\030\005 \001(\t" +
       "\022*\n\014token_status\030\006 \001(\0132\024.message.TokenSt" +
-      "atus\"\325\003\n\rTokenAuthInfo\022\016\n\006key_id\030\001 \001(\t\022\022" +
-      "\n\nsecrete_id\030\002 \001(\t\022\035\n\005asset\030\003 \001(\0132\016.mess" +
-      "age.Asset\022\033\n\004user\030\004 \001(\0132\r.message.User\022!" +
-      "\n\007account\030\005 \001(\0132\020.message.Account\022\'\n\nper" +
-      "mission\030\006 \001(\0132\023.message.Permission\022(\n\013ex" +
-      "pire_info\030\007 \001(\0132\023.message.ExpireInfo\022)\n\014" +
-      "filter_rules\030\010 \003(\0132\023.message.CommandACL\022" +
-      "\"\n\010gateways\030\t \003(\0132\020.message.Gateway\022*\n\007s" +
-      "etting\030\n \001(\0132\031.message.ComponentSetting\022" +
-      "#\n\010platform\030\013 \001(\0132\021.message.Platform\022\030\n\020" +
-      "FaceMonitorToken\030\014 \001(\t\0224\n\022data_masking_r" +
-      "ules\030\r \003(\0132\030.message.DataMaskingRule\"\203\001\n" +
-      "\010Platform\022\n\n\002id\030\001 \001(\005\022\014\n\004name\030\002 \001(\t\022\020\n\010c" +
-      "ategory\030\003 \001(\t\022\017\n\007charset\030\004 \001(\t\022\014\n\004type\030\005" +
-      " \001(\t\022,\n\tprotocols\030\006 \003(\0132\031.message.Platfo" +
-      "rmProtocol\"\246\001\n\020PlatformProtocol\022\n\n\002id\030\001 " +
-      "\001(\005\022\014\n\004name\030\002 \001(\t\022\014\n\004port\030\003 \001(\005\0229\n\010setti" +
-      "ngs\030\004 \003(\0132\'.message.PlatformProtocol.Set" +
-      "tingsEntry\032/\n\rSettingsEntry\022\013\n\003key\030\001 \001(\t" +
-      "\022\r\n\005value\030\002 \001(\t:\0028\001\"C\n\020ComponentSetting\022" +
-      "\025\n\rmax_idle_time\030\001 \001(\005\022\030\n\020max_session_ti" +
-      "me\030\002 \001(\005\"1\n\007Forward\022\n\n\002id\030\001 \001(\t\022\014\n\004Host\030" +
-      "\002 \001(\t\022\014\n\004port\030\003 \001(\005\"\247\001\n\rPublicSetting\022\025\n" +
-      "\rxpack_enabled\030\001 \001(\010\022\025\n\rvalid_license\030\002 " +
-      "\001(\010\022\024\n\014gpt_base_url\030\003 \001(\t\022\023\n\013gpt_api_key" +
-      "\030\004 \001(\t\022\021\n\tgpt_proxy\030\005 \001(\t\022\021\n\tgpt_model\030\006" +
-      " \001(\t\022\027\n\017license_content\030\007 \001(\t\"%\n\006Cookie\022" +
-      "\014\n\004name\030\001 \001(\t\022\r\n\005value\030\002 \001(\t\"\250\003\n\020Lifecyc" +
-      "leLogData\0223\n\005event\030\001 \001(\0162$.message.Lifec" +
-      "ycleLogData.event_type\022\016\n\006reason\030\002 \001(\t\022\014" +
-      "\n\004user\030\003 \001(\t\"\300\002\n\nevent_type\022\027\n\023AssetConn" +
-      "ectSuccess\020\000\022\030\n\024AssetConnectFinished\020\001\022\023" +
-      "\n\017CreateShareLink\020\002\022\023\n\017UserJoinSession\020\003" +
-      "\022\024\n\020UserLeaveSession\020\004\022\024\n\020AdminJoinMonit" +
-      "or\020\005\022\024\n\020AdminExitMonitor\020\006\022\026\n\022ReplayConv" +
-      "ertStart\020\007\022\030\n\024ReplayConvertSuccess\020\010\022\030\n\024" +
-      "ReplayConvertFailure\020\t\022\025\n\021ReplayUploadSt" +
-      "art\020\n\022\027\n\023ReplayUploadSuccess\020\013\022\027\n\023Replay" +
-      "UploadFailure\020\014*k\n\nTaskAction\022\017\n\013KillSes" +
-      "sion\020\000\022\017\n\013LockSession\020\001\022\021\n\rUnlockSession" +
-      "\020\002\022\024\n\020TokenPermExpired\020\003\022\022\n\016TokenPermVal" +
-      "id\020\004*f\n\tRiskLevel\022\n\n\006Normal\020\000\022\013\n\007Warning" +
-      "\020\001\022\n\n\006Reject\020\002\022\020\n\014ReviewReject\020\003\022\020\n\014Revi" +
-      "ewAccept\020\004\022\020\n\014ReviewCancel\020\005B \n\023org.jump" +
-      "server.wispZ\t/protobufb\006proto3"
+      "atus\"z\n\016ConnectOptions\0227\n\010settings\030\001 \003(\013" +
+      "2%.message.ConnectOptions.SettingsEntry\032" +
+      "/\n\rSettingsEntry\022\013\n\003key\030\001 \001(\t\022\r\n\005value\030\002" +
+      " \001(\t:\0028\001\"\207\004\n\rTokenAuthInfo\022\016\n\006key_id\030\001 \001" +
+      "(\t\022\022\n\nsecrete_id\030\002 \001(\t\022\035\n\005asset\030\003 \001(\0132\016." +
+      "message.Asset\022\033\n\004user\030\004 \001(\0132\r.message.Us" +
+      "er\022!\n\007account\030\005 \001(\0132\020.message.Account\022\'\n" +
+      "\npermission\030\006 \001(\0132\023.message.Permission\022(" +
+      "\n\013expire_info\030\007 \001(\0132\023.message.ExpireInfo" +
+      "\022)\n\014filter_rules\030\010 \003(\0132\023.message.Command" +
+      "ACL\022\"\n\010gateways\030\t \003(\0132\020.message.Gateway\022" +
+      "*\n\007setting\030\n \001(\0132\031.message.ComponentSett" +
+      "ing\022#\n\010platform\030\013 \001(\0132\021.message.Platform" +
+      "\022\030\n\020FaceMonitorToken\030\014 \001(\t\0224\n\022data_maski" +
+      "ng_rules\030\r \003(\0132\030.message.DataMaskingRule" +
+      "\0220\n\017connect_options\030\016 \001(\0132\027.message.Conn" +
+      "ectOptions\"\203\001\n\010Platform\022\n\n\002id\030\001 \001(\005\022\014\n\004n" +
+      "ame\030\002 \001(\t\022\020\n\010category\030\003 \001(\t\022\017\n\007charset\030\004" +
+      " \001(\t\022\014\n\004type\030\005 \001(\t\022,\n\tprotocols\030\006 \003(\0132\031." +
+      "message.PlatformProtocol\"\246\001\n\020PlatformPro" +
+      "tocol\022\n\n\002id\030\001 \001(\005\022\014\n\004name\030\002 \001(\t\022\014\n\004port\030" +
+      "\003 \001(\005\0229\n\010settings\030\004 \003(\0132\'.message.Platfo" +
+      "rmProtocol.SettingsEntry\032/\n\rSettingsEntr" +
+      "y\022\013\n\003key\030\001 \001(\t\022\r\n\005value\030\002 \001(\t:\0028\001\"C\n\020Com" +
+      "ponentSetting\022\025\n\rmax_idle_time\030\001 \001(\005\022\030\n\020" +
+      "max_session_time\030\002 \001(\005\"1\n\007Forward\022\n\n\002id\030" +
+      "\001 \001(\t\022\014\n\004Host\030\002 \001(\t\022\014\n\004port\030\003 \001(\005\"\247\001\n\rPu" +
+      "blicSetting\022\025\n\rxpack_enabled\030\001 \001(\010\022\025\n\rva" +
+      "lid_license\030\002 \001(\010\022\024\n\014gpt_base_url\030\003 \001(\t\022" +
+      "\023\n\013gpt_api_key\030\004 \001(\t\022\021\n\tgpt_proxy\030\005 \001(\t\022" +
+      "\021\n\tgpt_model\030\006 \001(\t\022\027\n\017license_content\030\007 " +
+      "\001(\t\"%\n\006Cookie\022\014\n\004name\030\001 \001(\t\022\r\n\005value\030\002 \001" +
+      "(\t\"\250\003\n\020LifecycleLogData\0223\n\005event\030\001 \001(\0162$" +
+      ".message.LifecycleLogData.event_type\022\016\n\006" +
+      "reason\030\002 \001(\t\022\014\n\004user\030\003 \001(\t\"\300\002\n\nevent_typ" +
+      "e\022\027\n\023AssetConnectSuccess\020\000\022\030\n\024AssetConne" +
+      "ctFinished\020\001\022\023\n\017CreateShareLink\020\002\022\023\n\017Use" +
+      "rJoinSession\020\003\022\024\n\020UserLeaveSession\020\004\022\024\n\020" +
+      "AdminJoinMonitor\020\005\022\024\n\020AdminExitMonitor\020\006" +
+      "\022\026\n\022ReplayConvertStart\020\007\022\030\n\024ReplayConver" +
+      "tSuccess\020\010\022\030\n\024ReplayConvertFailure\020\t\022\025\n\021" +
+      "ReplayUploadStart\020\n\022\027\n\023ReplayUploadSucce" +
+      "ss\020\013\022\027\n\023ReplayUploadFailure\020\014*k\n\nTaskAct" +
+      "ion\022\017\n\013KillSession\020\000\022\017\n\013LockSession\020\001\022\021\n" +
+      "\rUnlockSession\020\002\022\024\n\020TokenPermExpired\020\003\022\022" +
+      "\n\016TokenPermValid\020\004*f\n\tRiskLevel\022\n\n\006Norma" +
+      "l\020\000\022\013\n\007Warning\020\001\022\n\n\006Reject\020\002\022\020\n\014ReviewRe" +
+      "ject\020\003\022\020\n\014ReviewAccept\020\004\022\020\n\014ReviewCancel" +
+      "\020\005B \n\023org.jumpserver.wispZ\t/protobufb\006pr" +
+      "oto3"
     };
     descriptor = com.google.protobuf.Descriptors.FileDescriptor
       .internalBuildGeneratedFileFrom(descriptorData,
@@ -28666,20 +29556,32 @@ java.lang.String defaultValue) {
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_message_TerminalTask_descriptor,
         new java.lang.String[] { "Id", "Action", "SessionId", "TerminatedBy", "CreatedBy", "TokenStatus", });
-    internal_static_message_TokenAuthInfo_descriptor =
+    internal_static_message_ConnectOptions_descriptor =
       getDescriptor().getMessageTypes().get(14);
+    internal_static_message_ConnectOptions_fieldAccessorTable = new
+      com.google.protobuf.GeneratedMessage.FieldAccessorTable(
+        internal_static_message_ConnectOptions_descriptor,
+        new java.lang.String[] { "Settings", });
+    internal_static_message_ConnectOptions_SettingsEntry_descriptor =
+      internal_static_message_ConnectOptions_descriptor.getNestedTypes().get(0);
+    internal_static_message_ConnectOptions_SettingsEntry_fieldAccessorTable = new
+      com.google.protobuf.GeneratedMessage.FieldAccessorTable(
+        internal_static_message_ConnectOptions_SettingsEntry_descriptor,
+        new java.lang.String[] { "Key", "Value", });
+    internal_static_message_TokenAuthInfo_descriptor =
+      getDescriptor().getMessageTypes().get(15);
     internal_static_message_TokenAuthInfo_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_message_TokenAuthInfo_descriptor,
-        new java.lang.String[] { "KeyId", "SecreteId", "Asset", "User", "Account", "Permission", "ExpireInfo", "FilterRules", "Gateways", "Setting", "Platform", "FaceMonitorToken", "DataMaskingRules", });
+        new java.lang.String[] { "KeyId", "SecreteId", "Asset", "User", "Account", "Permission", "ExpireInfo", "FilterRules", "Gateways", "Setting", "Platform", "FaceMonitorToken", "DataMaskingRules", "ConnectOptions", });
     internal_static_message_Platform_descriptor =
-      getDescriptor().getMessageTypes().get(15);
+      getDescriptor().getMessageTypes().get(16);
     internal_static_message_Platform_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_message_Platform_descriptor,
         new java.lang.String[] { "Id", "Name", "Category", "Charset", "Type", "Protocols", });
     internal_static_message_PlatformProtocol_descriptor =
-      getDescriptor().getMessageTypes().get(16);
+      getDescriptor().getMessageTypes().get(17);
     internal_static_message_PlatformProtocol_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_message_PlatformProtocol_descriptor,
@@ -28691,31 +29593,31 @@ java.lang.String defaultValue) {
         internal_static_message_PlatformProtocol_SettingsEntry_descriptor,
         new java.lang.String[] { "Key", "Value", });
     internal_static_message_ComponentSetting_descriptor =
-      getDescriptor().getMessageTypes().get(17);
+      getDescriptor().getMessageTypes().get(18);
     internal_static_message_ComponentSetting_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_message_ComponentSetting_descriptor,
         new java.lang.String[] { "MaxIdleTime", "MaxSessionTime", });
     internal_static_message_Forward_descriptor =
-      getDescriptor().getMessageTypes().get(18);
+      getDescriptor().getMessageTypes().get(19);
     internal_static_message_Forward_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_message_Forward_descriptor,
         new java.lang.String[] { "Id", "Host", "Port", });
     internal_static_message_PublicSetting_descriptor =
-      getDescriptor().getMessageTypes().get(19);
+      getDescriptor().getMessageTypes().get(20);
     internal_static_message_PublicSetting_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_message_PublicSetting_descriptor,
         new java.lang.String[] { "XpackEnabled", "ValidLicense", "GptBaseUrl", "GptApiKey", "GptProxy", "GptModel", "LicenseContent", });
     internal_static_message_Cookie_descriptor =
-      getDescriptor().getMessageTypes().get(20);
+      getDescriptor().getMessageTypes().get(21);
     internal_static_message_Cookie_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_message_Cookie_descriptor,
         new java.lang.String[] { "Name", "Value", });
     internal_static_message_LifecycleLogData_descriptor =
-      getDescriptor().getMessageTypes().get(21);
+      getDescriptor().getMessageTypes().get(22);
     internal_static_message_LifecycleLogData_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_message_LifecycleLogData_descriptor,
