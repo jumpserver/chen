@@ -18515,10 +18515,38 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       com.google.protobuf.MessageOrBuilder {
 
     /**
-     * <code>bool use_sysdba = 1;</code>
-     * @return The useSysdba.
+     * <code>map&lt;string, string&gt; settings = 1;</code>
      */
-    boolean getUseSysdba();
+    int getSettingsCount();
+    /**
+     * <code>map&lt;string, string&gt; settings = 1;</code>
+     */
+    boolean containsSettings(
+        java.lang.String key);
+    /**
+     * Use {@link #getSettingsMap()} instead.
+     */
+    @java.lang.Deprecated
+    java.util.Map<java.lang.String, java.lang.String>
+    getSettings();
+    /**
+     * <code>map&lt;string, string&gt; settings = 1;</code>
+     */
+    java.util.Map<java.lang.String, java.lang.String>
+    getSettingsMap();
+    /**
+     * <code>map&lt;string, string&gt; settings = 1;</code>
+     */
+    /* nullable */
+java.lang.String getSettingsOrDefault(
+        java.lang.String key,
+        /* nullable */
+java.lang.String defaultValue);
+    /**
+     * <code>map&lt;string, string&gt; settings = 1;</code>
+     */
+    java.lang.String getSettingsOrThrow(
+        java.lang.String key);
   }
   /**
    * Protobuf type {@code message.ConnectOptions}
@@ -18549,6 +18577,18 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       return org.jumpserver.wisp.Common.internal_static_message_ConnectOptions_descriptor;
     }
 
+    @SuppressWarnings({"rawtypes"})
+    @java.lang.Override
+    protected com.google.protobuf.MapFieldReflectionAccessor internalGetMapFieldReflection(
+        int number) {
+      switch (number) {
+        case 1:
+          return internalGetSettings();
+        default:
+          throw new RuntimeException(
+              "Invalid map field number: " + number);
+      }
+    }
     @java.lang.Override
     protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
         internalGetFieldAccessorTable() {
@@ -18557,15 +18597,83 @@ public final class Common extends com.google.protobuf.GeneratedFile {
               org.jumpserver.wisp.Common.ConnectOptions.class, org.jumpserver.wisp.Common.ConnectOptions.Builder.class);
     }
 
-    public static final int USE_SYSDBA_FIELD_NUMBER = 1;
-    private boolean useSysdba_ = false;
+    public static final int SETTINGS_FIELD_NUMBER = 1;
+    private static final class SettingsDefaultEntryHolder {
+      static final com.google.protobuf.MapEntry<
+          java.lang.String, java.lang.String> defaultEntry =
+              com.google.protobuf.MapEntry
+              .<java.lang.String, java.lang.String>newDefaultInstance(
+                  org.jumpserver.wisp.Common.internal_static_message_ConnectOptions_SettingsEntry_descriptor,
+                  com.google.protobuf.WireFormat.FieldType.STRING,
+                  "",
+                  com.google.protobuf.WireFormat.FieldType.STRING,
+                  "");
+    }
+    @SuppressWarnings("serial")
+    private com.google.protobuf.MapField<
+        java.lang.String, java.lang.String> settings_;
+    private com.google.protobuf.MapField<java.lang.String, java.lang.String>
+    internalGetSettings() {
+      if (settings_ == null) {
+        return com.google.protobuf.MapField.emptyMapField(
+            SettingsDefaultEntryHolder.defaultEntry);
+      }
+      return settings_;
+    }
+    public int getSettingsCount() {
+      return internalGetSettings().getMap().size();
+    }
     /**
-     * <code>bool use_sysdba = 1;</code>
-     * @return The useSysdba.
+     * <code>map&lt;string, string&gt; settings = 1;</code>
      */
     @java.lang.Override
-    public boolean getUseSysdba() {
-      return useSysdba_;
+    public boolean containsSettings(
+        java.lang.String key) {
+      if (key == null) { throw new NullPointerException("map key"); }
+      return internalGetSettings().getMap().containsKey(key);
+    }
+    /**
+     * Use {@link #getSettingsMap()} instead.
+     */
+    @java.lang.Override
+    @java.lang.Deprecated
+    public java.util.Map<java.lang.String, java.lang.String> getSettings() {
+      return getSettingsMap();
+    }
+    /**
+     * <code>map&lt;string, string&gt; settings = 1;</code>
+     */
+    @java.lang.Override
+    public java.util.Map<java.lang.String, java.lang.String> getSettingsMap() {
+      return internalGetSettings().getMap();
+    }
+    /**
+     * <code>map&lt;string, string&gt; settings = 1;</code>
+     */
+    @java.lang.Override
+    public /* nullable */
+java.lang.String getSettingsOrDefault(
+        java.lang.String key,
+        /* nullable */
+java.lang.String defaultValue) {
+      if (key == null) { throw new NullPointerException("map key"); }
+      java.util.Map<java.lang.String, java.lang.String> map =
+          internalGetSettings().getMap();
+      return map.containsKey(key) ? map.get(key) : defaultValue;
+    }
+    /**
+     * <code>map&lt;string, string&gt; settings = 1;</code>
+     */
+    @java.lang.Override
+    public java.lang.String getSettingsOrThrow(
+        java.lang.String key) {
+      if (key == null) { throw new NullPointerException("map key"); }
+      java.util.Map<java.lang.String, java.lang.String> map =
+          internalGetSettings().getMap();
+      if (!map.containsKey(key)) {
+        throw new java.lang.IllegalArgumentException();
+      }
+      return map.get(key);
     }
 
     private byte memoizedIsInitialized = -1;
@@ -18582,9 +18690,12 @@ public final class Common extends com.google.protobuf.GeneratedFile {
     @java.lang.Override
     public void writeTo(com.google.protobuf.CodedOutputStream output)
                         throws java.io.IOException {
-      if (useSysdba_ != false) {
-        output.writeBool(1, useSysdba_);
-      }
+      com.google.protobuf.GeneratedMessage
+        .serializeStringMapTo(
+          output,
+          internalGetSettings(),
+          SettingsDefaultEntryHolder.defaultEntry,
+          1);
       getUnknownFields().writeTo(output);
     }
 
@@ -18594,9 +18705,15 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       if (size != -1) return size;
 
       size = 0;
-      if (useSysdba_ != false) {
+      for (java.util.Map.Entry<java.lang.String, java.lang.String> entry
+           : internalGetSettings().getMap().entrySet()) {
+        com.google.protobuf.MapEntry<java.lang.String, java.lang.String>
+        settings__ = SettingsDefaultEntryHolder.defaultEntry.newBuilderForType()
+            .setKey(entry.getKey())
+            .setValue(entry.getValue())
+            .build();
         size += com.google.protobuf.CodedOutputStream
-          .computeBoolSize(1, useSysdba_);
+            .computeMessageSize(1, settings__);
       }
       size += getUnknownFields().getSerializedSize();
       memoizedSize = size;
@@ -18613,8 +18730,8 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       }
       org.jumpserver.wisp.Common.ConnectOptions other = (org.jumpserver.wisp.Common.ConnectOptions) obj;
 
-      if (getUseSysdba()
-          != other.getUseSysdba()) return false;
+      if (!internalGetSettings().equals(
+          other.internalGetSettings())) return false;
       if (!getUnknownFields().equals(other.getUnknownFields())) return false;
       return true;
     }
@@ -18626,9 +18743,10 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       }
       int hash = 41;
       hash = (19 * hash) + getDescriptor().hashCode();
-      hash = (37 * hash) + USE_SYSDBA_FIELD_NUMBER;
-      hash = (53 * hash) + com.google.protobuf.Internal.hashBoolean(
-          getUseSysdba());
+      if (!internalGetSettings().getMap().isEmpty()) {
+        hash = (37 * hash) + SETTINGS_FIELD_NUMBER;
+        hash = (53 * hash) + internalGetSettings().hashCode();
+      }
       hash = (29 * hash) + getUnknownFields().hashCode();
       memoizedHashCode = hash;
       return hash;
@@ -18738,6 +18856,28 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         return org.jumpserver.wisp.Common.internal_static_message_ConnectOptions_descriptor;
       }
 
+      @SuppressWarnings({"rawtypes"})
+      protected com.google.protobuf.MapFieldReflectionAccessor internalGetMapFieldReflection(
+          int number) {
+        switch (number) {
+          case 1:
+            return internalGetSettings();
+          default:
+            throw new RuntimeException(
+                "Invalid map field number: " + number);
+        }
+      }
+      @SuppressWarnings({"rawtypes"})
+      protected com.google.protobuf.MapFieldReflectionAccessor internalGetMutableMapFieldReflection(
+          int number) {
+        switch (number) {
+          case 1:
+            return internalGetMutableSettings();
+          default:
+            throw new RuntimeException(
+                "Invalid map field number: " + number);
+        }
+      }
       @java.lang.Override
       protected com.google.protobuf.GeneratedMessage.FieldAccessorTable
           internalGetFieldAccessorTable() {
@@ -18760,7 +18900,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       public Builder clear() {
         super.clear();
         bitField0_ = 0;
-        useSysdba_ = false;
+        internalGetMutableSettings().clear();
         return this;
       }
 
@@ -18795,7 +18935,8 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       private void buildPartial0(org.jumpserver.wisp.Common.ConnectOptions result) {
         int from_bitField0_ = bitField0_;
         if (((from_bitField0_ & 0x00000001) != 0)) {
-          result.useSysdba_ = useSysdba_;
+          result.settings_ = internalGetSettings();
+          result.settings_.makeImmutable();
         }
       }
 
@@ -18811,9 +18952,9 @@ public final class Common extends com.google.protobuf.GeneratedFile {
 
       public Builder mergeFrom(org.jumpserver.wisp.Common.ConnectOptions other) {
         if (other == org.jumpserver.wisp.Common.ConnectOptions.getDefaultInstance()) return this;
-        if (other.getUseSysdba() != false) {
-          setUseSysdba(other.getUseSysdba());
-        }
+        internalGetMutableSettings().mergeFrom(
+            other.internalGetSettings());
+        bitField0_ |= 0x00000001;
         this.mergeUnknownFields(other.getUnknownFields());
         onChanged();
         return this;
@@ -18840,11 +18981,15 @@ public final class Common extends com.google.protobuf.GeneratedFile {
               case 0:
                 done = true;
                 break;
-              case 8: {
-                useSysdba_ = input.readBool();
+              case 10: {
+                com.google.protobuf.MapEntry<java.lang.String, java.lang.String>
+                settings__ = input.readMessage(
+                    SettingsDefaultEntryHolder.defaultEntry.getParserForType(), extensionRegistry);
+                internalGetMutableSettings().getMutableMap().put(
+                    settings__.getKey(), settings__.getValue());
                 bitField0_ |= 0x00000001;
                 break;
-              } // case 8
+              } // case 10
               default: {
                 if (!super.parseUnknownField(input, extensionRegistry, tag)) {
                   done = true; // was an endgroup tag
@@ -18862,35 +19007,130 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       }
       private int bitField0_;
 
-      private boolean useSysdba_ ;
-      /**
-       * <code>bool use_sysdba = 1;</code>
-       * @return The useSysdba.
-       */
-      @java.lang.Override
-      public boolean getUseSysdba() {
-        return useSysdba_;
+      private com.google.protobuf.MapField<
+          java.lang.String, java.lang.String> settings_;
+      private com.google.protobuf.MapField<java.lang.String, java.lang.String>
+          internalGetSettings() {
+        if (settings_ == null) {
+          return com.google.protobuf.MapField.emptyMapField(
+              SettingsDefaultEntryHolder.defaultEntry);
+        }
+        return settings_;
       }
-      /**
-       * <code>bool use_sysdba = 1;</code>
-       * @param value The useSysdba to set.
-       * @return This builder for chaining.
-       */
-      public Builder setUseSysdba(boolean value) {
-
-        useSysdba_ = value;
+      private com.google.protobuf.MapField<java.lang.String, java.lang.String>
+          internalGetMutableSettings() {
+        if (settings_ == null) {
+          settings_ = com.google.protobuf.MapField.newMapField(
+              SettingsDefaultEntryHolder.defaultEntry);
+        }
+        if (!settings_.isMutable()) {
+          settings_ = settings_.copy();
+        }
         bitField0_ |= 0x00000001;
         onChanged();
+        return settings_;
+      }
+      public int getSettingsCount() {
+        return internalGetSettings().getMap().size();
+      }
+      /**
+       * <code>map&lt;string, string&gt; settings = 1;</code>
+       */
+      @java.lang.Override
+      public boolean containsSettings(
+          java.lang.String key) {
+        if (key == null) { throw new NullPointerException("map key"); }
+        return internalGetSettings().getMap().containsKey(key);
+      }
+      /**
+       * Use {@link #getSettingsMap()} instead.
+       */
+      @java.lang.Override
+      @java.lang.Deprecated
+      public java.util.Map<java.lang.String, java.lang.String> getSettings() {
+        return getSettingsMap();
+      }
+      /**
+       * <code>map&lt;string, string&gt; settings = 1;</code>
+       */
+      @java.lang.Override
+      public java.util.Map<java.lang.String, java.lang.String> getSettingsMap() {
+        return internalGetSettings().getMap();
+      }
+      /**
+       * <code>map&lt;string, string&gt; settings = 1;</code>
+       */
+      @java.lang.Override
+      public /* nullable */
+java.lang.String getSettingsOrDefault(
+          java.lang.String key,
+          /* nullable */
+java.lang.String defaultValue) {
+        if (key == null) { throw new NullPointerException("map key"); }
+        java.util.Map<java.lang.String, java.lang.String> map =
+            internalGetSettings().getMap();
+        return map.containsKey(key) ? map.get(key) : defaultValue;
+      }
+      /**
+       * <code>map&lt;string, string&gt; settings = 1;</code>
+       */
+      @java.lang.Override
+      public java.lang.String getSettingsOrThrow(
+          java.lang.String key) {
+        if (key == null) { throw new NullPointerException("map key"); }
+        java.util.Map<java.lang.String, java.lang.String> map =
+            internalGetSettings().getMap();
+        if (!map.containsKey(key)) {
+          throw new java.lang.IllegalArgumentException();
+        }
+        return map.get(key);
+      }
+      public Builder clearSettings() {
+        bitField0_ = (bitField0_ & ~0x00000001);
+        internalGetMutableSettings().getMutableMap()
+            .clear();
         return this;
       }
       /**
-       * <code>bool use_sysdba = 1;</code>
-       * @return This builder for chaining.
+       * <code>map&lt;string, string&gt; settings = 1;</code>
        */
-      public Builder clearUseSysdba() {
-        bitField0_ = (bitField0_ & ~0x00000001);
-        useSysdba_ = false;
-        onChanged();
+      public Builder removeSettings(
+          java.lang.String key) {
+        if (key == null) { throw new NullPointerException("map key"); }
+        internalGetMutableSettings().getMutableMap()
+            .remove(key);
+        return this;
+      }
+      /**
+       * Use alternate mutation accessors instead.
+       */
+      @java.lang.Deprecated
+      public java.util.Map<java.lang.String, java.lang.String>
+          getMutableSettings() {
+        bitField0_ |= 0x00000001;
+        return internalGetMutableSettings().getMutableMap();
+      }
+      /**
+       * <code>map&lt;string, string&gt; settings = 1;</code>
+       */
+      public Builder putSettings(
+          java.lang.String key,
+          java.lang.String value) {
+        if (key == null) { throw new NullPointerException("map key"); }
+        if (value == null) { throw new NullPointerException("map value"); }
+        internalGetMutableSettings().getMutableMap()
+            .put(key, value);
+        bitField0_ |= 0x00000001;
+        return this;
+      }
+      /**
+       * <code>map&lt;string, string&gt; settings = 1;</code>
+       */
+      public Builder putAllSettings(
+          java.util.Map<java.lang.String, java.lang.String> values) {
+        internalGetMutableSettings().getMutableMap()
+            .putAll(values);
+        bitField0_ |= 0x00000001;
         return this;
       }
 
@@ -28990,12 +29230,12 @@ java.lang.String defaultValue) {
       internal_static_message_Account_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_LabelValue_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_LabelValue_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_Asset_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_Asset_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
@@ -29058,6 +29298,11 @@ java.lang.String defaultValue) {
   private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_ConnectOptions_fieldAccessorTable;
+  private static final com.google.protobuf.Descriptors.Descriptor
+    internal_static_message_ConnectOptions_SettingsEntry_descriptor;
+  private static final
+    com.google.protobuf.GeneratedMessage.FieldAccessorTable
+      internal_static_message_ConnectOptions_SettingsEntry_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_TokenAuthInfo_descriptor;
   private static final 
@@ -29166,53 +29411,56 @@ java.lang.String defaultValue) {
       "essage.TaskAction\022\022\n\nsession_id\030\003 \001(\t\022\025\n" +
       "\rterminated_by\030\004 \001(\t\022\022\n\ncreated_by\030\005 \001(\t" +
       "\022*\n\014token_status\030\006 \001(\0132\024.message.TokenSt" +
-      "atus\"$\n\016ConnectOptions\022\022\n\nuse_sysdba\030\001 \001" +
-      "(\010\"\207\004\n\rTokenAuthInfo\022\016\n\006key_id\030\001 \001(\t\022\022\n\n" +
-      "secrete_id\030\002 \001(\t\022\035\n\005asset\030\003 \001(\0132\016.messag" +
-      "e.Asset\022\033\n\004user\030\004 \001(\0132\r.message.User\022!\n\007" +
-      "account\030\005 \001(\0132\020.message.Account\022\'\n\npermi" +
-      "ssion\030\006 \001(\0132\023.message.Permission\022(\n\013expi" +
-      "re_info\030\007 \001(\0132\023.message.ExpireInfo\022)\n\014fi" +
-      "lter_rules\030\010 \003(\0132\023.message.CommandACL\022\"\n" +
-      "\010gateways\030\t \003(\0132\020.message.Gateway\022*\n\007set" +
-      "ting\030\n \001(\0132\031.message.ComponentSetting\022#\n" +
-      "\010platform\030\013 \001(\0132\021.message.Platform\022\030\n\020Fa" +
-      "ceMonitorToken\030\014 \001(\t\0224\n\022data_masking_rul" +
-      "es\030\r \003(\0132\030.message.DataMaskingRule\0220\n\017co" +
-      "nnect_options\030\016 \001(\0132\027.message.ConnectOpt" +
-      "ions\"\203\001\n\010Platform\022\n\n\002id\030\001 \001(\005\022\014\n\004name\030\002 " +
-      "\001(\t\022\020\n\010category\030\003 \001(\t\022\017\n\007charset\030\004 \001(\t\022\014" +
-      "\n\004type\030\005 \001(\t\022,\n\tprotocols\030\006 \003(\0132\031.messag" +
-      "e.PlatformProtocol\"\246\001\n\020PlatformProtocol\022" +
-      "\n\n\002id\030\001 \001(\005\022\014\n\004name\030\002 \001(\t\022\014\n\004port\030\003 \001(\005\022" +
-      "9\n\010settings\030\004 \003(\0132\'.message.PlatformProt" +
-      "ocol.SettingsEntry\032/\n\rSettingsEntry\022\013\n\003k" +
-      "ey\030\001 \001(\t\022\r\n\005value\030\002 \001(\t:\0028\001\"C\n\020Component" +
-      "Setting\022\025\n\rmax_idle_time\030\001 \001(\005\022\030\n\020max_se" +
-      "ssion_time\030\002 \001(\005\"1\n\007Forward\022\n\n\002id\030\001 \001(\t\022" +
-      "\014\n\004Host\030\002 \001(\t\022\014\n\004port\030\003 \001(\005\"\247\001\n\rPublicSe" +
-      "tting\022\025\n\rxpack_enabled\030\001 \001(\010\022\025\n\rvalid_li" +
-      "cense\030\002 \001(\010\022\024\n\014gpt_base_url\030\003 \001(\t\022\023\n\013gpt" +
-      "_api_key\030\004 \001(\t\022\021\n\tgpt_proxy\030\005 \001(\t\022\021\n\tgpt" +
-      "_model\030\006 \001(\t\022\027\n\017license_content\030\007 \001(\t\"%\n" +
-      "\006Cookie\022\014\n\004name\030\001 \001(\t\022\r\n\005value\030\002 \001(\t\"\250\003\n" +
-      "\020LifecycleLogData\0223\n\005event\030\001 \001(\0162$.messa" +
-      "ge.LifecycleLogData.event_type\022\016\n\006reason" +
-      "\030\002 \001(\t\022\014\n\004user\030\003 \001(\t\"\300\002\n\nevent_type\022\027\n\023A" +
-      "ssetConnectSuccess\020\000\022\030\n\024AssetConnectFini" +
-      "shed\020\001\022\023\n\017CreateShareLink\020\002\022\023\n\017UserJoinS" +
-      "ession\020\003\022\024\n\020UserLeaveSession\020\004\022\024\n\020AdminJ" +
-      "oinMonitor\020\005\022\024\n\020AdminExitMonitor\020\006\022\026\n\022Re" +
-      "playConvertStart\020\007\022\030\n\024ReplayConvertSucce" +
-      "ss\020\010\022\030\n\024ReplayConvertFailure\020\t\022\025\n\021Replay" +
-      "UploadStart\020\n\022\027\n\023ReplayUploadSuccess\020\013\022\027" +
-      "\n\023ReplayUploadFailure\020\014*k\n\nTaskAction\022\017\n" +
-      "\013KillSession\020\000\022\017\n\013LockSession\020\001\022\021\n\rUnloc" +
-      "kSession\020\002\022\024\n\020TokenPermExpired\020\003\022\022\n\016Toke" +
-      "nPermValid\020\004*f\n\tRiskLevel\022\n\n\006Normal\020\000\022\013\n" +
-      "\007Warning\020\001\022\n\n\006Reject\020\002\022\020\n\014ReviewReject\020\003" +
-      "\022\020\n\014ReviewAccept\020\004\022\020\n\014ReviewCancel\020\005B \n\023" +
-      "org.jumpserver.wispZ\t/protobufb\006proto3"
+      "atus\"z\n\016ConnectOptions\0227\n\010settings\030\001 \003(\013" +
+      "2%.message.ConnectOptions.SettingsEntry\032" +
+      "/\n\rSettingsEntry\022\013\n\003key\030\001 \001(\t\022\r\n\005value\030\002" +
+      " \001(\t:\0028\001\"\207\004\n\rTokenAuthInfo\022\016\n\006key_id\030\001 \001" +
+      "(\t\022\022\n\nsecrete_id\030\002 \001(\t\022\035\n\005asset\030\003 \001(\0132\016." +
+      "message.Asset\022\033\n\004user\030\004 \001(\0132\r.message.Us" +
+      "er\022!\n\007account\030\005 \001(\0132\020.message.Account\022\'\n" +
+      "\npermission\030\006 \001(\0132\023.message.Permission\022(" +
+      "\n\013expire_info\030\007 \001(\0132\023.message.ExpireInfo" +
+      "\022)\n\014filter_rules\030\010 \003(\0132\023.message.Command" +
+      "ACL\022\"\n\010gateways\030\t \003(\0132\020.message.Gateway\022" +
+      "*\n\007setting\030\n \001(\0132\031.message.ComponentSett" +
+      "ing\022#\n\010platform\030\013 \001(\0132\021.message.Platform" +
+      "\022\030\n\020FaceMonitorToken\030\014 \001(\t\0224\n\022data_maski" +
+      "ng_rules\030\r \003(\0132\030.message.DataMaskingRule" +
+      "\0220\n\017connect_options\030\016 \001(\0132\027.message.Conn" +
+      "ectOptions\"\203\001\n\010Platform\022\n\n\002id\030\001 \001(\005\022\014\n\004n" +
+      "ame\030\002 \001(\t\022\020\n\010category\030\003 \001(\t\022\017\n\007charset\030\004" +
+      " \001(\t\022\014\n\004type\030\005 \001(\t\022,\n\tprotocols\030\006 \003(\0132\031." +
+      "message.PlatformProtocol\"\246\001\n\020PlatformPro" +
+      "tocol\022\n\n\002id\030\001 \001(\005\022\014\n\004name\030\002 \001(\t\022\014\n\004port\030" +
+      "\003 \001(\005\0229\n\010settings\030\004 \003(\0132\'.message.Platfo" +
+      "rmProtocol.SettingsEntry\032/\n\rSettingsEntr" +
+      "y\022\013\n\003key\030\001 \001(\t\022\r\n\005value\030\002 \001(\t:\0028\001\"C\n\020Com" +
+      "ponentSetting\022\025\n\rmax_idle_time\030\001 \001(\005\022\030\n\020" +
+      "max_session_time\030\002 \001(\005\"1\n\007Forward\022\n\n\002id\030" +
+      "\001 \001(\t\022\014\n\004Host\030\002 \001(\t\022\014\n\004port\030\003 \001(\005\"\247\001\n\rPu" +
+      "blicSetting\022\025\n\rxpack_enabled\030\001 \001(\010\022\025\n\rva" +
+      "lid_license\030\002 \001(\010\022\024\n\014gpt_base_url\030\003 \001(\t\022" +
+      "\023\n\013gpt_api_key\030\004 \001(\t\022\021\n\tgpt_proxy\030\005 \001(\t\022" +
+      "\021\n\tgpt_model\030\006 \001(\t\022\027\n\017license_content\030\007 " +
+      "\001(\t\"%\n\006Cookie\022\014\n\004name\030\001 \001(\t\022\r\n\005value\030\002 \001" +
+      "(\t\"\250\003\n\020LifecycleLogData\0223\n\005event\030\001 \001(\0162$" +
+      ".message.LifecycleLogData.event_type\022\016\n\006" +
+      "reason\030\002 \001(\t\022\014\n\004user\030\003 \001(\t\"\300\002\n\nevent_typ" +
+      "e\022\027\n\023AssetConnectSuccess\020\000\022\030\n\024AssetConne" +
+      "ctFinished\020\001\022\023\n\017CreateShareLink\020\002\022\023\n\017Use" +
+      "rJoinSession\020\003\022\024\n\020UserLeaveSession\020\004\022\024\n\020" +
+      "AdminJoinMonitor\020\005\022\024\n\020AdminExitMonitor\020\006" +
+      "\022\026\n\022ReplayConvertStart\020\007\022\030\n\024ReplayConver" +
+      "tSuccess\020\010\022\030\n\024ReplayConvertFailure\020\t\022\025\n\021" +
+      "ReplayUploadStart\020\n\022\027\n\023ReplayUploadSucce" +
+      "ss\020\013\022\027\n\023ReplayUploadFailure\020\014*k\n\nTaskAct" +
+      "ion\022\017\n\013KillSession\020\000\022\017\n\013LockSession\020\001\022\021\n" +
+      "\rUnlockSession\020\002\022\024\n\020TokenPermExpired\020\003\022\022" +
+      "\n\016TokenPermValid\020\004*f\n\tRiskLevel\022\n\n\006Norma" +
+      "l\020\000\022\013\n\007Warning\020\001\022\n\n\006Reject\020\002\022\020\n\014ReviewRe" +
+      "ject\020\003\022\020\n\014ReviewAccept\020\004\022\020\n\014ReviewCancel" +
+      "\020\005B \n\023org.jumpserver.wispZ\t/protobufb\006pr" +
+      "oto3"
     };
     descriptor = com.google.protobuf.Descriptors.FileDescriptor
       .internalBuildGeneratedFileFrom(descriptorData,
@@ -29313,7 +29561,13 @@ java.lang.String defaultValue) {
     internal_static_message_ConnectOptions_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_message_ConnectOptions_descriptor,
-        new java.lang.String[] { "UseSysdba", });
+        new java.lang.String[] { "Settings", });
+    internal_static_message_ConnectOptions_SettingsEntry_descriptor =
+      internal_static_message_ConnectOptions_descriptor.getNestedTypes().get(0);
+    internal_static_message_ConnectOptions_SettingsEntry_fieldAccessorTable = new
+      com.google.protobuf.GeneratedMessage.FieldAccessorTable(
+        internal_static_message_ConnectOptions_SettingsEntry_descriptor,
+        new java.lang.String[] { "Key", "Value", });
     internal_static_message_TokenAuthInfo_descriptor =
       getDescriptor().getMessageTypes().get(15);
     internal_static_message_TokenAuthInfo_fieldAccessorTable = new
