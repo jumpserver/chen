@@ -1,8 +1,8 @@
 import { get, post } from '@/request'
 import { apiUrl } from '@/utils/path'
 
-export function getSnippets() {
-  return get(apiUrl('v1/ops/adhocs/'))
+export function getSnippets(params) {
+  return get(apiUrl('v1/ops/adhocs/'), params)
 }
 
 export function saveSnippet(item) {
