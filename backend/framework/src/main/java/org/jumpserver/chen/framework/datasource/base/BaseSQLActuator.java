@@ -31,7 +31,9 @@ import java.sql.*;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.StringJoiner;
 import java.util.regex.Pattern;
@@ -123,6 +125,33 @@ public abstract class BaseSQLActuator implements SQLActuator {
             throw new SQLException(msg);
         }
         return objects;
+    }
+
+    @Override
+    public List<Map<String, Object>> queryRows(String sql, List<?> parameters) throws SQLException {
+        var rows = new ArrayList<Map<String, Object>>();
+        try (Connection conn = this.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            for (int index = 0; index < parameters.size(); index++) {
+                stmt.setObject(index + 1, parameters.get(index));
+            }
+            try (ResultSet rs = stmt.executeQuery()) {
+                var metadata = rs.getMetaData();
+                while (rs.next()) {
+                    var row = new LinkedHashMap<String, Object>();
+                    for (int index = 1; index <= metadata.getColumnCount(); index++) {
+                        row.put(
+                                metadata.getColumnLabel(index).toLowerCase(Locale.ROOT),
+                                this.normalizeJdbcValue(rs.getObject(index))
+                        );
+                    }
+                    rows.add(row);
+                }
+            }
+        } catch (SQLException e) {
+            throw new SQLException("run metadata sql error, %s".formatted(e.getMessage()), e);
+        }
+        return rows;
     }
 
     @Override

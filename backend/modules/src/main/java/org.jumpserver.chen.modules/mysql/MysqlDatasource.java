@@ -4,6 +4,7 @@ import com.alibaba.druid.DbType;
 import org.jumpserver.chen.framework.datasource.DatasourceFactory;
 import org.jumpserver.chen.framework.datasource.base.BaseDatasource;
 import org.jumpserver.chen.framework.datasource.entity.DBConnectInfo;
+import org.jumpserver.chen.framework.datasource.metadata.MetadataCatalog;
 
 public class MysqlDatasource extends BaseDatasource {
 
@@ -13,6 +14,7 @@ public class MysqlDatasource extends BaseDatasource {
 
     public MysqlDatasource(DBConnectInfo dbConnectInfo) {
         this.connectionManager = new MysqlConnectionManager(dbConnectInfo, this);
+        this.metadataCatalog = new MetadataCatalog(this.connectionManager, new MysqlMetadataProvider(this.connectionManager));
         this.resourceBrowser = new MysqlResourceBrowser(this.connectionManager);
         this.actionHandler = new MysqlActionHandler();
     }

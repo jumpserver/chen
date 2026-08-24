@@ -58,13 +58,6 @@ public class DMActionHandler extends BaseActionHandler {
         );
     }
 
-    private static final String SQL_SELECT_TABLE_DETAIL = "select TABNAME, TBSPACE, TABSCHEMA, TYPE, STATUS, COLCOUNT, ACTIVE_BLOCKS, AVGROWSIZE, OWNER, CREATE_TIME from syscat.TABLES WHERE TBSPACE is not null AND TABNAME = '?'";
-
-    public EventEmitter onTableProperties(TreeNode node) throws SQLException {
-        return this.onShowObjectProperties("table", SQL_SELECT_TABLE_DETAIL, node);
-    }
-
-
     @Override
     public EventEmitter handleForm(FormData formData) throws SQLException {
         return null;

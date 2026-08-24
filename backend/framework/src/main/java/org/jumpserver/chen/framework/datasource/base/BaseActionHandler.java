@@ -8,7 +8,11 @@ import org.jumpserver.chen.framework.datasource.entity.action.EventEmitter;
 import org.jumpserver.chen.framework.datasource.entity.dialog.detail.DetailDialog;
 import org.jumpserver.chen.framework.datasource.entity.dialog.detail.DetailItem;
 import org.jumpserver.chen.framework.datasource.entity.resource.TreeNode;
-import org.jumpserver.chen.framework.datasource.sql.SQL;
+import org.jumpserver.chen.framework.datasource.metadata.ObjectRef;
+import org.jumpserver.chen.framework.datasource.metadata.RelationKind;
+import org.jumpserver.chen.framework.datasource.metadata.RelationScope;
+import org.jumpserver.chen.framework.datasource.metadata.ScopeKind;
+import org.jumpserver.chen.framework.datasource.metadata.ScopeRef;
 import org.jumpserver.chen.framework.i18n.MessageUtils;
 import org.jumpserver.chen.framework.session.SessionManager;
 import org.jumpserver.chen.framework.utils.LangUtils;
@@ -159,22 +163,60 @@ public abstract class BaseActionHandler implements ActionHandler {
         }
     }
 
-    public EventEmitter onShowObjectProperties(String type, String sql, TreeNode node) throws SQLException {
-        var sqlActuator = this.getDatasource().getConnectionManager().getSqlActuator();
-        var objName = TreeUtils.getValue(node.getKey(), type);
-        var command = SQL.of(sql, objName.replace("'", "''"));
-        log.info("resource action show_properties: type={}, node={}", type, node.getKey());
-        var result = sqlActuator.execute(command);
+    public EventEmitter onTableProperties(TreeNode node) throws SQLException {
+        return this.showRelationProperties(node);
+    }
 
-        var detailDialog = new DetailDialog(node.getKey(), type + MessageUtils.get("Properties"));
+    public EventEmitter onViewProperties(TreeNode node) throws SQLException {
+        return this.showRelationProperties(node);
+    }
+
+    private EventEmitter showRelationProperties(TreeNode node) throws SQLException {
+        var database = TreeUtils.getValue(node.getKey(), "database");
+        var schema = TreeUtils.getValue(node.getKey(), "schema");
+        var table = TreeUtils.getValue(node.getKey(), node.getType());
+        var kind = "view".equals(node.getType()) ? RelationKind.VIEW : RelationKind.TABLE;
+        var ref = new ObjectRef(database.isEmpty() ? null : database, schema, table, kind);
+        var properties = this.getDatasource().getMetadataCatalog().objectProperties(ref);
+
+        var detailDialog = new DetailDialog(node.getKey(), node.getType() + MessageUtils.get("Properties"));
         detailDialog.setWidth("50%");
-        for (int i = 0; i < result.getFields().size(); i++) {
-            var column = result.getFields().get(i);
+        for (var item : properties.items()) {
             detailDialog.addItem(DetailItem.builder()
-                    .name(column.getName())
-                    .label(column.getName())
+                    .name(item.name())
+                    .label(item.name())
                     .type("text")
-                    .value(result.getData().get(0).get(i) == null ? "" : result.getData().get(0).get(i).toString())
+                    .value(item.value() == null ? "" : item.value())
+                    .build());
+        }
+        return EventEmitter.of("new_dialog", detailDialog);
+    }
+
+    public EventEmitter onSchemaProperties(TreeNode node) throws SQLException {
+        return this.showScopeProperties(node, ScopeKind.SCHEMA);
+    }
+
+    public EventEmitter onDatabaseProperties(TreeNode node) throws SQLException {
+        return this.showScopeProperties(node, ScopeKind.CATALOG);
+    }
+
+    private EventEmitter showScopeProperties(TreeNode node, ScopeKind kind) throws SQLException {
+        var datasource = this.getDatasource();
+        var browser = datasource.getResourceBrowser();
+        var snapshot = browser.getIndexedNode(node.getKey());
+        var scope = browser.resolveScope(snapshot, null);
+        if (kind == ScopeKind.CATALOG) {
+            scope = new RelationScope(scope.catalog(), null);
+        }
+        var properties = datasource.getMetadataCatalog().scopeProperties(new ScopeRef(scope, kind));
+        var detailDialog = new DetailDialog(node.getKey(), node.getType() + MessageUtils.get("Properties"));
+        detailDialog.setWidth("50%");
+        for (var item : properties.items()) {
+            detailDialog.addItem(DetailItem.builder()
+                    .name(item.name())
+                    .label(item.name())
+                    .type("text")
+                    .value(item.value() == null ? "" : item.value())
                     .build());
         }
         return EventEmitter.of("new_dialog", detailDialog);
@@ -230,14 +272,34 @@ public abstract class BaseActionHandler implements ActionHandler {
     }
 
     public EventEmitter onRefreshNode(TreeNode node) throws SQLException {
-        var resourceBrowser = this.getDatasource().getResourceBrowser();
+        var datasource = this.getDatasource();
+        var resourceBrowser = datasource.getResourceBrowser();
 
         var n = TreeUtils.getNode(resourceBrowser.getTree(), node.getKey());
         if (n != null) {
-            var children = resourceBrowser.getChildren(n, false);
-            n.setChildren(children);
+            this.invalidateMetadata(n);
+            resourceBrowser.getChildren(n, false);
         }
         return EventEmitter.of("refresh_node", node.getKey());
+    }
+
+    private void invalidateMetadata(TreeNode node) throws SQLException {
+        var datasource = this.getDatasource();
+        var browser = datasource.getResourceBrowser();
+        var catalog = datasource.getMetadataCatalog();
+        var snapshot = browser.getIndexedNode(node.getKey());
+        switch (node.getType()) {
+            case "datasource" -> catalog.invalidateAll();
+            case "database" -> catalog.invalidateCatalog(snapshot.database());
+            case "schema", "folder" -> catalog.invalidate(browser.resolveScope(snapshot, null));
+            case "table", "view" -> {
+                var scope = browser.resolveScope(snapshot, null);
+                var kind = "view".equals(node.getType()) ? RelationKind.VIEW : RelationKind.TABLE;
+                catalog.invalidate(new ObjectRef(scope.catalog(), scope.schema(), snapshot.table(), kind));
+            }
+            default -> {
+            }
+        }
     }
 
     public EventEmitter onNewQuery(TreeNode node) {

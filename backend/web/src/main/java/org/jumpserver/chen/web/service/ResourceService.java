@@ -5,6 +5,8 @@ import org.jumpserver.chen.framework.datasource.entity.resource.TreeNode;
 import org.jumpserver.chen.framework.datasource.entity.action.Action;
 import org.jumpserver.chen.framework.datasource.entity.form.FormData;
 import org.jumpserver.chen.framework.session.SessionManager;
+import org.jumpserver.chen.framework.datasource.metadata.ObjectRef;
+import org.jumpserver.chen.framework.datasource.metadata.RelationKind;
 import org.jumpserver.chen.framework.utils.TreeUtils;
 import org.jumpserver.chen.web.exception.ChenException;
 import org.springframework.stereotype.Service;
@@ -20,9 +22,37 @@ public class ResourceService {
     public List<TreeNode> getChildren(TreeNode node, boolean force) {
         try {
             var ds = SessionManager.getCurrentSession().getDatasource();
-            return ds.getChildren(node, !force);
+            if (!force || node == null) {
+                return ds.getChildren(node, !force);
+            }
+            var browser = ds.getResourceBrowser();
+            var resolvedNode = TreeUtils.getNode(browser.getTree(), node.getKey());
+            if (resolvedNode == null || !Objects.equals(resolvedNode.getType(), node.getType())) {
+                throw new ChenException("Invalid resource node");
+            }
+            this.invalidateMetadata(ds, resolvedNode);
+            return ds.getChildren(resolvedNode, false);
         } catch (SQLException e) {
             throw new ChenException(String.format("获取 %s子节点失败", node.getLabel()), e);
+        }
+    }
+
+    private void invalidateMetadata(org.jumpserver.chen.framework.datasource.Datasource datasource, TreeNode node)
+            throws SQLException {
+        var browser = datasource.getResourceBrowser();
+        var catalog = datasource.getMetadataCatalog();
+        var snapshot = browser.getIndexedNode(node.getKey());
+        switch (node.getType()) {
+            case "datasource" -> catalog.invalidateAll();
+            case "database" -> catalog.invalidateCatalog(snapshot.database());
+            case "schema", "folder" -> catalog.invalidate(browser.resolveScope(snapshot, null));
+            case "table", "view" -> {
+                var scope = browser.resolveScope(snapshot, null);
+                var kind = "view".equals(node.getType()) ? RelationKind.VIEW : RelationKind.TABLE;
+                catalog.invalidate(new ObjectRef(scope.catalog(), scope.schema(), snapshot.table(), kind));
+            }
+            default -> {
+            }
         }
     }
 

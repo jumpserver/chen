@@ -4,6 +4,7 @@ import com.alibaba.druid.DbType;
 import org.jumpserver.chen.framework.datasource.DatasourceFactory;
 import org.jumpserver.chen.framework.datasource.base.BaseDatasource;
 import org.jumpserver.chen.framework.datasource.entity.DBConnectInfo;
+import org.jumpserver.chen.framework.datasource.metadata.MetadataCatalog;
 
 public class SQLServerDatasource extends BaseDatasource {
 
@@ -13,6 +14,7 @@ public class SQLServerDatasource extends BaseDatasource {
 
     public SQLServerDatasource(DBConnectInfo dbConnectInfo) {
         this.connectionManager = new SQLServerConnectionManager(dbConnectInfo,this);
+        this.metadataCatalog = new MetadataCatalog(this.connectionManager, new SQLServerMetadataProvider(this.connectionManager));
         this.resourceBrowser = new SQLServerResourceBrowser(this.connectionManager);
         this.actionHandler = new SQLServerActionHandler();
     }

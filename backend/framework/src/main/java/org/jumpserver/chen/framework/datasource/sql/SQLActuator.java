@@ -17,6 +17,8 @@ public interface SQLActuator {
 
     <T> List<T> getObjects(String sql, Class<T> clazz, Map<String, Integer> fieldMapping) throws SQLException;
 
+    List<Map<String, Object>> queryRows(String sql, List<?> parameters) throws SQLException;
+
     int count(SQL sql) throws SQLException;
 
     int count(SQLExecutePlan plan) throws SQLException;

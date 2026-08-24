@@ -10,6 +10,7 @@ import org.jumpserver.chen.framework.datasource.entity.action.EventEmitter;
 import org.jumpserver.chen.framework.datasource.entity.resource.TreeNode;
 import org.jumpserver.chen.framework.datasource.entity.action.Action;
 import org.jumpserver.chen.framework.datasource.entity.form.FormData;
+import org.jumpserver.chen.framework.datasource.metadata.MetadataCatalog;
 import org.jumpserver.chen.framework.session.SessionManager;
 
 import java.sql.SQLException;
@@ -22,6 +23,7 @@ public abstract class BaseDatasource implements Datasource {
     protected ResourceBrowser resourceBrowser;
     protected ActionHandler actionHandler;
     protected DatasourceInfo datasourceInfo;
+    protected MetadataCatalog metadataCatalog;
 
     public void ping() {
         try {
@@ -82,6 +84,10 @@ public abstract class BaseDatasource implements Datasource {
 
     public ResourceBrowser getResourceBrowser() {
         return this.resourceBrowser;
+    }
+
+    public MetadataCatalog getMetadataCatalog() {
+        return this.metadataCatalog;
     }
 
     public DBConnectInfo getConnectInfo() {
