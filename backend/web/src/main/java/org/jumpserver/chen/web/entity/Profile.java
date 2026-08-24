@@ -10,4 +10,5 @@ public class Profile {
     private String AssetName;
     private boolean canCopy = false;
     private boolean canPaste = false;
+    private boolean chatAiEnabled = false;
 }

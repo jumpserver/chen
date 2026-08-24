@@ -40,6 +40,10 @@ public interface Session {
 
     boolean canPaste();
 
+    default boolean isChatAIEnabled() {
+        return false;
+    }
+
     Path getTempPath();
 
     File createFile(String fileName);

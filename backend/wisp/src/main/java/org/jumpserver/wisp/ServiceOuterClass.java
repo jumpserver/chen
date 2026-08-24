@@ -36553,6 +36553,12 @@ java.lang.String defaultValue) {
      */
     com.google.protobuf.ByteString
         getSurfaceBytes();
+
+    /**
+     * <code>bool chat_ai_enabled = 9;</code>
+     * @return The chatAiEnabled.
+     */
+    boolean getChatAiEnabled();
   }
   /**
    * <pre>
@@ -36918,6 +36924,17 @@ java.lang.String defaultValue) {
       }
     }
 
+    public static final int CHAT_AI_ENABLED_FIELD_NUMBER = 9;
+    private boolean chatAiEnabled_ = false;
+    /**
+     * <code>bool chat_ai_enabled = 9;</code>
+     * @return The chatAiEnabled.
+     */
+    @java.lang.Override
+    public boolean getChatAiEnabled() {
+      return chatAiEnabled_;
+    }
+
     private byte memoizedIsInitialized = -1;
     @java.lang.Override
     public final boolean isInitialized() {
@@ -36956,6 +36973,9 @@ java.lang.String defaultValue) {
       if (!com.google.protobuf.GeneratedMessage.isStringEmpty(surface_)) {
         com.google.protobuf.GeneratedMessage.writeString(output, 8, surface_);
       }
+      if (chatAiEnabled_ != false) {
+        output.writeBool(9, chatAiEnabled_);
+      }
       getUnknownFields().writeTo(output);
     }
 
@@ -36989,6 +37009,10 @@ java.lang.String defaultValue) {
       if (!com.google.protobuf.GeneratedMessage.isStringEmpty(surface_)) {
         size += com.google.protobuf.GeneratedMessage.computeStringSize(8, surface_);
       }
+      if (chatAiEnabled_ != false) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeBoolSize(9, chatAiEnabled_);
+      }
       size += getUnknownFields().getSerializedSize();
       memoizedSize = size;
       return size;
@@ -37020,6 +37044,8 @@ java.lang.String defaultValue) {
           .equals(other.getLanguage())) return false;
       if (!getSurface()
           .equals(other.getSurface())) return false;
+      if (getChatAiEnabled()
+          != other.getChatAiEnabled()) return false;
       if (!getUnknownFields().equals(other.getUnknownFields())) return false;
       return true;
     }
@@ -37047,6 +37073,9 @@ java.lang.String defaultValue) {
       hash = (53 * hash) + getLanguage().hashCode();
       hash = (37 * hash) + SURFACE_FIELD_NUMBER;
       hash = (53 * hash) + getSurface().hashCode();
+      hash = (37 * hash) + CHAT_AI_ENABLED_FIELD_NUMBER;
+      hash = (53 * hash) + com.google.protobuf.Internal.hashBoolean(
+          getChatAiEnabled());
       hash = (29 * hash) + getUnknownFields().hashCode();
       memoizedHashCode = hash;
       return hash;
@@ -37193,6 +37222,7 @@ java.lang.String defaultValue) {
         protocol_ = "";
         language_ = "";
         surface_ = "";
+        chatAiEnabled_ = false;
         return this;
       }
 
@@ -37250,6 +37280,9 @@ java.lang.String defaultValue) {
         if (((from_bitField0_ & 0x00000080) != 0)) {
           result.surface_ = surface_;
         }
+        if (((from_bitField0_ & 0x00000100) != 0)) {
+          result.chatAiEnabled_ = chatAiEnabled_;
+        }
       }
 
       @java.lang.Override
@@ -37303,6 +37336,9 @@ java.lang.String defaultValue) {
           surface_ = other.surface_;
           bitField0_ |= 0x00000080;
           onChanged();
+        }
+        if (other.getChatAiEnabled() != false) {
+          setChatAiEnabled(other.getChatAiEnabled());
         }
         this.mergeUnknownFields(other.getUnknownFields());
         onChanged();
@@ -37370,6 +37406,11 @@ java.lang.String defaultValue) {
                 bitField0_ |= 0x00000080;
                 break;
               } // case 66
+              case 72: {
+                chatAiEnabled_ = input.readBool();
+                bitField0_ |= 0x00000100;
+                break;
+              } // case 72
               default: {
                 if (!super.parseUnknownField(input, extensionRegistry, tag)) {
                   done = true; // was an endgroup tag
@@ -37959,6 +38000,38 @@ java.lang.String defaultValue) {
         checkByteStringIsUtf8(value);
         surface_ = value;
         bitField0_ |= 0x00000080;
+        onChanged();
+        return this;
+      }
+
+      private boolean chatAiEnabled_ ;
+      /**
+       * <code>bool chat_ai_enabled = 9;</code>
+       * @return The chatAiEnabled.
+       */
+      @java.lang.Override
+      public boolean getChatAiEnabled() {
+        return chatAiEnabled_;
+      }
+      /**
+       * <code>bool chat_ai_enabled = 9;</code>
+       * @param value The chatAiEnabled to set.
+       * @return This builder for chaining.
+       */
+      public Builder setChatAiEnabled(boolean value) {
+
+        chatAiEnabled_ = value;
+        bitField0_ |= 0x00000100;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>bool chat_ai_enabled = 9;</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearChatAiEnabled() {
+        bitField0_ = (bitField0_ & ~0x00000100);
+        chatAiEnabled_ = false;
         onChanged();
         return this;
       }
@@ -46882,86 +46955,86 @@ java.lang.String defaultValue) {
       "\030\002 \001(\t:\0028\001\032-\n\013HeaderEntry\022\013\n\003key\030\001 \001(\t\022\r" +
       "\n\005value\030\002 \001(\t:\0028\001\"=\n\014HTTPResponse\022\037\n\006sta" +
       "tus\030\001 \001(\0132\017.message.Status\022\014\n\004body\030\002 \001(\014" +
-      "\"\253\001\n\020AgentSessionOpen\022\022\n\nsession_id\030\001 \001(" +
+      "\"\304\001\n\020AgentSessionOpen\022\022\n\nsession_id\030\001 \001(" +
       "\t\022\017\n\007user_id\030\002 \001(\t\022\027\n\017organization_id\030\003 " +
       "\001(\t\022\020\n\010asset_id\030\004 \001(\t\022\022\n\naccount_id\030\005 \001(" +
       "\t\022\020\n\010protocol\030\006 \001(\t\022\020\n\010language\030\007 \001(\t\022\017\n" +
-      "\007surface\030\010 \001(\t\"U\n\014AgentRequest\022\n\n\002id\030\001 \001" +
-      "(\t\022\021\n\toperation\030\002 \001(\t\022\020\n\010question\030\003 \001(\t\022" +
-      "\024\n\014context_json\030\004 \001(\t\"A\n\017AgentToolResult" +
-      "\022\n\n\002id\030\001 \001(\t\022\023\n\013result_json\030\002 \001(\t\022\r\n\005err" +
-      "or\030\003 \001(\t\"!\n\013AgentCancel\022\022\n\nrequest_id\030\001 " +
-      "\001(\t\"\352\001\n\020AgentClientEvent\022)\n\004open\030\001 \001(\0132\031" +
-      ".message.AgentSessionOpenH\000\022(\n\007request\030\002" +
-      " \001(\0132\025.message.AgentRequestH\000\022/\n\013tool_re" +
-      "sult\030\003 \001(\0132\030.message.AgentToolResultH\000\022&" +
-      "\n\006cancel\030\004 \001(\0132\024.message.AgentCancelH\000\022\037" +
-      "\n\005close\030\005 \001(\0132\016.message.EmptyH\000B\007\n\005event" +
-      "\"s\n\nAgentReady\022\017\n\007enabled\030\001 \001(\010\022\016\n\006reaso" +
-      "n\030\002 \001(\t\022\022\n\nsession_id\030\003 \001(\t\022\017\n\007surface\030\004" +
-      " \001(\t\022\020\n\010provider\030\005 \001(\t\022\r\n\005model\030\006 \001(\t\"(\n" +
-      "\020AgentChatMessage\022\024\n\014message_json\030\001 \001(\t\"" +
-      "A\n\rAgentToolCall\022\n\n\002id\030\001 \001(\t\022\014\n\004name\030\002 \001" +
-      "(\t\022\026\n\016arguments_json\030\003 \001(\t\"?\n\nAgentError" +
-      "\022\014\n\004code\030\001 \001(\t\022\017\n\007message\030\002 \001(\t\022\022\n\nreque" +
-      "st_id\030\003 \001(\t\"\277\001\n\020AgentServerEvent\022$\n\005read" +
-      "y\030\001 \001(\0132\023.message.AgentReadyH\000\022)\n\004chat\030\002" +
-      " \001(\0132\031.message.AgentChatMessageH\000\022+\n\ttoo" +
-      "l_call\030\003 \001(\0132\026.message.AgentToolCallH\000\022$" +
-      "\n\005error\030\004 \001(\0132\023.message.AgentErrorH\000B\007\n\005" +
-      "event2\361\017\n\007Service\022C\n\020GetTokenAuthInfo\022\025." +
-      "message.TokenRequest\032\026.message.TokenResp" +
-      "onse\"\000\022>\n\nRenewToken\022\025.message.TokenRequ" +
-      "est\032\027.message.StatusResponse\"\000\022P\n\rCreate" +
-      "Session\022\035.message.SessionCreateRequest\032\036" +
-      ".message.SessionCreateResponse\"\000\022L\n\rFini" +
-      "shSession\022\035.message.SessionFinishRequest" +
-      "\032\032.message.SessionFinishResp\"\000\022E\n\020Upload" +
-      "ReplayFile\022\026.message.ReplayRequest\032\027.mes" +
-      "sage.ReplayResponse\"\000\022D\n\rUploadCommand\022\027" +
-      ".message.CommandRequest\032\030.message.Comman" +
-      "dResponse\"\000\022I\n\014DispatchTask\022\034.message.Fi" +
-      "nishedTaskRequest\032\025.message.TaskResponse" +
-      "\"\000(\0010\001\022R\n\021ScanRemainReplays\022\034.message.Re" +
-      "mainReplayRequest\032\035.message.RemainReplay" +
-      "Response\"\000\022X\n\023CreateCommandTicket\022\036.mess" +
-      "age.CommandConfirmRequest\032\037.message.Comm" +
-      "andConfirmResponse\"\000\022f\n\035CheckOrCreateAss" +
-      "etLoginTicket\022 .message.AssetLoginTicket" +
-      "Request\032!.message.AssetLoginTicketRespon" +
-      "se\"\000\022J\n\020CheckTicketState\022\026.message.Ticke" +
-      "tRequest\032\034.message.TicketStateResponse\"\000" +
-      "\022A\n\014CancelTicket\022\026.message.TicketRequest" +
-      "\032\027.message.StatusResponse\"\000\022D\n\rCreateFor" +
-      "ward\022\027.message.ForwardRequest\032\030.message." +
-      "ForwardResponse\"\000\022I\n\rDeleteForward\022\035.mes" +
-      "sage.ForwardDeleteRequest\032\027.message.Stat" +
-      "usResponse\"\000\022D\n\020GetPublicSetting\022\016.messa" +
-      "ge.Empty\032\036.message.PublicSettingResponse" +
-      "\"\000\022?\n\016GetListenPorts\022\016.message.Empty\032\033.m" +
-      "essage.ListenPortResponse\"\000\022D\n\013GetPortIn" +
-      "fo\022\030.message.PortInfoRequest\032\031.message.P" +
-      "ortInfoResponse\"\000\022K\n\021HandlePortFailure\022\033" +
-      ".message.PortFailureRequest\032\027.message.St" +
-      "atusResponse\"\000\022F\n\022CheckUserByCookies\022\027.m" +
-      "essage.CookiesRequest\032\025.message.UserResp" +
-      "onse\"\000\022[\n\031RecordSessionLifecycleLog\022#.me" +
-      "ssage.SessionLifecycleLogRequest\032\027.messa" +
-      "ge.StatusResponse\"\000\022n\n\027FaceRecognitionCa" +
-      "llback\022\'.message.FaceRecognitionCallback" +
-      "Request\032(.message.FaceRecognitionCallbac" +
-      "kResponse\"\000\022b\n\023FaceMonitorCallback\022#.mes" +
-      "sage.FaceMonitorCallbackRequest\032$.messag" +
-      "e.FaceMonitorCallbackResponse\"\000\022V\n\017JoinF" +
-      "aceMonitor\022\037.message.JoinFaceMonitorRequ" +
-      "est\032 .message.JoinFaceMonitorResponse\"\000\022" +
-      "B\n\016GetAccountChat\022\016.message.Empty\032\036.mess" +
-      "age.AccountDetailResponse\"\000\0228\n\007CallAPI\022\024" +
-      ".message.HTTPRequest\032\025.message.HTTPRespo" +
-      "nse\"\000\022J\n\014AgentSession\022\031.message.AgentCli" +
-      "entEvent\032\031.message.AgentServerEvent\"\000(\0010" +
-      "\001B \n\023org.jumpserver.wispZ\t/protobufb\006pro" +
-      "to3"
+      "\007surface\030\010 \001(\t\022\027\n\017chat_ai_enabled\030\t \001(\010\"" +
+      "U\n\014AgentRequest\022\n\n\002id\030\001 \001(\t\022\021\n\toperation" +
+      "\030\002 \001(\t\022\020\n\010question\030\003 \001(\t\022\024\n\014context_json" +
+      "\030\004 \001(\t\"A\n\017AgentToolResult\022\n\n\002id\030\001 \001(\t\022\023\n" +
+      "\013result_json\030\002 \001(\t\022\r\n\005error\030\003 \001(\t\"!\n\013Age" +
+      "ntCancel\022\022\n\nrequest_id\030\001 \001(\t\"\352\001\n\020AgentCl" +
+      "ientEvent\022)\n\004open\030\001 \001(\0132\031.message.AgentS" +
+      "essionOpenH\000\022(\n\007request\030\002 \001(\0132\025.message." +
+      "AgentRequestH\000\022/\n\013tool_result\030\003 \001(\0132\030.me" +
+      "ssage.AgentToolResultH\000\022&\n\006cancel\030\004 \001(\0132" +
+      "\024.message.AgentCancelH\000\022\037\n\005close\030\005 \001(\0132\016" +
+      ".message.EmptyH\000B\007\n\005event\"s\n\nAgentReady\022" +
+      "\017\n\007enabled\030\001 \001(\010\022\016\n\006reason\030\002 \001(\t\022\022\n\nsess" +
+      "ion_id\030\003 \001(\t\022\017\n\007surface\030\004 \001(\t\022\020\n\010provide" +
+      "r\030\005 \001(\t\022\r\n\005model\030\006 \001(\t\"(\n\020AgentChatMessa" +
+      "ge\022\024\n\014message_json\030\001 \001(\t\"A\n\rAgentToolCal" +
+      "l\022\n\n\002id\030\001 \001(\t\022\014\n\004name\030\002 \001(\t\022\026\n\016arguments" +
+      "_json\030\003 \001(\t\"?\n\nAgentError\022\014\n\004code\030\001 \001(\t\022" +
+      "\017\n\007message\030\002 \001(\t\022\022\n\nrequest_id\030\003 \001(\t\"\277\001\n" +
+      "\020AgentServerEvent\022$\n\005ready\030\001 \001(\0132\023.messa" +
+      "ge.AgentReadyH\000\022)\n\004chat\030\002 \001(\0132\031.message." +
+      "AgentChatMessageH\000\022+\n\ttool_call\030\003 \001(\0132\026." +
+      "message.AgentToolCallH\000\022$\n\005error\030\004 \001(\0132\023" +
+      ".message.AgentErrorH\000B\007\n\005event2\361\017\n\007Servi" +
+      "ce\022C\n\020GetTokenAuthInfo\022\025.message.TokenRe" +
+      "quest\032\026.message.TokenResponse\"\000\022>\n\nRenew" +
+      "Token\022\025.message.TokenRequest\032\027.message.S" +
+      "tatusResponse\"\000\022P\n\rCreateSession\022\035.messa" +
+      "ge.SessionCreateRequest\032\036.message.Sessio" +
+      "nCreateResponse\"\000\022L\n\rFinishSession\022\035.mes" +
+      "sage.SessionFinishRequest\032\032.message.Sess" +
+      "ionFinishResp\"\000\022E\n\020UploadReplayFile\022\026.me" +
+      "ssage.ReplayRequest\032\027.message.ReplayResp" +
+      "onse\"\000\022D\n\rUploadCommand\022\027.message.Comman" +
+      "dRequest\032\030.message.CommandResponse\"\000\022I\n\014" +
+      "DispatchTask\022\034.message.FinishedTaskReque" +
+      "st\032\025.message.TaskResponse\"\000(\0010\001\022R\n\021ScanR" +
+      "emainReplays\022\034.message.RemainReplayReque" +
+      "st\032\035.message.RemainReplayResponse\"\000\022X\n\023C" +
+      "reateCommandTicket\022\036.message.CommandConf" +
+      "irmRequest\032\037.message.CommandConfirmRespo" +
+      "nse\"\000\022f\n\035CheckOrCreateAssetLoginTicket\022 " +
+      ".message.AssetLoginTicketRequest\032!.messa" +
+      "ge.AssetLoginTicketResponse\"\000\022J\n\020CheckTi" +
+      "cketState\022\026.message.TicketRequest\032\034.mess" +
+      "age.TicketStateResponse\"\000\022A\n\014CancelTicke" +
+      "t\022\026.message.TicketRequest\032\027.message.Stat" +
+      "usResponse\"\000\022D\n\rCreateForward\022\027.message." +
+      "ForwardRequest\032\030.message.ForwardResponse" +
+      "\"\000\022I\n\rDeleteForward\022\035.message.ForwardDel" +
+      "eteRequest\032\027.message.StatusResponse\"\000\022D\n" +
+      "\020GetPublicSetting\022\016.message.Empty\032\036.mess" +
+      "age.PublicSettingResponse\"\000\022?\n\016GetListen" +
+      "Ports\022\016.message.Empty\032\033.message.ListenPo" +
+      "rtResponse\"\000\022D\n\013GetPortInfo\022\030.message.Po" +
+      "rtInfoRequest\032\031.message.PortInfoResponse" +
+      "\"\000\022K\n\021HandlePortFailure\022\033.message.PortFa" +
+      "ilureRequest\032\027.message.StatusResponse\"\000\022" +
+      "F\n\022CheckUserByCookies\022\027.message.CookiesR" +
+      "equest\032\025.message.UserResponse\"\000\022[\n\031Recor" +
+      "dSessionLifecycleLog\022#.message.SessionLi" +
+      "fecycleLogRequest\032\027.message.StatusRespon" +
+      "se\"\000\022n\n\027FaceRecognitionCallback\022\'.messag" +
+      "e.FaceRecognitionCallbackRequest\032(.messa" +
+      "ge.FaceRecognitionCallbackResponse\"\000\022b\n\023" +
+      "FaceMonitorCallback\022#.message.FaceMonito" +
+      "rCallbackRequest\032$.message.FaceMonitorCa" +
+      "llbackResponse\"\000\022V\n\017JoinFaceMonitor\022\037.me" +
+      "ssage.JoinFaceMonitorRequest\032 .message.J" +
+      "oinFaceMonitorResponse\"\000\022B\n\016GetAccountCh" +
+      "at\022\016.message.Empty\032\036.message.AccountDeta" +
+      "ilResponse\"\000\0228\n\007CallAPI\022\024.message.HTTPRe" +
+      "quest\032\025.message.HTTPResponse\"\000\022J\n\014AgentS" +
+      "ession\022\031.message.AgentClientEvent\032\031.mess" +
+      "age.AgentServerEvent\"\000(\0010\001B \n\023org.jumpse" +
+      "rver.wispZ\t/protobufb\006proto3"
     };
     descriptor = com.google.protobuf.Descriptors.FileDescriptor
       .internalBuildGeneratedFileFrom(descriptorData,
@@ -47274,7 +47347,7 @@ java.lang.String defaultValue) {
     internal_static_message_AgentSessionOpen_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_message_AgentSessionOpen_descriptor,
-        new java.lang.String[] { "SessionId", "UserId", "OrganizationId", "AssetId", "AccountId", "Protocol", "Language", "Surface", });
+        new java.lang.String[] { "SessionId", "UserId", "OrganizationId", "AssetId", "AccountId", "Protocol", "Language", "Surface", "ChatAiEnabled", });
     internal_static_message_AgentRequest_descriptor =
       getDescriptor().getMessageTypes().get(49);
     internal_static_message_AgentRequest_fieldAccessorTable = new

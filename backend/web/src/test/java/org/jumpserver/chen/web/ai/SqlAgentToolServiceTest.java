@@ -16,6 +16,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -47,7 +48,8 @@ class SqlAgentToolServiceTest {
                 nodeKey, "table", "jumpserver", "jumpserver.public", "settings_setting"
         ));
 
-        var resolved = new SqlAgentToolService().resolveRequestContext(session, """
+        var service = new SqlAgentToolService();
+        var resolved = service.resolveRequestContext(session, """
                 {
                   "nodeKey": "%s",
                   "consoleId": "console-1",
@@ -78,6 +80,13 @@ class SqlAgentToolServiceTest {
         assertEquals("settings_setting",
                 sanitized.getAsJsonArray("referencedTables").get(0).getAsString());
         assertTrue(sanitized.has("currentSqlAnalysis"));
+
+        when(console.getContext()).thenReturn(new ConsoleContext(
+                nodeKey, "table", "jumpserver", "jumpserver.private", "settings_setting"
+        ));
+        assertThrows(IllegalStateException.class, () -> service.execute(
+                session, resolved, "validate_sql", "{\"sql\":\"SELECT 1\"}"
+        ));
     }
 
     @Test
@@ -151,5 +160,164 @@ class SqlAgentToolServiceTest {
         assertEquals("execute", sanitized.get("kind").getAsString());
         assertEquals("column does not exist", sanitized.get("message").getAsString());
         assertFalse(sanitized.has("rows"));
+    }
+
+    @Test
+    void metadataApprovalStaysInsideActiveSchema() {
+        var service = new SqlAgentToolService();
+        var context = agentContext("jumpserver", "public", "node-public");
+
+        var scope = service.resolveMetadataApprovalScope(context, """
+                {"schema":"public","tables":["public.users","\\\"public\\\".\\\"roles\\\""]}
+                """);
+
+        assertEquals("jumpserver", scope.database());
+        assertEquals("public", scope.schema());
+        assertEquals(List.of("users", "roles"), scope.tables());
+        assertThrows(IllegalArgumentException.class, () -> service.resolveMetadataApprovalScope(context, """
+                {"schema":"information_schema","tables":["tables"]}
+                """));
+        assertThrows(IllegalArgumentException.class, () -> service.resolveMetadataApprovalScope(context, """
+                {"tables":["private.users"]}
+                """));
+        assertThrows(IllegalArgumentException.class, () -> service.resolveMetadataApprovalScope(
+                agentContext("jumpserver", "information_schema", "node-system"),
+                "{\"tables\":[\"tables\"]}"
+        ));
+    }
+
+    @Test
+    void sessionMetadataApprovalOnlyCoversSameOrSmallerScope() {
+        var service = new SqlAgentToolService();
+        var context = agentContext("jumpserver", "public", "node-public");
+        var grant = service.resolveMetadataApprovalScope(context, """
+                {"tables":["users","roles"]}
+                """);
+
+        assertTrue(grant.covers(service.resolveMetadataApprovalScope(context, """
+                {"tables":["users"]}
+                """)));
+        assertFalse(grant.covers(service.resolveMetadataApprovalScope(context, """
+                {"tables":["users","accounts"]}
+                """)));
+        assertFalse(grant.covers(service.resolveMetadataApprovalScope(
+                agentContext("jumpserver", "public", "another-node"),
+                "{\"tables\":[\"users\"]}"
+        )));
+    }
+
+    @Test
+    void metadataSearchApprovalRequiresTheSameSearch() {
+        var service = new SqlAgentToolService();
+        var context = agentContext("jumpserver", "public", "node-public");
+        var grant = service.resolveMetadataApprovalScope(context, "{\"query\":\"user\"}");
+
+        assertTrue(grant.covers(service.resolveMetadataApprovalScope(context, "{\"query\":\"USER\"}")));
+        assertFalse(grant.covers(service.resolveMetadataApprovalScope(context, "{\"query\":\"account\"}")));
+        assertFalse(grant.covers(service.resolveMetadataApprovalScope(context, "{\"tables\":[\"users\"]}")));
+    }
+
+    @Test
+    void tableDiscoveryApprovalCoversOnlyBoundedFollowUpInspectionInTheSameContext() {
+        var service = new SqlAgentToolService();
+        var context = agentContext("jumpserver", "public", "node-public");
+        var grant = service.resolveMetadataApprovalScope(context, "{\"query\":\"*\"}");
+
+        assertTrue(grant.discovery());
+        assertTrue(grant.covers(service.resolveMetadataApprovalScope(context, """
+                {"tables":["users","orders"]}
+                """)));
+        assertFalse(grant.covers(service.resolveMetadataApprovalScope(context, "{\"query\":\"user\"}")));
+        assertFalse(grant.covers(service.resolveMetadataApprovalScope(
+                agentContext("jumpserver", "private", "node-private"),
+                "{\"tables\":[\"users\"]}"
+        )));
+        assertThrows(IllegalArgumentException.class, () -> service.resolveMetadataApprovalScope(
+                context, "{\"query\":\"*\",\"tables\":[\"users\"]}"
+        ));
+    }
+
+    @Test
+    void rejectsSystemCatalogReferencesWithoutBlockingValidTableAliases() {
+        String nodeKey = "datasource:root,schema:public";
+        var session = mock(Session.class);
+        var datasource = mock(Datasource.class);
+        var connectionManager = mock(ConnectionManager.class);
+        var resourceBrowser = mock(ResourceBrowser.class);
+        var console = mock(Console.class);
+        var connectInfo = new DBConnectInfo();
+        connectInfo.setDbType("postgresql");
+
+        when(session.isActive()).thenReturn(true);
+        when(session.getDatasource()).thenReturn(datasource);
+        when(session.getConsoles()).thenReturn(Map.of("console-1", console));
+        when(datasource.getConnectInfo()).thenReturn(connectInfo);
+        when(datasource.getConnectionManager()).thenReturn(connectionManager);
+        when(datasource.getDruidDbType()).thenReturn(DbType.postgresql);
+        when(datasource.getResourceBrowser()).thenReturn(resourceBrowser);
+        when(connectionManager.getContextKey()).thenReturn("schema");
+        when(connectionManager.getDatabaseContextKey()).thenReturn("database");
+        when(console.getNodeKey()).thenReturn(nodeKey);
+        when(console.getContext()).thenReturn(new ConsoleContext(
+                nodeKey, "schema", "jumpserver", "public", ""
+        ));
+
+        var service = new SqlAgentToolService();
+        var aliasContext = service.resolveRequestContext(
+                session,
+                """
+                        {
+                          "nodeKey":"%s",
+                          "consoleId":"console-1",
+                          "workspaceTabKind":"query",
+                          "documentSql":"SELECT sys.id FROM users AS sys",
+                          "selectionFrom":0,
+                          "selectionTo":0
+                        }
+                        """.formatted(nodeKey),
+                "explain"
+        );
+        var aliasAnalysis = JsonParser.parseString(aliasContext.sanitizedJson())
+                .getAsJsonObject().getAsJsonObject("currentSqlAnalysis");
+        assertEquals("users", aliasAnalysis.getAsJsonArray("tables").get(0).getAsString());
+
+        assertThrows(IllegalArgumentException.class, () -> service.resolveRequestContext(
+                session,
+                """
+                        {
+                          "nodeKey":"%s",
+                          "consoleId":"console-1",
+                          "workspaceTabKind":"query",
+                          "documentSql":"SELECT * FROM information_schema.tables",
+                          "selectionFrom":0,
+                          "selectionTo":0
+                        }
+                        """.formatted(nodeKey),
+                "explain"
+        ));
+        assertThrows(IllegalArgumentException.class, () -> service.resolveRequestContext(
+                session,
+                """
+                        {
+                          "nodeKey":"%s",
+                          "consoleId":"console-1",
+                          "workspaceTabKind":"query",
+                          "documentSql":"SELECT * FRM information_schema.tables",
+                          "selectionFrom":0,
+                          "selectionTo":0
+                        }
+                        """.formatted(nodeKey),
+                "repair"
+        ));
+    }
+
+    private static SqlAgentToolService.AgentRequestContext agentContext(
+            String database,
+            String schema,
+            String nodeKey
+    ) {
+        return new SqlAgentToolService.AgentRequestContext(
+                "postgresql", database, schema, "", nodeKey, "", "", "{}"
+        );
     }
 }

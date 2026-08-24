@@ -23,11 +23,17 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 import java.io.IOException;
 import java.sql.SQLException;
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -40,6 +46,8 @@ public class AgentWebSocketHandler extends TextWebSocketHandler {
     private static final int MAX_CLIENT_MESSAGE_BYTES = 320 * 1024;
     private static final int MAX_QUESTION_BYTES = 32 * 1024;
     private static final int MAX_TOOL_RESULT_BYTES = 256 * 1024;
+    private static final int MAX_SESSION_METADATA_GRANTS = 64;
+    private static final long METADATA_APPROVAL_TIMEOUT_SECONDS = 120;
 
     private final SqlAgentToolService toolService;
     private final Map<String, AgentConnection> connections = new ConcurrentHashMap<>();
@@ -56,6 +64,14 @@ public class AgentWebSocketHandler extends TextWebSocketHandler {
             },
             new ThreadPoolExecutor.AbortPolicy()
     );
+    private final ScheduledThreadPoolExecutor approvalExecutor = new ScheduledThreadPoolExecutor(
+            1,
+            runnable -> {
+                Thread thread = new Thread(runnable, "chen-ai-approval");
+                thread.setDaemon(true);
+                return thread;
+            }
+    );
 
     @GrpcClient("wisp")
     private ServiceGrpc.ServiceBlockingStub serviceBlockingStub;
@@ -63,6 +79,13 @@ public class AgentWebSocketHandler extends TextWebSocketHandler {
     public AgentWebSocketHandler(SqlAgentToolService toolService) {
         this.toolService = toolService;
         this.toolExecutor.allowCoreThreadTimeOut(true);
+        this.approvalExecutor.setRemoveOnCancelPolicy(true);
+        this.approvalExecutor.scheduleWithFixedDelay(
+                this::expireToolApprovals,
+                1,
+                1,
+                TimeUnit.SECONDS
+        );
     }
 
     @Override
@@ -108,11 +131,16 @@ public class AgentWebSocketHandler extends TextWebSocketHandler {
             case "connect" -> connect(webSocket, token, session, data);
             case "ai_request" -> request(webSocket, token, session, data);
             case "ai_cancel" -> cancel(webSocket, data);
+            case "ai_tool_approval" -> approveTool(webSocket, data);
             default -> sendError(webSocket, "invalid_request", "Unsupported AI request", "");
         }
     }
 
     private void connect(WebSocketSession webSocket, String token, JMSSession session, JsonObject data) {
+        if (!session.isChatAIEnabled()) {
+            sendReadyDisabled(webSocket, session);
+            return;
+        }
         if (connections.containsKey(webSocket.getId())) {
             sendError(webSocket, "invalid_request", "AI session is already connected", "");
             return;
@@ -138,6 +166,10 @@ public class AgentWebSocketHandler extends TextWebSocketHandler {
 
     private void request(WebSocketSession webSocket, String token, JMSSession session, JsonObject data) {
         long startedAt = System.nanoTime();
+        if (!session.isChatAIEnabled()) {
+            sendError(webSocket, "ai_unavailable", "Chat AI is disabled", "");
+            return;
+        }
         AgentConnection connection = connections.get(webSocket.getId());
         if (connection == null) {
             sendError(webSocket, "not_connected", "AI session is not connected", "");
@@ -181,6 +213,19 @@ public class AgentWebSocketHandler extends TextWebSocketHandler {
         connection.cancel(boundedString(data, "requestId", 128));
     }
 
+    private void approveTool(WebSocketSession webSocket, JsonObject data) {
+        AgentConnection connection = connections.get(webSocket.getId());
+        if (connection == null) {
+            sendError(webSocket, "not_connected", "AI session is not connected", "");
+            return;
+        }
+        connection.resolveToolApproval(
+                boundedString(data, "requestId", 128),
+                boundedString(data, "approvalId", 128),
+                boundedString(data, "decision", 32).toLowerCase(Locale.ROOT)
+        );
+    }
+
     @Override
     public void afterConnectionClosed(WebSocketSession webSocket, CloseStatus status) {
         AgentConnection connection = connections.remove(webSocket.getId());
@@ -205,6 +250,7 @@ public class AgentWebSocketHandler extends TextWebSocketHandler {
         }
         connections.clear();
         toolExecutor.shutdownNow();
+        approvalExecutor.shutdownNow();
     }
 
     private JMSSession currentSession(String token) {
@@ -234,6 +280,17 @@ public class AgentWebSocketHandler extends TextWebSocketHandler {
         ));
     }
 
+    private static void sendReadyDisabled(WebSocketSession webSocket, JMSSession session) {
+        new PacketIO(webSocket).sendPacket("ai_ready", Map.of(
+                "enabled", false,
+                "reason", "Chat AI is disabled",
+                "sessionId", session.getJmsSession().getId(),
+                "surface", "sql",
+                "provider", "",
+                "model", ""
+        ));
+    }
+
     private static void closeWebSocket(WebSocketSession webSocket) {
         try {
             if (webSocket.isOpen()) {
@@ -243,14 +300,30 @@ public class AgentWebSocketHandler extends TextWebSocketHandler {
         }
     }
 
+    private void expireToolApprovals() {
+        long now = System.nanoTime();
+        for (AgentConnection connection : this.connections.values()) {
+            try {
+                connection.expireToolApprovalIfDue(now);
+            } catch (RuntimeException e) {
+                log.debug("Expire Chen AI metadata approval failed, websocketId={}",
+                        connection.webSocket.getId(), e);
+            }
+        }
+    }
+
     private final class AgentConnection {
         private final WebSocketSession webSocket;
         private final String token;
         private final JMSSession databaseSession;
         private final AtomicReference<ActiveRequest> activeRequest = new AtomicReference<>();
+        private final AtomicReference<PendingToolApproval> pendingToolApproval = new AtomicReference<>();
+        private final Deque<SqlAgentToolService.MetadataApprovalScope> sessionMetadataGrants = new ArrayDeque<>();
         private final AtomicBoolean closed = new AtomicBoolean(false);
         private volatile StreamObserver<ServiceOuterClass.AgentClientEvent> requestObserver;
         private volatile boolean enabled;
+        private volatile String provider = "";
+        private volatile String model = "";
 
         private AgentConnection(WebSocketSession webSocket, String token, JMSSession databaseSession) {
             this.webSocket = webSocket;
@@ -274,6 +347,7 @@ public class AgentWebSocketHandler extends TextWebSocketHandler {
                                 sendError(webSocket, "ai_unavailable", "AI service is unavailable", "");
                             }
                             enabled = false;
+                            clearPendingApproval();
                             ActiveRequest active = activeRequest.getAndSet(null);
                             logRequestTiming(active, "stream_error");
                         }
@@ -281,6 +355,7 @@ public class AgentWebSocketHandler extends TextWebSocketHandler {
                         @Override
                         public void onCompleted() {
                             enabled = false;
+                            clearPendingApproval();
                             ActiveRequest active = activeRequest.getAndSet(null);
                             logRequestTiming(active, "stream_closed");
                         }
@@ -295,6 +370,7 @@ public class AgentWebSocketHandler extends TextWebSocketHandler {
                     .setProtocol(identity.getProtocol())
                     .setLanguage(language)
                     .setSurface("sql")
+                    .setChatAiEnabled(this.databaseSession.isChatAIEnabled())
                     .build();
             send(ServiceOuterClass.AgentClientEvent.newBuilder().setOpen(open).build());
         }
@@ -310,7 +386,8 @@ public class AgentWebSocketHandler extends TextWebSocketHandler {
                 return;
             }
             ActiveRequest active = new ActiveRequest(
-                    requestId, context, System.nanoTime(), new ConcurrentHashMap<>()
+                    requestId, context, System.nanoTime(), new ConcurrentHashMap<>(),
+                    new ConcurrentLinkedDeque<>()
             );
             if (!this.activeRequest.compareAndSet(null, active)) {
                 sendError(this.webSocket, "request_active", "Another AI request is active", requestId);
@@ -335,6 +412,7 @@ public class AgentWebSocketHandler extends TextWebSocketHandler {
             if (active == null || (StringUtils.isNotBlank(requestId) && !active.id().equals(requestId))) {
                 return;
             }
+            rejectPendingApproval(active, "cancelled", "Database metadata approval was cancelled");
             var cancel = ServiceOuterClass.AgentCancel.newBuilder().setRequestId(active.id()).build();
             send(ServiceOuterClass.AgentClientEvent.newBuilder().setCancel(cancel).build());
         }
@@ -351,6 +429,13 @@ public class AgentWebSocketHandler extends TextWebSocketHandler {
 
         private void onReady(ServiceOuterClass.AgentReady ready) {
             this.enabled = ready.getEnabled();
+            this.provider = ready.getProvider();
+            this.model = ready.getModel();
+            if (!ready.getEnabled()) {
+                clearPendingApproval();
+                ActiveRequest active = this.activeRequest.getAndSet(null);
+                logRequestTiming(active, "disabled");
+            }
             new PacketIO(this.webSocket).sendPacket("ai_ready", Map.of(
                     "enabled", ready.getEnabled(),
                     "reason", ready.getReason(),
@@ -370,6 +455,7 @@ public class AgentWebSocketHandler extends TextWebSocketHandler {
                     ActiveRequest active = this.activeRequest.get();
                     if (active != null && active.id().equals(completedRequestId)) {
                         if (this.activeRequest.compareAndSet(active, null)) {
+                            rejectPendingApproval(active, "cancelled", "Database metadata approval was cancelled");
                             logRequestTiming(active, "complete");
                         }
                     }
@@ -380,6 +466,10 @@ public class AgentWebSocketHandler extends TextWebSocketHandler {
         }
 
         private void onToolCall(ServiceOuterClass.AgentToolCall call) {
+            if (!this.enabled) {
+                sendToolResult(call.getId(), "", "AI service is disabled");
+                return;
+            }
             ActiveRequest active = this.activeRequest.get();
             if (active == null) {
                 sendToolResult(call.getId(), "", "No active SQL editor context");
@@ -394,12 +484,208 @@ public class AgentWebSocketHandler extends TextWebSocketHandler {
                 return;
             }
             long queuedAt = System.nanoTime();
+            if ("inspect_schema".equalsIgnoreCase(call.getName())) {
+                SqlAgentToolService.MetadataApprovalScope scope;
+                try {
+                    scope = toolService.resolveMetadataApprovalScope(active.context(), call.getArgumentsJson());
+                } catch (IllegalArgumentException e) {
+                    sendToolResult(call.getId(), "", "Invalid database metadata request");
+                    return;
+                }
+                if (!isMetadataApproved(active, scope)) {
+                    requestToolApproval(active, call, cacheKey, scope, queuedAt);
+                    return;
+                }
+            }
+            executeTool(active, call, cacheKey, queuedAt);
+        }
+
+        private void requestToolApproval(
+                ActiveRequest active,
+                ServiceOuterClass.AgentToolCall call,
+                String cacheKey,
+                SqlAgentToolService.MetadataApprovalScope scope,
+                long queuedAt
+        ) {
+            String approvalId = UUID.randomUUID().toString();
+            var pending = new PendingToolApproval(approvalId, active, call, cacheKey, scope, queuedAt);
+            if (!this.pendingToolApproval.compareAndSet(null, pending)) {
+                sendToolResult(call.getId(), "", "Another database metadata approval is pending");
+                return;
+            }
+            Map<String, Object> event = new LinkedHashMap<>();
+            event.put("approvalId", approvalId);
+            event.put("requestId", active.id());
+            event.put("toolCallId", call.getId());
+            event.put("tool", call.getName());
+            event.put("provider", this.provider);
+            event.put("model", this.model);
+            event.put("database", scope.database());
+            event.put("schema", scope.schema());
+            event.put("tables", scope.tables());
+            event.put("query", scope.query());
+            event.put("discovery", scope.discovery());
+            event.put("maxMatches", scope.discovery()
+                    ? SqlAgentToolService.MAX_DISCOVER_TABLES
+                    : SqlAgentToolService.MAX_INSPECT_TABLES);
+            event.put("followUpTableLimit", SqlAgentToolService.MAX_INSPECT_TABLES);
+            event.put("dataCategories", SqlAgentToolService.INSPECT_SCHEMA_DATA_CATEGORIES);
+            event.put("expandedScope", hasMetadataGrantForContext(active, scope));
+            event.put("expiresInSeconds", METADATA_APPROVAL_TIMEOUT_SECONDS);
+            log.info(
+                    "Chen AI metadata approval request={} stage=request table_count={} search={} expanded={} provider={} model={}",
+                    active.id(), scope.tables().size(), StringUtils.isNotBlank(scope.query()),
+                    event.get("expandedScope"), this.provider, this.model
+            );
+            new PacketIO(this.webSocket).sendPacket("ai_tool_approval_required", event);
+        }
+
+        private void resolveToolApproval(String requestId, String approvalId, String decision) {
+            PendingToolApproval pending = this.pendingToolApproval.get();
+            ActiveRequest active = this.activeRequest.get();
+            if (pending == null || active == null
+                    || !pending.approvalId.equals(approvalId)
+                    || !pending.active.id().equals(requestId)
+                    || pending.active != active) {
+                sendError(this.webSocket, "invalid_approval", "Metadata approval is no longer valid", requestId);
+                return;
+            }
+            if (!SetHolder.APPROVAL_DECISIONS.contains(decision)) {
+                sendError(this.webSocket, "invalid_approval", "Invalid metadata approval decision", requestId);
+                return;
+            }
+            if (!this.pendingToolApproval.compareAndSet(pending, null)) {
+                sendError(this.webSocket, "invalid_approval", "Metadata approval is no longer valid", requestId);
+                return;
+            }
+            log.info(
+                    "Chen AI metadata approval request={} stage=decision outcome={} table_count={} search={}",
+                    requestId, decision, pending.scope.tables().size(),
+                    StringUtils.isNotBlank(pending.scope.query())
+            );
+            if ("reject".equals(decision)) {
+                sendToolResult(pending.call.getId(), "", "User denied database metadata access");
+                sendApprovalResolved(pending, "rejected");
+                return;
+            }
+            if ("approve_session".equals(decision)) {
+                addSessionMetadataGrant(pending.scope);
+            } else {
+                addRequestMetadataGrant(pending.active, pending.scope);
+            }
+            sendApprovalResolved(pending, "approved");
+            executeTool(pending.active, pending.call, pending.cacheKey, pending.queuedAt);
+        }
+
+        private void expireToolApprovalIfDue(long now) {
+            PendingToolApproval pending = this.pendingToolApproval.get();
+            if (pending == null || now < pending.expiresAt) {
+                return;
+            }
+            if (!this.pendingToolApproval.compareAndSet(pending, null)) {
+                return;
+            }
+            log.info(
+                    "Chen AI metadata approval request={} stage=decision outcome=expired table_count={} search={}",
+                    pending.active.id(), pending.scope.tables().size(),
+                    StringUtils.isNotBlank(pending.scope.query())
+            );
+            sendToolResult(pending.call.getId(), "", "Database metadata approval expired");
+            sendApprovalResolved(pending, "expired");
+        }
+
+        private void rejectPendingApproval(ActiveRequest active, String outcome, String error) {
+            PendingToolApproval pending = this.pendingToolApproval.get();
+            if (pending == null || pending.active != active
+                    || !this.pendingToolApproval.compareAndSet(pending, null)) {
+                return;
+            }
+            sendToolResult(pending.call.getId(), "", error);
+            sendApprovalResolved(pending, outcome);
+        }
+
+        private void clearPendingApproval() {
+            this.pendingToolApproval.set(null);
+        }
+
+        private void sendApprovalResolved(PendingToolApproval pending, String outcome) {
+            new PacketIO(this.webSocket).sendPacket("ai_tool_approval_resolved", Map.of(
+                    "approvalId", pending.approvalId,
+                    "requestId", pending.active.id(),
+                    "outcome", outcome
+            ));
+        }
+
+        private boolean isMetadataApproved(
+                ActiveRequest active,
+                SqlAgentToolService.MetadataApprovalScope requested
+        ) {
+            if (active.metadataGrants().stream().anyMatch(grant -> grant.covers(requested))) {
+                return true;
+            }
+            synchronized (this) {
+                return this.sessionMetadataGrants.stream().anyMatch(grant -> grant.covers(requested));
+            }
+        }
+
+        private boolean hasMetadataGrantForContext(
+                ActiveRequest active,
+                SqlAgentToolService.MetadataApprovalScope requested
+        ) {
+            if (active.metadataGrants().stream().anyMatch(grant -> sameMetadataContext(grant, requested))) {
+                return true;
+            }
+            synchronized (this) {
+                return this.sessionMetadataGrants.stream().anyMatch(grant ->
+                        sameMetadataContext(grant, requested));
+            }
+        }
+
+        private boolean sameMetadataContext(
+                SqlAgentToolService.MetadataApprovalScope grant,
+                SqlAgentToolService.MetadataApprovalScope requested
+        ) {
+            return grant.database().equalsIgnoreCase(requested.database())
+                    && grant.schema().equalsIgnoreCase(requested.schema())
+                    && grant.nodeKey().equals(requested.nodeKey());
+        }
+
+        private void addRequestMetadataGrant(
+                ActiveRequest active,
+                SqlAgentToolService.MetadataApprovalScope scope
+        ) {
+            if (active.metadataGrants().stream().noneMatch(grant -> grant.covers(scope))) {
+                active.metadataGrants().addLast(scope);
+            }
+        }
+
+        private synchronized void addSessionMetadataGrant(SqlAgentToolService.MetadataApprovalScope scope) {
+            if (this.sessionMetadataGrants.stream().anyMatch(grant -> grant.covers(scope))) {
+                return;
+            }
+            while (this.sessionMetadataGrants.size() >= MAX_SESSION_METADATA_GRANTS) {
+                this.sessionMetadataGrants.removeFirst();
+            }
+            this.sessionMetadataGrants.addLast(scope);
+        }
+
+        private void executeTool(
+                ActiveRequest active,
+                ServiceOuterClass.AgentToolCall call,
+                String cacheKey,
+                long queuedAt
+        ) {
             try {
                 toolExecutor.execute(() -> {
                     long startedAt = System.nanoTime();
                     String outcome = "success";
                     SessionManager.setContext(this.token);
                     try {
+                        if (!this.databaseSession.isChatAIEnabled()
+                                || !this.enabled || this.activeRequest.get() != active) {
+                            outcome = "disabled";
+                            return;
+                        }
                         String result = toolService.execute(
                                 this.databaseSession,
                                 active.context(),
@@ -444,6 +730,7 @@ public class AgentWebSocketHandler extends TextWebSocketHandler {
             ActiveRequest active = this.activeRequest.get();
             if (active != null && (error.getRequestId().isBlank() || active.id().equals(error.getRequestId()))) {
                 if (this.activeRequest.compareAndSet(active, null)) {
+                    rejectPendingApproval(active, "cancelled", "Database metadata approval was cancelled");
                     logRequestTiming(active, "error");
                 }
             }
@@ -470,6 +757,7 @@ public class AgentWebSocketHandler extends TextWebSocketHandler {
                 return;
             }
             this.enabled = false;
+            clearPendingApproval();
             ActiveRequest active = this.activeRequest.getAndSet(null);
             logRequestTiming(active, "closed");
             StreamObserver<ServiceOuterClass.AgentClientEvent> observer = this.requestObserver;
@@ -523,12 +811,43 @@ public class AgentWebSocketHandler extends TextWebSocketHandler {
             String id,
             SqlAgentToolService.AgentRequestContext context,
             long startedAt,
-            Map<String, String> toolResults
+            Map<String, String> toolResults,
+            Deque<SqlAgentToolService.MetadataApprovalScope> metadataGrants
     ) {
+    }
+
+    private static final class PendingToolApproval {
+        private final String approvalId;
+        private final ActiveRequest active;
+        private final ServiceOuterClass.AgentToolCall call;
+        private final String cacheKey;
+        private final SqlAgentToolService.MetadataApprovalScope scope;
+        private final long queuedAt;
+        private final long expiresAt;
+
+        private PendingToolApproval(
+                String approvalId,
+                ActiveRequest active,
+                ServiceOuterClass.AgentToolCall call,
+                String cacheKey,
+                SqlAgentToolService.MetadataApprovalScope scope,
+                long queuedAt
+        ) {
+            this.approvalId = approvalId;
+            this.active = active;
+            this.call = call;
+            this.cacheKey = cacheKey;
+            this.scope = scope;
+            this.queuedAt = queuedAt;
+            this.expiresAt = System.nanoTime()
+                    + TimeUnit.SECONDS.toNanos(METADATA_APPROVAL_TIMEOUT_SECONDS);
+        }
     }
 
     private static final class SetHolder {
         private static final java.util.Set<String> OPERATIONS =
                 java.util.Set.of("generate", "explain", "repair");
+        private static final java.util.Set<String> APPROVAL_DECISIONS =
+                java.util.Set.of("approve_once", "approve_session", "reject");
     }
 }
