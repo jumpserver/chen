@@ -75,7 +75,7 @@ public class PostgresqlMetadataProvider extends BaseDatabaseMetadataProvider {
             SELECT ic.relname AS name,
                    tc.relname AS table_name,
                    a.attname AS column_name,
-                   CASE WHEN k.attnum = 0 THEN pg_get_indexdef(ic.oid, k.position, true) END AS expression,
+                   CASE WHEN k.attnum = 0 THEN pg_get_indexdef(ic.oid, k.position::integer, true) END AS expression,
                    i.indisunique AS is_unique,
                    am.amname AS method,
                    pg_get_indexdef(ic.oid) AS definition
