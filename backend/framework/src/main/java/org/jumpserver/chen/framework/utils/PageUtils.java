@@ -15,6 +15,7 @@ import com.alibaba.druid.sql.dialect.oracle.ast.stmt.OracleSelectQueryBlock;
 import com.alibaba.druid.sql.dialect.oracle.visitor.OracleASTVisitorAdapter;
 import com.alibaba.druid.sql.dialect.postgresql.ast.stmt.PGSelectQueryBlock;
 import com.alibaba.druid.sql.dialect.sqlserver.ast.SQLServerSelectQueryBlock;
+import com.alibaba.druid.sql.visitor.SQLASTVisitor;
 import com.alibaba.druid.util.JdbcUtils;
 
 import java.util.Iterator;
@@ -480,6 +481,12 @@ public class PageUtils {
                 return createCountUseSubQuery(select, dbType);
             }
 
+            // PostgreSQL functions in the SELECT list may be set-returning functions.
+            // Keep the projection so COUNT observes the rows expanded by the function.
+            if (dbType == DbType.postgresql && containsMethodInvoke(selectList)) {
+                return createCountUseSubQuery(select, dbType);
+            }
+
             // 情况 2: DISTINCT 情况下，Oracle 特别处理
             if (distinctOption == SQLSetQuantifier.DISTINCT) {
                 if (dbType == DbType.oracle && (
@@ -512,6 +519,18 @@ public class PageUtils {
         } else {
             throw new IllegalStateException("不支持的 SQL 查询类型: " + query.getClass().getName());
         }
+    }
+
+    private static boolean containsMethodInvoke(List<SQLSelectItem> selectList) {
+        boolean[] found = {false};
+        SQLASTVisitor visitor = SQLASTVisitor.ofMethodInvoke(expr -> found[0] = true);
+        for (SQLSelectItem item : selectList) {
+            item.getExpr().accept(visitor);
+            if (found[0]) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static String createCountUseSubQuery(SQLSelect select, DbType dbType) {
