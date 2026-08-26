@@ -1,9 +1,7 @@
 package org.jumpserver.chen.framework.datasource;
 
 import org.jumpserver.chen.framework.datasource.entity.resource.*;
-import org.jumpserver.chen.framework.datasource.hints.SQLHintsHandler;
-import org.jumpserver.chen.framework.datasource.sql.SQL;
-import org.jumpserver.chen.framework.datasource.sql.SQLActuator;
+import org.jumpserver.chen.framework.datasource.metadata.RelationScope;
 
 import java.sql.SQLException;
 import java.util.List;
@@ -17,14 +15,7 @@ public interface ResourceBrowser {
 
     List<TreeNode> getChildren(TreeNode node, boolean fromCache) throws SQLException;
 
-    List<Schema> getSchemas(SQL sql) throws SQLException;
+    RelationScope resolveScope(ResourceNodeSnapshot node, String context) throws SQLException;
 
-    List<Table> getTables(SQL sql) throws SQLException;
-
-    List<View> getViews(SQL sql) throws SQLException;
-
-    List<Field> getFields(SQL sql) throws SQLException;
-
-    SQLActuator getSQLActuator();
-    SQLHintsHandler getSQLHintsHandler();
+    ResourceNodeSnapshot getIndexedNode(String key);
 }

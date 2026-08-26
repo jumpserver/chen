@@ -9,6 +9,7 @@ import org.jumpserver.chen.framework.i18n.MessageUtils;
 import org.jumpserver.chen.framework.jms.ACLFilter;
 import org.jumpserver.chen.framework.jms.CommandHandler;
 import org.jumpserver.chen.framework.jms.ReplayHandler;
+import org.jumpserver.chen.framework.jms.acl.ACLCommandContext;
 import org.jumpserver.chen.framework.jms.acl.ACLResult;
 import org.jumpserver.chen.framework.jms.entity.CommandRecord;
 import org.jumpserver.chen.framework.jms.exception.CommandRejectException;
@@ -51,6 +52,9 @@ public class JMSSession extends BaseSession {
     private final List<Common.CommandACL> commandACLs;
     private final long maxIdleTimeDelta;
     private final long expireTime;
+
+    @Getter
+    private final boolean chatAIEnabled;
 
 
     private LocalDateTime maxSessionEndTime;
@@ -106,6 +110,7 @@ public class JMSSession extends BaseSession {
         this.commandACLs = tokenResp.getData().getFilterRulesList();
         this.expireTime = tokenResp.getData().getExpireInfo().getExpireAt();
         this.maxIdleTimeDelta = tokenResp.getData().getSetting().getMaxIdleTime();
+        this.chatAIEnabled = tokenResp.getData().getSetting().getChatAiEnabled();
 
         this.maxSessionEndHours = tokenResp.getData().getSetting().getMaxSessionTime();
         this.maxSessionEndTime = LocalDateTime.now().plusHours(tokenResp.getData().getSetting().getMaxSessionTime());
@@ -150,11 +155,16 @@ public class JMSSession extends BaseSession {
 
     @Override
     public ACLResult checkACL(String command) {
-        return this.aclFilter.commandACLFilter(command, null);
+        return this.aclFilter.commandACLFilterWithContext(command, ACLCommandContext.executionOwned(null));
     }
 
     public ACLResult checkACL(String command, Connection connection) {
-        return this.aclFilter.commandACLFilter(command, connection);
+        return this.aclFilter.commandACLFilterWithContext(command, ACLCommandContext.queryConsoleOwned(connection));
+    }
+
+    @Override
+    public ACLResult checkACLWithContext(String command, ACLCommandContext context) {
+        return this.aclFilter.commandACLFilterWithContext(command, context);
     }
 
     @Override
@@ -261,6 +271,17 @@ public class JMSSession extends BaseSession {
 
     @Override
     public void close() {
+        if (!this.beginClose()) {
+            return;
+        }
+        this.closeJmsSessionResources();
+    }
+
+    private void closeJmsSessionResources() {
+        if (this.getController() != null) {
+            this.getController().cancelAllDialogs();
+        }
+        this.closeConsoles();
         try {
             this.replayHandler.release();
             this.finishedJmsSession();
@@ -270,23 +291,27 @@ public class JMSSession extends BaseSession {
             }
 
         } finally {
-            super.close();
+            super.closeSessionResources();
         }
     }
 
     public void close(String message, String reason, Object... args) {
+        if (!this.beginClose()) {
+            return;
+        }
         SessionManager.setContext(this.getWebToken());
+        try {
+            this.getPacketIO().sendPacket("session_close", null);
 
-        this.getPacketIO().sendPacket("session_close", null);
+            var dialog = new Dialog(MessageUtils.get("SessionFinished"));
+            dialog.setBody(MessageUtils.get(message, args));
+            this.getController().showDialog(dialog);
 
-        var dialog = new Dialog(MessageUtils.get("SessionFinished"));
-        dialog.setBody(MessageUtils.get(message, args));
-        this.getController().showDialog(dialog);
-
-        this.recordLifecycle(ServiceOuterClass.SessionLifecycleLogRequest.EventType.AssetConnectFinished, reason);
-        this.closed = true;
-
-        this.close();
+            this.recordLifecycle(ServiceOuterClass.SessionLifecycleLogRequest.EventType.AssetConnectFinished, reason);
+            this.closed = true;
+        } finally {
+            this.closeJmsSessionResources();
+        }
     }
 
     private void finishedJmsSession() {
@@ -328,6 +353,7 @@ public class JMSSession extends BaseSession {
         }
 
         CommandRecord commandRecord = new CommandRecord(command);
+        Throwable primaryFailure = null;
 
         try {
             this.replayHandler.writeInput(commandRecord.getInput());
@@ -342,12 +368,29 @@ public class JMSSession extends BaseSession {
             this.replayHandler.writeOutput(result.getOutput());
             return result;
 
-        } catch (SQLException e) {
+        } catch (SQLException | RuntimeException e) {
+            primaryFailure = e;
             commandRecord.setError(e.getMessage());
-            this.replayHandler.writeOutput(e.getMessage());
+            this.writeReplayFailure(e.getMessage(), e);
             throw e;
         } finally {
-            this.commandHandler.recordCommand(commandRecord);
+            try {
+                this.commandHandler.recordCommand(commandRecord);
+            } catch (RuntimeException auditFailure) {
+                if (primaryFailure != null) {
+                    primaryFailure.addSuppressed(auditFailure);
+                } else {
+                    throw auditFailure;
+                }
+            }
+        }
+    }
+
+    private void writeReplayFailure(String output, Throwable primaryFailure) {
+        try {
+            this.replayHandler.writeOutput(output);
+        } catch (RuntimeException replayFailure) {
+            primaryFailure.addSuppressed(replayFailure);
         }
     }
 }

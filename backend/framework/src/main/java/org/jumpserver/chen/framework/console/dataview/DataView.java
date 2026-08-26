@@ -8,6 +8,7 @@ import org.jumpserver.chen.framework.console.dataview.export.DataExport;
 import org.jumpserver.chen.framework.console.entity.response.SQLResult;
 import org.jumpserver.chen.framework.console.state.DataViewState;
 import org.jumpserver.chen.framework.console.state.StateManager;
+import org.jumpserver.chen.framework.datasource.entity.resource.Field;
 import org.jumpserver.chen.framework.datasource.sql.SQLQueryParams;
 import org.jumpserver.chen.framework.datasource.sql.SQLQueryResult;
 import org.jumpserver.chen.framework.i18n.MessageUtils;
@@ -25,6 +26,7 @@ import java.util.Map;
 @EqualsAndHashCode(callSuper = true)
 @Data
 public class DataView extends SQLResult {
+    private final String id;
     private final String title;
     private final StateManager<DataViewState> stateManager;
     private LoadDataInterface loadDataInterface;
@@ -37,8 +39,13 @@ public class DataView extends SQLResult {
     private Logger consoleLogger;
 
     public DataView(String title, PacketIO packetIO, Logger logger) {
+        this(title, title, packetIO, logger);
+    }
+
+    public DataView(String id, String title, PacketIO packetIO, Logger logger) {
+        this.id = id;
         this.title = title;
-        this.state = new DataViewState(title);
+        this.state = new DataViewState(this.id, title);
         this.stateManager = new StateManager<>(this.state, packetIO);
         this.consoleLogger = logger;
     }
@@ -67,6 +74,9 @@ public class DataView extends SQLResult {
             case DataViewAction.ACTION_CHANGE_LIMIT -> {
                 this.changeLimit(this.parseLimit(action.getData()));
             }
+            case DataViewAction.ACTION_CHANGE_FILTER -> {
+                this.changeFilter(this.parseFilter(action.getData()));
+            }
             case DataViewAction.ACTION_EXPORT -> {
                 var data = (Map<String, String>) action.getData();
                 var scope = data.get("scope");
@@ -90,10 +100,22 @@ public class DataView extends SQLResult {
         return limit;
     }
 
+    private String parseFilter(Object data) throws SQLException {
+        if (!(data instanceof String filter)) {
+            throw new SQLException("Invalid data view filter");
+        }
+        filter = filter.trim();
+        if (filter.length() > 10000) {
+            throw new SQLException("Data view filter is too long");
+        }
+        return filter;
+    }
+
     public void loadData() throws SQLException {
         SQLQueryParams queryParams = new SQLQueryParams();
         queryParams.setLimit(this.state.getLimit());
         queryParams.setOffset((this.state.getPage() - 1) * this.state.getLimit());
+        queryParams.setFilter(this.state.getFilter());
 
         var result = this.loadDataInterface
                 .loadData(queryParams);
@@ -109,6 +131,8 @@ public class DataView extends SQLResult {
         }
 
         this.state.setPaged(result.isPaged());
+        this.state.setTruncated(result.isTruncated());
+        this.state.setRowLimit(result.getRowLimit());
 
         this.data.getFields().clear();
         this.data.getData().clear();
@@ -120,7 +144,11 @@ public class DataView extends SQLResult {
 
     private void fullDataViewData(DataViewData viewData, SQLQueryResult result) {
 
-        viewData.setFields(result.getFields());
+        List<Field> fields = result.getFields();
+        boolean editable = fields.stream()
+                .anyMatch(Field::isEditable);
+        viewData.setEditable(editable);
+        viewData.setFields(fields);
 
         Map<String, Integer> fieldNumMap = new HashMap<>();
 
@@ -170,6 +198,7 @@ public class DataView extends SQLResult {
                 case "all":
                     SQLQueryParams queryParams = new SQLQueryParams();
                     queryParams.setLimit(-1);
+                    queryParams.setFilter(this.state.getFilter());
                     var result = this.loadDataInterface.loadData(queryParams);
                     var viewData = new DataViewData();
                     this.fullDataViewData(viewData, result);
@@ -247,6 +276,20 @@ public class DataView extends SQLResult {
         } catch (SQLException e) {
             this.getStateManager().getState().setLimit(oldLimit);
             this.getStateManager().getState().setPage(oldPage);
+            throw e;
+        }
+    }
+
+    public void changeFilter(String filter) throws SQLException {
+        var oldFilter = this.state.getFilter();
+        var oldPage = this.state.getPage();
+        try {
+            this.state.setFilter(filter);
+            this.state.setPage(1);
+            this.loadData();
+        } catch (SQLException e) {
+            this.state.setFilter(oldFilter);
+            this.state.setPage(oldPage);
             throw e;
         }
     }

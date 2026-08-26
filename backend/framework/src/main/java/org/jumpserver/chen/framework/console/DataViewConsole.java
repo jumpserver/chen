@@ -1,21 +1,29 @@
 package org.jumpserver.chen.framework.console;
 
 import com.google.gson.Gson;
-import org.apache.commons.lang3.StringUtils;
+import lombok.Getter;
 import org.jumpserver.chen.framework.console.action.DataViewAction;
+import org.jumpserver.chen.framework.console.context.ConsoleContext;
 import org.jumpserver.chen.framework.console.dataview.DataView;
 import org.jumpserver.chen.framework.console.dataview.UpdateDataView;
 import org.jumpserver.chen.framework.console.entity.request.Connect;
+import org.jumpserver.chen.framework.console.entity.request.SaveChangesRequest;
 import org.jumpserver.chen.framework.console.entity.response.Message;
 import org.jumpserver.chen.framework.console.state.State;
 import org.jumpserver.chen.framework.console.state.StateManager;
 import org.jumpserver.chen.framework.datasource.Datasource;
+import org.jumpserver.chen.framework.datasource.edit.TableBrowseSaveExecutionContext;
+import org.jumpserver.chen.framework.datasource.edit.TableChangesPreviewService;
+import org.jumpserver.chen.framework.datasource.edit.TableChangesSaveService;
+import org.jumpserver.chen.framework.datasource.edit.TableEditContext;
+import org.jumpserver.chen.framework.datasource.sql.SQL;
 import org.jumpserver.chen.framework.i18n.MessageUtils;
 import org.jumpserver.chen.framework.jms.entity.CommandRecord;
 import org.jumpserver.chen.framework.session.SessionManager;
+import org.jumpserver.chen.framework.session.controller.DialogHandle;
 import org.jumpserver.chen.framework.session.controller.dialog.Button;
 import org.jumpserver.chen.framework.session.controller.dialog.Dialog;
-import org.jumpserver.chen.framework.utils.TreeUtils;
+import org.jumpserver.chen.framework.utils.PageUtils;
 import org.jumpserver.chen.framework.ws.io.Packet;
 import org.jumpserver.wisp.Common;
 import org.springframework.web.socket.WebSocketSession;
@@ -23,29 +31,49 @@ import org.springframework.web.socket.WebSocketSession;
 import java.sql.SQLException;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class DataViewConsole extends AbstractConsole {
+    private static final String PACKET_SAVE_CHANGES_PREVIEW_RESULT = "save_changes_preview_result";
+    private static final String PACKET_SAVE_CHANGES_RESULT = "save_changes_result";
+    private static final long WARNING_DIALOG_TIMEOUT_SECONDS = 300;
+    private final TableChangesPreviewService tableChangesPreviewService = new TableChangesPreviewService();
+    private final TableChangesSaveService tableChangesSaveService = new TableChangesSaveService();
 
     private DataView tableDataView;
     private StateManager<State> stateManager;
+    private final AtomicBoolean closed = new AtomicBoolean(false);
+    private final ReentrantLock executionLock = new ReentrantLock();
 
-    private String schema;
-    private String table;
+    @Getter
+    private final String schema;
+    @Getter
+    private final String table;
 
     private static final Gson GSON = new Gson();
 
-    public DataViewConsole(Datasource datasource, WebSocketSession ws, String nodeKey) {
-        super(datasource, ws, nodeKey);
+    public DataViewConsole(Datasource datasource, WebSocketSession ws, ConsoleContext context) {
+        super(datasource, ws, context);
+        this.schema = context.schema();
+        this.table = context.table();
     }
 
 
     @Override
     public void onInit(Connect connect) {
-        this.schema = TreeUtils.getValue(connect.getNodeKey(), "schema");
-        this.table = StringUtils.isEmpty(TreeUtils.getValue(connect.getNodeKey(), "table")) ?
-                TreeUtils.getValue(connect.getNodeKey(), "view") : TreeUtils.getValue(connect.getNodeKey(), "table");
+        if (!this.beginExecution()) {
+            return;
+        }
+        try {
+            this.initialize(connect);
+        } finally {
+            this.executionLock.unlock();
+        }
+    }
 
+    private void initialize(Connect connect) {
         var title = "";
         try {
             title = this.generateConsoleName();
@@ -72,13 +100,32 @@ public class DataViewConsole extends AbstractConsole {
 
     @Override
     public void handle(Packet packet) {
-        switch (packet.getType()) {
-            case "ping" -> this.getPacketIO().sendPacket("pong", null);
-            case Packet.TYPE_DATA_VIEW_ACTION -> {
-                var action = GSON.fromJson(GSON.toJson(packet.getData()), DataViewAction.class);
-                this.onDataViewAction(action);
-            }
+        if (!this.beginExecution()) {
+            return;
         }
+        try {
+            switch (packet.getType()) {
+                case "ping" -> this.getPacketIO().sendPacket("pong", null);
+                case Packet.TYPE_DATA_VIEW_ACTION -> {
+                    var action = GSON.fromJson(GSON.toJson(packet.getData()), DataViewAction.class);
+                    this.onDataViewAction(action);
+                }
+            }
+        } finally {
+            this.executionLock.unlock();
+        }
+    }
+
+    private boolean beginExecution() {
+        if (this.closed.get()) {
+            return false;
+        }
+        this.executionLock.lock();
+        if (this.closed.get()) {
+            this.executionLock.unlock();
+            return false;
+        }
+        return true;
     }
 
     public void onConnect(Connect connect) {
@@ -112,11 +159,22 @@ public class DataViewConsole extends AbstractConsole {
 
         var session = SessionManager.getCurrentSession();
         dataView.setLoadDataInterface((sqlQueryParams) -> {
-            var plan = this.getDatasource()
+            var basePlan = this.getDatasource()
                     .getConnectionManager()
                     .getSqlActuator()
                     .createPlan(schemaName, tableName, null);
-            var sql = plan.getTargetSQL();
+            final String sql;
+            try {
+                sql = PageUtils.filter(
+                        basePlan.getTargetSQL(),
+                        this.getDatasource().getDruidDbType(),
+                        sqlQueryParams.getFilter()
+                );
+            } catch (RuntimeException e) {
+                throw new SQLException("Invalid data view WHERE condition: " + e.getMessage());
+            } finally {
+                basePlan.close();
+            }
 
             var aclResult = session.checkACL(sql);
             if (aclResult != null && (aclResult.getRiskLevel() == Common.RiskLevel.Reject || aclResult.getRiskLevel() == Common.RiskLevel.ReviewReject)) {
@@ -145,26 +203,39 @@ public class DataViewConsole extends AbstractConsole {
                     this.getConsoleLogger().warn(MessageUtils.get("ExecutionCanceled"));
                 }));
 
-                SessionManager.getCurrentSession().getController().showDialog(dialog);
+                var controller = SessionManager.getCurrentSession().getController();
+                DialogHandle dialogHandle = controller.showDialog(dialog, () -> {
+                    hasNext.set(false);
+                    countDownLatch.countDown();
+                });
 
                 try {
-                    countDownLatch.await();
+                    if (!countDownLatch.await(WARNING_DIALOG_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+                        hasNext.set(false);
+                        dialogHandle.cancel();
+                    }
 
                     if (!hasNext.get()) {
                         throw new SQLException(MessageUtils.get("ExecutionCanceled"));
                     }
 
                 } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    hasNext.set(false);
                     this.stateManager.commit();
 
                     this.getConsoleLogger().error("get result error");
+                    throw new SQLException(MessageUtils.get("ExecutionCanceled"), e);
                 } finally {
-                    SessionManager.getCurrentSession().getController().closeDialog();
+                    dialogHandle.close();
                 }
             }
 
 
-
+            var plan = this.getDatasource()
+                    .getConnectionManager()
+                    .getSqlActuator()
+                    .createPlan(SQL.of(sql));
             plan.setSqlQueryParams(sqlQueryParams);
             plan.generateTargetSQL();
 
@@ -181,6 +252,41 @@ public class DataViewConsole extends AbstractConsole {
 
 
     public void onDataViewAction(DataViewAction action) {
+        if (DataViewAction.ACTION_SAVE_CHANGES_PREVIEW.equals(action.getAction())) {
+            var request = GSON.fromJson(GSON.toJson(action.getData()), SaveChangesRequest.class);
+            var context = new TableEditContext(
+                    this.tableDataView.getTitle(),
+                    this.schema,
+                    this.table,
+                    this.tableDataView.getData().getFields(),
+                    this.getDatasource().getDruidDbType(),
+                    true
+            );
+            var result = this.tableChangesPreviewService.preview(context, action.getDataView(), request);
+            this.getPacketIO().sendPacket(PACKET_SAVE_CHANGES_PREVIEW_RESULT, result);
+            return;
+        }
+        if (DataViewAction.ACTION_SAVE_CHANGES.equals(action.getAction())) {
+            var request = GSON.fromJson(GSON.toJson(action.getData()), SaveChangesRequest.class);
+            var context = new TableEditContext(
+                    this.tableDataView.getTitle(),
+                    this.schema,
+                    this.table,
+                    this.tableDataView.getData().getFields(),
+                    this.getDatasource().getDruidDbType(),
+                    true
+            );
+            var result = this.tableChangesSaveService.save(
+                    context,
+                    action.getDataView(),
+                    request,
+                    new TableBrowseSaveExecutionContext(this.getDatasource().getConnectionManager()),
+                    SessionManager.getCurrentSession()
+            );
+            this.getPacketIO().sendPacket(PACKET_SAVE_CHANGES_RESULT, result);
+            return;
+        }
+
         try {
             this.tableDataView.getStateManager().getState().setLoading(true);
             this.tableDataView.getStateManager().commit();
@@ -199,5 +305,24 @@ public class DataViewConsole extends AbstractConsole {
 
     @Override
     public void close() {
+        if (!this.closed.compareAndSet(false, true)) {
+            return;
+        }
+        var currentSession = SessionManager.getCurrentSession();
+        if (currentSession == null && this.getPacketIO().getWsSession().getAttributes() != null) {
+            Object token = this.getPacketIO().getWsSession().getAttributes().get("token");
+            if (token instanceof String sessionToken) {
+                currentSession = SessionManager.getSession(sessionToken);
+            }
+        }
+        if (currentSession != null && currentSession.getController() != null) {
+            currentSession.getController().cancelDialogs(this.getPacketIO().getWsSession().getId());
+        }
+        this.executionLock.lock();
+        try {
+            // Wait for admitted work to observe cancellation and leave the execution section.
+        } finally {
+            this.executionLock.unlock();
+        }
     }
 }

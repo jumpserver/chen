@@ -26,7 +26,8 @@ public class SQLExecutePlan {
     private SQLActuator sqlActuator;
     private String targetSQL;
     private final DbType druidDbType;
-    private Statement statement;
+    private volatile Statement statement;
+    private volatile boolean cancelled;
     private Connection connection;
     private ACLResult aclResult;
 
@@ -85,7 +86,10 @@ public class SQLExecutePlan {
     }
 
 
-    public Statement createStatement() throws SQLException {
+    public synchronized Statement createStatement() throws SQLException {
+        if (this.cancelled) {
+            throw new SQLException(MessageUtils.get("ExecutionCanceled"));
+        }
         if (this.statement == null || this.statement.isClosed()) {
             this.statement = this.connection.createStatement();
         }
@@ -97,7 +101,14 @@ public class SQLExecutePlan {
     }
 
     public void cancel() throws SQLException {
-        this.statement.cancel();
+        Statement currentStatement;
+        synchronized (this) {
+            this.cancelled = true;
+            currentStatement = this.statement;
+        }
+        if (currentStatement != null && !currentStatement.isClosed()) {
+            currentStatement.cancel();
+        }
     }
 
     public void close() {

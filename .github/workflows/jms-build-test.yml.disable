@@ -5,8 +5,6 @@ on:
       - 'Dockerfile'
       - 'Dockerfile*'
       - 'Dockerfile-*'
-      - 'frontend/package.json'
-      - 'frontend/yarn.lock'
 
 jobs:
   build:
@@ -21,7 +19,6 @@ jobs:
 
     - name: Prepare Build
       run: |
-        sed -i 's@registry.npmmirror.com@registry.yarnpkg.com@g' frontend/yarn.lock
         sed -i 's@^FROM registry.fit2cloud.com/jumpserver@FROM ghcr.io/jumpserver@g' Dockerfile-ee
 
     - name: Login to GitHub Container Registry

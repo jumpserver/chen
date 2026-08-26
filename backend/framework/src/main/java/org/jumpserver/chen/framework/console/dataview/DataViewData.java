@@ -10,6 +10,7 @@ import java.util.Map;
 
 @Data
 public class DataViewData {
+    private boolean editable;
     private List<Map<String, Object>> data = new ArrayList<>();
     private List<Field> fields = new ArrayList<>();
 }

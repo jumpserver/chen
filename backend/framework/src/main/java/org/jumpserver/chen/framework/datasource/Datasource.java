@@ -8,6 +8,7 @@ import org.jumpserver.chen.framework.datasource.entity.action.EventEmitter;
 import org.jumpserver.chen.framework.datasource.entity.resource.TreeNode;
 import org.jumpserver.chen.framework.datasource.entity.action.Action;
 import org.jumpserver.chen.framework.datasource.entity.form.FormData;
+import org.jumpserver.chen.framework.datasource.metadata.MetadataCatalog;
 
 
 import java.sql.SQLException;
@@ -35,6 +36,7 @@ public interface Datasource {
 
     ConnectionManager getConnectionManager();
     ResourceBrowser getResourceBrowser();
+    MetadataCatalog getMetadataCatalog();
 
     void close();
 }

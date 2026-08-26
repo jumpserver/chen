@@ -8,6 +8,7 @@ import org.jumpserver.chen.framework.jms.acl.ACLResult;
 import java.sql.Time;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.StringJoiner;
 
 
 @Data
@@ -15,10 +16,13 @@ public class SQLQueryResult {
     private String sql;
     private int total = -1;
     private boolean paged;
+    private boolean truncated;
+    private int rowLimit;
     private int updateCount;
     private boolean hasResultSet = true;
     private List<Field> fields = new ArrayList<>();
     private List<List<Object>> data = new ArrayList<>();
+    private List<SQLQueryResult> results = new ArrayList<>();
 
     private Time startTime;
     private Time endTime;
@@ -48,6 +52,14 @@ public class SQLQueryResult {
     }
 
     public String getOutput() {
+        if (!this.results.isEmpty()) {
+            StringJoiner output = new StringJoiner(System.lineSeparator());
+            for (int index = 0; index < this.results.size(); index++) {
+                output.add("Result " + (index + 1) + ":");
+                output.add(this.results.get(index).getOutput());
+            }
+            return output.toString();
+        }
         if (!this.hasResultSet) {
             return String.format("Query OK, %d rows affected", this.updateCount);
         }

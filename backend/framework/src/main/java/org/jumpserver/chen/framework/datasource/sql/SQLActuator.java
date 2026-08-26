@@ -17,15 +17,21 @@ public interface SQLActuator {
 
     <T> List<T> getObjects(String sql, Class<T> clazz, Map<String, Integer> fieldMapping) throws SQLException;
 
+    List<Map<String, Object>> queryRows(String sql, List<?> parameters) throws SQLException;
+
     int count(SQL sql) throws SQLException;
 
     int count(SQLExecutePlan plan) throws SQLException;
 
     SQLQueryResult execute(SQLExecutePlan plan) throws SQLException;
 
+    SQLQueryResult executeRaw(SQLExecutePlan plan) throws SQLException;
+
     SQLQueryResult execute(SQL sql) throws SQLException;
 
     SQLQueryResult executeWithAudit(SQLExecutePlan plan) throws SQLException;
+
+    SQLQueryResult executeRawWithAudit(SQLExecutePlan plan) throws SQLException;
 
     SQLQueryResult executeWithAudit(SQL sql) throws SQLException;
 

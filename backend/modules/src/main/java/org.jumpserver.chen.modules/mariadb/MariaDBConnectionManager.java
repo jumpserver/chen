@@ -1,5 +1,6 @@
 package org.jumpserver.chen.modules.mariadb;
 
+import org.apache.commons.lang3.StringUtils;
 import org.jumpserver.chen.framework.datasource.Datasource;
 import org.jumpserver.chen.framework.datasource.base.BaseConnectionManager;
 import org.jumpserver.chen.framework.datasource.entity.DBConnectInfo;
@@ -46,9 +47,18 @@ public class MariaDBConnectionManager extends BaseConnectionManager {
         return this.getConnectInfo().toDisplayJDBCUrl(jdbcUrlTemplate);
     }
 
+    @Override
+    public String getDatabaseContextKey() {
+        // MariaDB 的对象树使用 schema 节点表示 database，连接池默认库也要取这个值。
+        return "schema";
+    }
 
     @Override
     public String getJDBCUrl(String database) {
-        return this.jdbcUrl;
+        if (StringUtils.isBlank(database)) {
+            return this.jdbcUrl;
+        }
+        // 连接池不能依赖上一条连接执行过 USE，这里显式把 database 放进 JDBC URL。
+        return this.getConnectInfo().toJDBCUrl(jdbcUrlTemplate, database);
     }
 }

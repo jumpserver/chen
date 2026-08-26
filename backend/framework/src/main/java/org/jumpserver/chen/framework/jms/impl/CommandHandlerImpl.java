@@ -6,10 +6,12 @@ import org.jumpserver.chen.framework.jms.entity.CommandRecord;
 import org.jumpserver.wisp.Common;
 import org.jumpserver.wisp.ServiceGrpc;
 import org.jumpserver.wisp.ServiceOuterClass;
-import org.springframework.scheduling.annotation.Async;
+
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 public class CommandHandlerImpl implements CommandHandler {
+    private static final long COMMAND_UPLOAD_TIMEOUT_SECONDS = 30;
     private final Common.Session session;
     private final ServiceGrpc.ServiceBlockingStub serviceBlockingStub;
 
@@ -20,7 +22,6 @@ public class CommandHandlerImpl implements CommandHandler {
     }
 
     @Override
-    @Async
     public void recordCommand(CommandRecord commandRecord) {
 
         var reqBuilder = ServiceOuterClass.CommandRequest
@@ -40,7 +41,9 @@ public class CommandHandlerImpl implements CommandHandler {
             reqBuilder.setCmdGroupId(commandRecord.getCmdGroupId());
         }
 
-        var resp = this.serviceBlockingStub.uploadCommand(reqBuilder.build());
+        var resp = this.serviceBlockingStub
+                .withDeadlineAfter(COMMAND_UPLOAD_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                .uploadCommand(reqBuilder.build());
         if (!resp.getStatus().getOk()) {
             throw new RuntimeException("upload command failed: " + resp.getStatus().getErr());
         }

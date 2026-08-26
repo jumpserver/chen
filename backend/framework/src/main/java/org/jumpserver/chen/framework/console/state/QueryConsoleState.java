@@ -9,12 +9,13 @@ import java.util.List;
 @EqualsAndHashCode(callSuper = true)
 @Data
 public class QueryConsoleState extends State {
-    private String currentContext;
+    private volatile String currentContext;
     private boolean inQuery;
     private List<String> contexts;
     private int timeout;
     private boolean editorLoading;
     private boolean canCancel;
+    private volatile String executionStatus;
 
     public QueryConsoleState(String title) {
         super(title);
@@ -23,6 +24,7 @@ public class QueryConsoleState extends State {
         this.timeout = 30;
         this.editorLoading = false;
         this.canCancel = false;
+        this.executionStatus = "";
     }
 
 }

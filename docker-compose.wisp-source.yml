@@ -1,0 +1,20 @@
+services:
+  chen-backend:
+    depends_on:
+      wisp:
+        condition: service_healthy
+
+  wisp:
+    # This layer replaces the image-only Wisp service with an image built from
+    # a local directory or any other BuildKit context (for example, a Git URL).
+    image: ${WISP_SOURCE_IMAGE:-chen-wisp-dev:local}
+    pull_policy: build
+    build:
+      context: .
+      dockerfile: Dockerfile.wisp-dev
+      additional_contexts:
+        wisp-source: ${WISP_SOURCE:-../wisp}
+      args:
+        GO_VERSION: ${WISP_GO_VERSION:-1.25}
+        WISP_BUILD_PROCS: ${WISP_BUILD_PROCS:-2}
+        WISP_BUILD_MEMORY: ${WISP_BUILD_MEMORY:-1GiB}

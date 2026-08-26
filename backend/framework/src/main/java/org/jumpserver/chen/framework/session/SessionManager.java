@@ -1,10 +1,12 @@
 package org.jumpserver.chen.framework.session;
 
 import lombok.extern.slf4j.Slf4j;
+import org.jumpserver.chen.framework.console.Console;
 
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 
 @Slf4j
@@ -31,6 +33,20 @@ public class SessionManager {
         log.info("session {} unregistered, current session count {}", token, instance.getCurrentSessionCount());
     }
 
+    public static boolean registerConsole(String token, String consoleId, Console console) {
+        var registered = new AtomicBoolean(false);
+        instance.store.computeIfPresent(token, (ignored, session) -> {
+            synchronized (session) {
+                if (!session.isClosing()) {
+                    session.getConsoles().put(consoleId, console);
+                    registered.set(true);
+                }
+            }
+            return session;
+        });
+        return registered.get();
+    }
+
     public int getCurrentSessionCount() {
         return instance.store.size();
     }
@@ -48,7 +64,8 @@ public class SessionManager {
     }
 
     public static Session getCurrentSession() {
-        return instance.store.get(token.get());
+        String currentToken = token.get();
+        return currentToken == null ? null : instance.store.get(currentToken);
     }
 
     public static Map<String, Session> getStore() {
