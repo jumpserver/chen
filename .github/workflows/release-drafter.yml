@@ -12,8 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        java_version: [ '17' ]
-        node_version: [ '20' ]
+        java_version: [ '21' ]
     outputs:
       upload_url: ${{ steps.create_release.outputs.upload_url }}
     steps:
@@ -22,7 +21,6 @@ jobs:
         with:
           path: |
             ~/.m2
-            ~/.npm
             ~/.cache
           key: ${{ runner.os }}-build-${{ github.sha }}
           restore-keys: ${{ runner.os }}-build-
@@ -43,20 +41,10 @@ jobs:
           version: ${{ steps.get_version.outputs.TAG }}
           tag: ${{ steps.get_version.outputs.TAG }}
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node_version }}
-
       - uses: actions/setup-java@v4
         with:
           distribution: 'oracle'
           java-version: ${{ matrix.java_version }}
-      
-      - name: Build web
-        run: |
-          cd frontend
-          yarn install
-          yarn build
 
       - name: Build chen
         run: |
