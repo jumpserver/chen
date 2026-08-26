@@ -31,8 +31,7 @@ public class WebSocketConfig {
     @Bean
     public ServletServerContainerFactoryBean createWebSocketContainer() {
         ServletServerContainerFactoryBean container = new ServletServerContainerFactoryBean();
-        container.setMaxTextMessageBufferSize(20 * 1024 * 1024);
-        container.setMaxBinaryMessageBufferSize(20 * 1024 * 1024);
+        container.setMaxTextMessageBufferSize(1024 * 1024);
         // 可选：异步发送超时
         // container.setAsyncSendTimeout(20_000L);
         return container;
