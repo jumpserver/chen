@@ -25114,6 +25114,12 @@ java.lang.String defaultValue) {
      * @return The maxSessionTime.
      */
     int getMaxSessionTime();
+
+    /**
+     * <code>bool chat_ai_enabled = 3;</code>
+     * @return The chatAiEnabled.
+     */
+    boolean getChatAiEnabled();
   }
   /**
    * Protobuf type {@code message.ComponentSetting}
@@ -25174,6 +25180,17 @@ java.lang.String defaultValue) {
       return maxSessionTime_;
     }
 
+    public static final int CHAT_AI_ENABLED_FIELD_NUMBER = 3;
+    private boolean chatAiEnabled_ = false;
+    /**
+     * <code>bool chat_ai_enabled = 3;</code>
+     * @return The chatAiEnabled.
+     */
+    @java.lang.Override
+    public boolean getChatAiEnabled() {
+      return chatAiEnabled_;
+    }
+
     private byte memoizedIsInitialized = -1;
     @java.lang.Override
     public final boolean isInitialized() {
@@ -25194,6 +25211,9 @@ java.lang.String defaultValue) {
       if (maxSessionTime_ != 0) {
         output.writeInt32(2, maxSessionTime_);
       }
+      if (chatAiEnabled_ != false) {
+        output.writeBool(3, chatAiEnabled_);
+      }
       getUnknownFields().writeTo(output);
     }
 
@@ -25210,6 +25230,10 @@ java.lang.String defaultValue) {
       if (maxSessionTime_ != 0) {
         size += com.google.protobuf.CodedOutputStream
           .computeInt32Size(2, maxSessionTime_);
+      }
+      if (chatAiEnabled_ != false) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeBoolSize(3, chatAiEnabled_);
       }
       size += getUnknownFields().getSerializedSize();
       memoizedSize = size;
@@ -25230,6 +25254,8 @@ java.lang.String defaultValue) {
           != other.getMaxIdleTime()) return false;
       if (getMaxSessionTime()
           != other.getMaxSessionTime()) return false;
+      if (getChatAiEnabled()
+          != other.getChatAiEnabled()) return false;
       if (!getUnknownFields().equals(other.getUnknownFields())) return false;
       return true;
     }
@@ -25245,6 +25271,9 @@ java.lang.String defaultValue) {
       hash = (53 * hash) + getMaxIdleTime();
       hash = (37 * hash) + MAX_SESSION_TIME_FIELD_NUMBER;
       hash = (53 * hash) + getMaxSessionTime();
+      hash = (37 * hash) + CHAT_AI_ENABLED_FIELD_NUMBER;
+      hash = (53 * hash) + com.google.protobuf.Internal.hashBoolean(
+          getChatAiEnabled());
       hash = (29 * hash) + getUnknownFields().hashCode();
       memoizedHashCode = hash;
       return hash;
@@ -25378,6 +25407,7 @@ java.lang.String defaultValue) {
         bitField0_ = 0;
         maxIdleTime_ = 0;
         maxSessionTime_ = 0;
+        chatAiEnabled_ = false;
         return this;
       }
 
@@ -25417,6 +25447,9 @@ java.lang.String defaultValue) {
         if (((from_bitField0_ & 0x00000002) != 0)) {
           result.maxSessionTime_ = maxSessionTime_;
         }
+        if (((from_bitField0_ & 0x00000004) != 0)) {
+          result.chatAiEnabled_ = chatAiEnabled_;
+        }
       }
 
       @java.lang.Override
@@ -25436,6 +25469,9 @@ java.lang.String defaultValue) {
         }
         if (other.getMaxSessionTime() != 0) {
           setMaxSessionTime(other.getMaxSessionTime());
+        }
+        if (other.getChatAiEnabled() != false) {
+          setChatAiEnabled(other.getChatAiEnabled());
         }
         this.mergeUnknownFields(other.getUnknownFields());
         onChanged();
@@ -25473,6 +25509,11 @@ java.lang.String defaultValue) {
                 bitField0_ |= 0x00000002;
                 break;
               } // case 16
+              case 24: {
+                chatAiEnabled_ = input.readBool();
+                bitField0_ |= 0x00000004;
+                break;
+              } // case 24
               default: {
                 if (!super.parseUnknownField(input, extensionRegistry, tag)) {
                   done = true; // was an endgroup tag
@@ -25550,6 +25591,38 @@ java.lang.String defaultValue) {
       public Builder clearMaxSessionTime() {
         bitField0_ = (bitField0_ & ~0x00000002);
         maxSessionTime_ = 0;
+        onChanged();
+        return this;
+      }
+
+      private boolean chatAiEnabled_ ;
+      /**
+       * <code>bool chat_ai_enabled = 3;</code>
+       * @return The chatAiEnabled.
+       */
+      @java.lang.Override
+      public boolean getChatAiEnabled() {
+        return chatAiEnabled_;
+      }
+      /**
+       * <code>bool chat_ai_enabled = 3;</code>
+       * @param value The chatAiEnabled to set.
+       * @return This builder for chaining.
+       */
+      public Builder setChatAiEnabled(boolean value) {
+
+        chatAiEnabled_ = value;
+        bitField0_ |= 0x00000004;
+        onChanged();
+        return this;
+      }
+      /**
+       * <code>bool chat_ai_enabled = 3;</code>
+       * @return This builder for chaining.
+       */
+      public Builder clearChatAiEnabled() {
+        bitField0_ = (bitField0_ & ~0x00000004);
+        chatAiEnabled_ = false;
         onChanged();
         return this;
       }
@@ -29434,33 +29507,33 @@ java.lang.String defaultValue) {
       "tocol\022\n\n\002id\030\001 \001(\005\022\014\n\004name\030\002 \001(\t\022\014\n\004port\030" +
       "\003 \001(\005\0229\n\010settings\030\004 \003(\0132\'.message.Platfo" +
       "rmProtocol.SettingsEntry\032/\n\rSettingsEntr" +
-      "y\022\013\n\003key\030\001 \001(\t\022\r\n\005value\030\002 \001(\t:\0028\001\"C\n\020Com" +
+      "y\022\013\n\003key\030\001 \001(\t\022\r\n\005value\030\002 \001(\t:\0028\001\"\\\n\020Com" +
       "ponentSetting\022\025\n\rmax_idle_time\030\001 \001(\005\022\030\n\020" +
-      "max_session_time\030\002 \001(\005\"1\n\007Forward\022\n\n\002id\030" +
-      "\001 \001(\t\022\014\n\004Host\030\002 \001(\t\022\014\n\004port\030\003 \001(\005\"\247\001\n\rPu" +
-      "blicSetting\022\025\n\rxpack_enabled\030\001 \001(\010\022\025\n\rva" +
-      "lid_license\030\002 \001(\010\022\024\n\014gpt_base_url\030\003 \001(\t\022" +
-      "\023\n\013gpt_api_key\030\004 \001(\t\022\021\n\tgpt_proxy\030\005 \001(\t\022" +
-      "\021\n\tgpt_model\030\006 \001(\t\022\027\n\017license_content\030\007 " +
-      "\001(\t\"%\n\006Cookie\022\014\n\004name\030\001 \001(\t\022\r\n\005value\030\002 \001" +
-      "(\t\"\250\003\n\020LifecycleLogData\0223\n\005event\030\001 \001(\0162$" +
-      ".message.LifecycleLogData.event_type\022\016\n\006" +
-      "reason\030\002 \001(\t\022\014\n\004user\030\003 \001(\t\"\300\002\n\nevent_typ" +
-      "e\022\027\n\023AssetConnectSuccess\020\000\022\030\n\024AssetConne" +
-      "ctFinished\020\001\022\023\n\017CreateShareLink\020\002\022\023\n\017Use" +
-      "rJoinSession\020\003\022\024\n\020UserLeaveSession\020\004\022\024\n\020" +
-      "AdminJoinMonitor\020\005\022\024\n\020AdminExitMonitor\020\006" +
-      "\022\026\n\022ReplayConvertStart\020\007\022\030\n\024ReplayConver" +
-      "tSuccess\020\010\022\030\n\024ReplayConvertFailure\020\t\022\025\n\021" +
-      "ReplayUploadStart\020\n\022\027\n\023ReplayUploadSucce" +
-      "ss\020\013\022\027\n\023ReplayUploadFailure\020\014*k\n\nTaskAct" +
-      "ion\022\017\n\013KillSession\020\000\022\017\n\013LockSession\020\001\022\021\n" +
-      "\rUnlockSession\020\002\022\024\n\020TokenPermExpired\020\003\022\022" +
-      "\n\016TokenPermValid\020\004*f\n\tRiskLevel\022\n\n\006Norma" +
-      "l\020\000\022\013\n\007Warning\020\001\022\n\n\006Reject\020\002\022\020\n\014ReviewRe" +
-      "ject\020\003\022\020\n\014ReviewAccept\020\004\022\020\n\014ReviewCancel" +
-      "\020\005B \n\023org.jumpserver.wispZ\t/protobufb\006pr" +
-      "oto3"
+      "max_session_time\030\002 \001(\005\022\027\n\017chat_ai_enable" +
+      "d\030\003 \001(\010\"1\n\007Forward\022\n\n\002id\030\001 \001(\t\022\014\n\004Host\030\002" +
+      " \001(\t\022\014\n\004port\030\003 \001(\005\"\247\001\n\rPublicSetting\022\025\n\r" +
+      "xpack_enabled\030\001 \001(\010\022\025\n\rvalid_license\030\002 \001" +
+      "(\010\022\024\n\014gpt_base_url\030\003 \001(\t\022\023\n\013gpt_api_key\030" +
+      "\004 \001(\t\022\021\n\tgpt_proxy\030\005 \001(\t\022\021\n\tgpt_model\030\006 " +
+      "\001(\t\022\027\n\017license_content\030\007 \001(\t\"%\n\006Cookie\022\014" +
+      "\n\004name\030\001 \001(\t\022\r\n\005value\030\002 \001(\t\"\250\003\n\020Lifecycl" +
+      "eLogData\0223\n\005event\030\001 \001(\0162$.message.Lifecy" +
+      "cleLogData.event_type\022\016\n\006reason\030\002 \001(\t\022\014\n" +
+      "\004user\030\003 \001(\t\"\300\002\n\nevent_type\022\027\n\023AssetConne" +
+      "ctSuccess\020\000\022\030\n\024AssetConnectFinished\020\001\022\023\n" +
+      "\017CreateShareLink\020\002\022\023\n\017UserJoinSession\020\003\022" +
+      "\024\n\020UserLeaveSession\020\004\022\024\n\020AdminJoinMonito" +
+      "r\020\005\022\024\n\020AdminExitMonitor\020\006\022\026\n\022ReplayConve" +
+      "rtStart\020\007\022\030\n\024ReplayConvertSuccess\020\010\022\030\n\024R" +
+      "eplayConvertFailure\020\t\022\025\n\021ReplayUploadSta" +
+      "rt\020\n\022\027\n\023ReplayUploadSuccess\020\013\022\027\n\023ReplayU" +
+      "ploadFailure\020\014*k\n\nTaskAction\022\017\n\013KillSess" +
+      "ion\020\000\022\017\n\013LockSession\020\001\022\021\n\rUnlockSession\020" +
+      "\002\022\024\n\020TokenPermExpired\020\003\022\022\n\016TokenPermVali" +
+      "d\020\004*f\n\tRiskLevel\022\n\n\006Normal\020\000\022\013\n\007Warning\020" +
+      "\001\022\n\n\006Reject\020\002\022\020\n\014ReviewReject\020\003\022\020\n\014Revie" +
+      "wAccept\020\004\022\020\n\014ReviewCancel\020\005B \n\023org.jumps" +
+      "erver.wispZ\t/protobufb\006proto3"
     };
     descriptor = com.google.protobuf.Descriptors.FileDescriptor
       .internalBuildGeneratedFileFrom(descriptorData,
@@ -29597,7 +29670,7 @@ java.lang.String defaultValue) {
     internal_static_message_ComponentSetting_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_message_ComponentSetting_descriptor,
-        new java.lang.String[] { "MaxIdleTime", "MaxSessionTime", });
+        new java.lang.String[] { "MaxIdleTime", "MaxSessionTime", "ChatAiEnabled", });
     internal_static_message_Forward_descriptor =
       getDescriptor().getMessageTypes().get(19);
     internal_static_message_Forward_fieldAccessorTable = new
