@@ -21,7 +21,7 @@
 
     <properties>
         <revision>0.0.1</revision>
-        <druid.version>1.2.28-jms.1</druid.version>
+        <druid.version>1.2.28-jms-chen.1</druid.version>
         <java.version>21</java.version>
         <maven-compiler-plugin.version>3.9.0</maven-compiler-plugin.version>
         <maven.compiler.source>21</maven.compiler.source>

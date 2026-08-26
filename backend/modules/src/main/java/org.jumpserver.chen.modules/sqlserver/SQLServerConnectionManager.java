@@ -15,7 +15,7 @@ import java.util.List;
 @Slf4j
 public class SQLServerConnectionManager extends BaseConnectionManager {
 
-    private static final String jdbcUrlTemplate = "jdbc:sqlserver://${host}:${port};DatabaseName=${db};trustServerCertificate=true;";
+    private static final String jdbcUrlTemplate = "jdbc:sqlserver://${host}:${port};DatabaseName=${db};encrypt=${encrypt};trustServerCertificate=true;";
     private String jdbcUrl;
 
     private String driverClassloaderName = "mssql-jdbc-12.10.2.jre11.jar";
@@ -67,7 +67,7 @@ public class SQLServerConnectionManager extends BaseConnectionManager {
 
     @Override
     public void ping() throws SQLException {
-        var url = this.getConnectInfo().toJDBCUrl(jdbcUrlTemplate);
+        var url = this.toJDBCUrl(this.getConnectInfo().getDb());
         this.ping(url);
         this.jdbcUrl = url;
     }
@@ -89,12 +89,22 @@ public class SQLServerConnectionManager extends BaseConnectionManager {
 
     @Override
     public String getDisplayJDBCUrl() {
-        return this.getConnectInfo().toDisplayJDBCUrl(jdbcUrlTemplate);
+        return this.getConnectInfo().toDisplayJDBCUrl(this.getJDBCUrlTemplate());
     }
 
 
     @Override
     public String getJDBCUrl(String database) {
-        return this.getConnectInfo().toJDBCUrl(jdbcUrlTemplate, database);
+        return this.toJDBCUrl(database);
+    }
+
+    private String toJDBCUrl(String database) {
+        return this.getConnectInfo().toJDBCUrl(this.getJDBCUrlTemplate(), database);
+    }
+
+    private String getJDBCUrlTemplate() {
+        var encrypt = this.getConnectInfo().getOptions().get("encrypt");
+        var encryptEnabled = encrypt == null || !"false".equalsIgnoreCase(encrypt.toString());
+        return jdbcUrlTemplate.replace("${encrypt}", Boolean.toString(encryptEnabled));
     }
 }

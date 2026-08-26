@@ -2,12 +2,10 @@ package org.jumpserver.chen.framework.console;
 
 import com.alibaba.druid.sql.parser.ParserException;
 import com.google.gson.Gson;
-import com.google.gson.JsonParseException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.jumpserver.chen.framework.console.action.DataViewAction;
 import org.jumpserver.chen.framework.console.action.QueryConsoleAction;
-import org.jumpserver.chen.framework.console.action.SQLChunkData;
 import org.jumpserver.chen.framework.console.dataview.DataView;
 import org.jumpserver.chen.framework.console.dataview.QueryDataViewTableEditContextFactory;
 import org.jumpserver.chen.framework.console.dataview.UpdateDataView;
@@ -56,11 +54,11 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -106,6 +104,7 @@ public class QueryConsole extends AbstractConsole {
     private final Map<String, DataView> dataViews = new LinkedHashMap<>();
     // Manual context changes remain restricted to values returned by the current server-side actuator.
     private volatile Map<String, String> allowedContexts = Map.of();
+    private final SQLChunkTransferManager sqlChunkTransfers = new SQLChunkTransferManager();
 
     private static final Gson GSON = new Gson();
 
@@ -168,15 +167,13 @@ public class QueryConsole extends AbstractConsole {
         try {
             var currentContext = this.getSqlActuator().getCurrentSchema();
 
-            if (StringUtils.isEmpty(currentContext) && !StringUtils.isEmpty(context)) {
+            if (StringUtils.isNotEmpty(context)
+                    && !StringUtils.equals(currentContext, context)) {
                 this.getSqlActuator().changeSchema(context);
-                this.getState().setCurrentContext(context);
-            } else {
-                if (!StringUtils.isEmpty(context) && !currentContext.equals(context)) {
-                    this.getSqlActuator().changeSchema(context);
-                    this.getState().setCurrentContext(context);
-                }
             }
+            this.getState().setCurrentContext(
+                    StringUtils.defaultIfEmpty(context, currentContext)
+            );
 
             var schemas = this.getSqlActuator().getSchemas();
             this.replaceAllowedContexts(schemas);
@@ -260,7 +257,7 @@ public class QueryConsole extends AbstractConsole {
     @Override
     public void handle(Packet packet) {
         if (this.isCancelPacket(packet)) {
-            this.onCancel();
+            this.handleCancel();
             return;
         }
         if (!this.beginExecution()) {
@@ -342,7 +339,7 @@ public class QueryConsole extends AbstractConsole {
                 this.handleSQLChunk(action);
             }
             case QueryConsoleAction.ACTION_RUN_SQL_COMPLETE -> {
-                this.handleSQLComplete();
+                this.handleSQLComplete(action);
             }
 
             case QueryConsoleAction.ACTION_RUN_SQL_FILE -> {
@@ -356,6 +353,9 @@ public class QueryConsole extends AbstractConsole {
                 this.stateManager.commit();
             }
 
+            case QueryConsoleAction.ACTION_CANCEL -> {
+                this.handleCancel();
+            }
             case QueryConsoleAction.ACTION_CHANGE_CURRENT_CONTEXT -> {
                 var schema = (String) action.getData();
                 this.onManualChangeContext(schema);
@@ -363,81 +363,26 @@ public class QueryConsole extends AbstractConsole {
         }
     }
 
-    private final Map<Integer, String> sqlChunks = new HashMap<>();
-    private int expectedChunks = -1;
-
     private void handleSQLChunk(QueryConsoleAction action) {
-        SQLChunkData data;
+        Optional<String> sql;
         try {
-            data = GSON.fromJson(GSON.toJson(action.getData()), SQLChunkData.class);
-        } catch (JsonParseException e) {
-            this.getConsoleLogger().error("invalid sql chunk");
-            this.resetSQLChunks();
+            sql = this.sqlChunkTransfers.receiveChunk(action.getData());
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            this.getConsoleLogger().error("Invalid SQL chunk transfer: %s", e.getMessage());
             return;
         }
-
-        if (data == null
-                || data.getChunk() == null
-                || data.getIndex() == null
-                || data.getTotal() == null
-                || data.getTotal() <= 0) {
-            this.getConsoleLogger().error("invalid sql chunk");
-            this.resetSQLChunks();
-            return;
-        }
-        var chunk = data.getChunk();
-        var index = data.getIndex();
-        var total = data.getTotal();
-        if (expectedChunks == -1) {
-            expectedChunks = total;
-        }
-        if (total != expectedChunks || index < 0 || index >= expectedChunks) {
-            this.getConsoleLogger().error("invalid sql chunk");
-            this.resetSQLChunks();
-            return;
-        }
-        sqlChunks.putIfAbsent(index, chunk);
+        sql.ifPresent(this::onSQL);
     }
 
-    /**
-     * 处理分段 SQL 接收完成
-     */
-    private void handleSQLComplete() {
+    private void handleSQLComplete(QueryConsoleAction action) {
+        Optional<String> sql;
         try {
-            if (expectedChunks <= 0 || sqlChunks.size() != expectedChunks) {
-                this.getConsoleLogger().error("read sql message timeout!！");
-                return;
-            }
-
-            // 按照索引顺序合并所有分段
-            StringBuilder sqlBuilder = new StringBuilder();
-            for (int i = 0; i < expectedChunks; i++) {
-                String chunk = sqlChunks.get(i);
-                if (chunk == null) {
-                    this.getConsoleLogger().error("read sql message timeout!！");
-                    return;
-                }
-                sqlBuilder.append(chunk);
-            }
-
-            var sql = sqlBuilder.toString();
-
-            // 执行完整 SQL
-            this.getState().setInQuery(true);
-            this.stateManager.commit();
-
-            this.onSQL(sql);
-
-        } finally {
-            this.resetSQLChunks();
-            this.getState().setInQuery(false);
-            this.stateManager.commit();
+            sql = this.sqlChunkTransfers.receiveComplete(action.getData());
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            this.getConsoleLogger().error("Invalid SQL chunk transfer: %s", e.getMessage());
+            return;
         }
-    }
-
-    private void resetSQLChunks() {
-        this.sqlChunks.clear();
-        this.expectedChunks = -1;
+        sql.ifPresent(this::onSQL);
     }
 
     private void onDataViewAction(DataViewAction action) {
@@ -643,6 +588,13 @@ public class QueryConsole extends AbstractConsole {
         } catch (SQLException | RuntimeException e) {
             log.error("cancel failed ", e);
         }
+    }
+
+    private void handleCancel() {
+        this.sqlChunkTransfers.cancelAll();
+        this.onCancel();
+        this.getState().setInQuery(false);
+        this.stateManager.commit();
     }
 
     public void onManualChangeContext(String context) {
@@ -1074,6 +1026,7 @@ public class QueryConsole extends AbstractConsole {
         if (!this.closed.compareAndSet(false, true)) {
             return;
         }
+        this.sqlChunkTransfers.close();
 
         var currentSession = SessionManager.getCurrentSession();
         if (currentSession == null && this.getPacketIO().getWsSession().getAttributes() != null) {

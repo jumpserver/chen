@@ -1,7 +1,7 @@
 package org.jumpserver.chen.modules.oracle;
 
-import com.alibaba.druid.DbType;
 import com.alibaba.druid.sql.SQLUtils;
+import com.alibaba.druid.sql.parser.ParserException;
 import org.jumpserver.chen.framework.datasource.ConnectionManager;
 import org.jumpserver.chen.framework.datasource.base.BaseSQLActuator;
 import org.jumpserver.chen.framework.datasource.sql.SQL;
@@ -66,8 +66,15 @@ public class OracleActuator extends BaseSQLActuator {
 
     @Override
     public List<String> parseSQL(SQL sql) {
-        return SQLUtils.parseStatements(sql.getSql(), DbType.ali_oracle).stream()
-                .map(stmt -> SQLUtils.toSQLString(stmt, DbType.ali_oracle))
+        var dbType = this.getDbType();
+        var statements = SQLUtils.parseStatements(sql.getSql(), dbType);
+        for (var i = 0; i < statements.size() - 1; i++) {
+            if (!statements.get(i).isAfterSemi()) {
+                throw new ParserException("Multiple SQL statements must be separated by semicolons");
+            }
+        }
+        return statements.stream()
+                .map(stmt -> SQLUtils.toSQLString(stmt, dbType))
                 .toList();
     }
 }

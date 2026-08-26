@@ -28,7 +28,17 @@ import java.io.Reader;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.sql.*;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.OffsetDateTime;
+import java.time.OffsetTime;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
+import java.time.temporal.ChronoField;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -48,6 +58,22 @@ public abstract class BaseSQLActuator implements SQLActuator {
     private static final int MAX_TEXT_DISPLAY_LENGTH = 1024 * 1024;
     private static final int RAW_RESULT_ROW_LIMIT = 1000;
     private static final String TRUNCATED_SUFFIX = "...[truncated]";
+    private static final DateTimeFormatter LOCAL_DATE_TIME_DISPLAY_FORMATTER = new DateTimeFormatterBuilder()
+            .appendPattern("uuuu-MM-dd HH:mm:ss")
+            .appendFraction(ChronoField.NANO_OF_SECOND, 0, 9, true)
+            .toFormatter();
+    private static final DateTimeFormatter LOCAL_TIME_DISPLAY_FORMATTER = new DateTimeFormatterBuilder()
+            .appendPattern("HH:mm:ss")
+            .appendFraction(ChronoField.NANO_OF_SECOND, 0, 9, true)
+            .toFormatter();
+    private static final DateTimeFormatter OFFSET_DATE_TIME_DISPLAY_FORMATTER = new DateTimeFormatterBuilder()
+            .append(LOCAL_DATE_TIME_DISPLAY_FORMATTER)
+            .appendOffsetId()
+            .toFormatter();
+    private static final DateTimeFormatter OFFSET_TIME_DISPLAY_FORMATTER = new DateTimeFormatterBuilder()
+            .append(LOCAL_TIME_DISPLAY_FORMATTER)
+            .appendOffsetId()
+            .toFormatter();
     private ConnectionManager connectionManager;
     private Connection connection;
 
@@ -142,7 +168,7 @@ public abstract class BaseSQLActuator implements SQLActuator {
                     for (int index = 1; index <= metadata.getColumnCount(); index++) {
                         row.put(
                                 metadata.getColumnLabel(index).toLowerCase(Locale.ROOT),
-                                this.normalizeJdbcValue(rs.getObject(index))
+                                this.normalizeJdbcValue(rs, index)
                         );
                     }
                     rows.add(row);
@@ -327,7 +353,7 @@ public abstract class BaseSQLActuator implements SQLActuator {
             List<Object> row = new ArrayList<>();
             for (int index = 1; index <= columnCount; index++) {
                 try {
-                    row.add(this.normalizeJdbcValue(resultSet.getObject(index)));
+                    row.add(this.normalizeJdbcValue(resultSet, index));
                 } catch (NoClassDefFoundError e) {
                     log.error(e.getMessage());
                 }
@@ -409,17 +435,30 @@ public abstract class BaseSQLActuator implements SQLActuator {
         String read() throws SQLException;
     }
 
-    // Normalize JDBC driver objects before FastJSON sees them in update_data_view packets.
+    // Normalize JDBC driver objects before Gson sees them in update_data_view packets.
+    protected Object normalizeJdbcValue(ResultSet resultSet, int columnIndex) throws SQLException {
+        return this.normalizeJdbcValue(resultSet.getObject(columnIndex));
+    }
+
     protected Object normalizeJdbcValue(Object value) throws SQLException {
-        Object normalized = normalizeJdbcDisplayValue(value);
-        if (normalized != value) {
-            return normalized;
-        }
         if (value == null) {
             return null;
         }
 
-        if (value instanceof Long || value instanceof BigDecimal || value instanceof BigInteger) {
+        if (value.getClass().getName().equals("oracle.sql.TIMESTAMPTZ")) {
+            return this.normalizeOracleTimestampWithTimeZone(value);
+        }
+
+        var temporalValue = this.formatTemporalValue(value);
+        if (temporalValue != null) {
+            return temporalValue;
+        }
+
+        if (value instanceof BigDecimal decimal) {
+            return decimal.toPlainString();
+        }
+
+        if (value instanceof Long || value instanceof BigInteger) {
             return value.toString();
         }
 
@@ -447,27 +486,62 @@ public abstract class BaseSQLActuator implements SQLActuator {
             return value.toString();
         }
 
+        if (value.getClass().getName().equals("microsoft.sql.DateTimeOffset")) {
+            return value.toString();
+        }
+
         return value;
     }
 
-    static Object normalizeJdbcDisplayValue(Object value) {
-        if (value == null) {
-            return null;
-        }
-        if (value instanceof Timestamp timestamp) {
-            var localDateTime = timestamp.toLocalDateTime();
-            if (timestamp.getNanos() == 0) {
-                return localDateTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+    private String normalizeOracleTimestampWithTimeZone(Object value) throws SQLException {
+        try {
+            var offsetDateTime = value.getClass().getMethod("toOffsetDateTime").invoke(value);
+            return OFFSET_DATE_TIME_DISPLAY_FORMATTER.format((OffsetDateTime) offsetDateTime);
+        } catch (ReflectiveOperationException | ClassCastException e) {
+            var cause = e.getCause() == null ? e : e.getCause();
+            if (cause instanceof SQLException sqlException) {
+                throw sqlException;
             }
-            return localDateTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.n"));
+            throw new SQLException("normalize Oracle TIMESTAMP WITH TIME ZONE failed", cause);
         }
-        if (value instanceof Time time) {
-            return time.toLocalTime().toString();
+    }
+
+    private String formatTemporalValue(Object value) {
+        if (value instanceof Timestamp timestamp) {
+            return LOCAL_DATE_TIME_DISPLAY_FORMATTER.format(timestamp.toLocalDateTime());
         }
         if (value instanceof Date date) {
             return date.toLocalDate().toString();
         }
-        return value;
+        if (value instanceof Time time) {
+            return LOCAL_TIME_DISPLAY_FORMATTER.format(time.toLocalTime());
+        }
+        if (value instanceof LocalDateTime localDateTime) {
+            return LOCAL_DATE_TIME_DISPLAY_FORMATTER.format(localDateTime);
+        }
+        if (value instanceof LocalDate localDate) {
+            return localDate.toString();
+        }
+        if (value instanceof LocalTime localTime) {
+            return LOCAL_TIME_DISPLAY_FORMATTER.format(localTime);
+        }
+        if (value instanceof OffsetDateTime offsetDateTime) {
+            return OFFSET_DATE_TIME_DISPLAY_FORMATTER.format(offsetDateTime);
+        }
+        if (value instanceof OffsetTime offsetTime) {
+            return OFFSET_TIME_DISPLAY_FORMATTER.format(offsetTime);
+        }
+        if (value instanceof ZonedDateTime zonedDateTime) {
+            var formatted = OFFSET_DATE_TIME_DISPLAY_FORMATTER.format(zonedDateTime);
+            if (!(zonedDateTime.getZone() instanceof ZoneOffset)) {
+                formatted += "[" + zonedDateTime.getZone().getId() + "]";
+            }
+            return formatted;
+        }
+        if (value instanceof Instant instant) {
+            return instant.toString();
+        }
+        return null;
     }
 
     static void markGeneratedColumns(Connection connection, DbType dbType, List<Field> fields) {
