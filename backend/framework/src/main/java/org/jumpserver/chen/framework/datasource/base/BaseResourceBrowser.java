@@ -141,7 +141,8 @@ public abstract class BaseResourceBrowser implements ResourceBrowser {
                         return table.toResourceNode(parent);
                     })
                     .toList();
-            case "views" -> this.metadataCatalog().listRelations(scope, Set.of(RelationKind.VIEW))
+            case "views" -> this.metadataCatalog().listRelations(
+                            scope, Set.of(RelationKind.VIEW, RelationKind.MATERIALIZED_VIEW))
                     .stream()
                     .map(relation -> {
                         var view = new View();
