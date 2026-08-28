@@ -13,13 +13,21 @@ import org.apache.commons.lang3.StringUtils;
 import org.jumpserver.chen.framework.console.QueryConsole;
 import org.jumpserver.chen.framework.datasource.ConnectionManager;
 import org.jumpserver.chen.framework.datasource.Datasource;
+import org.jumpserver.chen.framework.datasource.entity.DatasourceInfo;
 import org.jumpserver.chen.framework.datasource.entity.resource.ResourceNodeSnapshot;
+import org.jumpserver.chen.framework.datasource.metadata.ColumnMetadata;
+import org.jumpserver.chen.framework.datasource.metadata.ForeignKeyMetadata;
+import org.jumpserver.chen.framework.datasource.metadata.IndexMetadata;
+import org.jumpserver.chen.framework.datasource.metadata.IndexPart;
+import org.jumpserver.chen.framework.datasource.metadata.MetadataCatalog;
+import org.jumpserver.chen.framework.datasource.metadata.ObjectRef;
+import org.jumpserver.chen.framework.datasource.metadata.PrimaryKeyMetadata;
+import org.jumpserver.chen.framework.datasource.metadata.RelationKind;
+import org.jumpserver.chen.framework.datasource.metadata.RelationMetadata;
+import org.jumpserver.chen.framework.datasource.metadata.RelationScope;
 import org.jumpserver.chen.framework.session.Session;
 import org.springframework.stereotype.Service;
 
-import java.sql.Connection;
-import java.sql.DatabaseMetaData;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -51,6 +59,8 @@ public class SqlAgentToolService {
     private static final Set<String> CONTEXT_NODE_TYPES =
             Set.of("datasource", "database", "schema", "table", "view");
     private static final Set<String> TOOL_NAMES = Set.of("inspect_schema", "validate_sql");
+    private static final Set<RelationKind> INSPECT_KINDS =
+            Set.of(RelationKind.TABLE, RelationKind.VIEW, RelationKind.MATERIALIZED_VIEW);
     private static final Set<String> WORKSPACE_TAB_KINDS =
             Set.of("query", "console", "data-view", "database", "none");
 
@@ -203,7 +213,7 @@ public class SqlAgentToolService {
         ConnectionManager connectionManager = datasource.getConnectionManager();
         connectionManager.setDatabaseContext(StringUtils.defaultString(context.database()));
         Object result = switch (toolName) {
-            case "inspect_schema" -> inspectSchema(connectionManager, context, arguments);
+            case "inspect_schema" -> inspectSchema(datasource, context, arguments);
             case "validate_sql" -> validateSQL(
                     datasource.getDruidDbType(), boundedString(arguments, "sql", MAX_SQL_BYTES, true)
             );
@@ -334,260 +344,283 @@ public class SqlAgentToolService {
     }
 
     private Map<String, Object> inspectSchema(
-            ConnectionManager manager, AgentRequestContext context, JsonObject arguments
+            Datasource datasource, AgentRequestContext context, JsonObject arguments
     ) throws SQLException {
         MetadataApprovalScope approvedScope = resolveMetadataApprovalScope(context, arguments);
-        String query = approvedScope.query();
-        List<String> requestedTables = approvedScope.tables();
-        int maximumTables = approvedScope.discovery() ? MAX_DISCOVER_TABLES : MAX_INSPECT_TABLES;
-        try (Connection connection = manager.getConnection()) {
-            DatabaseMetaData metadata = connection.getMetaData();
-            MetadataScope scope = metadataScope(connection, context, approvedScope.schema());
-            Map<String, Map<String, Object>> candidates = new LinkedHashMap<>();
-            List<String> missingTables = new ArrayList<>();
-            for (String requestedTable : requestedTables) {
-                String table = unqualifiedTableName(requestedTable);
-                Map<String, Object> item = findTable(metadata, scope, context, table);
-                if (item == null) {
-                    missingTables.add(requestedTable);
-                } else {
-                    candidates.putIfAbsent(metadataKey(item), item);
-                }
-            }
-            if (!query.isBlank() && candidates.size() < maximumTables) {
-                String pattern = approvedScope.discovery()
-                        ? "%"
-                        : "%" + escapeMetadataPattern(query, metadata.getSearchStringEscape()) + "%";
-                try (ResultSet rows = metadata.getTables(
-                        scope.catalog(), scope.schema(), pattern,
-                        new String[]{"TABLE", "VIEW", "MATERIALIZED VIEW"}
-                )) {
-                    while (rows.next() && candidates.size() < maximumTables) {
-                        Map<String, Object> item = tableInfo(rows);
-                        if (isMetadataItemWithinScope(item, scope, context.dialect())) {
-                            candidates.putIfAbsent(metadataKey(item), item);
-                        }
-                    }
-                }
-            }
-            Set<String> allowedTables = candidates.values().stream()
-                    .map(item -> String.valueOf(item.get("name")).toLowerCase(Locale.ROOT))
-                    .collect(java.util.stream.Collectors.toUnmodifiableSet());
-            List<Map<String, Object>> objects = new ArrayList<>(candidates.size());
-            for (Map<String, Object> tableInfo : candidates.values()) {
-                if (approvedScope.discovery()) {
-                    objects.add(tableInfo);
-                } else {
-                    objects.add(describeTable(
-                            metadata, scope, tableInfo, allowedTables, context.dialect()
-                    ));
-                }
-            }
-            Map<String, Object> result = new LinkedHashMap<>();
-            result.put("connection", jdbcConnectionContext(metadata, context));
-            result.put("requestedScope", metadataScopeMap(
-                    context.database(),
-                    approvedScope.schema()
-            ));
-            result.put("resolvedScope", metadataScopeMap(scope.catalog(), scope.schema()));
-            result.put("objects", objects);
-            result.put("missingTables", missingTables);
-            result.put("matchCount", objects.size());
-            result.put("discovery", approvedScope.discovery());
-            result.put("truncated", candidates.size() == maximumTables);
-            return result;
+        MetadataCatalog catalog = datasource.getMetadataCatalog();
+        if (catalog == null) {
+            throw new IllegalStateException("Database metadata catalog is not available");
         }
+        RelationScope scope = relationScope(context, approvedScope.schema());
+        List<RelationMetadata> available = catalog.listRelations(scope, INSPECT_KINDS).stream()
+                .filter(relation -> isRelationWithinScope(relation.ref(), scope, context.dialect()))
+                .toList();
+
+        Map<String, RelationMetadata> candidates = new LinkedHashMap<>();
+        List<String> missingTables = new ArrayList<>();
+        for (String requestedTable : approvedScope.tables()) {
+            String table = unqualifiedTableName(requestedTable);
+            RelationMetadata match = findRelation(available, table);
+            if (match == null) {
+                missingTables.add(requestedTable);
+            } else {
+                candidates.putIfAbsent(metadataKey(match.ref()), match);
+            }
+        }
+
+        String query = approvedScope.query();
+        int maximumTables = approvedScope.discovery() ? MAX_DISCOVER_TABLES : MAX_INSPECT_TABLES;
+        boolean truncated = false;
+        if (!query.isBlank()) {
+            String needle = approvedScope.discovery() ? "" : query.toLowerCase(Locale.ROOT);
+            List<RelationMetadata> matches = available.stream()
+                    .filter(relation -> needle.isEmpty()
+                            || relation.ref().name().toLowerCase(Locale.ROOT).contains(needle))
+                    .filter(relation -> !candidates.containsKey(metadataKey(relation.ref())))
+                    .toList();
+            truncated = candidates.size() + matches.size() > maximumTables;
+            for (RelationMetadata match : matches) {
+                if (candidates.size() >= maximumTables) {
+                    break;
+                }
+                candidates.putIfAbsent(metadataKey(match.ref()), match);
+            }
+        }
+
+        Set<String> allowedTables = candidates.values().stream()
+                .map(relation -> relation.ref().name().toLowerCase(Locale.ROOT))
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
+        List<Map<String, Object>> objects = new ArrayList<>(candidates.size());
+        if (approvedScope.discovery()) {
+            for (RelationMetadata relation : candidates.values()) {
+                objects.add(tableInfo(relation));
+            }
+        } else {
+            objects.addAll(describeRelations(
+                    catalog, scope, List.copyOf(candidates.values()), allowedTables, context.dialect()
+            ));
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("connection", inspectConnectionBanner(datasource, context));
+        result.put("requestedScope", metadataScopeMap(context.database(), approvedScope.schema()));
+        result.put("resolvedScope", metadataScopeMap(scope.catalog(), scope.schema()));
+        result.put("objects", objects);
+        result.put("missingTables", missingTables);
+        result.put("matchCount", objects.size());
+        result.put("discovery", approvedScope.discovery());
+        result.put("truncated", truncated);
+        return result;
     }
 
-    private Map<String, Object> describeTable(
-            DatabaseMetaData metadata,
-            MetadataScope scope,
-            Map<String, Object> tableInfo,
+    private List<Map<String, Object>> describeRelations(
+            MetadataCatalog catalog,
+            RelationScope scope,
+            List<RelationMetadata> relations,
             Set<String> allowedTables,
             String dialect
     ) throws SQLException {
-        String table = String.valueOf(tableInfo.get("name"));
-        List<Map<String, Object>> columns = readColumns(metadata, scope, table, MAX_INSPECT_COLUMNS);
-        Set<String> primaryKeys = readPrimaryKeys(metadata, scope, table, MAX_INSPECT_COLUMNS);
-        for (Map<String, Object> column : columns) {
-            column.put("primaryKey", primaryKeys.contains(column.get("name")));
+        List<ObjectRef> refs = relations.stream().map(RelationMetadata::ref).toList();
+        Map<String, List<ColumnMetadata>> columnsByOwner = new LinkedHashMap<>();
+        for (ColumnMetadata column : catalog.listColumns(refs)) {
+            columnsByOwner.computeIfAbsent(metadataKey(column.owner()), ignored -> new ArrayList<>()).add(column);
         }
-        Map<String, Object> result = new LinkedHashMap<>(tableInfo);
-        result.put("columns", columns);
-        result.put("foreignKeys", readForeignKeys(
-                metadata, scope, table, MAX_INSPECT_RELATIONS, allowedTables, dialect
-        ));
-        result.put("indexes", readIndexes(metadata, scope, table, MAX_INSPECT_RELATIONS));
-        result.put("truncated", columns.size() == MAX_INSPECT_COLUMNS);
-        return result;
+        Map<String, Set<String>> primaryKeysByOwner = new LinkedHashMap<>();
+        for (PrimaryKeyMetadata primaryKey : catalog.listPrimaryKeys(refs)) {
+            primaryKeysByOwner.computeIfAbsent(metadataKey(primaryKey.owner()), ignored -> new LinkedHashSet<>())
+                    .addAll(primaryKey.columns());
+        }
+        Map<String, List<ForeignKeyMetadata>> foreignKeysByOwner = new LinkedHashMap<>();
+        for (ForeignKeyMetadata foreignKey : catalog.listForeignKeys(refs)) {
+            foreignKeysByOwner.computeIfAbsent(metadataKey(foreignKey.owner()), ignored -> new ArrayList<>())
+                    .add(foreignKey);
+        }
+        Map<String, List<IndexMetadata>> indexesByOwner = new LinkedHashMap<>();
+        for (IndexMetadata index : catalog.listIndexes(scope)) {
+            indexesByOwner.computeIfAbsent(metadataKey(index.owner()), ignored -> new ArrayList<>()).add(index);
+        }
+
+        List<Map<String, Object>> objects = new ArrayList<>(relations.size());
+        for (RelationMetadata relation : relations) {
+            String key = metadataKey(relation.ref());
+            List<Map<String, Object>> columns = serializeColumns(
+                    columnsByOwner.getOrDefault(key, List.of()),
+                    primaryKeysByOwner.getOrDefault(key, Set.of())
+            );
+            Map<String, Object> item = tableInfo(relation);
+            item.put("columns", columns);
+            item.put("foreignKeys", serializeForeignKeys(
+                    foreignKeysByOwner.getOrDefault(key, List.of()),
+                    scope, allowedTables, dialect
+            ));
+            item.put("indexes", serializeIndexes(indexesByOwner.getOrDefault(key, List.of())));
+            item.put("truncated", columns.size() == MAX_INSPECT_COLUMNS);
+            objects.add(item);
+        }
+        return objects;
     }
 
-    private Map<String, Object> findTable(
-            DatabaseMetaData metadata,
-            MetadataScope scope,
-            AgentRequestContext context,
-            String table
-    )
-            throws SQLException {
-        String pattern = escapeMetadataPattern(table, metadata.getSearchStringEscape());
-        try (ResultSet rows = metadata.getTables(
-                scope.catalog(), scope.schema(), pattern,
-                new String[]{"TABLE", "VIEW", "MATERIALIZED VIEW"}
-        )) {
-            while (rows.next()) {
-                if (table.equalsIgnoreCase(rows.getString("TABLE_NAME"))) {
-                    Map<String, Object> item = tableInfo(rows);
-                    if (isMetadataItemWithinScope(item, scope, context.dialect())) {
-                        return item;
-                    }
-                }
+    private static List<Map<String, Object>> serializeColumns(
+            List<ColumnMetadata> columns, Set<String> primaryKeys
+    ) {
+        Set<String> primaryKeyNames = primaryKeys.stream()
+                .map(name -> name.toLowerCase(Locale.ROOT))
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (ColumnMetadata column : columns) {
+            if (result.size() >= MAX_INSPECT_COLUMNS) {
+                break;
             }
-            return null;
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("name", column.name());
+            item.put("type", column.nativeType());
+            item.put("jdbcType", column.jdbcType());
+            item.put("size", column.size());
+            item.put("scale", column.scale());
+            item.put("nullable", column.nullable());
+            item.put("defaultValue", column.defaultValue());
+            item.put("comment", column.comment());
+            item.put("position", column.ordinal());
+            item.put("primaryKey", primaryKeyNames.contains(StringUtils.defaultString(column.name()).toLowerCase(Locale.ROOT)));
+            result.add(item);
         }
-    }
-
-    private static Map<String, Object> tableInfo(ResultSet rows) throws SQLException {
-        Map<String, Object> result = new LinkedHashMap<>();
-        result.put("database", rows.getString("TABLE_CAT"));
-        result.put("schema", rows.getString("TABLE_SCHEM"));
-        result.put("name", rows.getString("TABLE_NAME"));
-        result.put("type", rows.getString("TABLE_TYPE"));
-        result.put("comment", rows.getString("REMARKS"));
         return result;
     }
 
-    private static boolean isMetadataItemWithinScope(
-            Map<String, Object> item,
-            MetadataScope scope,
+    private static List<Map<String, Object>> serializeForeignKeys(
+            List<ForeignKeyMetadata> foreignKeys,
+            RelationScope scope,
+            Set<String> allowedTables,
             String dialect
     ) {
-        String database = StringUtils.defaultString((String) item.get("database"));
-        String schema = StringUtils.defaultString((String) item.get("schema"));
-        if (StringUtils.isNotBlank(scope.catalog())
-                && !scope.catalog().equalsIgnoreCase(database)) {
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (ForeignKeyMetadata foreignKey : foreignKeys) {
+            ObjectRef referenced = foreignKey.referenced();
+            if (referenced == null
+                    || !isRelationWithinScope(referenced, scope, dialect)
+                    || !allowedTables.contains(StringUtils.defaultString(referenced.name()).toLowerCase(Locale.ROOT))) {
+                continue;
+            }
+            List<String> columns = foreignKey.columns() == null ? List.of() : foreignKey.columns();
+            List<String> referencedColumns = foreignKey.referencedColumns() == null
+                    ? List.of() : foreignKey.referencedColumns();
+            int count = Math.min(columns.size(), referencedColumns.size());
+            for (int index = 0; index < count && result.size() < MAX_INSPECT_RELATIONS; index++) {
+                Map<String, Object> item = new LinkedHashMap<>();
+                item.put("name", foreignKey.name());
+                item.put("column", columns.get(index));
+                item.put("referencedSchema", referenced.schema());
+                item.put("referencedTable", referenced.name());
+                item.put("referencedColumn", referencedColumns.get(index));
+                result.add(item);
+            }
+            if (result.size() >= MAX_INSPECT_RELATIONS) {
+                break;
+            }
+        }
+        return result;
+    }
+
+    private static List<Map<String, Object>> serializeIndexes(List<IndexMetadata> indexes) {
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (IndexMetadata index : indexes) {
+            List<IndexPart> parts = index.parts() == null ? List.of() : index.parts();
+            for (IndexPart part : parts) {
+                String column = part.columnName() != null ? part.columnName() : part.expression();
+                if (column == null) {
+                    continue;
+                }
+                Map<String, Object> item = new LinkedHashMap<>();
+                item.put("name", index.name());
+                item.put("column", column);
+                item.put("unique", index.unique());
+                item.put("position", part.ordinal());
+                result.add(item);
+                if (result.size() >= MAX_INSPECT_RELATIONS) {
+                    return result;
+                }
+            }
+        }
+        return result;
+    }
+
+    private static RelationMetadata findRelation(List<RelationMetadata> relations, String table) {
+        for (RelationMetadata relation : relations) {
+            if (table.equalsIgnoreCase(relation.ref().name())) {
+                return relation;
+            }
+        }
+        return null;
+    }
+
+    private static Map<String, Object> tableInfo(RelationMetadata relation) {
+        ObjectRef ref = relation.ref();
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("database", ref.catalog());
+        result.put("schema", ref.schema());
+        result.put("name", ref.name());
+        result.put("type", jdbcRelationType(ref.kind()));
+        result.put("comment", relation.comment());
+        return result;
+    }
+
+    private static String jdbcRelationType(RelationKind kind) {
+        if (kind == RelationKind.MATERIALIZED_VIEW) {
+            return "MATERIALIZED VIEW";
+        }
+        if (kind == RelationKind.VIEW) {
+            return "VIEW";
+        }
+        return "TABLE";
+    }
+
+    private static boolean isRelationWithinScope(ObjectRef ref, RelationScope scope, String dialect) {
+        if (ref == null) {
             return false;
         }
-        if (StringUtils.isNotBlank(scope.schema())
-                && !scope.schema().equalsIgnoreCase(schema)) {
+        String database = StringUtils.defaultString(ref.catalog());
+        String schema = StringUtils.defaultString(ref.schema());
+        if (StringUtils.isNotBlank(scope.catalog()) && !scope.catalog().equalsIgnoreCase(database)) {
+            return false;
+        }
+        if (StringUtils.isNotBlank(scope.schema()) && !scope.schema().equalsIgnoreCase(schema)) {
             return false;
         }
         return !isBlockedSystemScope(dialect, database, schema);
     }
 
-    private static String metadataKey(Map<String, Object> item) {
-        return (StringUtils.defaultString((String) item.get("database")) + "\u0000"
-                + StringUtils.defaultString((String) item.get("schema")) + "\u0000"
-                + StringUtils.defaultString((String) item.get("name"))).toLowerCase(Locale.ROOT);
+    private static String metadataKey(ObjectRef ref) {
+        return (StringUtils.defaultString(ref.catalog()) + "\u0000"
+                + StringUtils.defaultString(ref.schema()) + "\u0000"
+                + StringUtils.defaultString(ref.name())).toLowerCase(Locale.ROOT);
     }
 
-    private List<Map<String, Object>> readColumns(
-            DatabaseMetaData metadata, MetadataScope scope, String table, int maximum
-    )
-            throws SQLException {
-        List<Map<String, Object>> columns = new ArrayList<>();
-        try (ResultSet rows = metadata.getColumns(scope.catalog(), scope.schema(), table, "%")) {
-            while (rows.next() && columns.size() < maximum) {
-                Map<String, Object> column = new LinkedHashMap<>();
-                column.put("name", rows.getString("COLUMN_NAME"));
-                column.put("type", rows.getString("TYPE_NAME"));
-                column.put("jdbcType", rows.getInt("DATA_TYPE"));
-                column.put("size", rows.getInt("COLUMN_SIZE"));
-                column.put("scale", rows.getInt("DECIMAL_DIGITS"));
-                column.put("nullable", rows.getInt("NULLABLE") != DatabaseMetaData.columnNoNulls);
-                column.put("defaultValue", rows.getString("COLUMN_DEF"));
-                column.put("comment", rows.getString("REMARKS"));
-                column.put("position", rows.getInt("ORDINAL_POSITION"));
-                columns.add(column);
-            }
+    private static RelationScope relationScope(AgentRequestContext context, String requestedSchema) {
+        String database = StringUtils.trimToNull(context.database());
+        String schema = StringUtils.trimToNull(normalizeMetadataSchema(
+                StringUtils.defaultString(database),
+                StringUtils.defaultIfBlank(requestedSchema, context.schema())
+        ));
+        String dialect = StringUtils.defaultString(context.dialect()).toLowerCase(Locale.ROOT);
+        if ("mysql".equals(dialect) || "mariadb".equals(dialect)) {
+            return new RelationScope(database != null ? database : schema, null);
         }
-        return columns;
+        if ("oracle".equals(dialect) || "dameng".equals(dialect) || "dm".equals(dialect)) {
+            return new RelationScope(null, schema);
+        }
+        return new RelationScope(database, schema);
     }
 
-    private Set<String> readPrimaryKeys(
-            DatabaseMetaData metadata, MetadataScope scope, String table, int maximum
-    )
-            throws SQLException {
-        Set<String> keys = new LinkedHashSet<>();
-        try (ResultSet rows = metadata.getPrimaryKeys(scope.catalog(), scope.schema(), table)) {
-            while (rows.next() && keys.size() < maximum) {
-                keys.add(rows.getString("COLUMN_NAME"));
-            }
-        }
-        return keys;
-    }
-
-    private List<Map<String, Object>> readForeignKeys(
-            DatabaseMetaData metadata,
-            MetadataScope scope,
-            String table,
-            int maximum,
-            Set<String> allowedTables,
-            String dialect
-    )
-            throws SQLException {
-        List<Map<String, Object>> keys = new ArrayList<>();
-        try (ResultSet rows = metadata.getImportedKeys(scope.catalog(), scope.schema(), table)) {
-            while (rows.next() && keys.size() < maximum) {
-                String referencedDatabase = rows.getString("PKTABLE_CAT");
-                String referencedSchema = rows.getString("PKTABLE_SCHEM");
-                String referencedTable = rows.getString("PKTABLE_NAME");
-                if ((StringUtils.isNotBlank(scope.catalog())
-                        && !scope.catalog().equalsIgnoreCase(StringUtils.defaultString(referencedDatabase)))
-                        || (StringUtils.isNotBlank(scope.schema())
-                        && !scope.schema().equalsIgnoreCase(StringUtils.defaultString(referencedSchema)))
-                        || isBlockedSystemScope(dialect, referencedDatabase, referencedSchema)
-                        || StringUtils.isBlank(referencedTable)
-                        || !allowedTables.contains(referencedTable.toLowerCase(Locale.ROOT))) {
-                    continue;
-                }
-                Map<String, Object> key = new LinkedHashMap<>();
-                key.put("name", rows.getString("FK_NAME"));
-                key.put("column", rows.getString("FKCOLUMN_NAME"));
-                key.put("referencedSchema", referencedSchema);
-                key.put("referencedTable", referencedTable);
-                key.put("referencedColumn", rows.getString("PKCOLUMN_NAME"));
-                keys.add(key);
-            }
-        }
-        return keys;
-    }
-
-    private List<Map<String, Object>> readIndexes(
-            DatabaseMetaData metadata, MetadataScope scope, String table, int maximum
-    )
-            throws SQLException {
-        List<Map<String, Object>> indexes = new ArrayList<>();
-        try (ResultSet rows = metadata.getIndexInfo(scope.catalog(), scope.schema(), table, false, false)) {
-            while (rows.next() && indexes.size() < maximum) {
-                String column = rows.getString("COLUMN_NAME");
-                if (column == null) {
-                    continue;
-                }
-                Map<String, Object> index = new LinkedHashMap<>();
-                index.put("name", rows.getString("INDEX_NAME"));
-                index.put("column", column);
-                index.put("unique", !rows.getBoolean("NON_UNIQUE"));
-                index.put("position", rows.getInt("ORDINAL_POSITION"));
-                indexes.add(index);
-            }
-        }
-        return indexes;
-    }
-
-    private MetadataScope metadataScope(
-            Connection connection, AgentRequestContext context, String requestedSchema
-    ) throws SQLException {
-        String database = StringUtils.defaultIfBlank(context.database(), connection.getCatalog());
-        String schema = normalizeMetadataSchema(
-                database, StringUtils.defaultIfBlank(requestedSchema, context.schema())
-        );
-        if ("mysql".equals(context.dialect()) || "mariadb".equals(context.dialect())) {
-            return new MetadataScope(StringUtils.defaultIfBlank(database, schema), null);
-        }
-        if ("oracle".equals(context.dialect()) || "dameng".equals(context.dialect())) {
-            return new MetadataScope(null, StringUtils.defaultIfBlank(schema, safeSchema(connection)));
-        }
-        return new MetadataScope(database, StringUtils.defaultIfBlank(schema, safeSchema(connection)));
+    private static Map<String, Object> inspectConnectionBanner(Datasource datasource, AgentRequestContext context) {
+        DatasourceInfo info = datasource.getInfo();
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("dialect", context.dialect());
+        result.put("databaseProduct", info == null ? "" : StringUtils.defaultString(info.getDbType()));
+        result.put("databaseVersion", info == null ? "" : StringUtils.defaultString(info.getVersion()));
+        result.put("driverName", info == null ? "" : StringUtils.defaultString(info.getDriverClassName()));
+        result.put("driverVersion", info == null ? "" : StringUtils.defaultString(info.getDriverVersion()));
+        result.put("identifierQuote", identifierQuote(context.dialect()));
+        return result;
     }
 
     static String normalizeMetadataSchema(String database, String schema) {
@@ -821,56 +854,11 @@ public class SqlAgentToolService {
         };
     }
 
-    private static Map<String, Object> jdbcConnectionContext(
-            DatabaseMetaData metadata,
-            AgentRequestContext context
-    ) {
-        Map<String, Object> result = new LinkedHashMap<>();
-        result.put("dialect", context.dialect());
-        result.put("databaseProduct", safeMetadataString(metadata::getDatabaseProductName));
-        result.put("databaseVersion", safeMetadataString(metadata::getDatabaseProductVersion));
-        result.put("driverName", safeMetadataString(metadata::getDriverName));
-        result.put("driverVersion", safeMetadataString(metadata::getDriverVersion));
-        result.put("identifierQuote", safeMetadataString(metadata::getIdentifierQuoteString));
-        return result;
-    }
-
     private static Map<String, Object> metadataScopeMap(String catalog, String schema) {
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("catalog", StringUtils.defaultString(catalog));
         result.put("schema", StringUtils.defaultString(schema));
         return result;
-    }
-
-    private static String safeMetadataString(MetadataStringReader reader) {
-        try {
-            return StringUtils.defaultString(reader.read()).trim();
-        } catch (SQLException | AbstractMethodError | RuntimeException ignored) {
-            return "";
-        }
-    }
-
-    @FunctionalInterface
-    private interface MetadataStringReader {
-        String read() throws SQLException;
-    }
-
-    private static String safeSchema(Connection connection) {
-        try {
-            return connection.getSchema();
-        } catch (SQLException | AbstractMethodError ignored) {
-            return null;
-        }
-    }
-
-    private static String escapeMetadataPattern(String input, String escape) {
-        String escaped = input;
-        if (StringUtils.isNotEmpty(escape)) {
-            escaped = escaped.replace(escape, escape + escape)
-                    .replace("%", escape + "%")
-                    .replace("_", escape + "_");
-        }
-        return escaped;
     }
 
     private static String statementType(SQLStatement statement) {
