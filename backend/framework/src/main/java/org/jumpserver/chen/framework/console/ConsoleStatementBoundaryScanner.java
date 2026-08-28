@@ -1,44 +1,31 @@
 package org.jumpserver.chen.framework.console;
 
-import com.alibaba.druid.DbType;
-import com.alibaba.druid.sql.SQLUtils;
-
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
- * Validates that raw console input is one database command without rewriting it.
+ * Splits raw console input on top-level statement boundaries without rewriting it.
  */
 final class ConsoleStatementBoundaryScanner {
-    private static final String MULTIPLE_STATEMENTS_ERROR =
-            "Console raw execution accepts only one top-level database command";
-
     private ConsoleStatementBoundaryScanner() {
     }
 
-    static void requireSingleStatement(String sql, DbType dbType) throws SQLException {
+    static List<String> split(String sql) throws SQLException {
         if (sql == null || sql.isBlank()) {
             throw new SQLException("Console raw execution requires a database command");
         }
 
-        try {
-            var statements = SQLUtils.parseStatements(sql, dbType);
-            if (statements.size() == 1) {
-                return;
-            }
-            if (statements.size() > 1) {
-                throw new SQLException(MULTIPLE_STATEMENTS_ERROR);
-            }
-        } catch (RuntimeException ignored) {
-            // Raw mode exists for commands the dialect parser does not understand. The conservative
-            // fallback below recognizes only top-level delimiters and keeps quoted/dollar-quoted
-            // procedure bodies opaque; it never changes the command sent to the JDBC driver.
+        List<String> statements = splitOpaqueStatements(sql);
+        if (statements.isEmpty()) {
+            throw new SQLException("Console raw execution requires a database command");
         }
-
-        requireSingleOpaqueStatement(sql);
+        return statements;
     }
 
-    private static void requireSingleOpaqueStatement(String sql) throws SQLException {
-        int completedStatements = 0;
+    private static List<String> splitOpaqueStatements(String sql) {
+        List<String> statements = new ArrayList<>();
+        int statementStart = 0;
         boolean hasStatementContent = false;
         int blockCommentDepth = 0;
         char quote = 0;
@@ -107,30 +94,27 @@ final class ConsoleStatementBoundaryScanner {
             }
             if (current == ';') {
                 if (hasStatementContent) {
-                    completedStatements++;
+                    addStatement(statements, sql, statementStart, index + 1);
                     hasStatementContent = false;
-                    if (completedStatements > 1) {
-                        throw new SQLException(MULTIPLE_STATEMENTS_ERROR);
-                    }
                 }
+                statementStart = index + 1;
                 continue;
             }
             if (!Character.isWhitespace(current)) {
-                if (completedStatements > 0) {
-                    throw new SQLException(MULTIPLE_STATEMENTS_ERROR);
-                }
                 hasStatementContent = true;
             }
         }
 
         if (hasStatementContent) {
-            completedStatements++;
+            addStatement(statements, sql, statementStart, sql.length());
         }
-        if (completedStatements == 0) {
-            throw new SQLException("Console raw execution requires a database command");
-        }
-        if (completedStatements > 1) {
-            throw new SQLException(MULTIPLE_STATEMENTS_ERROR);
+        return statements;
+    }
+
+    private static void addStatement(List<String> statements, String sql, int start, int end) {
+        String statement = sql.substring(start, end).trim();
+        if (!statement.isEmpty()) {
+            statements.add(statement);
         }
     }
 

@@ -768,13 +768,17 @@ public class QueryConsole extends AbstractConsole {
     }
 
     private void runRawConsoleSQL(String sql, Session session) throws SQLException {
-        ConsoleStatementBoundaryScanner.requireSingleStatement(sql, this.datasource.getDruidDbType());
         Connection connection = this.getConnection();
-        ACLResult aclResult = session.checkACL(sql, connection);
-        if (!this.canExecuteStatement(session, sql, aclResult)) {
-            return;
+        for (String statement : ConsoleStatementBoundaryScanner.split(sql)) {
+            ACLResult aclResult = session.checkACL(statement, connection);
+            if (!this.canExecuteStatement(session, statement, aclResult)) {
+                break;
+            }
+            this.emitRawConsoleSQL(statement, aclResult, connection);
         }
+    }
 
+    private void emitRawConsoleSQL(String sql, ACLResult aclResult, Connection connection) throws SQLException {
         SQLQueryResult executionResult = this.executeRawConsoleSQL(sql, aclResult, connection);
         if (executionResult.getResults().isEmpty()) {
             this.getConsoleLogger().success("%s", MessageUtils.get("ExecuteSuccess"));
