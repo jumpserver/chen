@@ -5,11 +5,11 @@ ARG TARGETARCH
 
 ARG DEPENDENCIES="                    \
         iputils-ping                  \
-        telnet"                   
+        telnet"
 
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked,id=chen \
-    --mount=type=cache,target=/var/lib/apt,sharing=locked,id=chen \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked,id=chen-apt-cache-${TARGETARCH} \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked,id=chen-apt-lib-${TARGETARCH} \
     set -ex \
+    && rm -f /etc/apt/apt.conf.d/docker-clean \
     && apt-get update \
     && apt-get install -y --no-install-recommends ${DEPENDENCIES}
-    
