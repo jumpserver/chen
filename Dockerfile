@@ -10,9 +10,6 @@ RUN mvn clean package -Dmaven.test.skip=true
 FROM debian:trixie-slim
 ARG TARGETARCH
 
-# Bootstrap HTTPS APT mirrors from the CA bundle already installed in chen-base.
-COPY --from=stage-build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
-
 ARG DEPENDENCIES="                    \
         ca-certificates               \
         openjdk-21-jre-headless"
