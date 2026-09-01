@@ -234,6 +234,22 @@ class SqlAgentToolServiceTest {
     }
 
     @Test
+    void reportsTheProtectedActiveSchemaPrecisely() {
+        var service = new SqlAgentToolService();
+
+        var error = assertThrows(IllegalArgumentException.class, () -> service.resolveMetadataApprovalScope(
+                agentContext("jumpserver", "pg_catalog", "node-system"),
+                "{\"query\":\"*\"}"
+        ));
+
+        assertEquals(
+                "The active schema 'pg_catalog' is a protected system schema; "
+                        + "table metadata is unavailable in this scope",
+                error.getMessage()
+        );
+    }
+
+    @Test
     void sessionMetadataApprovalOnlyCoversSameOrSmallerScope() {
         var service = new SqlAgentToolService();
         var context = agentContext("jumpserver", "public", "node-public");

@@ -42,6 +42,7 @@ public class AgentWebSocketHandler extends TextWebSocketHandler {
     private static final String AGENT_BINDING_META_KEY = "com.jumpserver/agent";
     private static final String SQL_CONTEXT_META_KEY = "com.jumpserver/sqlContext";
     private static final String SQL_OPERATION_META_KEY = "com.jumpserver/sqlOperation";
+    private static final String FINAL_RESULT_META_KEY = "com.jumpserver/finalResult";
     private static final Set<String> OPERATIONS = Set.of("generate", "explain", "repair");
 
     private final SqlAgentToolService toolService;
@@ -111,6 +112,10 @@ public class AgentWebSocketHandler extends TextWebSocketHandler {
         var identity = session.getJmsSession();
         var connectInfo = session.getDatasource().getConnectInfo();
         Map<String, Object> context = new LinkedHashMap<>();
+        context.put("session_kind", "sql_editor");
+        context.put("interaction_mode", "draft_only");
+        context.put("command_language", "sql");
+        context.put("dialect", StringUtils.defaultString(connectInfo.getDbType()).toLowerCase(Locale.ROOT));
         context.put("protocol", identity.getProtocol());
         context.put("asset_id", identity.getAssetId());
         context.put("asset_name", identity.getAsset());
@@ -291,26 +296,33 @@ public class AgentWebSocketHandler extends TextWebSocketHandler {
         new PacketIO(webSocket).sendPacket(type, data);
     }
 
-    private static List<Map<String, Object>> toolDefinitions() {
+    static List<Map<String, Object>> toolDefinitions() {
         List<Map<String, Object>> tools = new ArrayList<>();
         tools.add(tool(
                 "read_sql_context",
                 "Read SQL editor context",
                 "Read Chen-verified dialect, connection scope, active editor target, SQL analysis and last error. "
                         + "This never reads business rows.",
-                "{\"type\":\"object\",\"additionalProperties\":false,\"maxProperties\":0}"
+                "{\"type\":\"object\",\"additionalProperties\":false,\"maxProperties\":0}",
+                false
         ));
         tools.add(tool(
                 "inspect_schema",
                 "Inspect database schema",
                 "Inspect bounded table, column, key, index and comment metadata in the active schema. "
-                        + "Provide a table-name query or up to eight exact tables; query * performs bounded discovery.",
+                        + "Provide one literal table-name query or up to eight exact tables; query * performs bounded discovery. "
+                        + "This never reads business rows.",
                 "{\"type\":\"object\",\"additionalProperties\":false,"
-                        + "\"required\":[\"query\",\"schema\",\"tables\"],\"properties\":{"
-                        + "\"query\":{\"type\":\"string\",\"maxLength\":1024},"
-                        + "\"schema\":{\"type\":\"string\",\"maxLength\":1024},"
-                        + "\"tables\":{\"type\":\"array\",\"maxItems\":8,"
-                        + "\"items\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":1024}}}}"
+                        + "\"anyOf\":[{\"required\":[\"query\"]},{\"required\":[\"tables\"]}],"
+                        + "\"properties\":{"
+                        + "\"query\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":1024,"
+                        + "\"description\":\"Literal case-insensitive table-name query; use * only for bounded discovery\"},"
+                        + "\"schema\":{\"type\":\"string\",\"maxLength\":1024,"
+                        + "\"description\":\"Optional schema override within the verified editor scope\"},"
+                        + "\"tables\":{\"type\":\"array\",\"minItems\":1,\"maxItems\":8,"
+                        + "\"description\":\"Exact table or view names to inspect\","
+                        + "\"items\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":1024}}}}",
+                true
         ));
         tools.add(tool(
                 "validate_sql",
@@ -318,18 +330,25 @@ public class AgentWebSocketHandler extends TextWebSocketHandler {
                 "Parse SQL locally in Chen and return statement count, type, referenced objects and risk. "
                         + "This never executes SQL.",
                 "{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"sql\"],"
-                        + "\"properties\":{\"sql\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":131072}}}"
+                        + "\"properties\":{\"sql\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":131072,"
+                        + "\"description\":\"One SQL draft to parse locally without execution\"}}}",
+                false
         ));
-        tools.add(tool(
+        Map<String, Object> proposalTool = tool(
                 "propose_sql",
                 "Propose SQL draft",
-                "Validate exactly one SQL statement and prepare a draft for explicit user review. "
-                        + "This never edits the editor or executes SQL.",
+                "Validate exactly one SQL statement, prepare a draft for explicit user review, and wait for the "
+                        + "user to apply or reject it. This never executes SQL.",
                 "{\"type\":\"object\",\"additionalProperties\":false,"
                         + "\"required\":[\"sql\",\"explanation\"],\"properties\":{"
-                        + "\"sql\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":131072},"
-                        + "\"explanation\":{\"type\":\"string\",\"maxLength\":4096}}}"
-        ));
+                        + "\"sql\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":131072,"
+                        + "\"description\":\"Exactly one complete SQL statement in the verified dialect\"},"
+                        + "\"explanation\":{\"type\":\"string\",\"maxLength\":4096,"
+                        + "\"description\":\"Concise explanation for the user reviewing the draft\"}}}",
+                false
+        );
+        proposalTool.put("_meta", Map.of(FINAL_RESULT_META_KEY, true));
+        tools.add(proposalTool);
         return tools;
     }
 
@@ -337,7 +356,8 @@ public class AgentWebSocketHandler extends TextWebSocketHandler {
             String name,
             String title,
             String description,
-            String inputSchema
+            String inputSchema,
+            boolean openWorldHint
     ) {
         Map<String, Object> definition = new LinkedHashMap<>();
         definition.put("name", name);
@@ -348,7 +368,7 @@ public class AgentWebSocketHandler extends TextWebSocketHandler {
                 "readOnlyHint", true,
                 "destructiveHint", false,
                 "idempotentHint", true,
-                "openWorldHint", false
+                "openWorldHint", openWorldHint
         ));
         return definition;
     }

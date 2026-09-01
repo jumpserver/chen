@@ -308,7 +308,9 @@ public class SqlAgentToolService {
 
         String activeSchema = normalizeMetadataSchema(context.database(), context.schema());
         if (isBlockedSystemScope(context.dialect(), context.database(), activeSchema)) {
-            throw new IllegalArgumentException("System database metadata is not available to the SQL assistant");
+            throw new IllegalArgumentException(blockedSystemScopeMessage(
+                    context.dialect(), context.database(), activeSchema
+            ));
         }
         if (requiresSchemaScope(context.dialect()) && activeSchema.isBlank()) {
             throw new IllegalArgumentException("Schema inspection requires an active schema");
@@ -742,9 +744,11 @@ public class SqlAgentToolService {
             Map<String, Object> sqlAnalysis
     ) {
         boolean sqlIsValid = sqlAnalysis == null || Boolean.TRUE.equals(sqlAnalysis.get("valid"));
-        if (isBlockedSystemScope(dialect, database, schema)
-                || (!sqlIsValid && containsBlockedSystemQualifier(dialect, sql))) {
-            throw new IllegalArgumentException("System database objects are not available to the SQL assistant");
+        if (isBlockedSystemScope(dialect, database, schema)) {
+            throw new IllegalArgumentException(blockedSystemScopeMessage(dialect, database, schema));
+        }
+        if (!sqlIsValid && containsBlockedSystemQualifier(dialect, sql)) {
+            throw new IllegalArgumentException("The SQL references protected system database objects");
         }
         if (sqlAnalysis == null) {
             return;
@@ -762,13 +766,25 @@ public class SqlAgentToolService {
             }
             if (parts.size() == 2 && (isBlockedSystemDatabase(dialect, parts.get(0))
                     || isBlockedSystemSchema(dialect, parts.get(0)))) {
-                throw new IllegalArgumentException("System database objects are not available to the SQL assistant");
+                throw new IllegalArgumentException("The SQL references protected system database objects");
             }
             if (parts.size() == 3 && (isBlockedSystemDatabase(dialect, parts.get(0))
                     || isBlockedSystemSchema(dialect, parts.get(1)))) {
-                throw new IllegalArgumentException("System database objects are not available to the SQL assistant");
+                throw new IllegalArgumentException("The SQL references protected system database objects");
             }
         }
+    }
+
+    private static String blockedSystemScopeMessage(String dialect, String database, String schema) {
+        if (isBlockedSystemSchema(dialect, schema)) {
+            return "The active schema '" + normalizePolicyIdentifier(schema)
+                    + "' is a protected system schema; table metadata is unavailable in this scope";
+        }
+        if (isBlockedSystemDatabase(dialect, database)) {
+            return "The active database '" + normalizePolicyIdentifier(database)
+                    + "' is a protected system database; table metadata is unavailable in this scope";
+        }
+        return "The active database scope contains protected system objects";
     }
 
     private static boolean isBlockedSystemScope(String dialect, String database, String schema) {
