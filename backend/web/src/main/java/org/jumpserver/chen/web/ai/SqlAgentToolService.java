@@ -44,6 +44,7 @@ public class SqlAgentToolService {
     private static final Gson GSON = new Gson();
     private static final int MAX_CONTEXT_BYTES = 256 * 1024;
     private static final int MAX_SQL_BYTES = 128 * 1024;
+    private static final int MAX_TOOL_ARGUMENT_BYTES = MAX_SQL_BYTES + 8 * 1024;
     private static final int MAX_IDENTIFIER_BYTES = 1024;
     private static final int MAX_OBJECTS = 50;
     private static final int MAX_ANALYSIS_COLUMNS = 512;
@@ -58,7 +59,8 @@ public class SqlAgentToolService {
     );
     private static final Set<String> CONTEXT_NODE_TYPES =
             Set.of("datasource", "database", "schema", "table", "view");
-    private static final Set<String> TOOL_NAMES = Set.of("inspect_schema", "validate_sql");
+    private static final Set<String> TOOL_NAMES =
+            Set.of("read_sql_context", "inspect_schema", "validate_sql", "propose_sql");
     private static final Set<RelationKind> INSPECT_KINDS =
             Set.of(RelationKind.TABLE, RelationKind.VIEW, RelationKind.MATERIALIZED_VIEW);
     private static final Set<String> WORKSPACE_TAB_KINDS =
@@ -204,7 +206,7 @@ public class SqlAgentToolService {
         if (!TOOL_NAMES.contains(toolName)) {
             throw new IllegalArgumentException("Unsupported SQL assistant tool");
         }
-        if (argumentsJson == null || argumentsJson.length() > 32 * 1024) {
+        if (argumentsJson == null || argumentsJson.length() > MAX_TOOL_ARGUMENT_BYTES) {
             throw new IllegalArgumentException("Invalid SQL assistant tool arguments");
         }
         JsonObject arguments = parseToolArguments(argumentsJson);
@@ -213,13 +215,71 @@ public class SqlAgentToolService {
         ConnectionManager connectionManager = datasource.getConnectionManager();
         connectionManager.setDatabaseContext(StringUtils.defaultString(context.database()));
         Object result = switch (toolName) {
-            case "inspect_schema" -> inspectSchema(datasource, context, arguments);
-            case "validate_sql" -> validateSQL(
-                    datasource.getDruidDbType(), boundedString(arguments, "sql", MAX_SQL_BYTES, true)
+            case "read_sql_context" -> Map.of(
+                    "kind", "sql_context",
+                    "context", JsonParser.parseString(context.sanitizedJson()).getAsJsonObject()
             );
+            case "inspect_schema" -> Map.of(
+                    "kind", "schema",
+                    "schema", inspectSchema(datasource, context, arguments)
+            );
+            case "validate_sql" -> Map.of(
+                    "kind", "validation",
+                    "analysis", validateSQL(
+                            datasource.getDruidDbType(), boundedString(arguments, "sql", MAX_SQL_BYTES, true)
+                    )
+            );
+            case "propose_sql" -> proposeSQL(datasource, context, arguments);
             default -> throw new IllegalArgumentException("Unsupported SQL assistant tool");
         };
         return GSON.toJson(result);
+    }
+
+    private static Map<String, Object> proposeSQL(
+            Datasource datasource,
+            AgentRequestContext context,
+            JsonObject arguments
+    ) {
+        String sql = boundedString(arguments, "sql", MAX_SQL_BYTES, true).trim();
+        String explanation = boundedString(arguments, "explanation", 4 * 1024, false).trim();
+        Map<String, Object> analysis = validateSQL(datasource.getDruidDbType(), sql);
+        assertAllowedAiScope(context.dialect(), context.database(), context.schema(), sql, analysis);
+        if (!Boolean.TRUE.equals(analysis.get("valid"))
+                || ((Number) analysis.getOrDefault("statementCount", 0)).intValue() != 1) {
+            throw new IllegalArgumentException("The SQL proposal must contain exactly one valid statement");
+        }
+
+        JsonObject editor = JsonParser.parseString(context.sanitizedJson()).getAsJsonObject();
+        int selectionFrom = editor.get("selectionFrom").getAsInt();
+        int selectionTo = editor.get("selectionTo").getAsInt();
+        String tabId = editor.get("tabId").getAsString();
+        String target = selectionTo > selectionFrom ? "selection" : tabId.isBlank() ? "new_query" : "document";
+        String originalSQL = "selection".equals(target)
+                ? editor.get("selectedSql").getAsString()
+                : "document".equals(target) ? editor.get("documentSql").getAsString() : "";
+        if (!"new_query".equals(target) && sql.equals(originalSQL.trim())) {
+            throw new IllegalArgumentException("The SQL proposal does not change the current editor target");
+        }
+
+        Map<String, Object> base = new LinkedHashMap<>();
+        for (String field : List.of(
+                "paneId", "tabId", "workspaceTabId", "workspaceTabKind", "currentContext",
+                "revision", "selectionFrom", "selectionTo", "nodeKey", "database", "schema"
+        )) {
+            JsonElement value = editor.get(field);
+            if (value != null && !value.isJsonNull()) {
+                base.put(field, GSON.fromJson(value, Object.class));
+            }
+        }
+        base.put("target", target);
+
+        Map<String, Object> proposal = new LinkedHashMap<>();
+        proposal.put("sql", sql);
+        proposal.put("originalSql", originalSQL);
+        proposal.put("explanation", explanation);
+        proposal.put("analysis", analysis);
+        proposal.put("base", base);
+        return Map.of("kind", "proposal", "analysis", analysis, "proposal", proposal);
     }
 
     MetadataApprovalScope resolveMetadataApprovalScope(
@@ -281,7 +341,7 @@ public class SqlAgentToolService {
     }
 
     private static JsonObject parseToolArguments(String argumentsJson) {
-        if (argumentsJson == null || argumentsJson.length() > 32 * 1024) {
+        if (argumentsJson == null || argumentsJson.length() > MAX_TOOL_ARGUMENT_BYTES) {
             throw new IllegalArgumentException("Invalid SQL assistant tool arguments");
         }
         try {

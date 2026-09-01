@@ -134,6 +134,53 @@ class SqlAgentToolServiceTest {
     }
 
     @Test
+    void preparesValidatedDraftWithoutExecutingSql() throws Exception {
+        String nodeKey = "datasource:root,schema:public";
+        var session = mock(Session.class);
+        var datasource = mock(Datasource.class);
+        var connectionManager = mock(ConnectionManager.class);
+        var resourceBrowser = mock(ResourceBrowser.class);
+        var connectInfo = new DBConnectInfo();
+        connectInfo.setDbType("postgresql");
+
+        when(session.isActive()).thenReturn(true);
+        when(session.getDatasource()).thenReturn(datasource);
+        when(session.getConsoles()).thenReturn(Map.of());
+        when(datasource.getConnectInfo()).thenReturn(connectInfo);
+        when(datasource.getConnectionManager()).thenReturn(connectionManager);
+        when(datasource.getDruidDbType()).thenReturn(DbType.postgresql);
+        when(datasource.getResourceBrowser()).thenReturn(resourceBrowser);
+        when(resourceBrowser.getIndexedNode(nodeKey)).thenReturn(
+                new org.jumpserver.chen.framework.datasource.entity.resource.ResourceNodeSnapshot(
+                        nodeKey, "schema", "jumpserver", "public", "", null
+                )
+        );
+
+        var service = new SqlAgentToolService();
+        var context = service.resolveRequestContext(session, """
+                {
+                  "nodeKey":"%s",
+                  "paneId":"pane-1",
+                  "workspaceTabKind":"database",
+                  "revision":0,
+                  "selectionFrom":0,
+                  "selectionTo":0
+                }
+                """.formatted(nodeKey), "generate");
+        var result = JsonParser.parseString(service.execute(
+                session,
+                context,
+                "propose_sql",
+                "{\"sql\":\"SELECT id FROM users\",\"explanation\":\"List users\"}"
+        )).getAsJsonObject();
+
+        assertEquals("proposal", result.get("kind").getAsString());
+        assertTrue(result.getAsJsonObject("analysis").get("valid").getAsBoolean());
+        assertEquals("new_query", result.getAsJsonObject("proposal")
+                .getAsJsonObject("base").get("target").getAsString());
+    }
+
+    @Test
     void identifiesMultiStatementWriteRisk() {
         Map<String, Object> result = SqlAgentToolService.validateSQL(
                 DbType.mysql,

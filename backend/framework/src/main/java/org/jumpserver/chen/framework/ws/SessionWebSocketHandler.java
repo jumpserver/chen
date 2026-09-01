@@ -9,6 +9,7 @@ import org.jumpserver.chen.framework.session.controller.dialog.Dialog;
 import org.jumpserver.chen.framework.ws.io.Packet;
 import org.jumpserver.chen.framework.ws.io.PacketIO;
 import org.springframework.web.socket.CloseStatus;
+import org.springframework.web.socket.WebSocketHandler;
 import org.springframework.web.socket.WebSocketMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.adapter.NativeWebSocketSession;
@@ -18,6 +19,11 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 public class SessionWebSocketHandler extends TextWebSocketHandler {
 
     private static final Gson GSON = new Gson();
+    private final WebSocketHandler agentHandler;
+
+    public SessionWebSocketHandler(WebSocketHandler agentHandler) {
+        this.agentHandler = agentHandler;
+    }
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
@@ -78,6 +84,11 @@ public class SessionWebSocketHandler extends TextWebSocketHandler {
 
 
         sess.getPacketIO().sendPacket("set_ready", null);
+        try {
+            agentHandler.afterConnectionEstablished(session);
+        } catch (Exception e) {
+            log.warn("Initialize database session tools failed", e);
+        }
     }
 
     @Override
@@ -96,8 +107,14 @@ public class SessionWebSocketHandler extends TextWebSocketHandler {
                 log.debug("receive ping packet from session {}", webSession.getUsername());
                 webSession.getPacketIO().sendPacket("pong", null);
             }
+            case "mcp.request", "mcp.cancel" -> agentHandler.handleMessage(session, message);
             default -> webSession.getController().handlePacket(packet);
         }
+    }
+
+    @Override
+    public void handleTransportError(WebSocketSession session, Throwable exception) throws Exception {
+        agentHandler.handleTransportError(session, exception);
     }
 
     @Override
@@ -106,6 +123,11 @@ public class SessionWebSocketHandler extends TextWebSocketHandler {
         // 被拒绝的连接没有占用主会话，不得影响当前仍在线的用户。
         if (!SessionManager.releasePrimaryWebSocket(token, session.getId())) {
             return;
+        }
+        try {
+            agentHandler.afterConnectionClosed(session, closeStatus);
+        } catch (Exception e) {
+            log.debug("Close database session tools failed", e);
         }
         log.info("Primary WebSocket connection closed: code={}", closeStatus.getCode());
         SessionManager.setContext(token);

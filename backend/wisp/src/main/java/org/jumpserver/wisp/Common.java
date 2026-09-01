@@ -441,7 +441,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         id_ = s;
@@ -457,7 +457,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         getIdBytes() {
       java.lang.Object ref = id_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         id_ = b;
@@ -480,7 +480,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         name_ = s;
@@ -496,7 +496,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         getNameBytes() {
       java.lang.Object ref = name_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         name_ = b;
@@ -519,7 +519,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         username_ = s;
@@ -535,7 +535,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         getUsernameBytes() {
       java.lang.Object ref = username_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         username_ = b;
@@ -558,7 +558,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         role_ = s;
@@ -574,7 +574,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         getRoleBytes() {
       java.lang.Object ref = role_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         role_ = b;
@@ -1045,7 +1045,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getIdBytes() {
         java.lang.Object ref = id_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           id_ = b;
@@ -1117,7 +1117,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getNameBytes() {
         java.lang.Object ref = name_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           name_ = b;
@@ -1189,7 +1189,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getUsernameBytes() {
         java.lang.Object ref = username_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           username_ = b;
@@ -1261,7 +1261,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getRoleBytes() {
         java.lang.Object ref = role_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           role_ = b;
@@ -1545,7 +1545,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         id_ = s;
@@ -1561,7 +1561,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         getIdBytes() {
       java.lang.Object ref = id_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         id_ = b;
@@ -1584,7 +1584,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         name_ = s;
@@ -1600,7 +1600,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         getNameBytes() {
       java.lang.Object ref = name_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         name_ = b;
@@ -1623,7 +1623,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         username_ = s;
@@ -1639,7 +1639,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         getUsernameBytes() {
       java.lang.Object ref = username_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         username_ = b;
@@ -1662,7 +1662,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         secret_ = s;
@@ -1678,7 +1678,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         getSecretBytes() {
       java.lang.Object ref = secret_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         secret_ = b;
@@ -2150,7 +2150,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getIdBytes() {
         java.lang.Object ref = id_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           id_ = b;
@@ -2222,7 +2222,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getNameBytes() {
         java.lang.Object ref = name_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           name_ = b;
@@ -2294,7 +2294,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getUsernameBytes() {
         java.lang.Object ref = username_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           username_ = b;
@@ -2366,7 +2366,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getSecretBytes() {
         java.lang.Object ref = secret_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           secret_ = b;
@@ -2521,7 +2521,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
        * <code>.message.LabelValue secretType = 6;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.Common.LabelValue, org.jumpserver.wisp.Common.LabelValue.Builder, org.jumpserver.wisp.Common.LabelValueOrBuilder> 
+          org.jumpserver.wisp.Common.LabelValue, org.jumpserver.wisp.Common.LabelValue.Builder, org.jumpserver.wisp.Common.LabelValueOrBuilder>
           internalGetSecretTypeFieldBuilder() {
         if (secretTypeBuilder_ == null) {
           secretTypeBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -2665,7 +2665,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         label_ = s;
@@ -2681,7 +2681,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         getLabelBytes() {
       java.lang.Object ref = label_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         label_ = b;
@@ -2704,7 +2704,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         value_ = s;
@@ -2720,7 +2720,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         getValueBytes() {
       java.lang.Object ref = value_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         value_ = b;
@@ -3073,7 +3073,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getLabelBytes() {
         java.lang.Object ref = label_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           label_ = b;
@@ -3145,7 +3145,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getValueBytes() {
         java.lang.Object ref = value_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           value_ = b;
@@ -3310,7 +3310,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
     /**
      * <code>repeated .message.Protocol protocols = 6;</code>
      */
-    java.util.List<org.jumpserver.wisp.Common.Protocol> 
+    java.util.List<org.jumpserver.wisp.Common.Protocol>
         getProtocolsList();
     /**
      * <code>repeated .message.Protocol protocols = 6;</code>
@@ -3323,7 +3323,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
     /**
      * <code>repeated .message.Protocol protocols = 6;</code>
      */
-    java.util.List<? extends org.jumpserver.wisp.Common.ProtocolOrBuilder> 
+    java.util.List<? extends org.jumpserver.wisp.Common.ProtocolOrBuilder>
         getProtocolsOrBuilderList();
     /**
      * <code>repeated .message.Protocol protocols = 6;</code>
@@ -3598,7 +3598,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         if (ref instanceof java.lang.String) {
           return (java.lang.String) ref;
         } else {
-          com.google.protobuf.ByteString bs = 
+          com.google.protobuf.ByteString bs =
               (com.google.protobuf.ByteString) ref;
           java.lang.String s = bs.toStringUtf8();
           dbName_ = s;
@@ -3614,7 +3614,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getDbNameBytes() {
         java.lang.Object ref = dbName_;
         if (ref instanceof java.lang.String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           dbName_ = b;
@@ -3648,7 +3648,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         if (ref instanceof java.lang.String) {
           return (java.lang.String) ref;
         } else {
-          com.google.protobuf.ByteString bs = 
+          com.google.protobuf.ByteString bs =
               (com.google.protobuf.ByteString) ref;
           java.lang.String s = bs.toStringUtf8();
           caCert_ = s;
@@ -3664,7 +3664,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getCaCertBytes() {
         java.lang.Object ref = caCert_;
         if (ref instanceof java.lang.String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           caCert_ = b;
@@ -3687,7 +3687,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         if (ref instanceof java.lang.String) {
           return (java.lang.String) ref;
         } else {
-          com.google.protobuf.ByteString bs = 
+          com.google.protobuf.ByteString bs =
               (com.google.protobuf.ByteString) ref;
           java.lang.String s = bs.toStringUtf8();
           clientCert_ = s;
@@ -3703,7 +3703,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getClientCertBytes() {
         java.lang.Object ref = clientCert_;
         if (ref instanceof java.lang.String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           clientCert_ = b;
@@ -3726,7 +3726,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         if (ref instanceof java.lang.String) {
           return (java.lang.String) ref;
         } else {
-          com.google.protobuf.ByteString bs = 
+          com.google.protobuf.ByteString bs =
               (com.google.protobuf.ByteString) ref;
           java.lang.String s = bs.toStringUtf8();
           clientKey_ = s;
@@ -3742,7 +3742,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getClientKeyBytes() {
         java.lang.Object ref = clientKey_;
         if (ref instanceof java.lang.String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           clientKey_ = b;
@@ -3776,7 +3776,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         if (ref instanceof java.lang.String) {
           return (java.lang.String) ref;
         } else {
-          com.google.protobuf.ByteString bs = 
+          com.google.protobuf.ByteString bs =
               (com.google.protobuf.ByteString) ref;
           java.lang.String s = bs.toStringUtf8();
           autoFill_ = s;
@@ -3792,7 +3792,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getAutoFillBytes() {
         java.lang.Object ref = autoFill_;
         if (ref instanceof java.lang.String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           autoFill_ = b;
@@ -3815,7 +3815,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         if (ref instanceof java.lang.String) {
           return (java.lang.String) ref;
         } else {
-          com.google.protobuf.ByteString bs = 
+          com.google.protobuf.ByteString bs =
               (com.google.protobuf.ByteString) ref;
           java.lang.String s = bs.toStringUtf8();
           usernameSelector_ = s;
@@ -3831,7 +3831,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getUsernameSelectorBytes() {
         java.lang.Object ref = usernameSelector_;
         if (ref instanceof java.lang.String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           usernameSelector_ = b;
@@ -3854,7 +3854,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         if (ref instanceof java.lang.String) {
           return (java.lang.String) ref;
         } else {
-          com.google.protobuf.ByteString bs = 
+          com.google.protobuf.ByteString bs =
               (com.google.protobuf.ByteString) ref;
           java.lang.String s = bs.toStringUtf8();
           passwordSelector_ = s;
@@ -3870,7 +3870,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getPasswordSelectorBytes() {
         java.lang.Object ref = passwordSelector_;
         if (ref instanceof java.lang.String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           passwordSelector_ = b;
@@ -3893,7 +3893,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         if (ref instanceof java.lang.String) {
           return (java.lang.String) ref;
         } else {
-          com.google.protobuf.ByteString bs = 
+          com.google.protobuf.ByteString bs =
               (com.google.protobuf.ByteString) ref;
           java.lang.String s = bs.toStringUtf8();
           submitSelector_ = s;
@@ -3909,7 +3909,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getSubmitSelectorBytes() {
         java.lang.Object ref = submitSelector_;
         if (ref instanceof java.lang.String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           submitSelector_ = b;
@@ -3932,7 +3932,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         if (ref instanceof java.lang.String) {
           return (java.lang.String) ref;
         } else {
-          com.google.protobuf.ByteString bs = 
+          com.google.protobuf.ByteString bs =
               (com.google.protobuf.ByteString) ref;
           java.lang.String s = bs.toStringUtf8();
           script_ = s;
@@ -3948,7 +3948,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getScriptBytes() {
         java.lang.Object ref = script_;
         if (ref instanceof java.lang.String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           script_ = b;
@@ -3971,7 +3971,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         if (ref instanceof java.lang.String) {
           return (java.lang.String) ref;
         } else {
-          com.google.protobuf.ByteString bs = 
+          com.google.protobuf.ByteString bs =
               (com.google.protobuf.ByteString) ref;
           java.lang.String s = bs.toStringUtf8();
           httpProxy_ = s;
@@ -3987,7 +3987,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getHttpProxyBytes() {
         java.lang.Object ref = httpProxy_;
         if (ref instanceof java.lang.String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           httpProxy_ = b;
@@ -4010,7 +4010,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         if (ref instanceof java.lang.String) {
           return (java.lang.String) ref;
         } else {
-          com.google.protobuf.ByteString bs = 
+          com.google.protobuf.ByteString bs =
               (com.google.protobuf.ByteString) ref;
           java.lang.String s = bs.toStringUtf8();
           pgSslMode_ = s;
@@ -4026,7 +4026,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getPgSslModeBytes() {
         java.lang.Object ref = pgSslMode_;
         if (ref instanceof java.lang.String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           pgSslMode_ = b;
@@ -4643,7 +4643,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
             getDbNameBytes() {
           java.lang.Object ref = dbName_;
           if (ref instanceof String) {
-            com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString b =
                 com.google.protobuf.ByteString.copyFromUtf8(
                     (java.lang.String) ref);
             dbName_ = b;
@@ -4747,7 +4747,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
             getCaCertBytes() {
           java.lang.Object ref = caCert_;
           if (ref instanceof String) {
-            com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString b =
                 com.google.protobuf.ByteString.copyFromUtf8(
                     (java.lang.String) ref);
             caCert_ = b;
@@ -4819,7 +4819,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
             getClientCertBytes() {
           java.lang.Object ref = clientCert_;
           if (ref instanceof String) {
-            com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString b =
                 com.google.protobuf.ByteString.copyFromUtf8(
                     (java.lang.String) ref);
             clientCert_ = b;
@@ -4891,7 +4891,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
             getClientKeyBytes() {
           java.lang.Object ref = clientKey_;
           if (ref instanceof String) {
-            com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString b =
                 com.google.protobuf.ByteString.copyFromUtf8(
                     (java.lang.String) ref);
             clientKey_ = b;
@@ -4995,7 +4995,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
             getAutoFillBytes() {
           java.lang.Object ref = autoFill_;
           if (ref instanceof String) {
-            com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString b =
                 com.google.protobuf.ByteString.copyFromUtf8(
                     (java.lang.String) ref);
             autoFill_ = b;
@@ -5067,7 +5067,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
             getUsernameSelectorBytes() {
           java.lang.Object ref = usernameSelector_;
           if (ref instanceof String) {
-            com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString b =
                 com.google.protobuf.ByteString.copyFromUtf8(
                     (java.lang.String) ref);
             usernameSelector_ = b;
@@ -5139,7 +5139,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
             getPasswordSelectorBytes() {
           java.lang.Object ref = passwordSelector_;
           if (ref instanceof String) {
-            com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString b =
                 com.google.protobuf.ByteString.copyFromUtf8(
                     (java.lang.String) ref);
             passwordSelector_ = b;
@@ -5211,7 +5211,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
             getSubmitSelectorBytes() {
           java.lang.Object ref = submitSelector_;
           if (ref instanceof String) {
-            com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString b =
                 com.google.protobuf.ByteString.copyFromUtf8(
                     (java.lang.String) ref);
             submitSelector_ = b;
@@ -5283,7 +5283,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
             getScriptBytes() {
           java.lang.Object ref = script_;
           if (ref instanceof String) {
-            com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString b =
                 com.google.protobuf.ByteString.copyFromUtf8(
                     (java.lang.String) ref);
             script_ = b;
@@ -5355,7 +5355,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
             getHttpProxyBytes() {
           java.lang.Object ref = httpProxy_;
           if (ref instanceof String) {
-            com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString b =
                 com.google.protobuf.ByteString.copyFromUtf8(
                     (java.lang.String) ref);
             httpProxy_ = b;
@@ -5427,7 +5427,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
             getPgSslModeBytes() {
           java.lang.Object ref = pgSslMode_;
           if (ref instanceof String) {
-            com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString b =
                 com.google.protobuf.ByteString.copyFromUtf8(
                     (java.lang.String) ref);
             pgSslMode_ = b;
@@ -5539,7 +5539,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         id_ = s;
@@ -5555,7 +5555,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         getIdBytes() {
       java.lang.Object ref = id_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         id_ = b;
@@ -5578,7 +5578,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         name_ = s;
@@ -5594,7 +5594,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         getNameBytes() {
       java.lang.Object ref = name_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         name_ = b;
@@ -5617,7 +5617,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         address_ = s;
@@ -5633,7 +5633,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         getAddressBytes() {
       java.lang.Object ref = address_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         address_ = b;
@@ -5656,7 +5656,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         orgId_ = s;
@@ -5672,7 +5672,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         getOrgIdBytes() {
       java.lang.Object ref = orgId_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         orgId_ = b;
@@ -5695,7 +5695,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         orgName_ = s;
@@ -5711,7 +5711,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         getOrgNameBytes() {
       java.lang.Object ref = orgName_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         orgName_ = b;
@@ -5735,7 +5735,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
      * <code>repeated .message.Protocol protocols = 6;</code>
      */
     @java.lang.Override
-    public java.util.List<? extends org.jumpserver.wisp.Common.ProtocolOrBuilder> 
+    public java.util.List<? extends org.jumpserver.wisp.Common.ProtocolOrBuilder>
         getProtocolsOrBuilderList() {
       return protocols_;
     }
@@ -6197,7 +6197,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
               protocolsBuilder_ = null;
               protocols_ = other.protocols_;
               bitField0_ = (bitField0_ & ~0x00000020);
-              protocolsBuilder_ = 
+              protocolsBuilder_ =
                 com.google.protobuf.GeneratedMessage.alwaysUseFieldBuilders ?
                    internalGetProtocolsFieldBuilder() : null;
             } else {
@@ -6321,7 +6321,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getIdBytes() {
         java.lang.Object ref = id_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           id_ = b;
@@ -6393,7 +6393,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getNameBytes() {
         java.lang.Object ref = name_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           name_ = b;
@@ -6465,7 +6465,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getAddressBytes() {
         java.lang.Object ref = address_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           address_ = b;
@@ -6537,7 +6537,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getOrgIdBytes() {
         java.lang.Object ref = orgId_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           orgId_ = b;
@@ -6609,7 +6609,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getOrgNameBytes() {
         java.lang.Object ref = orgName_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           orgName_ = b;
@@ -6851,7 +6851,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       /**
        * <code>repeated .message.Protocol protocols = 6;</code>
        */
-      public java.util.List<? extends org.jumpserver.wisp.Common.ProtocolOrBuilder> 
+      public java.util.List<? extends org.jumpserver.wisp.Common.ProtocolOrBuilder>
            getProtocolsOrBuilderList() {
         if (protocolsBuilder_ != null) {
           return protocolsBuilder_.getMessageOrBuilderList();
@@ -6877,12 +6877,12 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       /**
        * <code>repeated .message.Protocol protocols = 6;</code>
        */
-      public java.util.List<org.jumpserver.wisp.Common.Protocol.Builder> 
+      public java.util.List<org.jumpserver.wisp.Common.Protocol.Builder>
            getProtocolsBuilderList() {
         return internalGetProtocolsFieldBuilder().getBuilderList();
       }
       private com.google.protobuf.RepeatedFieldBuilder<
-          org.jumpserver.wisp.Common.Protocol, org.jumpserver.wisp.Common.Protocol.Builder, org.jumpserver.wisp.Common.ProtocolOrBuilder> 
+          org.jumpserver.wisp.Common.Protocol, org.jumpserver.wisp.Common.Protocol.Builder, org.jumpserver.wisp.Common.ProtocolOrBuilder>
           internalGetProtocolsFieldBuilder() {
         if (protocolsBuilder_ == null) {
           protocolsBuilder_ = new com.google.protobuf.RepeatedFieldBuilder<
@@ -7004,7 +7004,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
        * <code>.message.Asset.Specific specific = 7;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.Common.Asset.Specific, org.jumpserver.wisp.Common.Asset.Specific.Builder, org.jumpserver.wisp.Common.Asset.SpecificOrBuilder> 
+          org.jumpserver.wisp.Common.Asset.Specific, org.jumpserver.wisp.Common.Asset.Specific.Builder, org.jumpserver.wisp.Common.Asset.SpecificOrBuilder>
           internalGetSpecificFieldBuilder() {
         if (specificBuilder_ == null) {
           specificBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -7147,7 +7147,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         name_ = s;
@@ -7163,7 +7163,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         getNameBytes() {
       java.lang.Object ref = name_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         name_ = b;
@@ -7560,7 +7560,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getNameBytes() {
         java.lang.Object ref = name_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           name_ = b;
@@ -7873,7 +7873,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         id_ = s;
@@ -7889,7 +7889,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         getIdBytes() {
       java.lang.Object ref = id_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         id_ = b;
@@ -7912,7 +7912,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         name_ = s;
@@ -7928,7 +7928,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         getNameBytes() {
       java.lang.Object ref = name_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         name_ = b;
@@ -7951,7 +7951,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         ip_ = s;
@@ -7967,7 +7967,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         getIpBytes() {
       java.lang.Object ref = ip_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         ip_ = b;
@@ -8001,7 +8001,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         protocol_ = s;
@@ -8017,7 +8017,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         getProtocolBytes() {
       java.lang.Object ref = protocol_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         protocol_ = b;
@@ -8040,7 +8040,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         username_ = s;
@@ -8056,7 +8056,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         getUsernameBytes() {
       java.lang.Object ref = username_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         username_ = b;
@@ -8079,7 +8079,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         password_ = s;
@@ -8095,7 +8095,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         getPasswordBytes() {
       java.lang.Object ref = password_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         password_ = b;
@@ -8118,7 +8118,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         privateKey_ = s;
@@ -8134,7 +8134,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         getPrivateKeyBytes() {
       java.lang.Object ref = privateKey_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         privateKey_ = b;
@@ -8630,7 +8630,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getIdBytes() {
         java.lang.Object ref = id_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           id_ = b;
@@ -8702,7 +8702,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getNameBytes() {
         java.lang.Object ref = name_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           name_ = b;
@@ -8774,7 +8774,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getIpBytes() {
         java.lang.Object ref = ip_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           ip_ = b;
@@ -8878,7 +8878,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getProtocolBytes() {
         java.lang.Object ref = protocol_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           protocol_ = b;
@@ -8950,7 +8950,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getUsernameBytes() {
         java.lang.Object ref = username_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           username_ = b;
@@ -9022,7 +9022,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getPasswordBytes() {
         java.lang.Object ref = password_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           password_ = b;
@@ -9094,7 +9094,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getPrivateKeyBytes() {
         java.lang.Object ref = privateKey_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           privateKey_ = b;
@@ -9973,7 +9973,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
     /**
      * <code>repeated .message.CommandGroup command_groups = 7;</code>
      */
-    java.util.List<org.jumpserver.wisp.Common.CommandGroup> 
+    java.util.List<org.jumpserver.wisp.Common.CommandGroup>
         getCommandGroupsList();
     /**
      * <code>repeated .message.CommandGroup command_groups = 7;</code>
@@ -9986,7 +9986,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
     /**
      * <code>repeated .message.CommandGroup command_groups = 7;</code>
      */
-    java.util.List<? extends org.jumpserver.wisp.Common.CommandGroupOrBuilder> 
+    java.util.List<? extends org.jumpserver.wisp.Common.CommandGroupOrBuilder>
         getCommandGroupsOrBuilderList();
     /**
      * <code>repeated .message.CommandGroup command_groups = 7;</code>
@@ -10201,7 +10201,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         id_ = s;
@@ -10217,7 +10217,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         getIdBytes() {
       java.lang.Object ref = id_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         id_ = b;
@@ -10240,7 +10240,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         name_ = s;
@@ -10256,7 +10256,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         getNameBytes() {
       java.lang.Object ref = name_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         name_ = b;
@@ -10320,7 +10320,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
      * <code>repeated .message.CommandGroup command_groups = 7;</code>
      */
     @java.lang.Override
-    public java.util.List<? extends org.jumpserver.wisp.Common.CommandGroupOrBuilder> 
+    public java.util.List<? extends org.jumpserver.wisp.Common.CommandGroupOrBuilder>
         getCommandGroupsOrBuilderList() {
       return commandGroups_;
     }
@@ -10717,7 +10717,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
               commandGroupsBuilder_ = null;
               commandGroups_ = other.commandGroups_;
               bitField0_ = (bitField0_ & ~0x00000020);
-              commandGroupsBuilder_ = 
+              commandGroupsBuilder_ =
                 com.google.protobuf.GeneratedMessage.alwaysUseFieldBuilders ?
                    internalGetCommandGroupsFieldBuilder() : null;
             } else {
@@ -10831,7 +10831,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getIdBytes() {
         java.lang.Object ref = id_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           id_ = b;
@@ -10903,7 +10903,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getNameBytes() {
         java.lang.Object ref = name_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           name_ = b;
@@ -11260,7 +11260,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       /**
        * <code>repeated .message.CommandGroup command_groups = 7;</code>
        */
-      public java.util.List<? extends org.jumpserver.wisp.Common.CommandGroupOrBuilder> 
+      public java.util.List<? extends org.jumpserver.wisp.Common.CommandGroupOrBuilder>
            getCommandGroupsOrBuilderList() {
         if (commandGroupsBuilder_ != null) {
           return commandGroupsBuilder_.getMessageOrBuilderList();
@@ -11286,12 +11286,12 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       /**
        * <code>repeated .message.CommandGroup command_groups = 7;</code>
        */
-      public java.util.List<org.jumpserver.wisp.Common.CommandGroup.Builder> 
+      public java.util.List<org.jumpserver.wisp.Common.CommandGroup.Builder>
            getCommandGroupsBuilderList() {
         return internalGetCommandGroupsFieldBuilder().getBuilderList();
       }
       private com.google.protobuf.RepeatedFieldBuilder<
-          org.jumpserver.wisp.Common.CommandGroup, org.jumpserver.wisp.Common.CommandGroup.Builder, org.jumpserver.wisp.Common.CommandGroupOrBuilder> 
+          org.jumpserver.wisp.Common.CommandGroup, org.jumpserver.wisp.Common.CommandGroup.Builder, org.jumpserver.wisp.Common.CommandGroupOrBuilder>
           internalGetCommandGroupsFieldBuilder() {
         if (commandGroupsBuilder_ == null) {
           commandGroupsBuilder_ = new com.google.protobuf.RepeatedFieldBuilder<
@@ -11487,7 +11487,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         id_ = s;
@@ -11503,7 +11503,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         getIdBytes() {
       java.lang.Object ref = id_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         id_ = b;
@@ -11526,7 +11526,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         name_ = s;
@@ -11542,7 +11542,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         getNameBytes() {
       java.lang.Object ref = name_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         name_ = b;
@@ -11587,7 +11587,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         maskingMethod_ = s;
@@ -11603,7 +11603,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         getMaskingMethodBytes() {
       java.lang.Object ref = maskingMethod_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         maskingMethod_ = b;
@@ -11626,7 +11626,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         maskPattern_ = s;
@@ -11642,7 +11642,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         getMaskPatternBytes() {
       java.lang.Object ref = maskPattern_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         maskPattern_ = b;
@@ -11665,7 +11665,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         fieldsPattern_ = s;
@@ -11681,7 +11681,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         getFieldsPatternBytes() {
       java.lang.Object ref = fieldsPattern_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         fieldsPattern_ = b;
@@ -12153,7 +12153,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getIdBytes() {
         java.lang.Object ref = id_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           id_ = b;
@@ -12225,7 +12225,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getNameBytes() {
         java.lang.Object ref = name_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           name_ = b;
@@ -12361,7 +12361,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getMaskingMethodBytes() {
         java.lang.Object ref = maskingMethod_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           maskingMethod_ = b;
@@ -12433,7 +12433,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getMaskPatternBytes() {
         java.lang.Object ref = maskPattern_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           maskPattern_ = b;
@@ -12505,7 +12505,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getFieldsPatternBytes() {
         java.lang.Object ref = fieldsPattern_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           fieldsPattern_ = b;
@@ -12728,7 +12728,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         id_ = s;
@@ -12744,7 +12744,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         getIdBytes() {
       java.lang.Object ref = id_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         id_ = b;
@@ -12767,7 +12767,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         name_ = s;
@@ -12783,7 +12783,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         getNameBytes() {
       java.lang.Object ref = name_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         name_ = b;
@@ -12806,7 +12806,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         content_ = s;
@@ -12822,7 +12822,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         getContentBytes() {
       java.lang.Object ref = content_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         content_ = b;
@@ -12845,7 +12845,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         type_ = s;
@@ -12861,7 +12861,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         getTypeBytes() {
       java.lang.Object ref = type_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         type_ = b;
@@ -12884,7 +12884,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         pattern_ = s;
@@ -12900,7 +12900,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         getPatternBytes() {
       java.lang.Object ref = pattern_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         pattern_ = b;
@@ -13360,7 +13360,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getIdBytes() {
         java.lang.Object ref = id_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           id_ = b;
@@ -13432,7 +13432,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getNameBytes() {
         java.lang.Object ref = name_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           name_ = b;
@@ -13504,7 +13504,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getContentBytes() {
         java.lang.Object ref = content_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           content_ = b;
@@ -13576,7 +13576,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getTypeBytes() {
         java.lang.Object ref = type_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           type_ = b;
@@ -13648,7 +13648,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getPatternBytes() {
         java.lang.Object ref = pattern_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           pattern_ = b;
@@ -14563,7 +14563,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         id_ = s;
@@ -14579,7 +14579,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         getIdBytes() {
       java.lang.Object ref = id_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         id_ = b;
@@ -14602,7 +14602,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         user_ = s;
@@ -14618,7 +14618,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         getUserBytes() {
       java.lang.Object ref = user_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         user_ = b;
@@ -14641,7 +14641,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         asset_ = s;
@@ -14657,7 +14657,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         getAssetBytes() {
       java.lang.Object ref = asset_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         asset_ = b;
@@ -14680,7 +14680,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         account_ = s;
@@ -14696,7 +14696,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         getAccountBytes() {
       java.lang.Object ref = account_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         account_ = b;
@@ -14737,7 +14737,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         remoteAddr_ = s;
@@ -14753,7 +14753,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         getRemoteAddrBytes() {
       java.lang.Object ref = remoteAddr_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         remoteAddr_ = b;
@@ -14776,7 +14776,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         protocol_ = s;
@@ -14792,7 +14792,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         getProtocolBytes() {
       java.lang.Object ref = protocol_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         protocol_ = b;
@@ -14826,7 +14826,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         orgId_ = s;
@@ -14842,7 +14842,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         getOrgIdBytes() {
       java.lang.Object ref = orgId_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         orgId_ = b;
@@ -14865,7 +14865,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         userId_ = s;
@@ -14881,7 +14881,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         getUserIdBytes() {
       java.lang.Object ref = userId_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         userId_ = b;
@@ -14904,7 +14904,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         assetId_ = s;
@@ -14920,7 +14920,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         getAssetIdBytes() {
       java.lang.Object ref = assetId_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         assetId_ = b;
@@ -14943,7 +14943,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         accountId_ = s;
@@ -14959,7 +14959,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         getAccountIdBytes() {
       java.lang.Object ref = accountId_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         accountId_ = b;
@@ -14982,7 +14982,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         tokenId_ = s;
@@ -14998,7 +14998,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         getTokenIdBytes() {
       java.lang.Object ref = tokenId_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         tokenId_ = b;
@@ -15613,7 +15613,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getIdBytes() {
         java.lang.Object ref = id_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           id_ = b;
@@ -15685,7 +15685,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getUserBytes() {
         java.lang.Object ref = user_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           user_ = b;
@@ -15757,7 +15757,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getAssetBytes() {
         java.lang.Object ref = asset_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           asset_ = b;
@@ -15829,7 +15829,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getAccountBytes() {
         java.lang.Object ref = account_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           account_ = b;
@@ -15952,7 +15952,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getRemoteAddrBytes() {
         java.lang.Object ref = remoteAddr_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           remoteAddr_ = b;
@@ -16024,7 +16024,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getProtocolBytes() {
         java.lang.Object ref = protocol_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           protocol_ = b;
@@ -16128,7 +16128,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getOrgIdBytes() {
         java.lang.Object ref = orgId_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           orgId_ = b;
@@ -16200,7 +16200,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getUserIdBytes() {
         java.lang.Object ref = userId_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           userId_ = b;
@@ -16272,7 +16272,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getAssetIdBytes() {
         java.lang.Object ref = assetId_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           assetId_ = b;
@@ -16344,7 +16344,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getAccountIdBytes() {
         java.lang.Object ref = accountId_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           accountId_ = b;
@@ -16416,7 +16416,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getTokenIdBytes() {
         java.lang.Object ref = tokenId_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           tokenId_ = b;
@@ -16600,7 +16600,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         code_ = s;
@@ -16616,7 +16616,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         getCodeBytes() {
       java.lang.Object ref = code_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         code_ = b;
@@ -16639,7 +16639,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         detail_ = s;
@@ -16655,7 +16655,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         getDetailBytes() {
       java.lang.Object ref = detail_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         detail_ = b;
@@ -17043,7 +17043,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getCodeBytes() {
         java.lang.Object ref = code_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           code_ = b;
@@ -17115,7 +17115,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getDetailBytes() {
         java.lang.Object ref = detail_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           detail_ = b;
@@ -17379,7 +17379,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         id_ = s;
@@ -17395,7 +17395,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         getIdBytes() {
       java.lang.Object ref = id_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         id_ = b;
@@ -17436,7 +17436,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         sessionId_ = s;
@@ -17452,7 +17452,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         getSessionIdBytes() {
       java.lang.Object ref = sessionId_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         sessionId_ = b;
@@ -17475,7 +17475,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         terminatedBy_ = s;
@@ -17491,7 +17491,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         getTerminatedByBytes() {
       java.lang.Object ref = terminatedBy_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         terminatedBy_ = b;
@@ -17514,7 +17514,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         createdBy_ = s;
@@ -17530,7 +17530,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
         getCreatedByBytes() {
       java.lang.Object ref = createdBy_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         createdBy_ = b;
@@ -18024,7 +18024,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getIdBytes() {
         java.lang.Object ref = id_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           id_ = b;
@@ -18147,7 +18147,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getSessionIdBytes() {
         java.lang.Object ref = sessionId_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           sessionId_ = b;
@@ -18219,7 +18219,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getTerminatedByBytes() {
         java.lang.Object ref = terminatedBy_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           terminatedBy_ = b;
@@ -18291,7 +18291,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
           getCreatedByBytes() {
         java.lang.Object ref = createdBy_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           createdBy_ = b;
@@ -18446,7 +18446,7 @@ public final class Common extends com.google.protobuf.GeneratedFile {
        * <code>.message.TokenStatus token_status = 6;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.Common.TokenStatus, org.jumpserver.wisp.Common.TokenStatus.Builder, org.jumpserver.wisp.Common.TokenStatusOrBuilder> 
+          org.jumpserver.wisp.Common.TokenStatus, org.jumpserver.wisp.Common.TokenStatus.Builder, org.jumpserver.wisp.Common.TokenStatusOrBuilder>
           internalGetTokenStatusFieldBuilder() {
         if (tokenStatusBuilder_ == null) {
           tokenStatusBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -19291,7 +19291,7 @@ java.lang.String defaultValue) {
     /**
      * <code>repeated .message.CommandACL filter_rules = 8;</code>
      */
-    java.util.List<org.jumpserver.wisp.Common.CommandACL> 
+    java.util.List<org.jumpserver.wisp.Common.CommandACL>
         getFilterRulesList();
     /**
      * <code>repeated .message.CommandACL filter_rules = 8;</code>
@@ -19304,7 +19304,7 @@ java.lang.String defaultValue) {
     /**
      * <code>repeated .message.CommandACL filter_rules = 8;</code>
      */
-    java.util.List<? extends org.jumpserver.wisp.Common.CommandACLOrBuilder> 
+    java.util.List<? extends org.jumpserver.wisp.Common.CommandACLOrBuilder>
         getFilterRulesOrBuilderList();
     /**
      * <code>repeated .message.CommandACL filter_rules = 8;</code>
@@ -19315,7 +19315,7 @@ java.lang.String defaultValue) {
     /**
      * <code>repeated .message.Gateway gateways = 9;</code>
      */
-    java.util.List<org.jumpserver.wisp.Common.Gateway> 
+    java.util.List<org.jumpserver.wisp.Common.Gateway>
         getGatewaysList();
     /**
      * <code>repeated .message.Gateway gateways = 9;</code>
@@ -19328,7 +19328,7 @@ java.lang.String defaultValue) {
     /**
      * <code>repeated .message.Gateway gateways = 9;</code>
      */
-    java.util.List<? extends org.jumpserver.wisp.Common.GatewayOrBuilder> 
+    java.util.List<? extends org.jumpserver.wisp.Common.GatewayOrBuilder>
         getGatewaysOrBuilderList();
     /**
      * <code>repeated .message.Gateway gateways = 9;</code>
@@ -19381,7 +19381,7 @@ java.lang.String defaultValue) {
     /**
      * <code>repeated .message.DataMaskingRule data_masking_rules = 13;</code>
      */
-    java.util.List<org.jumpserver.wisp.Common.DataMaskingRule> 
+    java.util.List<org.jumpserver.wisp.Common.DataMaskingRule>
         getDataMaskingRulesList();
     /**
      * <code>repeated .message.DataMaskingRule data_masking_rules = 13;</code>
@@ -19394,7 +19394,7 @@ java.lang.String defaultValue) {
     /**
      * <code>repeated .message.DataMaskingRule data_masking_rules = 13;</code>
      */
-    java.util.List<? extends org.jumpserver.wisp.Common.DataMaskingRuleOrBuilder> 
+    java.util.List<? extends org.jumpserver.wisp.Common.DataMaskingRuleOrBuilder>
         getDataMaskingRulesOrBuilderList();
     /**
      * <code>repeated .message.DataMaskingRule data_masking_rules = 13;</code>
@@ -19474,7 +19474,7 @@ java.lang.String defaultValue) {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         keyId_ = s;
@@ -19490,7 +19490,7 @@ java.lang.String defaultValue) {
         getKeyIdBytes() {
       java.lang.Object ref = keyId_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         keyId_ = b;
@@ -19513,7 +19513,7 @@ java.lang.String defaultValue) {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         secreteId_ = s;
@@ -19529,7 +19529,7 @@ java.lang.String defaultValue) {
         getSecreteIdBytes() {
       java.lang.Object ref = secreteId_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         secreteId_ = b;
@@ -19683,7 +19683,7 @@ java.lang.String defaultValue) {
      * <code>repeated .message.CommandACL filter_rules = 8;</code>
      */
     @java.lang.Override
-    public java.util.List<? extends org.jumpserver.wisp.Common.CommandACLOrBuilder> 
+    public java.util.List<? extends org.jumpserver.wisp.Common.CommandACLOrBuilder>
         getFilterRulesOrBuilderList() {
       return filterRules_;
     }
@@ -19724,7 +19724,7 @@ java.lang.String defaultValue) {
      * <code>repeated .message.Gateway gateways = 9;</code>
      */
     @java.lang.Override
-    public java.util.List<? extends org.jumpserver.wisp.Common.GatewayOrBuilder> 
+    public java.util.List<? extends org.jumpserver.wisp.Common.GatewayOrBuilder>
         getGatewaysOrBuilderList() {
       return gateways_;
     }
@@ -19816,7 +19816,7 @@ java.lang.String defaultValue) {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         faceMonitorToken_ = s;
@@ -19832,7 +19832,7 @@ java.lang.String defaultValue) {
         getFaceMonitorTokenBytes() {
       java.lang.Object ref = faceMonitorToken_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         faceMonitorToken_ = b;
@@ -19856,7 +19856,7 @@ java.lang.String defaultValue) {
      * <code>repeated .message.DataMaskingRule data_masking_rules = 13;</code>
      */
     @java.lang.Override
-    public java.util.List<? extends org.jumpserver.wisp.Common.DataMaskingRuleOrBuilder> 
+    public java.util.List<? extends org.jumpserver.wisp.Common.DataMaskingRuleOrBuilder>
         getDataMaskingRulesOrBuilderList() {
       return dataMaskingRules_;
     }
@@ -20546,7 +20546,7 @@ java.lang.String defaultValue) {
               filterRulesBuilder_ = null;
               filterRules_ = other.filterRules_;
               bitField0_ = (bitField0_ & ~0x00000080);
-              filterRulesBuilder_ = 
+              filterRulesBuilder_ =
                 com.google.protobuf.GeneratedMessage.alwaysUseFieldBuilders ?
                    internalGetFilterRulesFieldBuilder() : null;
             } else {
@@ -20572,7 +20572,7 @@ java.lang.String defaultValue) {
               gatewaysBuilder_ = null;
               gateways_ = other.gateways_;
               bitField0_ = (bitField0_ & ~0x00000100);
-              gatewaysBuilder_ = 
+              gatewaysBuilder_ =
                 com.google.protobuf.GeneratedMessage.alwaysUseFieldBuilders ?
                    internalGetGatewaysFieldBuilder() : null;
             } else {
@@ -20609,7 +20609,7 @@ java.lang.String defaultValue) {
               dataMaskingRulesBuilder_ = null;
               dataMaskingRules_ = other.dataMaskingRules_;
               bitField0_ = (bitField0_ & ~0x00001000);
-              dataMaskingRulesBuilder_ = 
+              dataMaskingRulesBuilder_ =
                 com.google.protobuf.GeneratedMessage.alwaysUseFieldBuilders ?
                    internalGetDataMaskingRulesFieldBuilder() : null;
             } else {
@@ -20798,7 +20798,7 @@ java.lang.String defaultValue) {
           getKeyIdBytes() {
         java.lang.Object ref = keyId_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           keyId_ = b;
@@ -20870,7 +20870,7 @@ java.lang.String defaultValue) {
           getSecreteIdBytes() {
         java.lang.Object ref = secreteId_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           secreteId_ = b;
@@ -21025,7 +21025,7 @@ java.lang.String defaultValue) {
        * <code>.message.Asset asset = 3;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.Common.Asset, org.jumpserver.wisp.Common.Asset.Builder, org.jumpserver.wisp.Common.AssetOrBuilder> 
+          org.jumpserver.wisp.Common.Asset, org.jumpserver.wisp.Common.Asset.Builder, org.jumpserver.wisp.Common.AssetOrBuilder>
           internalGetAssetFieldBuilder() {
         if (assetBuilder_ == null) {
           assetBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -21146,7 +21146,7 @@ java.lang.String defaultValue) {
        * <code>.message.User user = 4;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.Common.User, org.jumpserver.wisp.Common.User.Builder, org.jumpserver.wisp.Common.UserOrBuilder> 
+          org.jumpserver.wisp.Common.User, org.jumpserver.wisp.Common.User.Builder, org.jumpserver.wisp.Common.UserOrBuilder>
           internalGetUserFieldBuilder() {
         if (userBuilder_ == null) {
           userBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -21267,7 +21267,7 @@ java.lang.String defaultValue) {
        * <code>.message.Account account = 5;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.Common.Account, org.jumpserver.wisp.Common.Account.Builder, org.jumpserver.wisp.Common.AccountOrBuilder> 
+          org.jumpserver.wisp.Common.Account, org.jumpserver.wisp.Common.Account.Builder, org.jumpserver.wisp.Common.AccountOrBuilder>
           internalGetAccountFieldBuilder() {
         if (accountBuilder_ == null) {
           accountBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -21388,7 +21388,7 @@ java.lang.String defaultValue) {
        * <code>.message.Permission permission = 6;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.Common.Permission, org.jumpserver.wisp.Common.Permission.Builder, org.jumpserver.wisp.Common.PermissionOrBuilder> 
+          org.jumpserver.wisp.Common.Permission, org.jumpserver.wisp.Common.Permission.Builder, org.jumpserver.wisp.Common.PermissionOrBuilder>
           internalGetPermissionFieldBuilder() {
         if (permissionBuilder_ == null) {
           permissionBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -21509,7 +21509,7 @@ java.lang.String defaultValue) {
        * <code>.message.ExpireInfo expire_info = 7;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.Common.ExpireInfo, org.jumpserver.wisp.Common.ExpireInfo.Builder, org.jumpserver.wisp.Common.ExpireInfoOrBuilder> 
+          org.jumpserver.wisp.Common.ExpireInfo, org.jumpserver.wisp.Common.ExpireInfo.Builder, org.jumpserver.wisp.Common.ExpireInfoOrBuilder>
           internalGetExpireInfoFieldBuilder() {
         if (expireInfoBuilder_ == null) {
           expireInfoBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -21717,7 +21717,7 @@ java.lang.String defaultValue) {
       /**
        * <code>repeated .message.CommandACL filter_rules = 8;</code>
        */
-      public java.util.List<? extends org.jumpserver.wisp.Common.CommandACLOrBuilder> 
+      public java.util.List<? extends org.jumpserver.wisp.Common.CommandACLOrBuilder>
            getFilterRulesOrBuilderList() {
         if (filterRulesBuilder_ != null) {
           return filterRulesBuilder_.getMessageOrBuilderList();
@@ -21743,12 +21743,12 @@ java.lang.String defaultValue) {
       /**
        * <code>repeated .message.CommandACL filter_rules = 8;</code>
        */
-      public java.util.List<org.jumpserver.wisp.Common.CommandACL.Builder> 
+      public java.util.List<org.jumpserver.wisp.Common.CommandACL.Builder>
            getFilterRulesBuilderList() {
         return internalGetFilterRulesFieldBuilder().getBuilderList();
       }
       private com.google.protobuf.RepeatedFieldBuilder<
-          org.jumpserver.wisp.Common.CommandACL, org.jumpserver.wisp.Common.CommandACL.Builder, org.jumpserver.wisp.Common.CommandACLOrBuilder> 
+          org.jumpserver.wisp.Common.CommandACL, org.jumpserver.wisp.Common.CommandACL.Builder, org.jumpserver.wisp.Common.CommandACLOrBuilder>
           internalGetFilterRulesFieldBuilder() {
         if (filterRulesBuilder_ == null) {
           filterRulesBuilder_ = new com.google.protobuf.RepeatedFieldBuilder<
@@ -21957,7 +21957,7 @@ java.lang.String defaultValue) {
       /**
        * <code>repeated .message.Gateway gateways = 9;</code>
        */
-      public java.util.List<? extends org.jumpserver.wisp.Common.GatewayOrBuilder> 
+      public java.util.List<? extends org.jumpserver.wisp.Common.GatewayOrBuilder>
            getGatewaysOrBuilderList() {
         if (gatewaysBuilder_ != null) {
           return gatewaysBuilder_.getMessageOrBuilderList();
@@ -21983,12 +21983,12 @@ java.lang.String defaultValue) {
       /**
        * <code>repeated .message.Gateway gateways = 9;</code>
        */
-      public java.util.List<org.jumpserver.wisp.Common.Gateway.Builder> 
+      public java.util.List<org.jumpserver.wisp.Common.Gateway.Builder>
            getGatewaysBuilderList() {
         return internalGetGatewaysFieldBuilder().getBuilderList();
       }
       private com.google.protobuf.RepeatedFieldBuilder<
-          org.jumpserver.wisp.Common.Gateway, org.jumpserver.wisp.Common.Gateway.Builder, org.jumpserver.wisp.Common.GatewayOrBuilder> 
+          org.jumpserver.wisp.Common.Gateway, org.jumpserver.wisp.Common.Gateway.Builder, org.jumpserver.wisp.Common.GatewayOrBuilder>
           internalGetGatewaysFieldBuilder() {
         if (gatewaysBuilder_ == null) {
           gatewaysBuilder_ = new com.google.protobuf.RepeatedFieldBuilder<
@@ -22110,7 +22110,7 @@ java.lang.String defaultValue) {
        * <code>.message.ComponentSetting setting = 10;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.Common.ComponentSetting, org.jumpserver.wisp.Common.ComponentSetting.Builder, org.jumpserver.wisp.Common.ComponentSettingOrBuilder> 
+          org.jumpserver.wisp.Common.ComponentSetting, org.jumpserver.wisp.Common.ComponentSetting.Builder, org.jumpserver.wisp.Common.ComponentSettingOrBuilder>
           internalGetSettingFieldBuilder() {
         if (settingBuilder_ == null) {
           settingBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -22231,7 +22231,7 @@ java.lang.String defaultValue) {
        * <code>.message.Platform platform = 11;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.Common.Platform, org.jumpserver.wisp.Common.Platform.Builder, org.jumpserver.wisp.Common.PlatformOrBuilder> 
+          org.jumpserver.wisp.Common.Platform, org.jumpserver.wisp.Common.Platform.Builder, org.jumpserver.wisp.Common.PlatformOrBuilder>
           internalGetPlatformFieldBuilder() {
         if (platformBuilder_ == null) {
           platformBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -22269,7 +22269,7 @@ java.lang.String defaultValue) {
           getFaceMonitorTokenBytes() {
         java.lang.Object ref = faceMonitorToken_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           faceMonitorToken_ = b;
@@ -22511,7 +22511,7 @@ java.lang.String defaultValue) {
       /**
        * <code>repeated .message.DataMaskingRule data_masking_rules = 13;</code>
        */
-      public java.util.List<? extends org.jumpserver.wisp.Common.DataMaskingRuleOrBuilder> 
+      public java.util.List<? extends org.jumpserver.wisp.Common.DataMaskingRuleOrBuilder>
            getDataMaskingRulesOrBuilderList() {
         if (dataMaskingRulesBuilder_ != null) {
           return dataMaskingRulesBuilder_.getMessageOrBuilderList();
@@ -22537,12 +22537,12 @@ java.lang.String defaultValue) {
       /**
        * <code>repeated .message.DataMaskingRule data_masking_rules = 13;</code>
        */
-      public java.util.List<org.jumpserver.wisp.Common.DataMaskingRule.Builder> 
+      public java.util.List<org.jumpserver.wisp.Common.DataMaskingRule.Builder>
            getDataMaskingRulesBuilderList() {
         return internalGetDataMaskingRulesFieldBuilder().getBuilderList();
       }
       private com.google.protobuf.RepeatedFieldBuilder<
-          org.jumpserver.wisp.Common.DataMaskingRule, org.jumpserver.wisp.Common.DataMaskingRule.Builder, org.jumpserver.wisp.Common.DataMaskingRuleOrBuilder> 
+          org.jumpserver.wisp.Common.DataMaskingRule, org.jumpserver.wisp.Common.DataMaskingRule.Builder, org.jumpserver.wisp.Common.DataMaskingRuleOrBuilder>
           internalGetDataMaskingRulesFieldBuilder() {
         if (dataMaskingRulesBuilder_ == null) {
           dataMaskingRulesBuilder_ = new com.google.protobuf.RepeatedFieldBuilder<
@@ -22789,7 +22789,7 @@ java.lang.String defaultValue) {
     /**
      * <code>repeated .message.PlatformProtocol protocols = 6;</code>
      */
-    java.util.List<org.jumpserver.wisp.Common.PlatformProtocol> 
+    java.util.List<org.jumpserver.wisp.Common.PlatformProtocol>
         getProtocolsList();
     /**
      * <code>repeated .message.PlatformProtocol protocols = 6;</code>
@@ -22802,7 +22802,7 @@ java.lang.String defaultValue) {
     /**
      * <code>repeated .message.PlatformProtocol protocols = 6;</code>
      */
-    java.util.List<? extends org.jumpserver.wisp.Common.PlatformProtocolOrBuilder> 
+    java.util.List<? extends org.jumpserver.wisp.Common.PlatformProtocolOrBuilder>
         getProtocolsOrBuilderList();
     /**
      * <code>repeated .message.PlatformProtocol protocols = 6;</code>
@@ -22876,7 +22876,7 @@ java.lang.String defaultValue) {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         name_ = s;
@@ -22892,7 +22892,7 @@ java.lang.String defaultValue) {
         getNameBytes() {
       java.lang.Object ref = name_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         name_ = b;
@@ -22915,7 +22915,7 @@ java.lang.String defaultValue) {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         category_ = s;
@@ -22931,7 +22931,7 @@ java.lang.String defaultValue) {
         getCategoryBytes() {
       java.lang.Object ref = category_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         category_ = b;
@@ -22954,7 +22954,7 @@ java.lang.String defaultValue) {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         charset_ = s;
@@ -22970,7 +22970,7 @@ java.lang.String defaultValue) {
         getCharsetBytes() {
       java.lang.Object ref = charset_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         charset_ = b;
@@ -22993,7 +22993,7 @@ java.lang.String defaultValue) {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         type_ = s;
@@ -23009,7 +23009,7 @@ java.lang.String defaultValue) {
         getTypeBytes() {
       java.lang.Object ref = type_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         type_ = b;
@@ -23033,7 +23033,7 @@ java.lang.String defaultValue) {
      * <code>repeated .message.PlatformProtocol protocols = 6;</code>
      */
     @java.lang.Override
-    public java.util.List<? extends org.jumpserver.wisp.Common.PlatformProtocolOrBuilder> 
+    public java.util.List<? extends org.jumpserver.wisp.Common.PlatformProtocolOrBuilder>
         getProtocolsOrBuilderList() {
       return protocols_;
     }
@@ -23432,7 +23432,7 @@ java.lang.String defaultValue) {
               protocolsBuilder_ = null;
               protocols_ = other.protocols_;
               bitField0_ = (bitField0_ & ~0x00000020);
-              protocolsBuilder_ = 
+              protocolsBuilder_ =
                 com.google.protobuf.GeneratedMessage.alwaysUseFieldBuilders ?
                    internalGetProtocolsFieldBuilder() : null;
             } else {
@@ -23578,7 +23578,7 @@ java.lang.String defaultValue) {
           getNameBytes() {
         java.lang.Object ref = name_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           name_ = b;
@@ -23650,7 +23650,7 @@ java.lang.String defaultValue) {
           getCategoryBytes() {
         java.lang.Object ref = category_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           category_ = b;
@@ -23722,7 +23722,7 @@ java.lang.String defaultValue) {
           getCharsetBytes() {
         java.lang.Object ref = charset_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           charset_ = b;
@@ -23794,7 +23794,7 @@ java.lang.String defaultValue) {
           getTypeBytes() {
         java.lang.Object ref = type_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           type_ = b;
@@ -24036,7 +24036,7 @@ java.lang.String defaultValue) {
       /**
        * <code>repeated .message.PlatformProtocol protocols = 6;</code>
        */
-      public java.util.List<? extends org.jumpserver.wisp.Common.PlatformProtocolOrBuilder> 
+      public java.util.List<? extends org.jumpserver.wisp.Common.PlatformProtocolOrBuilder>
            getProtocolsOrBuilderList() {
         if (protocolsBuilder_ != null) {
           return protocolsBuilder_.getMessageOrBuilderList();
@@ -24062,12 +24062,12 @@ java.lang.String defaultValue) {
       /**
        * <code>repeated .message.PlatformProtocol protocols = 6;</code>
        */
-      public java.util.List<org.jumpserver.wisp.Common.PlatformProtocol.Builder> 
+      public java.util.List<org.jumpserver.wisp.Common.PlatformProtocol.Builder>
            getProtocolsBuilderList() {
         return internalGetProtocolsFieldBuilder().getBuilderList();
       }
       private com.google.protobuf.RepeatedFieldBuilder<
-          org.jumpserver.wisp.Common.PlatformProtocol, org.jumpserver.wisp.Common.PlatformProtocol.Builder, org.jumpserver.wisp.Common.PlatformProtocolOrBuilder> 
+          org.jumpserver.wisp.Common.PlatformProtocol, org.jumpserver.wisp.Common.PlatformProtocol.Builder, org.jumpserver.wisp.Common.PlatformProtocolOrBuilder>
           internalGetProtocolsFieldBuilder() {
         if (protocolsBuilder_ == null) {
           protocolsBuilder_ = new com.google.protobuf.RepeatedFieldBuilder<
@@ -24268,7 +24268,7 @@ java.lang.String defaultValue);
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         name_ = s;
@@ -24284,7 +24284,7 @@ java.lang.String defaultValue);
         getNameBytes() {
       java.lang.Object ref = name_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         name_ = b;
@@ -24311,7 +24311,7 @@ java.lang.String defaultValue);
           java.lang.String, java.lang.String> defaultEntry =
               com.google.protobuf.MapEntry
               .<java.lang.String, java.lang.String>newDefaultInstance(
-                  org.jumpserver.wisp.Common.internal_static_message_PlatformProtocol_SettingsEntry_descriptor, 
+                  org.jumpserver.wisp.Common.internal_static_message_PlatformProtocol_SettingsEntry_descriptor,
                   com.google.protobuf.WireFormat.FieldType.STRING,
                   "",
                   com.google.protobuf.WireFormat.FieldType.STRING,
@@ -24842,7 +24842,7 @@ java.lang.String defaultValue) {
           getNameBytes() {
         java.lang.Object ref = name_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           name_ = b;
@@ -25114,12 +25114,6 @@ java.lang.String defaultValue) {
      * @return The maxSessionTime.
      */
     int getMaxSessionTime();
-
-    /**
-     * <code>bool chat_ai_enabled = 3;</code>
-     * @return The chatAiEnabled.
-     */
-    boolean getChatAiEnabled();
   }
   /**
    * Protobuf type {@code message.ComponentSetting}
@@ -25180,17 +25174,6 @@ java.lang.String defaultValue) {
       return maxSessionTime_;
     }
 
-    public static final int CHAT_AI_ENABLED_FIELD_NUMBER = 3;
-    private boolean chatAiEnabled_ = false;
-    /**
-     * <code>bool chat_ai_enabled = 3;</code>
-     * @return The chatAiEnabled.
-     */
-    @java.lang.Override
-    public boolean getChatAiEnabled() {
-      return chatAiEnabled_;
-    }
-
     private byte memoizedIsInitialized = -1;
     @java.lang.Override
     public final boolean isInitialized() {
@@ -25211,9 +25194,6 @@ java.lang.String defaultValue) {
       if (maxSessionTime_ != 0) {
         output.writeInt32(2, maxSessionTime_);
       }
-      if (chatAiEnabled_ != false) {
-        output.writeBool(3, chatAiEnabled_);
-      }
       getUnknownFields().writeTo(output);
     }
 
@@ -25230,10 +25210,6 @@ java.lang.String defaultValue) {
       if (maxSessionTime_ != 0) {
         size += com.google.protobuf.CodedOutputStream
           .computeInt32Size(2, maxSessionTime_);
-      }
-      if (chatAiEnabled_ != false) {
-        size += com.google.protobuf.CodedOutputStream
-          .computeBoolSize(3, chatAiEnabled_);
       }
       size += getUnknownFields().getSerializedSize();
       memoizedSize = size;
@@ -25254,8 +25230,6 @@ java.lang.String defaultValue) {
           != other.getMaxIdleTime()) return false;
       if (getMaxSessionTime()
           != other.getMaxSessionTime()) return false;
-      if (getChatAiEnabled()
-          != other.getChatAiEnabled()) return false;
       if (!getUnknownFields().equals(other.getUnknownFields())) return false;
       return true;
     }
@@ -25271,9 +25245,6 @@ java.lang.String defaultValue) {
       hash = (53 * hash) + getMaxIdleTime();
       hash = (37 * hash) + MAX_SESSION_TIME_FIELD_NUMBER;
       hash = (53 * hash) + getMaxSessionTime();
-      hash = (37 * hash) + CHAT_AI_ENABLED_FIELD_NUMBER;
-      hash = (53 * hash) + com.google.protobuf.Internal.hashBoolean(
-          getChatAiEnabled());
       hash = (29 * hash) + getUnknownFields().hashCode();
       memoizedHashCode = hash;
       return hash;
@@ -25407,7 +25378,6 @@ java.lang.String defaultValue) {
         bitField0_ = 0;
         maxIdleTime_ = 0;
         maxSessionTime_ = 0;
-        chatAiEnabled_ = false;
         return this;
       }
 
@@ -25447,9 +25417,6 @@ java.lang.String defaultValue) {
         if (((from_bitField0_ & 0x00000002) != 0)) {
           result.maxSessionTime_ = maxSessionTime_;
         }
-        if (((from_bitField0_ & 0x00000004) != 0)) {
-          result.chatAiEnabled_ = chatAiEnabled_;
-        }
       }
 
       @java.lang.Override
@@ -25469,9 +25436,6 @@ java.lang.String defaultValue) {
         }
         if (other.getMaxSessionTime() != 0) {
           setMaxSessionTime(other.getMaxSessionTime());
-        }
-        if (other.getChatAiEnabled() != false) {
-          setChatAiEnabled(other.getChatAiEnabled());
         }
         this.mergeUnknownFields(other.getUnknownFields());
         onChanged();
@@ -25509,11 +25473,6 @@ java.lang.String defaultValue) {
                 bitField0_ |= 0x00000002;
                 break;
               } // case 16
-              case 24: {
-                chatAiEnabled_ = input.readBool();
-                bitField0_ |= 0x00000004;
-                break;
-              } // case 24
               default: {
                 if (!super.parseUnknownField(input, extensionRegistry, tag)) {
                   done = true; // was an endgroup tag
@@ -25591,38 +25550,6 @@ java.lang.String defaultValue) {
       public Builder clearMaxSessionTime() {
         bitField0_ = (bitField0_ & ~0x00000002);
         maxSessionTime_ = 0;
-        onChanged();
-        return this;
-      }
-
-      private boolean chatAiEnabled_ ;
-      /**
-       * <code>bool chat_ai_enabled = 3;</code>
-       * @return The chatAiEnabled.
-       */
-      @java.lang.Override
-      public boolean getChatAiEnabled() {
-        return chatAiEnabled_;
-      }
-      /**
-       * <code>bool chat_ai_enabled = 3;</code>
-       * @param value The chatAiEnabled to set.
-       * @return This builder for chaining.
-       */
-      public Builder setChatAiEnabled(boolean value) {
-
-        chatAiEnabled_ = value;
-        bitField0_ |= 0x00000004;
-        onChanged();
-        return this;
-      }
-      /**
-       * <code>bool chat_ai_enabled = 3;</code>
-       * @return This builder for chaining.
-       */
-      public Builder clearChatAiEnabled() {
-        bitField0_ = (bitField0_ & ~0x00000004);
-        chatAiEnabled_ = false;
         onChanged();
         return this;
       }
@@ -25764,7 +25691,7 @@ java.lang.String defaultValue) {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         id_ = s;
@@ -25780,7 +25707,7 @@ java.lang.String defaultValue) {
         getIdBytes() {
       java.lang.Object ref = id_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         id_ = b;
@@ -25803,7 +25730,7 @@ java.lang.String defaultValue) {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         host_ = s;
@@ -25819,7 +25746,7 @@ java.lang.String defaultValue) {
         getHostBytes() {
       java.lang.Object ref = host_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         host_ = b;
@@ -26206,7 +26133,7 @@ java.lang.String defaultValue) {
           getIdBytes() {
         java.lang.Object ref = id_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           id_ = b;
@@ -26278,7 +26205,7 @@ java.lang.String defaultValue) {
           getHostBytes() {
         java.lang.Object ref = host_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           host_ = b;
@@ -26561,7 +26488,7 @@ java.lang.String defaultValue) {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         gptBaseUrl_ = s;
@@ -26577,7 +26504,7 @@ java.lang.String defaultValue) {
         getGptBaseUrlBytes() {
       java.lang.Object ref = gptBaseUrl_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         gptBaseUrl_ = b;
@@ -26600,7 +26527,7 @@ java.lang.String defaultValue) {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         gptApiKey_ = s;
@@ -26616,7 +26543,7 @@ java.lang.String defaultValue) {
         getGptApiKeyBytes() {
       java.lang.Object ref = gptApiKey_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         gptApiKey_ = b;
@@ -26639,7 +26566,7 @@ java.lang.String defaultValue) {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         gptProxy_ = s;
@@ -26655,7 +26582,7 @@ java.lang.String defaultValue) {
         getGptProxyBytes() {
       java.lang.Object ref = gptProxy_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         gptProxy_ = b;
@@ -26678,7 +26605,7 @@ java.lang.String defaultValue) {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         gptModel_ = s;
@@ -26694,7 +26621,7 @@ java.lang.String defaultValue) {
         getGptModelBytes() {
       java.lang.Object ref = gptModel_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         gptModel_ = b;
@@ -26717,7 +26644,7 @@ java.lang.String defaultValue) {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         licenseContent_ = s;
@@ -26733,7 +26660,7 @@ java.lang.String defaultValue) {
         getLicenseContentBytes() {
       java.lang.Object ref = licenseContent_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         licenseContent_ = b;
@@ -27270,7 +27197,7 @@ java.lang.String defaultValue) {
           getGptBaseUrlBytes() {
         java.lang.Object ref = gptBaseUrl_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           gptBaseUrl_ = b;
@@ -27342,7 +27269,7 @@ java.lang.String defaultValue) {
           getGptApiKeyBytes() {
         java.lang.Object ref = gptApiKey_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           gptApiKey_ = b;
@@ -27414,7 +27341,7 @@ java.lang.String defaultValue) {
           getGptProxyBytes() {
         java.lang.Object ref = gptProxy_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           gptProxy_ = b;
@@ -27486,7 +27413,7 @@ java.lang.String defaultValue) {
           getGptModelBytes() {
         java.lang.Object ref = gptModel_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           gptModel_ = b;
@@ -27558,7 +27485,7 @@ java.lang.String defaultValue) {
           getLicenseContentBytes() {
         java.lang.Object ref = licenseContent_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           licenseContent_ = b;
@@ -27736,7 +27663,7 @@ java.lang.String defaultValue) {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         name_ = s;
@@ -27752,7 +27679,7 @@ java.lang.String defaultValue) {
         getNameBytes() {
       java.lang.Object ref = name_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         name_ = b;
@@ -27775,7 +27702,7 @@ java.lang.String defaultValue) {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         value_ = s;
@@ -27791,7 +27718,7 @@ java.lang.String defaultValue) {
         getValueBytes() {
       java.lang.Object ref = value_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         value_ = b;
@@ -28144,7 +28071,7 @@ java.lang.String defaultValue) {
           getNameBytes() {
         java.lang.Object ref = name_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           name_ = b;
@@ -28216,7 +28143,7 @@ java.lang.String defaultValue) {
           getValueBytes() {
         java.lang.Object ref = value_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           value_ = b;
@@ -28640,7 +28567,7 @@ java.lang.String defaultValue) {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         reason_ = s;
@@ -28656,7 +28583,7 @@ java.lang.String defaultValue) {
         getReasonBytes() {
       java.lang.Object ref = reason_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         reason_ = b;
@@ -28679,7 +28606,7 @@ java.lang.String defaultValue) {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         user_ = s;
@@ -28695,7 +28622,7 @@ java.lang.String defaultValue) {
         getUserBytes() {
       java.lang.Object ref = user_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         user_ = b;
@@ -29121,7 +29048,7 @@ java.lang.String defaultValue) {
           getReasonBytes() {
         java.lang.Object ref = reason_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           reason_ = b;
@@ -29193,7 +29120,7 @@ java.lang.String defaultValue) {
           getUserBytes() {
         java.lang.Object ref = user_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           user_ = b;
@@ -29313,57 +29240,57 @@ java.lang.String defaultValue) {
       internal_static_message_Asset_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_Asset_Specific_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_Asset_Specific_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_Protocol_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_Protocol_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_Gateway_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_Gateway_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_Permission_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_Permission_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_CommandACL_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_CommandACL_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_DataMaskingRule_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_DataMaskingRule_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_CommandGroup_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_CommandGroup_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_ExpireInfo_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_ExpireInfo_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_Session_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_Session_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_TokenStatus_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_TokenStatus_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_TerminalTask_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_TerminalTask_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
@@ -29378,47 +29305,47 @@ java.lang.String defaultValue) {
       internal_static_message_ConnectOptions_SettingsEntry_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_TokenAuthInfo_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_TokenAuthInfo_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_Platform_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_Platform_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_PlatformProtocol_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_PlatformProtocol_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_PlatformProtocol_SettingsEntry_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_PlatformProtocol_SettingsEntry_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_ComponentSetting_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_ComponentSetting_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_Forward_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_Forward_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_PublicSetting_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_PublicSetting_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_Cookie_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_Cookie_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_LifecycleLogData_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_LifecycleLogData_fieldAccessorTable;
 
@@ -29507,33 +29434,33 @@ java.lang.String defaultValue) {
       "tocol\022\n\n\002id\030\001 \001(\005\022\014\n\004name\030\002 \001(\t\022\014\n\004port\030" +
       "\003 \001(\005\0229\n\010settings\030\004 \003(\0132\'.message.Platfo" +
       "rmProtocol.SettingsEntry\032/\n\rSettingsEntr" +
-      "y\022\013\n\003key\030\001 \001(\t\022\r\n\005value\030\002 \001(\t:\0028\001\"\\\n\020Com" +
+      "y\022\013\n\003key\030\001 \001(\t\022\r\n\005value\030\002 \001(\t:\0028\001\"Z\n\020Com" +
       "ponentSetting\022\025\n\rmax_idle_time\030\001 \001(\005\022\030\n\020" +
-      "max_session_time\030\002 \001(\005\022\027\n\017chat_ai_enable" +
-      "d\030\003 \001(\010\"1\n\007Forward\022\n\n\002id\030\001 \001(\t\022\014\n\004Host\030\002" +
-      " \001(\t\022\014\n\004port\030\003 \001(\005\"\247\001\n\rPublicSetting\022\025\n\r" +
-      "xpack_enabled\030\001 \001(\010\022\025\n\rvalid_license\030\002 \001" +
-      "(\010\022\024\n\014gpt_base_url\030\003 \001(\t\022\023\n\013gpt_api_key\030" +
-      "\004 \001(\t\022\021\n\tgpt_proxy\030\005 \001(\t\022\021\n\tgpt_model\030\006 " +
-      "\001(\t\022\027\n\017license_content\030\007 \001(\t\"%\n\006Cookie\022\014" +
-      "\n\004name\030\001 \001(\t\022\r\n\005value\030\002 \001(\t\"\250\003\n\020Lifecycl" +
-      "eLogData\0223\n\005event\030\001 \001(\0162$.message.Lifecy" +
-      "cleLogData.event_type\022\016\n\006reason\030\002 \001(\t\022\014\n" +
-      "\004user\030\003 \001(\t\"\300\002\n\nevent_type\022\027\n\023AssetConne" +
-      "ctSuccess\020\000\022\030\n\024AssetConnectFinished\020\001\022\023\n" +
-      "\017CreateShareLink\020\002\022\023\n\017UserJoinSession\020\003\022" +
-      "\024\n\020UserLeaveSession\020\004\022\024\n\020AdminJoinMonito" +
-      "r\020\005\022\024\n\020AdminExitMonitor\020\006\022\026\n\022ReplayConve" +
-      "rtStart\020\007\022\030\n\024ReplayConvertSuccess\020\010\022\030\n\024R" +
-      "eplayConvertFailure\020\t\022\025\n\021ReplayUploadSta" +
-      "rt\020\n\022\027\n\023ReplayUploadSuccess\020\013\022\027\n\023ReplayU" +
-      "ploadFailure\020\014*k\n\nTaskAction\022\017\n\013KillSess" +
-      "ion\020\000\022\017\n\013LockSession\020\001\022\021\n\rUnlockSession\020" +
-      "\002\022\024\n\020TokenPermExpired\020\003\022\022\n\016TokenPermVali" +
-      "d\020\004*f\n\tRiskLevel\022\n\n\006Normal\020\000\022\013\n\007Warning\020" +
-      "\001\022\n\n\006Reject\020\002\022\020\n\014ReviewReject\020\003\022\020\n\014Revie" +
-      "wAccept\020\004\022\020\n\014ReviewCancel\020\005B \n\023org.jumps" +
-      "erver.wispZ\t/protobufb\006proto3"
+      "max_session_time\030\002 \001(\005J\004\010\003\020\004R\017chat_ai_en" +
+      "abled\"1\n\007Forward\022\n\n\002id\030\001 \001(\t\022\014\n\004Host\030\002 \001" +
+      "(\t\022\014\n\004port\030\003 \001(\005\"\247\001\n\rPublicSetting\022\025\n\rxp" +
+      "ack_enabled\030\001 \001(\010\022\025\n\rvalid_license\030\002 \001(\010" +
+      "\022\024\n\014gpt_base_url\030\003 \001(\t\022\023\n\013gpt_api_key\030\004 " +
+      "\001(\t\022\021\n\tgpt_proxy\030\005 \001(\t\022\021\n\tgpt_model\030\006 \001(" +
+      "\t\022\027\n\017license_content\030\007 \001(\t\"%\n\006Cookie\022\014\n\004" +
+      "name\030\001 \001(\t\022\r\n\005value\030\002 \001(\t\"\250\003\n\020LifecycleL" +
+      "ogData\0223\n\005event\030\001 \001(\0162$.message.Lifecycl" +
+      "eLogData.event_type\022\016\n\006reason\030\002 \001(\t\022\014\n\004u" +
+      "ser\030\003 \001(\t\"\300\002\n\nevent_type\022\027\n\023AssetConnect" +
+      "Success\020\000\022\030\n\024AssetConnectFinished\020\001\022\023\n\017C" +
+      "reateShareLink\020\002\022\023\n\017UserJoinSession\020\003\022\024\n" +
+      "\020UserLeaveSession\020\004\022\024\n\020AdminJoinMonitor\020" +
+      "\005\022\024\n\020AdminExitMonitor\020\006\022\026\n\022ReplayConvert" +
+      "Start\020\007\022\030\n\024ReplayConvertSuccess\020\010\022\030\n\024Rep" +
+      "layConvertFailure\020\t\022\025\n\021ReplayUploadStart" +
+      "\020\n\022\027\n\023ReplayUploadSuccess\020\013\022\027\n\023ReplayUpl" +
+      "oadFailure\020\014*k\n\nTaskAction\022\017\n\013KillSessio" +
+      "n\020\000\022\017\n\013LockSession\020\001\022\021\n\rUnlockSession\020\002\022" +
+      "\024\n\020TokenPermExpired\020\003\022\022\n\016TokenPermValid\020" +
+      "\004*f\n\tRiskLevel\022\n\n\006Normal\020\000\022\013\n\007Warning\020\001\022" +
+      "\n\n\006Reject\020\002\022\020\n\014ReviewReject\020\003\022\020\n\014ReviewA" +
+      "ccept\020\004\022\020\n\014ReviewCancel\020\005B \n\023org.jumpser" +
+      "ver.wispZ\t/protobufb\006proto3"
     };
     descriptor = com.google.protobuf.Descriptors.FileDescriptor
       .internalBuildGeneratedFileFrom(descriptorData,
@@ -29670,7 +29597,7 @@ java.lang.String defaultValue) {
     internal_static_message_ComponentSetting_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_message_ComponentSetting_descriptor,
-        new java.lang.String[] { "MaxIdleTime", "MaxSessionTime", "ChatAiEnabled", });
+        new java.lang.String[] { "MaxIdleTime", "MaxSessionTime", });
     internal_static_message_Forward_descriptor =
       getDescriptor().getMessageTypes().get(19);
     internal_static_message_Forward_fieldAccessorTable = new

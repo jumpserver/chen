@@ -787,37 +787,6 @@ public final class ServiceGrpc {
     return getCallAPIMethod;
   }
 
-  private static volatile io.grpc.MethodDescriptor<org.jumpserver.wisp.ServiceOuterClass.AgentClientEvent,
-      org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent> getAgentSessionMethod;
-
-  @io.grpc.stub.annotations.RpcMethod(
-      fullMethodName = SERVICE_NAME + '/' + "AgentSession",
-      requestType = org.jumpserver.wisp.ServiceOuterClass.AgentClientEvent.class,
-      responseType = org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent.class,
-      methodType = io.grpc.MethodDescriptor.MethodType.BIDI_STREAMING)
-  public static io.grpc.MethodDescriptor<org.jumpserver.wisp.ServiceOuterClass.AgentClientEvent,
-      org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent> getAgentSessionMethod() {
-    io.grpc.MethodDescriptor<org.jumpserver.wisp.ServiceOuterClass.AgentClientEvent, org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent> getAgentSessionMethod;
-    if ((getAgentSessionMethod = ServiceGrpc.getAgentSessionMethod) == null) {
-      synchronized (ServiceGrpc.class) {
-        if ((getAgentSessionMethod = ServiceGrpc.getAgentSessionMethod) == null) {
-          ServiceGrpc.getAgentSessionMethod = getAgentSessionMethod =
-              io.grpc.MethodDescriptor.<org.jumpserver.wisp.ServiceOuterClass.AgentClientEvent, org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent>newBuilder()
-              .setType(io.grpc.MethodDescriptor.MethodType.BIDI_STREAMING)
-              .setFullMethodName(generateFullMethodName(SERVICE_NAME, "AgentSession"))
-              .setSampledToLocalTracing(true)
-              .setRequestMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
-                  org.jumpserver.wisp.ServiceOuterClass.AgentClientEvent.getDefaultInstance()))
-              .setResponseMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(
-                  org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent.getDefaultInstance()))
-              .setSchemaDescriptor(new ServiceMethodDescriptorSupplier("AgentSession"))
-              .build();
-        }
-      }
-    }
-    return getAgentSessionMethod;
-  }
-
   /**
    * Creates a new async stub that supports all call types for the service
    */
@@ -1055,13 +1024,6 @@ public final class ServiceGrpc {
         io.grpc.stub.StreamObserver<org.jumpserver.wisp.ServiceOuterClass.HTTPResponse> responseObserver) {
       io.grpc.stub.ServerCalls.asyncUnimplementedUnaryCall(getCallAPIMethod(), responseObserver);
     }
-
-    /**
-     */
-    default io.grpc.stub.StreamObserver<org.jumpserver.wisp.ServiceOuterClass.AgentClientEvent> agentSession(
-        io.grpc.stub.StreamObserver<org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent> responseObserver) {
-      return io.grpc.stub.ServerCalls.asyncUnimplementedStreamingCall(getAgentSessionMethod(), responseObserver);
-    }
   }
 
   /**
@@ -1290,14 +1252,6 @@ public final class ServiceGrpc {
       io.grpc.stub.ClientCalls.asyncUnaryCall(
           getChannel().newCall(getCallAPIMethod(), getCallOptions()), request, responseObserver);
     }
-
-    /**
-     */
-    public io.grpc.stub.StreamObserver<org.jumpserver.wisp.ServiceOuterClass.AgentClientEvent> agentSession(
-        io.grpc.stub.StreamObserver<org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent> responseObserver) {
-      return io.grpc.stub.ClientCalls.asyncBidiStreamingCall(
-          getChannel().newCall(getAgentSessionMethod(), getCallOptions()), responseObserver);
-    }
   }
 
   /**
@@ -1491,15 +1445,6 @@ public final class ServiceGrpc {
     public org.jumpserver.wisp.ServiceOuterClass.HTTPResponse callAPI(org.jumpserver.wisp.ServiceOuterClass.HTTPRequest request) throws io.grpc.StatusException {
       return io.grpc.stub.ClientCalls.blockingV2UnaryCall(
           getChannel(), getCallAPIMethod(), getCallOptions(), request);
-    }
-
-    /**
-     */
-    @io.grpc.ExperimentalApi("https://github.com/grpc/grpc-java/issues/10918")
-    public io.grpc.stub.BlockingClientCall<org.jumpserver.wisp.ServiceOuterClass.AgentClientEvent, org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent>
-        agentSession() {
-      return io.grpc.stub.ClientCalls.blockingBidiStreamingCall(
-          getChannel(), getAgentSessionMethod(), getCallOptions());
     }
   }
 
@@ -1922,7 +1867,6 @@ public final class ServiceGrpc {
   private static final int METHODID_GET_ACCOUNT_CHAT = 22;
   private static final int METHODID_CALL_API = 23;
   private static final int METHODID_DISPATCH_TASK = 24;
-  private static final int METHODID_AGENT_SESSION = 25;
 
   private static final class MethodHandlers<Req, Resp> implements
       io.grpc.stub.ServerCalls.UnaryMethod<Req, Resp>,
@@ -2050,9 +1994,6 @@ public final class ServiceGrpc {
         case METHODID_DISPATCH_TASK:
           return (io.grpc.stub.StreamObserver<Req>) serviceImpl.dispatchTask(
               (io.grpc.stub.StreamObserver<org.jumpserver.wisp.ServiceOuterClass.TaskResponse>) responseObserver);
-        case METHODID_AGENT_SESSION:
-          return (io.grpc.stub.StreamObserver<Req>) serviceImpl.agentSession(
-              (io.grpc.stub.StreamObserver<org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent>) responseObserver);
         default:
           throw new AssertionError();
       }
@@ -2236,13 +2177,6 @@ public final class ServiceGrpc {
               org.jumpserver.wisp.ServiceOuterClass.HTTPRequest,
               org.jumpserver.wisp.ServiceOuterClass.HTTPResponse>(
                 service, METHODID_CALL_API)))
-        .addMethod(
-          getAgentSessionMethod(),
-          io.grpc.stub.ServerCalls.asyncBidiStreamingCall(
-            new MethodHandlers<
-              org.jumpserver.wisp.ServiceOuterClass.AgentClientEvent,
-              org.jumpserver.wisp.ServiceOuterClass.AgentServerEvent>(
-                service, METHODID_AGENT_SESSION)))
         .build();
   }
 
@@ -2316,7 +2250,6 @@ public final class ServiceGrpc {
               .addMethod(getJoinFaceMonitorMethod())
               .addMethod(getGetAccountChatMethod())
               .addMethod(getCallAPIMethod())
-              .addMethod(getAgentSessionMethod())
               .build();
         }
       }
