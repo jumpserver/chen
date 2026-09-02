@@ -26352,52 +26352,52 @@ java.lang.String defaultValue) {
     boolean getValidLicense();
 
     /**
-     * <code>string gpt_base_url = 3;</code>
-     * @return The gptBaseUrl.
+     * <code>string chat_ai_base_url = 3;</code>
+     * @return The chatAiBaseUrl.
      */
-    java.lang.String getGptBaseUrl();
+    java.lang.String getChatAiBaseUrl();
     /**
-     * <code>string gpt_base_url = 3;</code>
-     * @return The bytes for gptBaseUrl.
+     * <code>string chat_ai_base_url = 3;</code>
+     * @return The bytes for chatAiBaseUrl.
      */
     com.google.protobuf.ByteString
-        getGptBaseUrlBytes();
+        getChatAiBaseUrlBytes();
 
     /**
-     * <code>string gpt_api_key = 4;</code>
-     * @return The gptApiKey.
+     * <code>string chat_ai_api_key = 4;</code>
+     * @return The chatAiApiKey.
      */
-    java.lang.String getGptApiKey();
+    java.lang.String getChatAiApiKey();
     /**
-     * <code>string gpt_api_key = 4;</code>
-     * @return The bytes for gptApiKey.
+     * <code>string chat_ai_api_key = 4;</code>
+     * @return The bytes for chatAiApiKey.
      */
     com.google.protobuf.ByteString
-        getGptApiKeyBytes();
+        getChatAiApiKeyBytes();
 
     /**
-     * <code>string gpt_proxy = 5;</code>
-     * @return The gptProxy.
+     * <code>string chat_ai_proxy = 5;</code>
+     * @return The chatAiProxy.
      */
-    java.lang.String getGptProxy();
+    java.lang.String getChatAiProxy();
     /**
-     * <code>string gpt_proxy = 5;</code>
-     * @return The bytes for gptProxy.
+     * <code>string chat_ai_proxy = 5;</code>
+     * @return The bytes for chatAiProxy.
      */
     com.google.protobuf.ByteString
-        getGptProxyBytes();
+        getChatAiProxyBytes();
 
     /**
-     * <code>string gpt_model = 6;</code>
-     * @return The gptModel.
+     * <code>string chat_ai_model = 6;</code>
+     * @return The chatAiModel.
      */
-    java.lang.String getGptModel();
+    java.lang.String getChatAiModel();
     /**
-     * <code>string gpt_model = 6;</code>
-     * @return The bytes for gptModel.
+     * <code>string chat_ai_model = 6;</code>
+     * @return The bytes for chatAiModel.
      */
     com.google.protobuf.ByteString
-        getGptModelBytes();
+        getChatAiModelBytes();
 
     /**
      * <code>string license_content = 7;</code>
@@ -26433,10 +26433,10 @@ java.lang.String defaultValue) {
       super(builder);
     }
     private PublicSetting() {
-      gptBaseUrl_ = "";
-      gptApiKey_ = "";
-      gptProxy_ = "";
-      gptModel_ = "";
+      chatAiBaseUrl_ = "";
+      chatAiApiKey_ = "";
+      chatAiProxy_ = "";
+      chatAiModel_ = "";
       licenseContent_ = "";
     }
 
@@ -26475,156 +26475,156 @@ java.lang.String defaultValue) {
       return validLicense_;
     }
 
-    public static final int GPT_BASE_URL_FIELD_NUMBER = 3;
+    public static final int CHAT_AI_BASE_URL_FIELD_NUMBER = 3;
     @SuppressWarnings("serial")
-    private volatile java.lang.Object gptBaseUrl_ = "";
+    private volatile java.lang.Object chatAiBaseUrl_ = "";
     /**
-     * <code>string gpt_base_url = 3;</code>
-     * @return The gptBaseUrl.
+     * <code>string chat_ai_base_url = 3;</code>
+     * @return The chatAiBaseUrl.
      */
     @java.lang.Override
-    public java.lang.String getGptBaseUrl() {
-      java.lang.Object ref = gptBaseUrl_;
+    public java.lang.String getChatAiBaseUrl() {
+      java.lang.Object ref = chatAiBaseUrl_;
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
         com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
-        gptBaseUrl_ = s;
+        chatAiBaseUrl_ = s;
         return s;
       }
     }
     /**
-     * <code>string gpt_base_url = 3;</code>
-     * @return The bytes for gptBaseUrl.
+     * <code>string chat_ai_base_url = 3;</code>
+     * @return The bytes for chatAiBaseUrl.
      */
     @java.lang.Override
     public com.google.protobuf.ByteString
-        getGptBaseUrlBytes() {
-      java.lang.Object ref = gptBaseUrl_;
+        getChatAiBaseUrlBytes() {
+      java.lang.Object ref = chatAiBaseUrl_;
       if (ref instanceof java.lang.String) {
         com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
-        gptBaseUrl_ = b;
+        chatAiBaseUrl_ = b;
         return b;
       } else {
         return (com.google.protobuf.ByteString) ref;
       }
     }
 
-    public static final int GPT_API_KEY_FIELD_NUMBER = 4;
+    public static final int CHAT_AI_API_KEY_FIELD_NUMBER = 4;
     @SuppressWarnings("serial")
-    private volatile java.lang.Object gptApiKey_ = "";
+    private volatile java.lang.Object chatAiApiKey_ = "";
     /**
-     * <code>string gpt_api_key = 4;</code>
-     * @return The gptApiKey.
+     * <code>string chat_ai_api_key = 4;</code>
+     * @return The chatAiApiKey.
      */
     @java.lang.Override
-    public java.lang.String getGptApiKey() {
-      java.lang.Object ref = gptApiKey_;
+    public java.lang.String getChatAiApiKey() {
+      java.lang.Object ref = chatAiApiKey_;
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
         com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
-        gptApiKey_ = s;
+        chatAiApiKey_ = s;
         return s;
       }
     }
     /**
-     * <code>string gpt_api_key = 4;</code>
-     * @return The bytes for gptApiKey.
+     * <code>string chat_ai_api_key = 4;</code>
+     * @return The bytes for chatAiApiKey.
      */
     @java.lang.Override
     public com.google.protobuf.ByteString
-        getGptApiKeyBytes() {
-      java.lang.Object ref = gptApiKey_;
+        getChatAiApiKeyBytes() {
+      java.lang.Object ref = chatAiApiKey_;
       if (ref instanceof java.lang.String) {
         com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
-        gptApiKey_ = b;
+        chatAiApiKey_ = b;
         return b;
       } else {
         return (com.google.protobuf.ByteString) ref;
       }
     }
 
-    public static final int GPT_PROXY_FIELD_NUMBER = 5;
+    public static final int CHAT_AI_PROXY_FIELD_NUMBER = 5;
     @SuppressWarnings("serial")
-    private volatile java.lang.Object gptProxy_ = "";
+    private volatile java.lang.Object chatAiProxy_ = "";
     /**
-     * <code>string gpt_proxy = 5;</code>
-     * @return The gptProxy.
+     * <code>string chat_ai_proxy = 5;</code>
+     * @return The chatAiProxy.
      */
     @java.lang.Override
-    public java.lang.String getGptProxy() {
-      java.lang.Object ref = gptProxy_;
+    public java.lang.String getChatAiProxy() {
+      java.lang.Object ref = chatAiProxy_;
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
         com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
-        gptProxy_ = s;
+        chatAiProxy_ = s;
         return s;
       }
     }
     /**
-     * <code>string gpt_proxy = 5;</code>
-     * @return The bytes for gptProxy.
+     * <code>string chat_ai_proxy = 5;</code>
+     * @return The bytes for chatAiProxy.
      */
     @java.lang.Override
     public com.google.protobuf.ByteString
-        getGptProxyBytes() {
-      java.lang.Object ref = gptProxy_;
+        getChatAiProxyBytes() {
+      java.lang.Object ref = chatAiProxy_;
       if (ref instanceof java.lang.String) {
         com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
-        gptProxy_ = b;
+        chatAiProxy_ = b;
         return b;
       } else {
         return (com.google.protobuf.ByteString) ref;
       }
     }
 
-    public static final int GPT_MODEL_FIELD_NUMBER = 6;
+    public static final int CHAT_AI_MODEL_FIELD_NUMBER = 6;
     @SuppressWarnings("serial")
-    private volatile java.lang.Object gptModel_ = "";
+    private volatile java.lang.Object chatAiModel_ = "";
     /**
-     * <code>string gpt_model = 6;</code>
-     * @return The gptModel.
+     * <code>string chat_ai_model = 6;</code>
+     * @return The chatAiModel.
      */
     @java.lang.Override
-    public java.lang.String getGptModel() {
-      java.lang.Object ref = gptModel_;
+    public java.lang.String getChatAiModel() {
+      java.lang.Object ref = chatAiModel_;
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
         com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
-        gptModel_ = s;
+        chatAiModel_ = s;
         return s;
       }
     }
     /**
-     * <code>string gpt_model = 6;</code>
-     * @return The bytes for gptModel.
+     * <code>string chat_ai_model = 6;</code>
+     * @return The bytes for chatAiModel.
      */
     @java.lang.Override
     public com.google.protobuf.ByteString
-        getGptModelBytes() {
-      java.lang.Object ref = gptModel_;
+        getChatAiModelBytes() {
+      java.lang.Object ref = chatAiModel_;
       if (ref instanceof java.lang.String) {
         com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
-        gptModel_ = b;
+        chatAiModel_ = b;
         return b;
       } else {
         return (com.google.protobuf.ByteString) ref;
@@ -26690,17 +26690,17 @@ java.lang.String defaultValue) {
       if (validLicense_ != false) {
         output.writeBool(2, validLicense_);
       }
-      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(gptBaseUrl_)) {
-        com.google.protobuf.GeneratedMessage.writeString(output, 3, gptBaseUrl_);
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(chatAiBaseUrl_)) {
+        com.google.protobuf.GeneratedMessage.writeString(output, 3, chatAiBaseUrl_);
       }
-      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(gptApiKey_)) {
-        com.google.protobuf.GeneratedMessage.writeString(output, 4, gptApiKey_);
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(chatAiApiKey_)) {
+        com.google.protobuf.GeneratedMessage.writeString(output, 4, chatAiApiKey_);
       }
-      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(gptProxy_)) {
-        com.google.protobuf.GeneratedMessage.writeString(output, 5, gptProxy_);
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(chatAiProxy_)) {
+        com.google.protobuf.GeneratedMessage.writeString(output, 5, chatAiProxy_);
       }
-      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(gptModel_)) {
-        com.google.protobuf.GeneratedMessage.writeString(output, 6, gptModel_);
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(chatAiModel_)) {
+        com.google.protobuf.GeneratedMessage.writeString(output, 6, chatAiModel_);
       }
       if (!com.google.protobuf.GeneratedMessage.isStringEmpty(licenseContent_)) {
         com.google.protobuf.GeneratedMessage.writeString(output, 7, licenseContent_);
@@ -26722,17 +26722,17 @@ java.lang.String defaultValue) {
         size += com.google.protobuf.CodedOutputStream
           .computeBoolSize(2, validLicense_);
       }
-      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(gptBaseUrl_)) {
-        size += com.google.protobuf.GeneratedMessage.computeStringSize(3, gptBaseUrl_);
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(chatAiBaseUrl_)) {
+        size += com.google.protobuf.GeneratedMessage.computeStringSize(3, chatAiBaseUrl_);
       }
-      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(gptApiKey_)) {
-        size += com.google.protobuf.GeneratedMessage.computeStringSize(4, gptApiKey_);
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(chatAiApiKey_)) {
+        size += com.google.protobuf.GeneratedMessage.computeStringSize(4, chatAiApiKey_);
       }
-      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(gptProxy_)) {
-        size += com.google.protobuf.GeneratedMessage.computeStringSize(5, gptProxy_);
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(chatAiProxy_)) {
+        size += com.google.protobuf.GeneratedMessage.computeStringSize(5, chatAiProxy_);
       }
-      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(gptModel_)) {
-        size += com.google.protobuf.GeneratedMessage.computeStringSize(6, gptModel_);
+      if (!com.google.protobuf.GeneratedMessage.isStringEmpty(chatAiModel_)) {
+        size += com.google.protobuf.GeneratedMessage.computeStringSize(6, chatAiModel_);
       }
       if (!com.google.protobuf.GeneratedMessage.isStringEmpty(licenseContent_)) {
         size += com.google.protobuf.GeneratedMessage.computeStringSize(7, licenseContent_);
@@ -26756,14 +26756,14 @@ java.lang.String defaultValue) {
           != other.getXpackEnabled()) return false;
       if (getValidLicense()
           != other.getValidLicense()) return false;
-      if (!getGptBaseUrl()
-          .equals(other.getGptBaseUrl())) return false;
-      if (!getGptApiKey()
-          .equals(other.getGptApiKey())) return false;
-      if (!getGptProxy()
-          .equals(other.getGptProxy())) return false;
-      if (!getGptModel()
-          .equals(other.getGptModel())) return false;
+      if (!getChatAiBaseUrl()
+          .equals(other.getChatAiBaseUrl())) return false;
+      if (!getChatAiApiKey()
+          .equals(other.getChatAiApiKey())) return false;
+      if (!getChatAiProxy()
+          .equals(other.getChatAiProxy())) return false;
+      if (!getChatAiModel()
+          .equals(other.getChatAiModel())) return false;
       if (!getLicenseContent()
           .equals(other.getLicenseContent())) return false;
       if (!getUnknownFields().equals(other.getUnknownFields())) return false;
@@ -26783,14 +26783,14 @@ java.lang.String defaultValue) {
       hash = (37 * hash) + VALID_LICENSE_FIELD_NUMBER;
       hash = (53 * hash) + com.google.protobuf.Internal.hashBoolean(
           getValidLicense());
-      hash = (37 * hash) + GPT_BASE_URL_FIELD_NUMBER;
-      hash = (53 * hash) + getGptBaseUrl().hashCode();
-      hash = (37 * hash) + GPT_API_KEY_FIELD_NUMBER;
-      hash = (53 * hash) + getGptApiKey().hashCode();
-      hash = (37 * hash) + GPT_PROXY_FIELD_NUMBER;
-      hash = (53 * hash) + getGptProxy().hashCode();
-      hash = (37 * hash) + GPT_MODEL_FIELD_NUMBER;
-      hash = (53 * hash) + getGptModel().hashCode();
+      hash = (37 * hash) + CHAT_AI_BASE_URL_FIELD_NUMBER;
+      hash = (53 * hash) + getChatAiBaseUrl().hashCode();
+      hash = (37 * hash) + CHAT_AI_API_KEY_FIELD_NUMBER;
+      hash = (53 * hash) + getChatAiApiKey().hashCode();
+      hash = (37 * hash) + CHAT_AI_PROXY_FIELD_NUMBER;
+      hash = (53 * hash) + getChatAiProxy().hashCode();
+      hash = (37 * hash) + CHAT_AI_MODEL_FIELD_NUMBER;
+      hash = (53 * hash) + getChatAiModel().hashCode();
       hash = (37 * hash) + LICENSE_CONTENT_FIELD_NUMBER;
       hash = (53 * hash) + getLicenseContent().hashCode();
       hash = (29 * hash) + getUnknownFields().hashCode();
@@ -26926,10 +26926,10 @@ java.lang.String defaultValue) {
         bitField0_ = 0;
         xpackEnabled_ = false;
         validLicense_ = false;
-        gptBaseUrl_ = "";
-        gptApiKey_ = "";
-        gptProxy_ = "";
-        gptModel_ = "";
+        chatAiBaseUrl_ = "";
+        chatAiApiKey_ = "";
+        chatAiProxy_ = "";
+        chatAiModel_ = "";
         licenseContent_ = "";
         return this;
       }
@@ -26971,16 +26971,16 @@ java.lang.String defaultValue) {
           result.validLicense_ = validLicense_;
         }
         if (((from_bitField0_ & 0x00000004) != 0)) {
-          result.gptBaseUrl_ = gptBaseUrl_;
+          result.chatAiBaseUrl_ = chatAiBaseUrl_;
         }
         if (((from_bitField0_ & 0x00000008) != 0)) {
-          result.gptApiKey_ = gptApiKey_;
+          result.chatAiApiKey_ = chatAiApiKey_;
         }
         if (((from_bitField0_ & 0x00000010) != 0)) {
-          result.gptProxy_ = gptProxy_;
+          result.chatAiProxy_ = chatAiProxy_;
         }
         if (((from_bitField0_ & 0x00000020) != 0)) {
-          result.gptModel_ = gptModel_;
+          result.chatAiModel_ = chatAiModel_;
         }
         if (((from_bitField0_ & 0x00000040) != 0)) {
           result.licenseContent_ = licenseContent_;
@@ -27005,23 +27005,23 @@ java.lang.String defaultValue) {
         if (other.getValidLicense() != false) {
           setValidLicense(other.getValidLicense());
         }
-        if (!other.getGptBaseUrl().isEmpty()) {
-          gptBaseUrl_ = other.gptBaseUrl_;
+        if (!other.getChatAiBaseUrl().isEmpty()) {
+          chatAiBaseUrl_ = other.chatAiBaseUrl_;
           bitField0_ |= 0x00000004;
           onChanged();
         }
-        if (!other.getGptApiKey().isEmpty()) {
-          gptApiKey_ = other.gptApiKey_;
+        if (!other.getChatAiApiKey().isEmpty()) {
+          chatAiApiKey_ = other.chatAiApiKey_;
           bitField0_ |= 0x00000008;
           onChanged();
         }
-        if (!other.getGptProxy().isEmpty()) {
-          gptProxy_ = other.gptProxy_;
+        if (!other.getChatAiProxy().isEmpty()) {
+          chatAiProxy_ = other.chatAiProxy_;
           bitField0_ |= 0x00000010;
           onChanged();
         }
-        if (!other.getGptModel().isEmpty()) {
-          gptModel_ = other.gptModel_;
+        if (!other.getChatAiModel().isEmpty()) {
+          chatAiModel_ = other.chatAiModel_;
           bitField0_ |= 0x00000020;
           onChanged();
         }
@@ -27067,22 +27067,22 @@ java.lang.String defaultValue) {
                 break;
               } // case 16
               case 26: {
-                gptBaseUrl_ = input.readStringRequireUtf8();
+                chatAiBaseUrl_ = input.readStringRequireUtf8();
                 bitField0_ |= 0x00000004;
                 break;
               } // case 26
               case 34: {
-                gptApiKey_ = input.readStringRequireUtf8();
+                chatAiApiKey_ = input.readStringRequireUtf8();
                 bitField0_ |= 0x00000008;
                 break;
               } // case 34
               case 42: {
-                gptProxy_ = input.readStringRequireUtf8();
+                chatAiProxy_ = input.readStringRequireUtf8();
                 bitField0_ |= 0x00000010;
                 break;
               } // case 42
               case 50: {
-                gptModel_ = input.readStringRequireUtf8();
+                chatAiModel_ = input.readStringRequireUtf8();
                 bitField0_ |= 0x00000020;
                 break;
               } // case 50
@@ -27172,289 +27172,289 @@ java.lang.String defaultValue) {
         return this;
       }
 
-      private java.lang.Object gptBaseUrl_ = "";
+      private java.lang.Object chatAiBaseUrl_ = "";
       /**
-       * <code>string gpt_base_url = 3;</code>
-       * @return The gptBaseUrl.
+       * <code>string chat_ai_base_url = 3;</code>
+       * @return The chatAiBaseUrl.
        */
-      public java.lang.String getGptBaseUrl() {
-        java.lang.Object ref = gptBaseUrl_;
+      public java.lang.String getChatAiBaseUrl() {
+        java.lang.Object ref = chatAiBaseUrl_;
         if (!(ref instanceof java.lang.String)) {
           com.google.protobuf.ByteString bs =
               (com.google.protobuf.ByteString) ref;
           java.lang.String s = bs.toStringUtf8();
-          gptBaseUrl_ = s;
+          chatAiBaseUrl_ = s;
           return s;
         } else {
           return (java.lang.String) ref;
         }
       }
       /**
-       * <code>string gpt_base_url = 3;</code>
-       * @return The bytes for gptBaseUrl.
+       * <code>string chat_ai_base_url = 3;</code>
+       * @return The bytes for chatAiBaseUrl.
        */
       public com.google.protobuf.ByteString
-          getGptBaseUrlBytes() {
-        java.lang.Object ref = gptBaseUrl_;
+          getChatAiBaseUrlBytes() {
+        java.lang.Object ref = chatAiBaseUrl_;
         if (ref instanceof String) {
           com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
-          gptBaseUrl_ = b;
+          chatAiBaseUrl_ = b;
           return b;
         } else {
           return (com.google.protobuf.ByteString) ref;
         }
       }
       /**
-       * <code>string gpt_base_url = 3;</code>
-       * @param value The gptBaseUrl to set.
+       * <code>string chat_ai_base_url = 3;</code>
+       * @param value The chatAiBaseUrl to set.
        * @return This builder for chaining.
        */
-      public Builder setGptBaseUrl(
+      public Builder setChatAiBaseUrl(
           java.lang.String value) {
         if (value == null) { throw new NullPointerException(); }
-        gptBaseUrl_ = value;
+        chatAiBaseUrl_ = value;
         bitField0_ |= 0x00000004;
         onChanged();
         return this;
       }
       /**
-       * <code>string gpt_base_url = 3;</code>
+       * <code>string chat_ai_base_url = 3;</code>
        * @return This builder for chaining.
        */
-      public Builder clearGptBaseUrl() {
-        gptBaseUrl_ = getDefaultInstance().getGptBaseUrl();
+      public Builder clearChatAiBaseUrl() {
+        chatAiBaseUrl_ = getDefaultInstance().getChatAiBaseUrl();
         bitField0_ = (bitField0_ & ~0x00000004);
         onChanged();
         return this;
       }
       /**
-       * <code>string gpt_base_url = 3;</code>
-       * @param value The bytes for gptBaseUrl to set.
+       * <code>string chat_ai_base_url = 3;</code>
+       * @param value The bytes for chatAiBaseUrl to set.
        * @return This builder for chaining.
        */
-      public Builder setGptBaseUrlBytes(
+      public Builder setChatAiBaseUrlBytes(
           com.google.protobuf.ByteString value) {
         if (value == null) { throw new NullPointerException(); }
         checkByteStringIsUtf8(value);
-        gptBaseUrl_ = value;
+        chatAiBaseUrl_ = value;
         bitField0_ |= 0x00000004;
         onChanged();
         return this;
       }
 
-      private java.lang.Object gptApiKey_ = "";
+      private java.lang.Object chatAiApiKey_ = "";
       /**
-       * <code>string gpt_api_key = 4;</code>
-       * @return The gptApiKey.
+       * <code>string chat_ai_api_key = 4;</code>
+       * @return The chatAiApiKey.
        */
-      public java.lang.String getGptApiKey() {
-        java.lang.Object ref = gptApiKey_;
+      public java.lang.String getChatAiApiKey() {
+        java.lang.Object ref = chatAiApiKey_;
         if (!(ref instanceof java.lang.String)) {
           com.google.protobuf.ByteString bs =
               (com.google.protobuf.ByteString) ref;
           java.lang.String s = bs.toStringUtf8();
-          gptApiKey_ = s;
+          chatAiApiKey_ = s;
           return s;
         } else {
           return (java.lang.String) ref;
         }
       }
       /**
-       * <code>string gpt_api_key = 4;</code>
-       * @return The bytes for gptApiKey.
+       * <code>string chat_ai_api_key = 4;</code>
+       * @return The bytes for chatAiApiKey.
        */
       public com.google.protobuf.ByteString
-          getGptApiKeyBytes() {
-        java.lang.Object ref = gptApiKey_;
+          getChatAiApiKeyBytes() {
+        java.lang.Object ref = chatAiApiKey_;
         if (ref instanceof String) {
           com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
-          gptApiKey_ = b;
+          chatAiApiKey_ = b;
           return b;
         } else {
           return (com.google.protobuf.ByteString) ref;
         }
       }
       /**
-       * <code>string gpt_api_key = 4;</code>
-       * @param value The gptApiKey to set.
+       * <code>string chat_ai_api_key = 4;</code>
+       * @param value The chatAiApiKey to set.
        * @return This builder for chaining.
        */
-      public Builder setGptApiKey(
+      public Builder setChatAiApiKey(
           java.lang.String value) {
         if (value == null) { throw new NullPointerException(); }
-        gptApiKey_ = value;
+        chatAiApiKey_ = value;
         bitField0_ |= 0x00000008;
         onChanged();
         return this;
       }
       /**
-       * <code>string gpt_api_key = 4;</code>
+       * <code>string chat_ai_api_key = 4;</code>
        * @return This builder for chaining.
        */
-      public Builder clearGptApiKey() {
-        gptApiKey_ = getDefaultInstance().getGptApiKey();
+      public Builder clearChatAiApiKey() {
+        chatAiApiKey_ = getDefaultInstance().getChatAiApiKey();
         bitField0_ = (bitField0_ & ~0x00000008);
         onChanged();
         return this;
       }
       /**
-       * <code>string gpt_api_key = 4;</code>
-       * @param value The bytes for gptApiKey to set.
+       * <code>string chat_ai_api_key = 4;</code>
+       * @param value The bytes for chatAiApiKey to set.
        * @return This builder for chaining.
        */
-      public Builder setGptApiKeyBytes(
+      public Builder setChatAiApiKeyBytes(
           com.google.protobuf.ByteString value) {
         if (value == null) { throw new NullPointerException(); }
         checkByteStringIsUtf8(value);
-        gptApiKey_ = value;
+        chatAiApiKey_ = value;
         bitField0_ |= 0x00000008;
         onChanged();
         return this;
       }
 
-      private java.lang.Object gptProxy_ = "";
+      private java.lang.Object chatAiProxy_ = "";
       /**
-       * <code>string gpt_proxy = 5;</code>
-       * @return The gptProxy.
+       * <code>string chat_ai_proxy = 5;</code>
+       * @return The chatAiProxy.
        */
-      public java.lang.String getGptProxy() {
-        java.lang.Object ref = gptProxy_;
+      public java.lang.String getChatAiProxy() {
+        java.lang.Object ref = chatAiProxy_;
         if (!(ref instanceof java.lang.String)) {
           com.google.protobuf.ByteString bs =
               (com.google.protobuf.ByteString) ref;
           java.lang.String s = bs.toStringUtf8();
-          gptProxy_ = s;
+          chatAiProxy_ = s;
           return s;
         } else {
           return (java.lang.String) ref;
         }
       }
       /**
-       * <code>string gpt_proxy = 5;</code>
-       * @return The bytes for gptProxy.
+       * <code>string chat_ai_proxy = 5;</code>
+       * @return The bytes for chatAiProxy.
        */
       public com.google.protobuf.ByteString
-          getGptProxyBytes() {
-        java.lang.Object ref = gptProxy_;
+          getChatAiProxyBytes() {
+        java.lang.Object ref = chatAiProxy_;
         if (ref instanceof String) {
           com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
-          gptProxy_ = b;
+          chatAiProxy_ = b;
           return b;
         } else {
           return (com.google.protobuf.ByteString) ref;
         }
       }
       /**
-       * <code>string gpt_proxy = 5;</code>
-       * @param value The gptProxy to set.
+       * <code>string chat_ai_proxy = 5;</code>
+       * @param value The chatAiProxy to set.
        * @return This builder for chaining.
        */
-      public Builder setGptProxy(
+      public Builder setChatAiProxy(
           java.lang.String value) {
         if (value == null) { throw new NullPointerException(); }
-        gptProxy_ = value;
+        chatAiProxy_ = value;
         bitField0_ |= 0x00000010;
         onChanged();
         return this;
       }
       /**
-       * <code>string gpt_proxy = 5;</code>
+       * <code>string chat_ai_proxy = 5;</code>
        * @return This builder for chaining.
        */
-      public Builder clearGptProxy() {
-        gptProxy_ = getDefaultInstance().getGptProxy();
+      public Builder clearChatAiProxy() {
+        chatAiProxy_ = getDefaultInstance().getChatAiProxy();
         bitField0_ = (bitField0_ & ~0x00000010);
         onChanged();
         return this;
       }
       /**
-       * <code>string gpt_proxy = 5;</code>
-       * @param value The bytes for gptProxy to set.
+       * <code>string chat_ai_proxy = 5;</code>
+       * @param value The bytes for chatAiProxy to set.
        * @return This builder for chaining.
        */
-      public Builder setGptProxyBytes(
+      public Builder setChatAiProxyBytes(
           com.google.protobuf.ByteString value) {
         if (value == null) { throw new NullPointerException(); }
         checkByteStringIsUtf8(value);
-        gptProxy_ = value;
+        chatAiProxy_ = value;
         bitField0_ |= 0x00000010;
         onChanged();
         return this;
       }
 
-      private java.lang.Object gptModel_ = "";
+      private java.lang.Object chatAiModel_ = "";
       /**
-       * <code>string gpt_model = 6;</code>
-       * @return The gptModel.
+       * <code>string chat_ai_model = 6;</code>
+       * @return The chatAiModel.
        */
-      public java.lang.String getGptModel() {
-        java.lang.Object ref = gptModel_;
+      public java.lang.String getChatAiModel() {
+        java.lang.Object ref = chatAiModel_;
         if (!(ref instanceof java.lang.String)) {
           com.google.protobuf.ByteString bs =
               (com.google.protobuf.ByteString) ref;
           java.lang.String s = bs.toStringUtf8();
-          gptModel_ = s;
+          chatAiModel_ = s;
           return s;
         } else {
           return (java.lang.String) ref;
         }
       }
       /**
-       * <code>string gpt_model = 6;</code>
-       * @return The bytes for gptModel.
+       * <code>string chat_ai_model = 6;</code>
+       * @return The bytes for chatAiModel.
        */
       public com.google.protobuf.ByteString
-          getGptModelBytes() {
-        java.lang.Object ref = gptModel_;
+          getChatAiModelBytes() {
+        java.lang.Object ref = chatAiModel_;
         if (ref instanceof String) {
           com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
-          gptModel_ = b;
+          chatAiModel_ = b;
           return b;
         } else {
           return (com.google.protobuf.ByteString) ref;
         }
       }
       /**
-       * <code>string gpt_model = 6;</code>
-       * @param value The gptModel to set.
+       * <code>string chat_ai_model = 6;</code>
+       * @param value The chatAiModel to set.
        * @return This builder for chaining.
        */
-      public Builder setGptModel(
+      public Builder setChatAiModel(
           java.lang.String value) {
         if (value == null) { throw new NullPointerException(); }
-        gptModel_ = value;
+        chatAiModel_ = value;
         bitField0_ |= 0x00000020;
         onChanged();
         return this;
       }
       /**
-       * <code>string gpt_model = 6;</code>
+       * <code>string chat_ai_model = 6;</code>
        * @return This builder for chaining.
        */
-      public Builder clearGptModel() {
-        gptModel_ = getDefaultInstance().getGptModel();
+      public Builder clearChatAiModel() {
+        chatAiModel_ = getDefaultInstance().getChatAiModel();
         bitField0_ = (bitField0_ & ~0x00000020);
         onChanged();
         return this;
       }
       /**
-       * <code>string gpt_model = 6;</code>
-       * @param value The bytes for gptModel to set.
+       * <code>string chat_ai_model = 6;</code>
+       * @param value The bytes for chatAiModel to set.
        * @return This builder for chaining.
        */
-      public Builder setGptModelBytes(
+      public Builder setChatAiModelBytes(
           com.google.protobuf.ByteString value) {
         if (value == null) { throw new NullPointerException(); }
         checkByteStringIsUtf8(value);
-        gptModel_ = value;
+        chatAiModel_ = value;
         bitField0_ |= 0x00000020;
         onChanged();
         return this;
@@ -29438,29 +29438,30 @@ java.lang.String defaultValue) {
       "ponentSetting\022\025\n\rmax_idle_time\030\001 \001(\005\022\030\n\020" +
       "max_session_time\030\002 \001(\005J\004\010\003\020\004R\017chat_ai_en" +
       "abled\"1\n\007Forward\022\n\n\002id\030\001 \001(\t\022\014\n\004Host\030\002 \001" +
-      "(\t\022\014\n\004port\030\003 \001(\005\"\247\001\n\rPublicSetting\022\025\n\rxp" +
+      "(\t\022\014\n\004port\030\003 \001(\005\"\267\001\n\rPublicSetting\022\025\n\rxp" +
       "ack_enabled\030\001 \001(\010\022\025\n\rvalid_license\030\002 \001(\010" +
-      "\022\024\n\014gpt_base_url\030\003 \001(\t\022\023\n\013gpt_api_key\030\004 " +
-      "\001(\t\022\021\n\tgpt_proxy\030\005 \001(\t\022\021\n\tgpt_model\030\006 \001(" +
-      "\t\022\027\n\017license_content\030\007 \001(\t\"%\n\006Cookie\022\014\n\004" +
-      "name\030\001 \001(\t\022\r\n\005value\030\002 \001(\t\"\250\003\n\020LifecycleL" +
-      "ogData\0223\n\005event\030\001 \001(\0162$.message.Lifecycl" +
-      "eLogData.event_type\022\016\n\006reason\030\002 \001(\t\022\014\n\004u" +
-      "ser\030\003 \001(\t\"\300\002\n\nevent_type\022\027\n\023AssetConnect" +
-      "Success\020\000\022\030\n\024AssetConnectFinished\020\001\022\023\n\017C" +
-      "reateShareLink\020\002\022\023\n\017UserJoinSession\020\003\022\024\n" +
-      "\020UserLeaveSession\020\004\022\024\n\020AdminJoinMonitor\020" +
-      "\005\022\024\n\020AdminExitMonitor\020\006\022\026\n\022ReplayConvert" +
-      "Start\020\007\022\030\n\024ReplayConvertSuccess\020\010\022\030\n\024Rep" +
-      "layConvertFailure\020\t\022\025\n\021ReplayUploadStart" +
-      "\020\n\022\027\n\023ReplayUploadSuccess\020\013\022\027\n\023ReplayUpl" +
-      "oadFailure\020\014*k\n\nTaskAction\022\017\n\013KillSessio" +
-      "n\020\000\022\017\n\013LockSession\020\001\022\021\n\rUnlockSession\020\002\022" +
-      "\024\n\020TokenPermExpired\020\003\022\022\n\016TokenPermValid\020" +
-      "\004*f\n\tRiskLevel\022\n\n\006Normal\020\000\022\013\n\007Warning\020\001\022" +
-      "\n\n\006Reject\020\002\022\020\n\014ReviewReject\020\003\022\020\n\014ReviewA" +
-      "ccept\020\004\022\020\n\014ReviewCancel\020\005B \n\023org.jumpser" +
-      "ver.wispZ\t/protobufb\006proto3"
+      "\022\030\n\020chat_ai_base_url\030\003 \001(\t\022\027\n\017chat_ai_ap" +
+      "i_key\030\004 \001(\t\022\025\n\rchat_ai_proxy\030\005 \001(\t\022\025\n\rch" +
+      "at_ai_model\030\006 \001(\t\022\027\n\017license_content\030\007 \001" +
+      "(\t\"%\n\006Cookie\022\014\n\004name\030\001 \001(\t\022\r\n\005value\030\002 \001(" +
+      "\t\"\250\003\n\020LifecycleLogData\0223\n\005event\030\001 \001(\0162$." +
+      "message.LifecycleLogData.event_type\022\016\n\006r" +
+      "eason\030\002 \001(\t\022\014\n\004user\030\003 \001(\t\"\300\002\n\nevent_type" +
+      "\022\027\n\023AssetConnectSuccess\020\000\022\030\n\024AssetConnec" +
+      "tFinished\020\001\022\023\n\017CreateShareLink\020\002\022\023\n\017User" +
+      "JoinSession\020\003\022\024\n\020UserLeaveSession\020\004\022\024\n\020A" +
+      "dminJoinMonitor\020\005\022\024\n\020AdminExitMonitor\020\006\022" +
+      "\026\n\022ReplayConvertStart\020\007\022\030\n\024ReplayConvert" +
+      "Success\020\010\022\030\n\024ReplayConvertFailure\020\t\022\025\n\021R" +
+      "eplayUploadStart\020\n\022\027\n\023ReplayUploadSucces" +
+      "s\020\013\022\027\n\023ReplayUploadFailure\020\014*k\n\nTaskActi" +
+      "on\022\017\n\013KillSession\020\000\022\017\n\013LockSession\020\001\022\021\n\r" +
+      "UnlockSession\020\002\022\024\n\020TokenPermExpired\020\003\022\022\n" +
+      "\016TokenPermValid\020\004*f\n\tRiskLevel\022\n\n\006Normal" +
+      "\020\000\022\013\n\007Warning\020\001\022\n\n\006Reject\020\002\022\020\n\014ReviewRej" +
+      "ect\020\003\022\020\n\014ReviewAccept\020\004\022\020\n\014ReviewCancel\020" +
+      "\005B \n\023org.jumpserver.wispZ\t/protobufb\006pro" +
+      "to3"
     };
     descriptor = com.google.protobuf.Descriptors.FileDescriptor
       .internalBuildGeneratedFileFrom(descriptorData,
@@ -29609,7 +29610,7 @@ java.lang.String defaultValue) {
     internal_static_message_PublicSetting_fieldAccessorTable = new
       com.google.protobuf.GeneratedMessage.FieldAccessorTable(
         internal_static_message_PublicSetting_descriptor,
-        new java.lang.String[] { "XpackEnabled", "ValidLicense", "GptBaseUrl", "GptApiKey", "GptProxy", "GptModel", "LicenseContent", });
+        new java.lang.String[] { "XpackEnabled", "ValidLicense", "ChatAiBaseUrl", "ChatAiApiKey", "ChatAiProxy", "ChatAiModel", "LicenseContent", });
     internal_static_message_Cookie_descriptor =
       getDescriptor().getMessageTypes().get(21);
     internal_static_message_Cookie_fieldAccessorTable = new
