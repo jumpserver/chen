@@ -19,7 +19,6 @@ public class ProfileController {
         profile.setDbType(connectionInfo.getDbType());
         profile.setCanCopy(SessionManager.getCurrentSession().canCopy());
         profile.setCanPaste(SessionManager.getCurrentSession().canPaste());
-        profile.setChatAiEnabled(SessionManager.getCurrentSession().isChatAIEnabled());
         return profile;
     }
 }
