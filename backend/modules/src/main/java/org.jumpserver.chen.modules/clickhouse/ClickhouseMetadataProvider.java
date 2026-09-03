@@ -30,7 +30,7 @@ public class ClickhouseMetadataProvider extends BaseDatabaseMetadataProvider {
 
     private static final MetadataCapabilities CAPABILITIES = new MetadataCapabilities(
             false, true, true, true, true, false, false, true, true,
-            true, true, true, false, false, true, true
+            true, true, true, false, false, true, true, false, true
     );
 
     private static final String VIEW_ENGINES = "'View', 'MaterializedView', 'LiveView', 'WindowView'";
@@ -84,6 +84,14 @@ public class ClickhouseMetadataProvider extends BaseDatabaseMetadataProvider {
             FROM system.columns
             WHERE database = ? AND table IN (__IN__)
             ORDER BY table, position
+            """;
+
+    private static final String SQL_TABLE_INDEXES = """
+            SELECT name, table AS table_name, NULL AS column_name, expr AS expression,
+                   NULL AS is_unique, type AS method
+            FROM system.data_skipping_indices
+            WHERE database = ? AND table IN (__IN__)
+            ORDER BY table, name
             """;
 
     @Override
@@ -178,6 +186,16 @@ public class ClickhouseMetadataProvider extends BaseDatabaseMetadataProvider {
     }
 
     @Override
+    public List<IndexMetadata> listIndexes(List<ObjectRef> relations) throws SQLException {
+        if (relations.isEmpty()) {
+            return List.of();
+        }
+        var first = relations.get(0);
+        return groupIndexRows(queryKeys(SQL_TABLE_INDEXES, relations, first.schema()),
+                new RelationScope(first.catalog(), first.schema()));
+    }
+
+    @Override
     public List<ObjectStatistics> listStatistics(RelationScope scope) throws SQLException {
         var result = new ArrayList<ObjectStatistics>();
         for (var row : query(SQL_TABLE_STATS, List.of(scope.schema()))) {
@@ -199,6 +217,16 @@ public class ClickhouseMetadataProvider extends BaseDatabaseMetadataProvider {
         var values = rows.get(0).values().iterator();
         values.next();
         return values.hasNext() ? String.valueOf(values.next()) : null;
+    }
+
+    @Override
+    public String getTableDefinition(ObjectRef relation) throws SQLException {
+        var sql = "SHOW CREATE TABLE " + quoteIdentifier(relation.schema()) + "." + quoteIdentifier(relation.name());
+        var rows = query(sql, List.of());
+        if (rows.isEmpty()) {
+            return null;
+        }
+        return String.valueOf(rows.get(0).values().iterator().next());
     }
 
     private static final String SQL_TABLE_PROPERTIES = """

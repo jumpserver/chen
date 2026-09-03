@@ -3,6 +3,7 @@ package org.jumpserver.chen.modules.mysql;
 import org.jumpserver.chen.framework.datasource.ConnectionManager;
 import org.jumpserver.chen.framework.datasource.metadata.BaseDatabaseMetadataProvider;
 import org.jumpserver.chen.framework.datasource.metadata.ColumnMetadata;
+import org.jumpserver.chen.framework.datasource.metadata.ConstraintMetadata;
 import org.jumpserver.chen.framework.datasource.metadata.IndexMetadata;
 import org.jumpserver.chen.framework.datasource.metadata.ForeignKeyMetadata;
 import org.jumpserver.chen.framework.datasource.metadata.MetadataCapabilities;
@@ -31,7 +32,7 @@ public class MysqlMetadataProvider extends BaseDatabaseMetadataProvider {
 
     private static final MetadataCapabilities CAPABILITIES = new MetadataCapabilities(
             false, true, true, true, true, true, true, true, true,
-            true, true, true, true, true, true, false
+            true, true, true, true, true, true, false, true, true
     );
 
     private static final String SQL_SCHEMAS = "SELECT SCHEMA_NAME AS name FROM INFORMATION_SCHEMA.SCHEMATA";
@@ -70,7 +71,8 @@ public class MysqlMetadataProvider extends BaseDatabaseMetadataProvider {
                    COLUMN_NAME AS column_name,
                    CASE WHEN NON_UNIQUE = 0 THEN 1 ELSE 0 END AS is_unique,
                    INDEX_TYPE AS method,
-                   NULL AS definition
+                   NULL AS definition,
+                   COLLATION AS sort_order
             FROM INFORMATION_SCHEMA.STATISTICS
             WHERE TABLE_SCHEMA = ?
             ORDER BY TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX
@@ -85,6 +87,19 @@ public class MysqlMetadataProvider extends BaseDatabaseMetadataProvider {
             FROM INFORMATION_SCHEMA.COLUMNS
             WHERE TABLE_SCHEMA = ? AND TABLE_NAME IN (__IN__)
             ORDER BY TABLE_NAME, ORDINAL_POSITION
+            """;
+
+    private static final String SQL_TABLE_INDEXES = """
+            SELECT INDEX_NAME AS name,
+                   TABLE_NAME AS table_name,
+                   COLUMN_NAME AS column_name,
+                   CASE WHEN NON_UNIQUE = 0 THEN 1 ELSE 0 END AS is_unique,
+                   INDEX_TYPE AS method,
+                   NULL AS definition,
+                   COLLATION AS sort_order
+            FROM INFORMATION_SCHEMA.STATISTICS
+            WHERE TABLE_SCHEMA = ? AND TABLE_NAME IN (__IN__)
+            ORDER BY TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX
             """;
 
     @Override
@@ -140,6 +155,16 @@ public class MysqlMetadataProvider extends BaseDatabaseMetadataProvider {
     }
 
     @Override
+    public List<IndexMetadata> listIndexes(List<ObjectRef> relations) throws SQLException {
+        if (relations.isEmpty()) {
+            return List.of();
+        }
+        var first = relations.get(0);
+        return groupIndexRows(queryKeys(SQL_TABLE_INDEXES, relations, first.schema()),
+                new RelationScope(first.catalog(), first.schema()));
+    }
+
+    @Override
     public List<ObjectStatistics> listStatistics(RelationScope scope) throws SQLException {
         var result = new ArrayList<ObjectStatistics>();
         for (var row : query(SQL_TABLE_STATS, List.of(scope.schema()))) {
@@ -155,6 +180,18 @@ public class MysqlMetadataProvider extends BaseDatabaseMetadataProvider {
     @Override
     public String getSchemaDefinition(RelationScope scope) throws SQLException {
         var rows = query("SHOW CREATE DATABASE " + quoteIdentifier(scope.schema()), List.of());
+        if (rows.isEmpty()) {
+            return null;
+        }
+        var values = rows.get(0).values().iterator();
+        values.next();
+        return values.hasNext() ? String.valueOf(values.next()) : null;
+    }
+
+    @Override
+    public String getTableDefinition(ObjectRef relation) throws SQLException {
+        var sql = "SHOW CREATE TABLE " + quoteIdentifier(relation.schema()) + "." + quoteIdentifier(relation.name());
+        var rows = query(sql, List.of());
         if (rows.isEmpty()) {
             return null;
         }
@@ -207,6 +244,22 @@ public class MysqlMetadataProvider extends BaseDatabaseMetadataProvider {
             ORDER BY k.TABLE_NAME, k.CONSTRAINT_NAME, k.ORDINAL_POSITION
             """;
 
+    private static final String SQL_CONSTRAINTS = """
+            SELECT tc.TABLE_NAME AS table_name, tc.CONSTRAINT_NAME AS name,
+                   tc.CONSTRAINT_TYPE AS constraint_type, k.COLUMN_NAME AS column_name,
+                   k.REFERENCED_TABLE_SCHEMA AS referenced_schema,
+                   k.REFERENCED_TABLE_NAME AS referenced_table,
+                   k.REFERENCED_COLUMN_NAME AS referenced_column,
+                   NULL AS definition
+            FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc
+            LEFT JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE k
+              ON k.CONSTRAINT_SCHEMA = tc.CONSTRAINT_SCHEMA
+             AND k.TABLE_NAME = tc.TABLE_NAME AND k.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
+            WHERE tc.TABLE_SCHEMA = ? AND tc.TABLE_NAME IN (__IN__)
+              AND tc.CONSTRAINT_TYPE IN ('PRIMARY KEY', 'FOREIGN KEY', 'UNIQUE', 'CHECK')
+            ORDER BY tc.TABLE_NAME, tc.CONSTRAINT_NAME, k.ORDINAL_POSITION
+            """;
+
     @Override
     public List<PrimaryKeyMetadata> listPrimaryKeys(List<ObjectRef> relations) throws SQLException {
         var first = relations.get(0);
@@ -218,6 +271,16 @@ public class MysqlMetadataProvider extends BaseDatabaseMetadataProvider {
     public List<ForeignKeyMetadata> listForeignKeys(List<ObjectRef> relations) throws SQLException {
         var first = relations.get(0);
         return groupForeignKeys(queryKeys(SQL_FOREIGN_KEYS, relations, first.schema()),
+                new RelationScope(first.catalog(), first.schema()));
+    }
+
+    @Override
+    public List<ConstraintMetadata> listConstraints(List<ObjectRef> relations) throws SQLException {
+        if (relations.isEmpty()) {
+            return List.of();
+        }
+        var first = relations.get(0);
+        return groupConstraints(queryKeys(SQL_CONSTRAINTS, relations, first.schema()),
                 new RelationScope(first.catalog(), first.schema()));
     }
 

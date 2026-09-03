@@ -12,9 +12,12 @@ import org.jumpserver.chen.web.entity.MetadataColumnsResponse;
 import org.jumpserver.chen.web.entity.MetadataRelationsRequest;
 import org.jumpserver.chen.web.entity.SchemaOverviewMetadata;
 import org.jumpserver.chen.web.entity.SchemaOverviewRequest;
+import org.jumpserver.chen.web.entity.TableMetadata;
+import org.jumpserver.chen.web.entity.TableMetadataRequest;
 import org.jumpserver.chen.web.service.HintsService;
 import org.jumpserver.chen.web.service.ResourceService;
 import org.jumpserver.chen.web.service.SchemaOverviewService;
+import org.jumpserver.chen.web.service.TableMetadataService;
 import org.jumpserver.chen.web.service.SqlMetadataService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -36,6 +39,9 @@ public class ResourceController {
 
     @Autowired
     private SchemaOverviewService schemaOverviewService;
+
+    @Autowired
+    private TableMetadataService tableMetadataService;
 
     @Autowired
     private HintsService hintsService;
@@ -88,6 +94,11 @@ public class ResourceController {
     @PostMapping("/metadata/schema-overview")
     public SchemaOverviewMetadata getSchemaOverview(@RequestBody SchemaOverviewRequest request) {
         return this.schemaOverviewService.getSchemaOverview(request);
+    }
+
+    @PostMapping("/metadata/table")
+    public TableMetadata getTableMetadata(@RequestBody TableMetadataRequest request) {
+        return this.tableMetadataService.getTableMetadata(request);
     }
 
 }

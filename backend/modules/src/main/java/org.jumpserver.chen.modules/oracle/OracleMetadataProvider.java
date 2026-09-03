@@ -3,6 +3,7 @@ package org.jumpserver.chen.modules.oracle;
 import org.jumpserver.chen.framework.datasource.ConnectionManager;
 import org.jumpserver.chen.framework.datasource.metadata.BaseDatabaseMetadataProvider;
 import org.jumpserver.chen.framework.datasource.metadata.ColumnMetadata;
+import org.jumpserver.chen.framework.datasource.metadata.ConstraintMetadata;
 import org.jumpserver.chen.framework.datasource.metadata.IndexMetadata;
 import org.jumpserver.chen.framework.datasource.metadata.MetadataCapabilities;
 import org.jumpserver.chen.framework.datasource.metadata.ObjectProperties;
@@ -28,7 +29,7 @@ public class OracleMetadataProvider extends BaseDatabaseMetadataProvider {
 
     private static final MetadataCapabilities CAPABILITIES = new MetadataCapabilities(
             false, true, true, true, true, true, true, true, false,
-            true, true, false, false, false, true, true
+            true, true, false, false, false, true, true, true, true
     );
 
     private static final String SQL_SCHEMAS = "SELECT USERNAME AS name FROM ALL_USERS";
@@ -91,7 +92,8 @@ public class OracleMetadataProvider extends BaseDatabaseMetadataProvider {
                    CASE WHEN e.column_expression IS NULL THEN c.column_name END AS column_name,
                    e.column_expression AS expression,
                    CASE WHEN i.uniqueness = 'UNIQUE' THEN 1 ELSE 0 END AS is_unique,
-                   i.index_type AS method
+                   i.index_type AS method,
+                   c.descend AS sort_order
             FROM all_indexes i
             JOIN all_ind_columns c
               ON c.index_owner = i.owner AND c.index_name = i.index_name AND c.table_owner = i.table_owner
@@ -113,6 +115,23 @@ public class OracleMetadataProvider extends BaseDatabaseMetadataProvider {
               ON cc.OWNER = c.OWNER AND cc.TABLE_NAME = c.TABLE_NAME AND cc.COLUMN_NAME = c.COLUMN_NAME
             WHERE c.OWNER = ? AND c.TABLE_NAME IN (__IN__)
             ORDER BY c.TABLE_NAME, c.COLUMN_ID
+            """;
+
+    private static final String SQL_TABLE_INDEXES = """
+            SELECT i.index_name AS name, i.table_name AS table_name,
+                   CASE WHEN e.column_expression IS NULL THEN c.column_name END AS column_name,
+                   e.column_expression AS expression,
+                   CASE WHEN i.uniqueness = 'UNIQUE' THEN 1 ELSE 0 END AS is_unique,
+                   i.index_type AS method,
+                   c.descend AS sort_order
+            FROM all_indexes i
+            JOIN all_ind_columns c
+              ON c.index_owner = i.owner AND c.index_name = i.index_name AND c.table_owner = i.table_owner
+            LEFT JOIN all_ind_expressions e
+              ON e.index_owner = c.index_owner AND e.index_name = c.index_name
+             AND e.table_owner = c.table_owner AND e.column_position = c.column_position
+            WHERE i.owner = ? AND i.table_name IN (__IN__)
+            ORDER BY i.table_name, i.index_name, c.column_position
             """;
 
     @Override
@@ -168,6 +187,23 @@ public class OracleMetadataProvider extends BaseDatabaseMetadataProvider {
     }
 
     @Override
+    public List<IndexMetadata> listIndexes(List<ObjectRef> relations) throws SQLException {
+        if (relations.isEmpty()) {
+            return List.of();
+        }
+        var first = relations.get(0);
+        return groupIndexRows(queryKeys(SQL_TABLE_INDEXES, relations, first.schema()),
+                new RelationScope(first.catalog(), first.schema()));
+    }
+
+    @Override
+    public String getTableDefinition(ObjectRef relation) throws SQLException {
+        var rows = query("SELECT DBMS_METADATA.GET_DDL('TABLE', ?, ?) AS definition FROM dual",
+                List.of(relation.name(), relation.schema()));
+        return rows.isEmpty() ? null : stringValue(rows.get(0), "definition");
+    }
+
+    @Override
     public List<ObjectStatistics> listStatistics(RelationScope scope) throws SQLException {
         var result = new ArrayList<ObjectStatistics>();
         for (var row : query(SQL_TABLE_STATS, List.of(scope.schema()))) {
@@ -210,6 +246,24 @@ public class OracleMetadataProvider extends BaseDatabaseMetadataProvider {
             ORDER BY c.table_name, c.constraint_name, cc.position
             """;
 
+    private static final String SQL_CONSTRAINTS = """
+            SELECT c.table_name AS table_name, c.constraint_name AS name,
+                   CASE c.constraint_type WHEN 'P' THEN 'PRIMARY KEY' WHEN 'R' THEN 'FOREIGN KEY'
+                        WHEN 'U' THEN 'UNIQUE' WHEN 'C' THEN 'CHECK' END AS constraint_type,
+                   cc.column_name AS column_name, rc.owner AS referenced_schema,
+                   rc.table_name AS referenced_table, rcc.column_name AS referenced_column,
+                   c.search_condition AS definition
+            FROM all_constraints c
+            LEFT JOIN all_cons_columns cc
+              ON cc.owner = c.owner AND cc.constraint_name = c.constraint_name AND cc.table_name = c.table_name
+            LEFT JOIN all_constraints rc ON rc.owner = c.r_owner AND rc.constraint_name = c.r_constraint_name
+            LEFT JOIN all_cons_columns rcc
+              ON rcc.owner = rc.owner AND rcc.constraint_name = rc.constraint_name AND rcc.position = cc.position
+            WHERE c.constraint_type IN ('P', 'R', 'U', 'C')
+              AND c.owner = ? AND c.table_name IN (__IN__)
+            ORDER BY c.table_name, c.constraint_name, cc.position
+            """;
+
     @Override
     public List<PrimaryKeyMetadata> listPrimaryKeys(List<ObjectRef> relations) throws SQLException {
         var first = relations.get(0);
@@ -221,6 +275,16 @@ public class OracleMetadataProvider extends BaseDatabaseMetadataProvider {
     public List<ForeignKeyMetadata> listForeignKeys(List<ObjectRef> relations) throws SQLException {
         var first = relations.get(0);
         return groupForeignKeys(queryKeys(SQL_FOREIGN_KEYS, relations, first.schema()),
+                new RelationScope(first.catalog(), first.schema()));
+    }
+
+    @Override
+    public List<ConstraintMetadata> listConstraints(List<ObjectRef> relations) throws SQLException {
+        if (relations.isEmpty()) {
+            return List.of();
+        }
+        var first = relations.get(0);
+        return groupConstraints(queryKeys(SQL_CONSTRAINTS, relations, first.schema()),
                 new RelationScope(first.catalog(), first.schema()));
     }
 }

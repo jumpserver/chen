@@ -166,9 +166,13 @@ public abstract class BaseDatabaseMetadataProvider implements DatabaseMetadataPr
             var expression = stringValue(row, "expression");
             if (column != null && !column.isBlank()) {
                 var included = Boolean.TRUE.equals(booleanValue(row, "included"));
-                index.parts.add(new IndexPart(index.parts.size(), column, null, null, included));
+                index.parts.add(new IndexPart(
+                        index.parts.size(), column, null, stringValue(row, "sort_order"), included
+                ));
             } else if (expression != null && !expression.isBlank()) {
-                index.parts.add(new IndexPart(index.parts.size(), null, expression, null, false));
+                index.parts.add(new IndexPart(
+                        index.parts.size(), null, expression, stringValue(row, "sort_order"), false
+                ));
             }
             if (index.definition == null) {
                 index.definition = stringValue(row, "definition");
@@ -292,6 +296,11 @@ public abstract class BaseDatabaseMetadataProvider implements DatabaseMetadataPr
     }
 
     @Override
+    public List<IndexMetadata> listIndexes(List<ObjectRef> relations) throws SQLException {
+        throw unsupported("object indexes");
+    }
+
+    @Override
     public List<ObjectStatistics> listStatistics(RelationScope scope) throws SQLException {
         throw unsupported("statistics");
     }
@@ -307,7 +316,17 @@ public abstract class BaseDatabaseMetadataProvider implements DatabaseMetadataPr
     }
 
     @Override
+    public List<ConstraintMetadata> listConstraints(List<ObjectRef> relations) throws SQLException {
+        throw unsupported("constraints");
+    }
+
+    @Override
     public String getSchemaDefinition(RelationScope scope) throws SQLException {
+        return null;
+    }
+
+    @Override
+    public String getTableDefinition(ObjectRef relation) throws SQLException {
         return null;
     }
 
@@ -414,6 +433,75 @@ public abstract class BaseDatabaseMetadataProvider implements DatabaseMetadataPr
             ));
         }
         return result;
+    }
+
+    /** Groups canonical constraint rows, preserving key-column order. */
+    protected List<ConstraintMetadata> groupConstraints(List<Map<String, Object>> rows, RelationScope scope) {
+        var grouped = new LinkedHashMap<String, MutableConstraint>();
+        for (var row : rows) {
+            var table = stringValue(row, "table_name");
+            var name = stringValue(row, "name");
+            var typeValue = stringValue(row, "constraint_type");
+            if (table == null || name == null || typeValue == null) {
+                continue;
+            }
+            ConstraintType type;
+            try {
+                type = ConstraintType.fromDatabaseValue(typeValue);
+            } catch (IllegalArgumentException ignored) {
+                continue;
+            }
+            var constraint = grouped.computeIfAbsent(table + "\u0000" + name,
+                    ignored -> new MutableConstraint(name, table, type));
+            addNonBlank(constraint.columns, stringValue(row, "column_name"));
+            constraint.referencedSchema = stringValue(row, "referenced_schema");
+            constraint.referencedTable = stringValue(row, "referenced_table");
+            addNonBlank(constraint.referencedColumns, stringValue(row, "referenced_column"));
+            if (constraint.definition == null) {
+                constraint.definition = stringValue(row, "definition");
+            }
+        }
+        var result = new ArrayList<ConstraintMetadata>(grouped.size());
+        for (var constraint : grouped.values()) {
+            ObjectRef referenced = null;
+            if (constraint.referencedTable != null && !constraint.referencedTable.isBlank()) {
+                referenced = new ObjectRef(scope.catalog(), constraint.referencedSchema,
+                        constraint.referencedTable, RelationKind.TABLE);
+            }
+            result.add(new ConstraintMetadata(
+                    new ObjectRef(scope.catalog(), scope.schema(), constraint.table, RelationKind.TABLE),
+                    constraint.name,
+                    constraint.type,
+                    List.copyOf(constraint.columns),
+                    referenced,
+                    List.copyOf(constraint.referencedColumns),
+                    constraint.definition
+            ));
+        }
+        return result;
+    }
+
+    private static void addNonBlank(List<String> values, String value) {
+        if (value != null && !value.isBlank()) {
+            values.add(value);
+        }
+    }
+
+    private static final class MutableConstraint {
+        private final String name;
+        private final String table;
+        private final ConstraintType type;
+        private final List<String> columns = new ArrayList<>();
+        private final List<String> referencedColumns = new ArrayList<>();
+        private String referencedSchema;
+        private String referencedTable;
+        private String definition;
+
+        private MutableConstraint(String name, String table, ConstraintType type) {
+            this.name = name;
+            this.table = table;
+            this.type = type;
+        }
     }
 
     private static final class MutablePrimaryKey {
