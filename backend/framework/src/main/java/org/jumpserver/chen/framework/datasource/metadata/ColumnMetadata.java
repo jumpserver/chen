@@ -17,4 +17,11 @@ public record ColumnMetadata(
         String defaultValue,
         String comment
 ) {
+    /** Compatibility constructor retained for existing completion/catalog callers. */
+    public ColumnMetadata(
+            ObjectRef owner, String name, int ordinal, String nativeType, int jdbcType,
+            boolean nullable, String defaultValue, String comment
+    ) {
+        this(owner, name, ordinal, nativeType, jdbcType, null, null, nullable, defaultValue, comment);
+    }
 }

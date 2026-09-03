@@ -4,6 +4,7 @@ import org.jumpserver.chen.framework.datasource.ConnectionManager;
 import org.jumpserver.chen.framework.datasource.metadata.BaseDatabaseMetadataProvider;
 import org.jumpserver.chen.framework.datasource.metadata.CatalogMetadata;
 import org.jumpserver.chen.framework.datasource.metadata.ColumnMetadata;
+import org.jumpserver.chen.framework.datasource.metadata.ConstraintMetadata;
 import org.jumpserver.chen.framework.datasource.metadata.IndexMetadata;
 import org.jumpserver.chen.framework.datasource.metadata.MetadataCapabilities;
 import org.jumpserver.chen.framework.datasource.metadata.ScopeKind;
@@ -31,7 +32,7 @@ public class SQLServerMetadataProvider extends BaseDatabaseMetadataProvider {
 
     private static final MetadataCapabilities CAPABILITIES = new MetadataCapabilities(
             true, true, true, true, true, true, true, true, false,
-            true, true, false, false, false, true, true
+            true, true, false, false, false, true, true, true, false
     );
 
     private static final String SQL_CATALOGS = "SELECT name AS name FROM sys.databases";
@@ -94,7 +95,9 @@ public class SQLServerMetadataProvider extends BaseDatabaseMetadataProvider {
                    i.is_unique AS is_unique,
                    i.type_desc AS method,
                    NULL AS definition,
-                   ic.is_included_column AS included
+                   ic.is_included_column AS included,
+                   CASE WHEN ic.is_included_column = 1 THEN NULL
+                        WHEN ic.is_descending_key = 1 THEN 'DESC' ELSE 'ASC' END AS sort_order
             FROM sys.indexes i
             JOIN sys.tables t ON t.object_id = i.object_id
             JOIN sys.schemas s ON s.schema_id = t.schema_id
@@ -130,6 +133,22 @@ public class SQLServerMetadataProvider extends BaseDatabaseMetadataProvider {
               ON ep.major_id = c.object_id AND ep.minor_id = c.column_id AND ep.name = 'MS_Description'
             WHERE s.name = ? AND o.name IN (__IN__)
             ORDER BY o.name, c.column_id
+            """;
+
+    private static final String SQL_TABLE_INDEXES = """
+            SELECT i.name AS name, t.name AS table_name, c.name AS column_name,
+                   i.is_unique AS is_unique, i.type_desc AS method, NULL AS definition,
+                   ic.is_included_column AS included,
+                   CASE WHEN ic.is_included_column = 1 THEN NULL
+                        WHEN ic.is_descending_key = 1 THEN 'DESC' ELSE 'ASC' END AS sort_order
+            FROM sys.indexes i
+            JOIN sys.tables t ON t.object_id = i.object_id
+            JOIN sys.schemas s ON s.schema_id = t.schema_id
+            LEFT JOIN sys.index_columns ic ON ic.object_id = i.object_id AND ic.index_id = i.index_id
+            LEFT JOIN sys.columns c ON c.object_id = ic.object_id AND c.column_id = ic.column_id
+            WHERE s.name = ? AND t.name IN (__IN__)
+              AND i.name IS NOT NULL AND i.is_hypothetical = 0
+            ORDER BY t.name, i.name, ic.is_included_column, ic.key_ordinal, ic.index_column_id
             """;
 
     private static final String SQL_DATABASE_PROPERTIES = """
@@ -200,6 +219,16 @@ public class SQLServerMetadataProvider extends BaseDatabaseMetadataProvider {
     }
 
     @Override
+    public List<IndexMetadata> listIndexes(List<ObjectRef> relations) throws SQLException {
+        if (relations.isEmpty()) {
+            return List.of();
+        }
+        var first = relations.get(0);
+        return groupIndexRows(queryKeys(SQL_TABLE_INDEXES, relations, first.schema()),
+                new RelationScope(first.catalog(), first.schema()));
+    }
+
+    @Override
     public List<ObjectStatistics> listStatistics(RelationScope scope) throws SQLException {
         var result = new ArrayList<ObjectStatistics>();
         for (var row : query(SQL_TABLE_STATS, List.of(scope.schema()))) {
@@ -246,6 +275,37 @@ public class SQLServerMetadataProvider extends BaseDatabaseMetadataProvider {
             ORDER BY t.name, fk.name, fkc.constraint_column_id
             """;
 
+    private static final String SQL_CONSTRAINTS = """
+            WITH target_tables AS (
+                SELECT t.object_id, t.name AS table_name
+                FROM sys.tables t JOIN sys.schemas s ON s.schema_id = t.schema_id
+                WHERE s.name = ? AND t.name IN (__IN__)
+            )
+            SELECT t.table_name, kc.name, CASE kc.type WHEN 'PK' THEN 'PRIMARY KEY' ELSE 'UNIQUE' END AS constraint_type,
+                   c.name AS column_name, NULL AS referenced_schema, NULL AS referenced_table,
+                   NULL AS referenced_column, NULL AS definition, ic.key_ordinal AS ordinal
+            FROM target_tables t
+            JOIN sys.key_constraints kc ON kc.parent_object_id = t.object_id
+            JOIN sys.index_columns ic ON ic.object_id = t.object_id AND ic.index_id = kc.unique_index_id
+            JOIN sys.columns c ON c.object_id = ic.object_id AND c.column_id = ic.column_id
+            UNION ALL
+            SELECT t.table_name, fk.name, 'FOREIGN KEY', c.name, rs.name, rt.name, rc.name, NULL,
+                   fkc.constraint_column_id
+            FROM target_tables t
+            JOIN sys.foreign_keys fk ON fk.parent_object_id = t.object_id
+            JOIN sys.foreign_key_columns fkc ON fkc.constraint_object_id = fk.object_id
+            JOIN sys.columns c ON c.object_id = fkc.parent_object_id AND c.column_id = fkc.parent_column_id
+            JOIN sys.tables rt ON rt.object_id = fk.referenced_object_id
+            JOIN sys.schemas rs ON rs.schema_id = rt.schema_id
+            JOIN sys.columns rc ON rc.object_id = fkc.referenced_object_id AND rc.column_id = fkc.referenced_column_id
+            UNION ALL
+            SELECT t.table_name, cc.name, 'CHECK', c.name, NULL, NULL, NULL, cc.definition, 0
+            FROM target_tables t
+            JOIN sys.check_constraints cc ON cc.parent_object_id = t.object_id
+            LEFT JOIN sys.columns c ON c.object_id = cc.parent_object_id AND c.column_id = cc.parent_column_id
+            ORDER BY table_name, name, ordinal
+            """;
+
     @Override
     public List<PrimaryKeyMetadata> listPrimaryKeys(List<ObjectRef> relations) throws SQLException {
         var first = relations.get(0);
@@ -257,6 +317,16 @@ public class SQLServerMetadataProvider extends BaseDatabaseMetadataProvider {
     public List<ForeignKeyMetadata> listForeignKeys(List<ObjectRef> relations) throws SQLException {
         var first = relations.get(0);
         return groupForeignKeys(queryKeys(SQL_FOREIGN_KEYS, relations, first.schema()),
+                new RelationScope(first.catalog(), first.schema()));
+    }
+
+    @Override
+    public List<ConstraintMetadata> listConstraints(List<ObjectRef> relations) throws SQLException {
+        if (relations.isEmpty()) {
+            return List.of();
+        }
+        var first = relations.get(0);
+        return groupConstraints(queryKeys(SQL_CONSTRAINTS, relations, first.schema()),
                 new RelationScope(first.catalog(), first.schema()));
     }
 }

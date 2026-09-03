@@ -4,6 +4,7 @@ import org.jumpserver.chen.framework.datasource.ConnectionManager;
 import org.jumpserver.chen.framework.datasource.metadata.BaseDatabaseMetadataProvider;
 import org.jumpserver.chen.framework.datasource.metadata.CatalogMetadata;
 import org.jumpserver.chen.framework.datasource.metadata.ColumnMetadata;
+import org.jumpserver.chen.framework.datasource.metadata.ConstraintMetadata;
 import org.jumpserver.chen.framework.datasource.metadata.IndexMetadata;
 import org.jumpserver.chen.framework.datasource.metadata.MetadataCapabilities;
 import org.jumpserver.chen.framework.datasource.metadata.ObjectProperties;
@@ -33,7 +34,7 @@ public class PostgresqlMetadataProvider extends BaseDatabaseMetadataProvider {
 
     private static final MetadataCapabilities CAPABILITIES = new MetadataCapabilities(
             true, true, true, true, true, true, true, true, false,
-            true, true, false, false, false, true, true
+            true, true, false, false, false, true, true, true, false
     );
 
     private static final String SQL_CATALOGS = "SELECT DATNAME AS name FROM PG_DATABASE WHERE DATISTEMPLATE = FALSE";
@@ -78,7 +79,8 @@ public class PostgresqlMetadataProvider extends BaseDatabaseMetadataProvider {
                    CASE WHEN k.attnum = 0 THEN pg_get_indexdef(ic.oid, k.position::integer, true) END AS expression,
                    i.indisunique AS is_unique,
                    am.amname AS method,
-                   pg_get_indexdef(ic.oid) AS definition
+                   pg_get_indexdef(ic.oid) AS definition,
+                   CASE WHEN (i.indoption[(k.position - 1)::integer] & 1) = 1 THEN 'DESC' ELSE 'ASC' END AS sort_order
             FROM pg_index i
             JOIN pg_class ic ON ic.oid = i.indexrelid
             JOIN pg_class tc ON tc.oid = i.indrelid
@@ -103,6 +105,22 @@ public class PostgresqlMetadataProvider extends BaseDatabaseMetadataProvider {
             LEFT JOIN pg_attribute a ON a.attrelid = pc.oid AND a.attname = c.column_name
             WHERE c.table_schema = ? AND c.table_name IN (__IN__)
             ORDER BY c.table_name, c.ordinal_position
+            """;
+
+    private static final String SQL_TABLE_INDEXES = """
+            SELECT ic.relname AS name, tc.relname AS table_name, a.attname AS column_name,
+                   CASE WHEN k.attnum = 0 THEN pg_get_indexdef(ic.oid, k.position::integer, true) END AS expression,
+                   i.indisunique AS is_unique, am.amname AS method, pg_get_indexdef(ic.oid) AS definition,
+                   CASE WHEN (i.indoption[(k.position - 1)::integer] & 1) = 1 THEN 'DESC' ELSE 'ASC' END AS sort_order
+            FROM pg_index i
+            JOIN pg_class ic ON ic.oid = i.indexrelid
+            JOIN pg_class tc ON tc.oid = i.indrelid
+            JOIN pg_namespace n ON n.oid = tc.relnamespace
+            JOIN pg_am am ON am.oid = ic.relam
+            LEFT JOIN LATERAL unnest(i.indkey) WITH ORDINALITY k(attnum, position) ON true
+            LEFT JOIN pg_attribute a ON a.attrelid = tc.oid AND a.attnum = k.attnum AND k.attnum > 0
+            WHERE n.nspname = ? AND tc.relname IN (__IN__)
+            ORDER BY tc.relname, ic.relname, k.position
             """;
 
     @Override
@@ -174,6 +192,16 @@ public class PostgresqlMetadataProvider extends BaseDatabaseMetadataProvider {
     }
 
     @Override
+    public List<IndexMetadata> listIndexes(List<ObjectRef> relations) throws SQLException {
+        if (relations.isEmpty()) {
+            return List.of();
+        }
+        var first = relations.get(0);
+        return groupIndexRows(queryKeys(SQL_TABLE_INDEXES, relations, first.schema()),
+                new RelationScope(first.catalog(), first.schema()));
+    }
+
+    @Override
     public List<ObjectStatistics> listStatistics(RelationScope scope) throws SQLException {
         var result = new ArrayList<ObjectStatistics>();
         for (var row : query(SQL_TABLE_STATS, List.of(scope.schema()))) {
@@ -240,6 +268,27 @@ public class PostgresqlMetadataProvider extends BaseDatabaseMetadataProvider {
             ORDER BY tc.relname, con.conname, k.ord
             """;
 
+    private static final String SQL_CONSTRAINTS = """
+            SELECT tc.relname AS table_name, con.conname AS name,
+                   CASE con.contype WHEN 'p' THEN 'PRIMARY KEY' WHEN 'f' THEN 'FOREIGN KEY'
+                        WHEN 'u' THEN 'UNIQUE' WHEN 'c' THEN 'CHECK' END AS constraint_type,
+                   a.attname AS column_name, rn.nspname AS referenced_schema,
+                   rc.relname AS referenced_table, ra.attname AS referenced_column,
+                   pg_get_constraintdef(con.oid, true) AS definition
+            FROM pg_constraint con
+            JOIN pg_class tc ON tc.oid = con.conrelid
+            JOIN pg_namespace n ON n.oid = tc.relnamespace
+            LEFT JOIN LATERAL unnest(con.conkey) WITH ORDINALITY k(attnum, ord) ON true
+            LEFT JOIN pg_attribute a ON a.attrelid = tc.oid AND a.attnum = k.attnum
+            LEFT JOIN LATERAL unnest(con.confkey) WITH ORDINALITY rk(attnum, ord) ON rk.ord = k.ord
+            LEFT JOIN pg_class rc ON rc.oid = con.confrelid
+            LEFT JOIN pg_namespace rn ON rn.oid = rc.relnamespace
+            LEFT JOIN pg_attribute ra ON ra.attrelid = rc.oid AND ra.attnum = rk.attnum
+            WHERE con.contype IN ('p', 'f', 'u', 'c')
+              AND n.nspname = ? AND tc.relname IN (__IN__)
+            ORDER BY tc.relname, con.conname, k.ord
+            """;
+
     @Override
     public List<PrimaryKeyMetadata> listPrimaryKeys(List<ObjectRef> relations) throws SQLException {
         var first = relations.get(0);
@@ -251,6 +300,16 @@ public class PostgresqlMetadataProvider extends BaseDatabaseMetadataProvider {
     public List<ForeignKeyMetadata> listForeignKeys(List<ObjectRef> relations) throws SQLException {
         var first = relations.get(0);
         return groupForeignKeys(queryKeys(SQL_FOREIGN_KEYS, relations, first.schema()),
+                new RelationScope(first.catalog(), first.schema()));
+    }
+
+    @Override
+    public List<ConstraintMetadata> listConstraints(List<ObjectRef> relations) throws SQLException {
+        if (relations.isEmpty()) {
+            return List.of();
+        }
+        var first = relations.get(0);
+        return groupConstraints(queryKeys(SQL_CONSTRAINTS, relations, first.schema()),
                 new RelationScope(first.catalog(), first.schema()));
     }
 }

@@ -44,16 +44,24 @@ public interface DatabaseMetadataProvider {
 
     List<IndexMetadata> listIndexes(RelationScope scope) throws SQLException;
 
+    /** Object-scoped index load. Implementations must push the relation filter into SQL. */
+    List<IndexMetadata> listIndexes(List<ObjectRef> relations) throws SQLException;
+
     List<ObjectStatistics> listStatistics(RelationScope scope) throws SQLException;
 
     List<PrimaryKeyMetadata> listPrimaryKeys(List<ObjectRef> relations) throws SQLException;
 
     List<ForeignKeyMetadata> listForeignKeys(List<ObjectRef> relations) throws SQLException;
 
+    List<ConstraintMetadata> listConstraints(List<ObjectRef> relations) throws SQLException;
+
     /**
      * Schema/database DDL, or {@code null} when the dialect does not provide one.
      */
     String getSchemaDefinition(RelationScope scope) throws SQLException;
+
+    /** Complete table DDL, or {@code null} when the dialect does not provide it. */
+    String getTableDefinition(ObjectRef relation) throws SQLException;
 
     ObjectProperties objectProperties(ObjectRef ref) throws SQLException;
 

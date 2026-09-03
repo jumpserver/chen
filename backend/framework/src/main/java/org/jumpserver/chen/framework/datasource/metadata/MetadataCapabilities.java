@@ -21,6 +21,19 @@ public record MetadataCapabilities(
         boolean tableCharacterSet,
         boolean tableCollation,
         boolean tableComment,
-        boolean viewComment
+        boolean viewComment,
+        boolean constraints,
+        boolean tableDefinitions
 ) {
+    /** Compatibility constructor for callers that only know the original capability set. */
+    public MetadataCapabilities(
+            boolean catalogs, boolean schemas, boolean relations, boolean columns,
+            boolean indexes, boolean primaryKeys, boolean foreignKeys, boolean statistics,
+            boolean definitions, boolean tableRows, boolean tableSize, boolean tableEngine,
+            boolean tableCharacterSet, boolean tableCollation, boolean tableComment, boolean viewComment
+    ) {
+        this(catalogs, schemas, relations, columns, indexes, primaryKeys, foreignKeys, statistics,
+                definitions, tableRows, tableSize, tableEngine, tableCharacterSet, tableCollation,
+                tableComment, viewComment, false, false);
+    }
 }

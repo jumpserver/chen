@@ -100,6 +100,26 @@ public class MetadataCatalog {
         return loadObjectScoped(relations, Category.FOREIGN_KEYS, provider::listForeignKeys, DEFAULT_TTL_MILLIS);
     }
 
+    public List<IndexMetadata> listIndexes(List<ObjectRef> relations) throws SQLException {
+        if (relations.isEmpty() || !provider.capabilities().indexes()) {
+            return List.of();
+        }
+        return loadObjectScoped(relations, Category.OBJECT_INDEXES, provider::listIndexes, DEFAULT_TTL_MILLIS);
+    }
+
+    public List<ConstraintMetadata> listConstraints(List<ObjectRef> relations) throws SQLException {
+        if (relations.isEmpty() || !provider.capabilities().constraints()) {
+            return List.of();
+        }
+        return loadObjectScoped(relations, Category.CONSTRAINTS, provider::listConstraints, DEFAULT_TTL_MILLIS);
+    }
+
+    public String getTableDefinition(ObjectRef relation) throws SQLException {
+        var key = new CacheKey(relation.catalog(), relation.schema(), relation.name(), Category.TABLE_DEFINITIONS);
+        return cachedNullable(key, DEFAULT_TTL_MILLIS, provider.capabilities().tableDefinitions(), () ->
+                connectionManager.withDatabaseContext(relation.catalog(), () -> provider.getTableDefinition(relation)));
+    }
+
     // -- schema-scoped ------------------------------------------------------
 
     public List<IndexMetadata> listIndexes(RelationScope scope) throws SQLException {
@@ -240,6 +260,12 @@ public class MetadataCatalog {
         if (item instanceof ForeignKeyMetadata fk) {
             return fk.owner();
         }
+        if (item instanceof IndexMetadata index) {
+            return index.owner();
+        }
+        if (item instanceof ConstraintMetadata constraint) {
+            return constraint.owner();
+        }
         return null;
     }
 
@@ -270,7 +296,7 @@ public class MetadataCatalog {
 
     private enum Category {
         CATALOGS, SCHEMAS, RELATIONS, COLUMNS, INDEXES, STATISTICS,
-        PRIMARY_KEYS, FOREIGN_KEYS, DEFINITIONS
+        PRIMARY_KEYS, FOREIGN_KEYS, DEFINITIONS, OBJECT_INDEXES, CONSTRAINTS, TABLE_DEFINITIONS
     }
 
     private enum State {

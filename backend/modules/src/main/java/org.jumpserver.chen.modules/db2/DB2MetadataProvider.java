@@ -3,6 +3,7 @@ package org.jumpserver.chen.modules.db2;
 import org.jumpserver.chen.framework.datasource.ConnectionManager;
 import org.jumpserver.chen.framework.datasource.metadata.BaseDatabaseMetadataProvider;
 import org.jumpserver.chen.framework.datasource.metadata.ColumnMetadata;
+import org.jumpserver.chen.framework.datasource.metadata.ConstraintMetadata;
 import org.jumpserver.chen.framework.datasource.metadata.IndexMetadata;
 import org.jumpserver.chen.framework.datasource.metadata.MetadataCapabilities;
 import org.jumpserver.chen.framework.datasource.metadata.ObjectProperties;
@@ -31,7 +32,7 @@ public class DB2MetadataProvider extends BaseDatabaseMetadataProvider {
 
     private static final MetadataCapabilities CAPABILITIES = new MetadataCapabilities(
             false, true, true, true, true, true, true, true, false,
-            true, true, false, true, false, true, true
+            true, true, false, true, false, true, true, true, false
     );
 
     private static final String SQL_SCHEMAS = "SELECT SCHEMANAME AS name FROM syscat.schemata";
@@ -76,7 +77,8 @@ public class DB2MetadataProvider extends BaseDatabaseMetadataProvider {
                    RTRIM(c.colname) AS column_name,
                    CASE WHEN i.uniquerule IN ('P', 'U') THEN 1 ELSE 0 END AS is_unique,
                    i.indextype AS method,
-                   NULL AS definition
+                   NULL AS definition,
+                   c.colorder AS sort_order
             FROM syscat.indexes i
             LEFT JOIN syscat.indexcoluse c
               ON c.indschema = i.indschema AND c.indname = i.indname
@@ -92,6 +94,17 @@ public class DB2MetadataProvider extends BaseDatabaseMetadataProvider {
             FROM syscat.COLUMNS
             WHERE TABSCHEMA = ? AND TABNAME IN (__IN__)
             ORDER BY TABNAME, COLNO
+            """;
+
+    private static final String SQL_TABLE_INDEXES = """
+            SELECT RTRIM(i.indname) AS name, RTRIM(i.tabname) AS table_name,
+                   RTRIM(c.colname) AS column_name,
+                   CASE WHEN i.uniquerule IN ('P', 'U') THEN 1 ELSE 0 END AS is_unique,
+                   i.indextype AS method, NULL AS definition, c.colorder AS sort_order
+            FROM syscat.indexes i
+            LEFT JOIN syscat.indexcoluse c ON c.indschema = i.indschema AND c.indname = i.indname
+            WHERE i.tabschema = ? AND i.tabname IN (__IN__)
+            ORDER BY i.tabname, i.indname, c.colseq
             """;
 
     @Override
@@ -147,6 +160,16 @@ public class DB2MetadataProvider extends BaseDatabaseMetadataProvider {
     }
 
     @Override
+    public List<IndexMetadata> listIndexes(List<ObjectRef> relations) throws SQLException {
+        if (relations.isEmpty()) {
+            return List.of();
+        }
+        var first = relations.get(0);
+        return groupIndexRows(queryKeys(SQL_TABLE_INDEXES, relations, first.schema()),
+                new RelationScope(first.catalog(), first.schema()));
+    }
+
+    @Override
     public List<ObjectStatistics> listStatistics(RelationScope scope) throws SQLException {
         var result = new ArrayList<ObjectStatistics>();
         for (var row : query(SQL_TABLE_STATS, List.of(scope.schema()))) {
@@ -194,14 +217,36 @@ public class DB2MetadataProvider extends BaseDatabaseMetadataProvider {
 
     private static final String SQL_FOREIGN_KEYS = """
             SELECT RTRIM(f.tabname) AS table_name, RTRIM(k.colname) AS column_name, RTRIM(f.constname) AS name,
-                   RTRIM(f.ref_tabschema) AS referenced_schema, RTRIM(f.reftabname) AS referenced_table,
+                   RTRIM(f.reftabschema) AS referenced_schema, RTRIM(f.reftabname) AS referenced_table,
                    RTRIM(rk.colname) AS referenced_column
             FROM syscat.references f
             JOIN syscat.keycoluse k ON k.tabschema = f.tabschema AND k.tabname = f.tabname AND k.constname = f.constname
-            JOIN syscat.keycoluse rk ON rk.tabschema = f.ref_tabschema AND rk.tabname = f.reftabname
-                 AND rk.constname = f.constname AND rk.colseq = k.colseq
+            JOIN syscat.keycoluse rk ON rk.tabschema = f.reftabschema AND rk.tabname = f.reftabname
+                 AND rk.constname = f.refkeyname AND rk.colseq = k.colseq
             WHERE f.tabschema = ? AND f.tabname IN (__IN__)
             ORDER BY f.tabname, f.constname, k.colseq
+            """;
+
+    private static final String SQL_CONSTRAINTS = """
+            SELECT RTRIM(t.tabname) AS table_name, RTRIM(t.constname) AS name,
+                   CASE t.type WHEN 'P' THEN 'PRIMARY KEY' WHEN 'F' THEN 'FOREIGN KEY'
+                        WHEN 'U' THEN 'UNIQUE' WHEN 'K' THEN 'CHECK' END AS constraint_type,
+                   RTRIM(k.colname) AS column_name, RTRIM(r.reftabschema) AS referenced_schema,
+                   RTRIM(r.reftabname) AS referenced_table, RTRIM(rk.colname) AS referenced_column,
+                   ch.text AS definition
+            FROM syscat.tabconst t
+            LEFT JOIN syscat.keycoluse k
+              ON k.tabschema = t.tabschema AND k.tabname = t.tabname AND k.constname = t.constname
+            LEFT JOIN syscat.references r
+              ON r.tabschema = t.tabschema AND r.tabname = t.tabname AND r.constname = t.constname
+            LEFT JOIN syscat.keycoluse rk
+              ON rk.tabschema = r.reftabschema AND rk.tabname = r.reftabname
+             AND rk.constname = r.refkeyname AND rk.colseq = k.colseq
+            LEFT JOIN syscat.checks ch
+              ON ch.tabschema = t.tabschema AND ch.tabname = t.tabname AND ch.constname = t.constname
+            WHERE t.type IN ('P', 'F', 'U', 'K')
+              AND t.tabschema = ? AND t.tabname IN (__IN__)
+            ORDER BY t.tabname, t.constname, k.colseq
             """;
 
     @Override
@@ -215,6 +260,16 @@ public class DB2MetadataProvider extends BaseDatabaseMetadataProvider {
     public List<ForeignKeyMetadata> listForeignKeys(List<ObjectRef> relations) throws SQLException {
         var first = relations.get(0);
         return groupForeignKeys(queryKeys(SQL_FOREIGN_KEYS, relations, first.schema()),
+                new RelationScope(first.catalog(), first.schema()));
+    }
+
+    @Override
+    public List<ConstraintMetadata> listConstraints(List<ObjectRef> relations) throws SQLException {
+        if (relations.isEmpty()) {
+            return List.of();
+        }
+        var first = relations.get(0);
+        return groupConstraints(queryKeys(SQL_CONSTRAINTS, relations, first.schema()),
                 new RelationScope(first.catalog(), first.schema()));
     }
 }
