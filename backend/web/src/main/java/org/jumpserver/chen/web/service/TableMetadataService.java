@@ -33,10 +33,22 @@ public class TableMetadataService {
         var node = resolveTableNode(datasource.getResourceBrowser(), request == null ? null : request.nodeKey());
         var ref = new ObjectRef(node.database(), node.schema(), node.table(), RelationKind.TABLE);
         try {
-            return load(datasource.getMetadataCatalog(), ref, normalizeSections(request == null ? null : request.sections()));
+            return load(
+                    datasource.getMetadataCatalog(), ref,
+                    normalizeSections(request == null ? null : request.sections()),
+                    request != null && request.force()
+            );
         } catch (SQLException | IllegalArgumentException e) {
             throw new ChenException("Failed to load table metadata", e);
         }
+    }
+
+    TableMetadata load(MetadataCatalog catalog, ObjectRef ref, Set<String> sections, boolean force)
+            throws SQLException {
+        if (force) {
+            catalog.invalidate(ref);
+        }
+        return load(catalog, ref, sections);
     }
 
     TableMetadata load(MetadataCatalog catalog, ObjectRef ref, Set<String> sections) throws SQLException {

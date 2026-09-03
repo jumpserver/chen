@@ -42,10 +42,22 @@ public class SchemaOverviewService {
         try {
             var scope = new RelationScope(node.database(), node.schema());
             var sections = normalizeSections(request == null ? null : request.sections());
-            return this.load(datasource.getMetadataCatalog(), scope, sections);
+            return this.load(
+                    datasource.getMetadataCatalog(), scope, sections,
+                    request != null && request.force()
+            );
         } catch (SQLException | IllegalArgumentException e) {
             throw new ChenException("Failed to load schema overview metadata", e);
         }
+    }
+
+    SchemaOverviewMetadata load(
+            MetadataCatalog catalog, RelationScope scope, Set<String> sections, boolean force
+    ) throws SQLException {
+        if (force) {
+            catalog.invalidate(scope);
+        }
+        return this.load(catalog, scope, sections);
     }
 
     SchemaOverviewMetadata load(MetadataCatalog catalog, RelationScope scope, Set<String> sections)
