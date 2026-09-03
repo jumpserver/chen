@@ -250,13 +250,11 @@ public class MysqlMetadataProvider extends BaseDatabaseMetadataProvider {
                    k.REFERENCED_TABLE_SCHEMA AS referenced_schema,
                    k.REFERENCED_TABLE_NAME AS referenced_table,
                    k.REFERENCED_COLUMN_NAME AS referenced_column,
-                   cc.CHECK_CLAUSE AS definition
+                   NULL AS definition
             FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc
             LEFT JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE k
               ON k.CONSTRAINT_SCHEMA = tc.CONSTRAINT_SCHEMA
              AND k.TABLE_NAME = tc.TABLE_NAME AND k.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
-            LEFT JOIN INFORMATION_SCHEMA.CHECK_CONSTRAINTS cc
-              ON cc.CONSTRAINT_SCHEMA = tc.CONSTRAINT_SCHEMA AND cc.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
             WHERE tc.TABLE_SCHEMA = ? AND tc.TABLE_NAME IN (__IN__)
               AND tc.CONSTRAINT_TYPE IN ('PRIMARY KEY', 'FOREIGN KEY', 'UNIQUE', 'CHECK')
             ORDER BY tc.TABLE_NAME, tc.CONSTRAINT_NAME, k.ORDINAL_POSITION
