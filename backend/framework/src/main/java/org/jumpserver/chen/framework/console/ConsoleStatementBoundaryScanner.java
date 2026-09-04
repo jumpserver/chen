@@ -7,12 +7,8 @@ import java.util.List;
 /**
  * Splits raw console input on top-level statement boundaries without rewriting it.
  */
-public final class ConsoleStatementBoundaryScanner {
+final class ConsoleStatementBoundaryScanner {
     private ConsoleStatementBoundaryScanner() {
-    }
-
-    public static boolean hasExactlyOneStatement(String sql) throws SQLException {
-        return split(sql).size() == 1;
     }
 
     static List<String> split(String sql) throws SQLException {

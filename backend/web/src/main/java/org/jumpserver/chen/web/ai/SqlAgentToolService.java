@@ -6,7 +6,6 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import org.apache.commons.lang3.StringUtils;
-import org.jumpserver.chen.framework.console.ConsoleStatementBoundaryScanner;
 import org.jumpserver.chen.framework.console.QueryConsole;
 import org.jumpserver.chen.framework.datasource.ConnectionManager;
 import org.jumpserver.chen.framework.datasource.Datasource;
@@ -246,10 +245,7 @@ public class SqlAgentToolService {
             if (!consoleWorkspace) {
                 throw new IllegalArgumentException(SqlValidator.QUERY_UNSUPPORTED_MESSAGE);
             }
-            assertSingleConsoleStatement(sql);
             explanation = appendNotice(explanation, CONSOLE_UNPARSEABLE_NOTICE);
-        } else if (validation.statementCount() != 1) {
-            throw new IllegalArgumentException("The SQL proposal must contain exactly one valid statement");
         }
         Map<String, Object> analysis = validation.parseable() ? validation.toAnalysisMap() : null;
         int selectionFrom = editor.get("selectionFrom").getAsInt();
@@ -295,16 +291,6 @@ public class SqlAgentToolService {
 
     private static String appendNotice(String explanation, String notice) {
         return explanation.isBlank() ? notice : explanation + "\n\n" + notice;
-    }
-
-    private static void assertSingleConsoleStatement(String sql) {
-        try {
-            if (!ConsoleStatementBoundaryScanner.hasExactlyOneStatement(sql)) {
-                throw new IllegalArgumentException("The SQL proposal must contain exactly one statement");
-            }
-        } catch (SQLException e) {
-            throw new IllegalArgumentException("The SQL proposal must contain exactly one statement", e);
-        }
     }
 
     MetadataApprovalScope resolveMetadataApprovalScope(

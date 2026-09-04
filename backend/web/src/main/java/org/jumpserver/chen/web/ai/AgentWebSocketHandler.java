@@ -338,14 +338,14 @@ public class AgentWebSocketHandler extends TextWebSocketHandler {
         Map<String, Object> proposalTool = tool(
                 "propose_sql",
                 "Propose SQL draft",
-                "Prepare exactly one SQL statement as a draft for explicit user review, and wait for the "
+                "Prepare SQL as a draft for explicit user review, and wait for the "
                         + "user to apply or reject it. Query only accepts SQL Chen can parse with Druid; "
                         + "unparseable vendor-native SQL must be proposed in Console, which inserts it with an explicit notice. "
                         + "This never executes SQL.",
                 "{\"type\":\"object\",\"additionalProperties\":false,"
                         + "\"required\":[\"sql\",\"explanation\"],\"properties\":{"
                         + "\"sql\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":131072,"
-                        + "\"description\":\"Exactly one complete SQL statement in the verified dialect\"},"
+                        + "\"description\":\"Complete SQL in the verified dialect\"},"
                         + "\"explanation\":{\"type\":\"string\",\"maxLength\":4096,"
                         + "\"description\":\"Concise explanation for the user reviewing the draft\"}}}",
                 false
