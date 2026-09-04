@@ -251,12 +251,7 @@ public class SqlAgentToolService {
         } else if (validation.statementCount() != 1) {
             throw new IllegalArgumentException("The SQL proposal must contain exactly one valid statement");
         }
-        Map<String, Object> analysis = new LinkedHashMap<>(validation.toAnalysisMap());
-        if (consoleWorkspace && !validation.parseable()) {
-            // Luna historically renders valid=false as "Invalid SQL". Console accepts an opaque
-            // native statement, while parseable=false preserves Chen's actual Druid result.
-            analysis.put("valid", true);
-        }
+        Map<String, Object> analysis = validation.parseable() ? validation.toAnalysisMap() : null;
         int selectionFrom = editor.get("selectionFrom").getAsInt();
         int selectionTo = editor.get("selectionTo").getAsInt();
         String tabId = editor.get("tabId").getAsString();
@@ -284,9 +279,18 @@ public class SqlAgentToolService {
         proposal.put("sql", sql);
         proposal.put("originalSql", originalSQL);
         proposal.put("explanation", explanation);
-        proposal.put("analysis", analysis);
+        if (analysis != null) {
+            proposal.put("analysis", analysis);
+        }
         proposal.put("base", base);
-        return Map.of("kind", "proposal", "analysis", analysis, "proposal", proposal);
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("kind", "proposal");
+        if (analysis != null) {
+            result.put("analysis", analysis);
+        }
+        result.put("proposal", proposal);
+        return result;
     }
 
     private static String appendNotice(String explanation, String notice) {
