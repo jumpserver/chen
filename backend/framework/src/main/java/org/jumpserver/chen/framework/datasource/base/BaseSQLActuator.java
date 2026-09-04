@@ -125,7 +125,7 @@ public abstract class BaseSQLActuator implements SQLActuator {
 
     @Override
     public List<String> parseSQL(SQL sql) {
-        return SQLUtils.parseStatements(sql.getSql(), this.druidDbType).stream()
+        return SqlValidator.parse(this.druidDbType, sql.getSql()).stream()
                 .map(stmt -> SQLUtils.toSQLString(stmt, this.druidDbType))
                 .toList();
     }
