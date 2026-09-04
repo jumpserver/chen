@@ -1,10 +1,6 @@
 package org.jumpserver.chen.web.ai;
 
 import com.alibaba.druid.DbType;
-import com.alibaba.druid.sql.SQLUtils;
-import com.alibaba.druid.sql.ast.SQLStatement;
-import com.alibaba.druid.sql.visitor.SchemaStatVisitor;
-import com.alibaba.druid.stat.TableStat;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -25,29 +21,30 @@ import org.jumpserver.chen.framework.datasource.metadata.PrimaryKeyMetadata;
 import org.jumpserver.chen.framework.datasource.metadata.RelationKind;
 import org.jumpserver.chen.framework.datasource.metadata.RelationMetadata;
 import org.jumpserver.chen.framework.datasource.metadata.RelationScope;
+import org.jumpserver.chen.framework.datasource.sql.SqlValidationResult;
+import org.jumpserver.chen.framework.datasource.sql.SqlValidator;
 import org.jumpserver.chen.framework.session.Session;
 import org.springframework.stereotype.Service;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.regex.Pattern;
 
 @Service
 public class SqlAgentToolService {
+    static final String CONSOLE_UNPARSEABLE_NOTICE = "Chen cannot validate this SQL with Druid.\n\n"
+            + "It may use database-native syntax.\n\n"
+            + "Please review it before execution.";
     private static final Gson GSON = new Gson();
     private static final int MAX_CONTEXT_BYTES = 256 * 1024;
     private static final int MAX_SQL_BYTES = 128 * 1024;
     private static final int MAX_TOOL_ARGUMENT_BYTES = MAX_SQL_BYTES + 8 * 1024;
     private static final int MAX_IDENTIFIER_BYTES = 1024;
-    private static final int MAX_OBJECTS = 50;
-    private static final int MAX_ANALYSIS_COLUMNS = 512;
     static final int MAX_INSPECT_TABLES = 8;
     static final int MAX_DISCOVER_TABLES = 100;
     static final String DISCOVER_TABLES_QUERY = "*";
@@ -152,7 +149,6 @@ public class SqlAgentToolService {
         String targetSql = hasSelection ? selectedSql : documentSql;
         Map<String, Object> sqlAnalysis = StringUtils.isBlank(targetSql)
                 ? null : validateSQL(datasource.getDruidDbType(), targetSql);
-        assertAllowedAiScope(dialect, database, schema, targetSql, sqlAnalysis);
         JsonObject sanitized = new JsonObject();
         sanitized.addProperty("dialect", dialect);
         addNullableString(sanitized, "database", database);
@@ -225,9 +221,9 @@ public class SqlAgentToolService {
             );
             case "validate_sql" -> Map.of(
                     "kind", "validation",
-                    "analysis", validateSQL(
+                    "analysis", SqlValidator.validate(
                             datasource.getDruidDbType(), boundedString(arguments, "sql", MAX_SQL_BYTES, true)
-                    )
+                    ).toAnalysisMap()
             );
             case "propose_sql" -> proposeSQL(datasource, context, arguments);
             default -> throw new IllegalArgumentException("Unsupported SQL assistant tool");
@@ -242,14 +238,16 @@ public class SqlAgentToolService {
     ) {
         String sql = boundedString(arguments, "sql", MAX_SQL_BYTES, true).trim();
         String explanation = boundedString(arguments, "explanation", 4 * 1024, false).trim();
-        Map<String, Object> analysis = validateSQL(datasource.getDruidDbType(), sql);
-        assertAllowedAiScope(context.dialect(), context.database(), context.schema(), sql, analysis);
-        if (!Boolean.TRUE.equals(analysis.get("valid"))
-                || ((Number) analysis.getOrDefault("statementCount", 0)).intValue() != 1) {
-            throw new IllegalArgumentException("The SQL proposal must contain exactly one valid statement");
-        }
-
         JsonObject editor = JsonParser.parseString(context.sanitizedJson()).getAsJsonObject();
+        boolean consoleWorkspace = "console".equals(boundedString(editor, "workspaceTabKind", 32, false));
+        SqlValidationResult validation = SqlValidator.validate(datasource.getDruidDbType(), sql);
+        if (!validation.parseable()) {
+            if (!consoleWorkspace) {
+                throw new IllegalArgumentException(SqlValidator.QUERY_UNSUPPORTED_MESSAGE);
+            }
+            explanation = appendNotice(explanation, CONSOLE_UNPARSEABLE_NOTICE);
+        }
+        Map<String, Object> analysis = validation.parseable() ? validation.toAnalysisMap() : null;
         int selectionFrom = editor.get("selectionFrom").getAsInt();
         int selectionTo = editor.get("selectionTo").getAsInt();
         String tabId = editor.get("tabId").getAsString();
@@ -277,9 +275,22 @@ public class SqlAgentToolService {
         proposal.put("sql", sql);
         proposal.put("originalSql", originalSQL);
         proposal.put("explanation", explanation);
-        proposal.put("analysis", analysis);
+        if (analysis != null) {
+            proposal.put("analysis", analysis);
+        }
         proposal.put("base", base);
-        return Map.of("kind", "proposal", "analysis", analysis, "proposal", proposal);
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("kind", "proposal");
+        if (analysis != null) {
+            result.put("analysis", analysis);
+        }
+        result.put("proposal", proposal);
+        return result;
+    }
+
+    private static String appendNotice(String explanation, String notice) {
+        return explanation.isBlank() ? notice : explanation + "\n\n" + notice;
     }
 
     MetadataApprovalScope resolveMetadataApprovalScope(
@@ -354,55 +365,7 @@ public class SqlAgentToolService {
     }
 
     static Map<String, Object> validateSQL(DbType dbType, String sql) {
-        Map<String, Object> result = new LinkedHashMap<>();
-        LinkedHashSet<String> tables = new LinkedHashSet<>();
-        LinkedHashSet<String> columns = new LinkedHashSet<>();
-        List<String> errors = new ArrayList<>();
-        List<SQLStatement> statements;
-        try {
-            statements = SQLUtils.parseStatements(sql, dbType);
-            if (statements.isEmpty()) {
-                throw new IllegalArgumentException("SQL statement is empty");
-            }
-        } catch (RuntimeException e) {
-            result.put("valid", false);
-            result.put("statementCount", 0);
-            result.put("statementType", "UNKNOWN");
-            result.put("riskLevel", 0);
-            result.put("riskReason", "SQL syntax validation failed");
-            result.put("tables", List.of());
-            result.put("columns", List.of());
-            result.put("errors", List.of(safeError(e)));
-            return result;
-        }
-
-        int riskLevel = 0;
-        String statementType = statements.size() == 1 ? statementType(statements.get(0)) : "MULTI";
-        for (SQLStatement statement : statements) {
-            riskLevel = Math.max(riskLevel, riskLevel(statementType(statement)));
-            try {
-                SchemaStatVisitor visitor = SQLUtils.createSchemaStatVisitor(dbType);
-                statement.accept(visitor);
-                for (TableStat.Name table : visitor.getTables().keySet()) {
-                    addBounded(tables, table.toString(), MAX_OBJECTS);
-                }
-                Collection<TableStat.Column> statementColumns = visitor.getColumns();
-                for (TableStat.Column column : statementColumns) {
-                    addBounded(columns, column.toString(), MAX_ANALYSIS_COLUMNS);
-                }
-            } catch (RuntimeException ignored) {
-                // Some vendor-specific statements are syntactically valid but do not support schema statistics.
-            }
-        }
-        result.put("valid", true);
-        result.put("statementCount", statements.size());
-        result.put("statementType", statementType);
-        result.put("riskLevel", riskLevel);
-        result.put("riskReason", riskReason(riskLevel, statements.size()));
-        result.put("tables", List.copyOf(tables));
-        result.put("columns", List.copyOf(columns));
-        result.put("errors", errors);
-        return result;
+        return SqlValidator.validate(dbType, sql).toAnalysisMap();
     }
 
     private Map<String, Object> inspectSchema(
@@ -736,45 +699,6 @@ public class SqlAgentToolService {
         }
     }
 
-    private static void assertAllowedAiScope(
-            String dialect,
-            String database,
-            String schema,
-            String sql,
-            Map<String, Object> sqlAnalysis
-    ) {
-        boolean sqlIsValid = sqlAnalysis == null || Boolean.TRUE.equals(sqlAnalysis.get("valid"));
-        if (isBlockedSystemScope(dialect, database, schema)) {
-            throw new IllegalArgumentException(blockedSystemScopeMessage(dialect, database, schema));
-        }
-        if (!sqlIsValid && containsBlockedSystemQualifier(dialect, sql)) {
-            throw new IllegalArgumentException("The SQL references protected system database objects");
-        }
-        if (sqlAnalysis == null) {
-            return;
-        }
-        Object tablesValue = sqlAnalysis.get("tables");
-        if (!(tablesValue instanceof Collection<?> tables)) {
-            return;
-        }
-        for (Object value : tables) {
-            List<String> parts;
-            try {
-                parts = qualifiedIdentifierParts(String.valueOf(value));
-            } catch (IllegalArgumentException ignored) {
-                continue;
-            }
-            if (parts.size() == 2 && (isBlockedSystemDatabase(dialect, parts.get(0))
-                    || isBlockedSystemSchema(dialect, parts.get(0)))) {
-                throw new IllegalArgumentException("The SQL references protected system database objects");
-            }
-            if (parts.size() == 3 && (isBlockedSystemDatabase(dialect, parts.get(0))
-                    || isBlockedSystemSchema(dialect, parts.get(1)))) {
-                throw new IllegalArgumentException("The SQL references protected system database objects");
-            }
-        }
-    }
-
     private static String blockedSystemScopeMessage(String dialect, String database, String schema) {
         if (isBlockedSystemSchema(dialect, schema)) {
             return "The active schema '" + normalizePolicyIdentifier(schema)
@@ -789,45 +713,6 @@ public class SqlAgentToolService {
 
     private static boolean isBlockedSystemScope(String dialect, String database, String schema) {
         return isBlockedSystemDatabase(dialect, database) || isBlockedSystemSchema(dialect, schema);
-    }
-
-    private static boolean containsBlockedSystemQualifier(String dialect, String sql) {
-        if (StringUtils.isBlank(sql)) {
-            return false;
-        }
-        String normalized = sql.toLowerCase(Locale.ROOT)
-                .replace("\"", "")
-                .replace("`", "")
-                .replace("[", "")
-                .replace("]", "");
-        Set<String> identifiers = new LinkedHashSet<>();
-        identifiers.add("information_schema");
-        String db = StringUtils.defaultString(dialect).toLowerCase(Locale.ROOT);
-        switch (db) {
-            case "mysql", "mariadb" -> identifiers.addAll(Set.of("mysql", "performance_schema", "sys"));
-            case "postgresql", "postgres" -> identifiers.addAll(Set.of("pg_catalog", "pg_toast"));
-            case "sqlserver" -> identifiers.addAll(Set.of("master", "model", "msdb", "tempdb", "sys"));
-            case "oracle" -> identifiers.addAll(Set.of("sys", "system", "xdb", "mdsys", "ctxsys", "audsys"));
-            case "db2" -> identifiers.addAll(Set.of(
-                    "sysibm", "syscat", "sysstat", "sysfun", "sysproc", "systools"
-            ));
-            case "clickhouse" -> identifiers.add("system");
-            case "dm", "dameng" -> identifiers.addAll(Set.of("sys", "system", "sysauditor"));
-            default -> {
-            }
-        }
-        for (String identifier : identifiers) {
-            Pattern qualifier = Pattern.compile(
-                    "(?<![a-z0-9_$])" + Pattern.quote(identifier) + "\\s*\\."
-            );
-            if (qualifier.matcher(normalized).find()) {
-                return true;
-            }
-        }
-        return Set.of("postgresql", "postgres").contains(db)
-                && Pattern.compile("(?<![a-z0-9_$])pg_(?:temp|toast_temp)_[a-z0-9_$]+\\s*\\.")
-                .matcher(normalized)
-                .find();
     }
 
     private static boolean isBlockedSystemDatabase(String dialect, String database) {
@@ -935,58 +820,6 @@ public class SqlAgentToolService {
         result.put("catalog", StringUtils.defaultString(catalog));
         result.put("schema", StringUtils.defaultString(schema));
         return result;
-    }
-
-    private static String statementType(SQLStatement statement) {
-        String name = statement.getClass().getSimpleName().toUpperCase(Locale.ROOT);
-        if (name.startsWith("SQL")) {
-            name = name.substring(3);
-        }
-        if (name.endsWith("STATEMENT")) {
-            name = name.substring(0, name.length() - "STATEMENT".length());
-        }
-        return name;
-    }
-
-    private static int riskLevel(String statementType) {
-        String type = statementType.toUpperCase(Locale.ROOT);
-        if (type.contains("SELECT") || type.contains("SHOW") || type.contains("DESC")
-                || type.contains("EXPLAIN") || type.contains("WITH")) {
-            return 1;
-        }
-        if (type.contains("INSERT") || type.contains("UPDATE") || type.contains("DELETE")
-                || type.contains("MERGE") || type.contains("REPLACE")) {
-            return 3;
-        }
-        if (type.contains("DROP") || type.contains("TRUNCATE") || type.contains("GRANT")
-                || type.contains("REVOKE")) {
-            return 4;
-        }
-        if (type.contains("CREATE") || type.contains("ALTER") || type.contains("RENAME")) {
-            return 3;
-        }
-        return 2;
-    }
-
-    private static String riskReason(int riskLevel, int statementCount) {
-        String base = switch (riskLevel) {
-            case 1 -> "Read-only SQL statement";
-            case 3 -> "SQL may change database data or schema";
-            case 4 -> "SQL may remove data or change privileges";
-            default -> "SQL statement requires manual review";
-        };
-        return statementCount > 1 ? base + "; contains multiple statements" : base;
-    }
-
-    private static String safeError(RuntimeException error) {
-        String message = StringUtils.defaultIfBlank(error.getMessage(), error.getClass().getSimpleName());
-        return message.length() > 4096 ? message.substring(0, 4096) : message;
-    }
-
-    private static void addBounded(Set<String> values, String value, int max) {
-        if (values.size() < max && StringUtils.isNotBlank(value)) {
-            values.add(value);
-        }
     }
 
     static JsonObject sanitizeLastError(JsonElement value) {

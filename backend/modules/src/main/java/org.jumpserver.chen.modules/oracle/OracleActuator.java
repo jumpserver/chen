@@ -8,6 +8,7 @@ import org.jumpserver.chen.framework.datasource.sql.SQL;
 import org.jumpserver.chen.framework.datasource.sql.SQLExecutePlan;
 import org.jumpserver.chen.framework.datasource.sql.SQLIdentifier;
 import org.jumpserver.chen.framework.datasource.sql.SQLQueryParams;
+import org.jumpserver.chen.framework.datasource.sql.SqlValidator;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -67,7 +68,7 @@ public class OracleActuator extends BaseSQLActuator {
     @Override
     public List<String> parseSQL(SQL sql) {
         var dbType = this.getDbType();
-        var statements = SQLUtils.parseStatements(sql.getSql(), dbType);
+        var statements = SqlValidator.parse(dbType, sql.getSql());
         for (var i = 0; i < statements.size() - 1; i++) {
             if (!statements.get(i).isAfterSemi()) {
                 throw new ParserException("Multiple SQL statements must be separated by semicolons");

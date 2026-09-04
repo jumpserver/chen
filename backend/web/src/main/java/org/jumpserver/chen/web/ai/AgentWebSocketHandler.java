@@ -327,7 +327,8 @@ public class AgentWebSocketHandler extends TextWebSocketHandler {
         tools.add(tool(
                 "validate_sql",
                 "Validate SQL draft",
-                "Parse SQL locally in Chen and return statement count, type, referenced objects and risk. "
+                "Parse SQL locally in Chen with Druid and return statement count, type and referenced objects. "
+                        + "valid=false means Chen cannot parse the SQL, not that it is illegal or unsafe. "
                         + "This never executes SQL.",
                 "{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"sql\"],"
                         + "\"properties\":{\"sql\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":131072,"
@@ -337,12 +338,14 @@ public class AgentWebSocketHandler extends TextWebSocketHandler {
         Map<String, Object> proposalTool = tool(
                 "propose_sql",
                 "Propose SQL draft",
-                "Validate exactly one SQL statement, prepare a draft for explicit user review, and wait for the "
-                        + "user to apply or reject it. This never executes SQL.",
+                "Prepare SQL as a draft for explicit user review, and wait for the "
+                        + "user to apply or reject it. Query only accepts SQL Chen can parse with Druid; "
+                        + "unparseable vendor-native SQL must be proposed in Console, which inserts it with an explicit notice. "
+                        + "This never executes SQL.",
                 "{\"type\":\"object\",\"additionalProperties\":false,"
                         + "\"required\":[\"sql\",\"explanation\"],\"properties\":{"
                         + "\"sql\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":131072,"
-                        + "\"description\":\"Exactly one complete SQL statement in the verified dialect\"},"
+                        + "\"description\":\"Complete SQL in the verified dialect\"},"
                         + "\"explanation\":{\"type\":\"string\",\"maxLength\":4096,"
                         + "\"description\":\"Concise explanation for the user reviewing the draft\"}}}",
                 false
