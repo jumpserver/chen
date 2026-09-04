@@ -6,6 +6,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import org.apache.commons.lang3.StringUtils;
+import org.jumpserver.chen.framework.console.ConsoleStatementBoundaryScanner;
 import org.jumpserver.chen.framework.console.QueryConsole;
 import org.jumpserver.chen.framework.datasource.ConnectionManager;
 import org.jumpserver.chen.framework.datasource.Datasource;
@@ -37,6 +38,9 @@ import java.util.Set;
 
 @Service
 public class SqlAgentToolService {
+    static final String CONSOLE_UNPARSEABLE_NOTICE = "Chen cannot validate this SQL with Druid.\n\n"
+            + "It may use database-native syntax.\n\n"
+            + "Please review it before execution.";
     private static final Gson GSON = new Gson();
     private static final int MAX_CONTEXT_BYTES = 256 * 1024;
     private static final int MAX_SQL_BYTES = 128 * 1024;
@@ -242,11 +246,17 @@ public class SqlAgentToolService {
             if (!consoleWorkspace) {
                 throw new IllegalArgumentException(SqlValidator.QUERY_UNSUPPORTED_MESSAGE);
             }
-            validation = validation.withRiskReason(SqlValidator.CONSOLE_UNPARSEABLE_NOTICE);
+            assertSingleConsoleStatement(sql);
+            explanation = appendNotice(explanation, CONSOLE_UNPARSEABLE_NOTICE);
         } else if (validation.statementCount() != 1) {
             throw new IllegalArgumentException("The SQL proposal must contain exactly one valid statement");
         }
-        Map<String, Object> analysis = validation.toAnalysisMap();
+        Map<String, Object> analysis = new LinkedHashMap<>(validation.toAnalysisMap());
+        if (consoleWorkspace && !validation.parseable()) {
+            // Luna historically renders valid=false as "Invalid SQL". Console accepts an opaque
+            // native statement, while parseable=false preserves Chen's actual Druid result.
+            analysis.put("valid", true);
+        }
         int selectionFrom = editor.get("selectionFrom").getAsInt();
         int selectionTo = editor.get("selectionTo").getAsInt();
         String tabId = editor.get("tabId").getAsString();
@@ -277,6 +287,20 @@ public class SqlAgentToolService {
         proposal.put("analysis", analysis);
         proposal.put("base", base);
         return Map.of("kind", "proposal", "analysis", analysis, "proposal", proposal);
+    }
+
+    private static String appendNotice(String explanation, String notice) {
+        return explanation.isBlank() ? notice : explanation + "\n\n" + notice;
+    }
+
+    private static void assertSingleConsoleStatement(String sql) {
+        try {
+            if (!ConsoleStatementBoundaryScanner.hasExactlyOneStatement(sql)) {
+                throw new IllegalArgumentException("The SQL proposal must contain exactly one statement");
+            }
+        } catch (SQLException e) {
+            throw new IllegalArgumentException("The SQL proposal must contain exactly one statement", e);
+        }
     }
 
     MetadataApprovalScope resolveMetadataApprovalScope(

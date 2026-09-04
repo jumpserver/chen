@@ -327,7 +327,7 @@ public class AgentWebSocketHandler extends TextWebSocketHandler {
         tools.add(tool(
                 "validate_sql",
                 "Validate SQL draft",
-                "Parse SQL locally in Chen with Druid and return statement count, type, referenced objects and risk. "
+                "Parse SQL locally in Chen with Druid and return statement count, type and referenced objects. "
                         + "valid=false means Chen cannot parse the SQL, not that it is illegal or unsafe. "
                         + "This never executes SQL.",
                 "{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"sql\"],"

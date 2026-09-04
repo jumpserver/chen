@@ -15,12 +15,8 @@ import java.util.Locale;
 import java.util.Set;
 
 public final class SqlValidator {
-    public static final String UNPARSEABLE_REASON =
-            "Chen cannot parse this SQL with Druid. It may be vendor-native syntax that Query does not support.";
     public static final String QUERY_UNSUPPORTED_MESSAGE =
             "This SQL is not supported by Query because Chen cannot parse it with Druid. Use Console to draft and run it.";
-    public static final String CONSOLE_UNPARSEABLE_NOTICE =
-            "Chen cannot parse this SQL with Druid. It may be vendor-native syntax that Query does not support. Confirm it before executing in Console.";
 
     private static final int MAX_OBJECTS = 50;
     private static final int MAX_ANALYSIS_COLUMNS = 512;
@@ -49,10 +45,8 @@ public final class SqlValidator {
 
         LinkedHashSet<String> tables = new LinkedHashSet<>();
         LinkedHashSet<String> columns = new LinkedHashSet<>();
-        int riskLevel = 0;
         String statementType = statements.size() == 1 ? statementType(statements.get(0)) : "MULTI";
         for (SQLStatement statement : statements) {
-            riskLevel = Math.max(riskLevel, riskLevel(statementType(statement)));
             try {
                 SchemaStatVisitor visitor = SQLUtils.createSchemaStatVisitor(dbType);
                 statement.accept(visitor);
@@ -71,11 +65,8 @@ public final class SqlValidator {
                 true,
                 statements.size(),
                 statementType,
-                riskLevel,
-                riskReason(riskLevel, statements.size()),
                 List.copyOf(tables),
                 List.copyOf(columns),
-                List.of(),
                 List.of()
         );
     }
@@ -85,12 +76,9 @@ public final class SqlValidator {
                 false,
                 0,
                 "UNKNOWN",
-                0,
-                UNPARSEABLE_REASON,
                 List.of(),
                 List.of(),
-                List.of(error),
-                List.of(UNPARSEABLE_REASON)
+                List.of(error)
         );
     }
 
@@ -103,36 +91,6 @@ public final class SqlValidator {
             name = name.substring(0, name.length() - "STATEMENT".length());
         }
         return name;
-    }
-
-    private static int riskLevel(String statementType) {
-        String type = statementType.toUpperCase(Locale.ROOT);
-        if (type.contains("SELECT") || type.contains("SHOW") || type.contains("DESC")
-                || type.contains("EXPLAIN") || type.contains("WITH")) {
-            return 1;
-        }
-        if (type.contains("INSERT") || type.contains("UPDATE") || type.contains("DELETE")
-                || type.contains("MERGE") || type.contains("REPLACE")) {
-            return 3;
-        }
-        if (type.contains("DROP") || type.contains("TRUNCATE") || type.contains("GRANT")
-                || type.contains("REVOKE")) {
-            return 4;
-        }
-        if (type.contains("CREATE") || type.contains("ALTER") || type.contains("RENAME")) {
-            return 3;
-        }
-        return 2;
-    }
-
-    private static String riskReason(int riskLevel, int statementCount) {
-        String base = switch (riskLevel) {
-            case 1 -> "Read-only SQL statement";
-            case 3 -> "SQL may change database data or schema";
-            case 4 -> "SQL may remove data or change privileges";
-            default -> "SQL statement requires manual review";
-        };
-        return statementCount > 1 ? base + "; contains multiple statements" : base;
     }
 
     private static String safeError(RuntimeException error) {
