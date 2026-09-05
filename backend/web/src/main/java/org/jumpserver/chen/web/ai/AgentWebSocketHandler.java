@@ -10,6 +10,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.jumpserver.chen.framework.session.SessionManager;
 import org.jumpserver.chen.framework.session.impl.JMSSession;
 import org.jumpserver.chen.framework.ws.io.PacketIO;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
@@ -17,7 +18,9 @@ import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 import java.io.IOException;
-import java.sql.SQLException;
+import java.net.SocketTimeoutException;
+import java.sql.SQLTimeoutException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -25,12 +28,17 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Future;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 @Component
 @Slf4j
@@ -46,7 +54,13 @@ public class AgentWebSocketHandler extends TextWebSocketHandler {
     private static final Set<String> OPERATIONS = Set.of("generate", "explain", "repair");
 
     private final SqlAgentToolService toolService;
-    private final Map<String, Future<?>> tasks = new ConcurrentHashMap<>();
+    private final Map<String, ToolTask> tasks = new ConcurrentHashMap<>();
+    private final Duration toolTimeout;
+    private final ScheduledThreadPoolExecutor deadlineExecutor = new ScheduledThreadPoolExecutor(1, runnable -> {
+        Thread thread = new Thread(runnable, "chen-agent-deadline");
+        thread.setDaemon(true);
+        return thread;
+    });
     private final ThreadPoolExecutor toolExecutor = new ThreadPoolExecutor(
             2,
             4,
@@ -61,9 +75,16 @@ public class AgentWebSocketHandler extends TextWebSocketHandler {
             new ThreadPoolExecutor.AbortPolicy()
     );
 
+    @Autowired
     public AgentWebSocketHandler(SqlAgentToolService toolService) {
+        this(toolService, Duration.ofSeconds(60));
+    }
+
+    AgentWebSocketHandler(SqlAgentToolService toolService, Duration toolTimeout) {
         this.toolService = toolService;
+        this.toolTimeout = toolTimeout;
         this.toolExecutor.allowCoreThreadTimeOut(true);
+        this.deadlineExecutor.setRemoveOnCancelPolicy(true);
     }
 
     @Override
@@ -132,7 +153,7 @@ public class AgentWebSocketHandler extends TextWebSocketHandler {
         new PacketIO(webSocket).sendPacket("mcp.manifest", manifest);
     }
 
-    private void handleToolRequest(
+    void handleToolRequest(
             WebSocketSession webSocket,
             String token,
             JMSSession session,
@@ -158,8 +179,7 @@ public class AgentWebSocketHandler extends TextWebSocketHandler {
             }
 
             String taskKey = taskKey(webSocket, requestID);
-            String finalRequestID = requestID;
-            FutureTask<Void> future = new FutureTask<>(() -> {
+            ToolTask task = new ToolTask(webSocket, session, requestID, toolName, () -> {
                 try {
                     SessionManager.setContext(token);
                     var resolved = toolService.resolveRequestContext(session, GSON.toJson(context), operation);
@@ -167,42 +187,30 @@ public class AgentWebSocketHandler extends TextWebSocketHandler {
                     if (resultJSON.length() > MAX_TOOL_RESULT_BYTES) {
                         throw new IllegalStateException("Database tool result is too large");
                     }
-                    sendToolResult(webSocket, session, finalRequestID, resultJSON);
-                } catch (IllegalArgumentException | IllegalStateException e) {
-                    sendToolError(webSocket, session, finalRequestID, -32602, e.getMessage());
-                } catch (SQLException e) {
-                    log.warn("Chen database agent tool failed, sessionId={}, tool={}",
-                            session.getJmsSession().getId(), toolName, e);
-                    sendToolError(webSocket, session, finalRequestID, -32603, "Database metadata request failed");
-                } catch (RuntimeException e) {
-                    log.warn("Chen agent tool failed, sessionId={}, tool={}",
-                            session.getJmsSession().getId(), toolName, e);
-                    sendToolError(webSocket, session, finalRequestID, -32603, "Database tool failed");
+                    JsonParser.parseString(resultJSON).getAsJsonObject();
+                    return resultJSON;
                 } finally {
-                    tasks.remove(taskKey);
+                    SessionManager.setContext(null);
                 }
-                return null;
             });
-            Future<?> existing = tasks.putIfAbsent(taskKey, future);
-            if (existing != null) {
+            if (tasks.putIfAbsent(taskKey, task) != null) {
                 sendToolError(webSocket, session, requestID, -32600, "Duplicate MCP request id");
                 return;
             }
             try {
-                toolExecutor.execute(future);
+                // Include queue time in the deadline, and retain the bounded worker pool even if JDBC ignores interruption.
+                task.setDeadline(deadlineExecutor.schedule(() -> task.cancelAs("timeout"),
+                        toolTimeout.toMillis(), TimeUnit.MILLISECONDS));
+                if (!task.isDone()) toolExecutor.execute(task);
             } catch (RejectedExecutionException e) {
-                tasks.remove(taskKey, future);
-                future.cancel(true);
-                throw e;
+                task.reject(e);
             }
-        } catch (RejectedExecutionException e) {
-            sendToolError(webSocket, session, requestID, -32000, "Database tool queue is full");
         } catch (IllegalArgumentException e) {
             sendToolError(webSocket, session, requestID, -32602, e.getMessage());
         }
     }
 
-    private void handleToolCancel(WebSocketSession webSocket, JMSSession session, JsonObject packet) {
+    void handleToolCancel(WebSocketSession webSocket, JMSSession session, JsonObject packet) {
         String requestID = "";
         try {
             JsonObject request = rpcData(packet, session);
@@ -214,8 +222,8 @@ public class AgentWebSocketHandler extends TextWebSocketHandler {
             if (requestID.isBlank()) {
                 throw new IllegalArgumentException("Invalid MCP cancellation id");
             }
-            Future<?> future = tasks.remove(taskKey(webSocket, requestID));
-            boolean cancelled = future != null && future.cancel(true);
+            ToolTask task = tasks.get(taskKey(webSocket, requestID));
+            boolean cancelled = task != null && task.cancelAs("cancelled");
             sendRPC(webSocket, session, "mcp.cancel_result", Map.of(
                     "jsonrpc", "2.0",
                     "id", requestID,
@@ -224,6 +232,96 @@ public class AgentWebSocketHandler extends TextWebSocketHandler {
         } catch (IllegalArgumentException e) {
             sendToolError(webSocket, session, requestID, -32602, e.getMessage());
         }
+    }
+
+    private final class ToolTask extends FutureTask<String> {
+        private final WebSocketSession webSocket;
+        private final JMSSession session;
+        private final String requestID;
+        private final String toolName;
+        private volatile ScheduledFuture<?> deadline;
+        private String cancellationStatus = "cancelled";
+
+        ToolTask(WebSocketSession webSocket, JMSSession session, String requestID,
+                 String toolName, Callable<String> callable) {
+            super(callable);
+            this.webSocket = webSocket;
+            this.session = session;
+            this.requestID = requestID;
+            this.toolName = toolName;
+        }
+
+        void setDeadline(ScheduledFuture<?> deadline) {
+            this.deadline = deadline;
+            if (isDone()) deadline.cancel(false);
+        }
+
+        synchronized boolean cancelAs(String status) {
+            if (isDone()) return false;
+            cancellationStatus = status;
+            return cancel(true);
+        }
+
+        void reject(RejectedExecutionException cause) {
+            setException(cause);
+        }
+
+        @Override
+        protected void done() {
+            tasks.remove(taskKey(webSocket, requestID), this);
+            if (deadline != null) deadline.cancel(false);
+            toolExecutor.remove(this);
+            // FutureTask selects one terminal outcome; an interrupted driver returning late cannot send another result.
+            if (!webSocket.isOpen()) return;
+            try {
+                if (isCancelled()) {
+                    sendOutcome(cancellationStatus);
+                } else {
+                    sendToolResult(webSocket, session, requestID, get());
+                }
+            } catch (ExecutionException e) {
+                Throwable cause = e.getCause();
+                String outcome = expectedOutcome(cause);
+                if (outcome != null) {
+                    sendOutcome(outcome);
+                } else if (cause instanceof RejectedExecutionException) {
+                    sendToolError(webSocket, session, requestID, -32000, "Database tool queue is full");
+                } else if (cause instanceof IllegalArgumentException || cause instanceof IllegalStateException) {
+                    sendToolError(webSocket, session, requestID, -32602, cause.getMessage());
+                } else {
+                    log.warn("Chen database agent tool failed, sessionId={}, tool={}",
+                            session.getJmsSession().getId(), toolName, cause);
+                    sendToolError(webSocket, session, requestID, -32603, "Database tool failed");
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                sendOutcome("cancelled");
+            }
+        }
+
+        private void sendOutcome(String status) {
+            log.debug("Chen agent tool finished, sessionId={}, tool={}, status={}",
+                    session.getJmsSession().getId(), toolName, status);
+            sendRPC(webSocket, session, "mcp.response", Map.of(
+                    "jsonrpc", "2.0", "id", requestID,
+                    "result", Map.of(
+                            "isError", true,
+                            "content", List.of(Map.of("type", "text", "text",
+                                    "timeout".equals(status) ? "Database tool timed out" : "Database tool was cancelled")),
+                            "_meta", Map.of(AGENT_BINDING_META_KEY, Map.of("status", status, "code", "tool_" + status))
+                    )
+            ));
+        }
+    }
+
+    private static String expectedOutcome(Throwable cause) {
+        // Drivers may wrap timeout and interruption exceptions in SQLException.
+        for (int depth = 0; cause != null && depth < 16; depth++, cause = cause.getCause()) {
+            if (cause instanceof SQLTimeoutException || cause instanceof SocketTimeoutException
+                    || cause instanceof TimeoutException) return "timeout";
+            if (cause instanceof InterruptedException || cause instanceof CancellationException) return "cancelled";
+        }
+        return null;
     }
 
     private static JsonObject rpcData(JsonObject packet, JMSSession session) {
@@ -436,19 +534,20 @@ public class AgentWebSocketHandler extends TextWebSocketHandler {
 
     private void cancelSocketTasks(WebSocketSession webSocket) {
         String prefix = webSocket.getId() + "\u0000";
-        for (Map.Entry<String, Future<?>> entry : tasks.entrySet()) {
+        for (Map.Entry<String, ToolTask> entry : tasks.entrySet()) {
             if (entry.getKey().startsWith(prefix) && tasks.remove(entry.getKey(), entry.getValue())) {
-                entry.getValue().cancel(true);
+                entry.getValue().cancelAs("cancelled");
             }
         }
     }
 
     @PreDestroy
     public void shutdown() {
-        for (Future<?> task : tasks.values()) {
-            task.cancel(true);
+        for (ToolTask task : tasks.values()) {
+            task.cancelAs("cancelled");
         }
         tasks.clear();
+        deadlineExecutor.shutdownNow();
         toolExecutor.shutdownNow();
     }
 
