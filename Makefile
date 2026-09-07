@@ -35,8 +35,8 @@ DEV_COMPOSE := $(DOCKER_COMPOSE) $(DEV_COMPOSE_FILES)
 help:
 	@printf '%s\n' \
 		'Chen development commands:' \
-		'  make run                 Build and run Chen locally' \
-		'  make dev                 Run Chen and Wisp with Compose in the foreground' \
+		'  make dev                 Build and run Chen locally' \
+		'  make run                 Run Chen and Wisp with Compose in the foreground' \
 		'  make dev-up              Build and run in the background' \
 		'  make dev-wisp            Rebuild/recreate only Wisp' \
 		'  make dev-wisp-image      Show the resolved Wisp image' \
@@ -47,20 +47,20 @@ help:
 		'  make proto-sync          Copy generated Java protobuf files from Wisp' \
 		'' \
 		'Wisp source mode:' \
-		'  make dev WISP_SOURCE=/absolute/path/to/wisp' \
+		'  make run WISP_SOURCE=/absolute/path/to/wisp' \
 		'' \
 		'Wisp image mode:' \
 		'  Wisp tag defaults to the current Chen tracking branch' \
-		'  make dev WISP_TAG=latest' \
-		'  make dev WISP_IMAGE=registry/wisp:tag WISP_PULL_POLICY=always'
+		'  make run WISP_TAG=latest' \
+		'  make run WISP_IMAGE=registry/wisp:tag WISP_PULL_POLICY=always'
 
-dev: dev-run
+run: dev-run
 	@:
 
 dev-run:
 	@$(DEV_COMPOSE) up --build
 
-run:
+dev:
 	@$(LOCAL_JAVA_ENV) $(MAVEN) -U \
 		-Drevision=$(LOCAL_REVISION) \
 		$(LOCAL_MAVEN_TEST_ARGS) \
