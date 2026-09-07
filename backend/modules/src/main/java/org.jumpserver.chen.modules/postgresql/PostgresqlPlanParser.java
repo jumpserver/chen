@@ -18,9 +18,9 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public final class PostgresqlPlanParser {
-    public static final String ROWS_MEANING = "output rows per invocation";
-    public static final String COST_MEANING = "PostgreSQL total subtree cost";
-    private static final String[] PREDICATE_KEYS = {
+    public static final String ROWS_MEANING = "estimated output rows per invocation";
+    public static final String COST_MEANING = "PostgreSQL estimated total subtree cost";
+    static final String[] PREDICATE_KEYS = {
             "Filter",
             "Index Cond",
             "Recheck Cond",
@@ -30,6 +30,19 @@ public final class PostgresqlPlanParser {
             "TID Cond",
             "Cache Key",
             "One-Time Filter"
+    };
+    private static final String[] ATTRIBUTE_KEYS = {
+            "Join Type",
+            "Sort Key",
+            "Group Key",
+            "CTE Name",
+            "Index Name",
+            "Strategy",
+            "Subplan Name",
+            "Parent Relationship",
+            "Alias",
+            "Parallel Aware",
+            "Output"
     };
 
     private PostgresqlPlanParser() {
@@ -120,9 +133,13 @@ public final class PostgresqlPlanParser {
         }
         String schema = text(plan, "Schema");
         String relationName = text(plan, "Relation Name");
+        String cteName = text(plan, "CTE Name");
+        String table = relationName != null ? relationName : cteName;
         String relation = relationName;
         if (schema != null && !schema.isBlank() && relationName != null) {
             relation = schema + "." + relationName;
+        } else if (relation == null) {
+            relation = cteName;
         }
 
         Map<String, String> predicates = new LinkedHashMap<>();
@@ -134,13 +151,9 @@ public final class PostgresqlPlanParser {
         }
 
         Map<String, String> attributes = new LinkedHashMap<>();
-        putAttr(attributes, "Alias", text(plan, "Alias"));
-        putAttr(attributes, "Parent Relationship", text(plan, "Parent Relationship"));
-        putAttr(attributes, "Subplan Name", text(plan, "Subplan Name"));
-        putAttr(attributes, "Index Name", text(plan, "Index Name"));
-        putAttr(attributes, "Strategy", text(plan, "Strategy"));
-        putAttr(attributes, "Parallel Aware", text(plan, "Parallel Aware"));
-        putAttr(attributes, "Output", text(plan, "Output"));
+        for (String key : ATTRIBUTE_KEYS) {
+            putAttr(attributes, key, text(plan, key));
+        }
 
         List<PlanNode> children = new ArrayList<>();
         addChildren(plan.get("Plans"), ids, nodeCount, depth, maxNodes, maxDepth, warnings, children);
@@ -148,17 +161,17 @@ public final class PostgresqlPlanParser {
         addChildren(plan.get("InitPlan"), ids, nodeCount, depth, maxNodes, maxDepth, warnings, children);
 
         String id = "n" + ids.getAndIncrement();
-        String detail = firstNonBlank(text(plan, "Subplan Name"), predicates.get("Filter"), relation);
+        String joinType = text(plan, "Join Type");
 
         return new PlanNode(
                 id,
                 text(plan, "Node Id"),
                 mapNodeType(nativeOperator),
                 nativeOperator,
+                joinType,
                 nativeOperator,
-                nativeOperator,
-                detail,
-                relationName,
+                null,
+                table,
                 relation,
                 decimal(plan, "Plan Rows"),
                 decimal(plan, "Total Cost"),
@@ -229,13 +242,12 @@ public final class PostgresqlPlanParser {
         if (value.contains("join")) {
             return NormalizedNodeType.JOIN;
         }
-        if (value.contains("seq scan") || value.contains("foreign scan") || value.contains("function scan")
-                || value.contains("table function") || value.contains("worktable scan")
-                || value.contains("cte scan") && !value.contains("subquery")) {
-            return value.contains("cte scan") ? NormalizedNodeType.SUBQUERY : NormalizedNodeType.SCAN;
-        }
-        if (value.contains("subquery") || value.contains("cte scan") || value.contains("initplan") || value.contains("subplan")) {
+        if (value.contains("cte scan") || value.contains("subquery") || value.contains("initplan") || value.contains("subplan")) {
             return NormalizedNodeType.SUBQUERY;
+        }
+        if (value.contains("seq scan") || value.contains("foreign scan") || value.contains("function scan")
+                || value.contains("table function") || value.contains("worktable scan")) {
+            return NormalizedNodeType.SCAN;
         }
         if (value.equals("hash") || value.startsWith("hash ")) {
             return NormalizedNodeType.HASH;
@@ -258,10 +270,10 @@ public final class PostgresqlPlanParser {
         if (value.contains("materialize")) {
             return NormalizedNodeType.MATERIALIZE;
         }
-        if (value.contains("result") || value.contains("values")) {
+        if (value.contains("values")) {
             return NormalizedNodeType.VALUES;
         }
-        if (value.contains("project") || value.contains("result")) {
+        if (value.equals("result") || value.contains("project")) {
             return NormalizedNodeType.PROJECTION;
         }
         if (value.contains("scan")) {
@@ -271,18 +283,9 @@ public final class PostgresqlPlanParser {
     }
 
     private static void putAttr(Map<String, String> attributes, String key, String value) {
-        if (value != null) {
+        if (value != null && !value.isBlank()) {
             attributes.put(key, value);
         }
-    }
-
-    private static String firstNonBlank(String... values) {
-        for (String value : values) {
-            if (value != null && !value.isBlank()) {
-                return value;
-            }
-        }
-        return null;
     }
 
     private static String text(JsonObject object, String key) {
@@ -291,7 +294,25 @@ public final class PostgresqlPlanParser {
         }
         JsonElement element = object.get(key);
         if (element.isJsonPrimitive()) {
-            return element.getAsString();
+            String value = element.getAsString();
+            return value == null || value.isBlank() ? null : value;
+        }
+        if (element.isJsonArray()) {
+            List<String> parts = new ArrayList<>();
+            for (JsonElement item : element.getAsJsonArray()) {
+                if (item == null || item.isJsonNull()) {
+                    continue;
+                }
+                if (item.isJsonPrimitive()) {
+                    String value = item.getAsString();
+                    if (value != null && !value.isBlank()) {
+                        parts.add(value);
+                    }
+                } else {
+                    parts.add(item.toString());
+                }
+            }
+            return parts.isEmpty() ? null : String.join(", ", parts);
         }
         return element.toString();
     }

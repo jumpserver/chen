@@ -65,7 +65,7 @@ public final class ExecutionPlanService {
                     capabilities,
                     PlanStatus.UNSUPPORTED_STATEMENT,
                     code,
-                    "Only a single SELECT statement can be estimated"
+                    rejectionMessage(code)
             );
         }
 
@@ -110,6 +110,39 @@ public final class ExecutionPlanService {
                     e
             );
         }
+    }
+
+    static String rejectionMessage(String code) {
+        if (code == null || code.isBlank()) {
+            return "This statement cannot be estimated";
+        }
+        return switch (code) {
+            case SqlStatementAnalyzer.PARSE_FAILED ->
+                    "Chen cannot parse this SQL for an estimated plan";
+            case SqlStatementAnalyzer.MULTI_STATEMENT ->
+                    "Multiple SQL statements cannot be estimated";
+            case SqlStatementAnalyzer.NOT_SINGLE_SELECT ->
+                    "Only a single SELECT statement can be estimated";
+            case SqlStatementAnalyzer.EMPTY_SQL ->
+                    "SQL statement is empty";
+            case SqlStatementAnalyzer.NESTED_WRITE ->
+                    "Statements with nested writes cannot be estimated";
+            case SqlStatementAnalyzer.LOCKING_READ ->
+                    "Locking reads cannot be estimated";
+            case SqlStatementAnalyzer.SELECT_INTO ->
+                    "SELECT INTO cannot be estimated";
+            case SqlStatementAnalyzer.ASSIGNMENT ->
+                    "Statements with assignment cannot be estimated";
+            case SqlStatementAnalyzer.EXPLAIN_WRAPPER ->
+                    "Wrapped EXPLAIN statements cannot be estimated";
+            case SqlStatementAnalyzer.UNBOUND_PARAMETER ->
+                    "Statements with unbound parameters cannot be estimated";
+            case SqlStatementAnalyzer.DYNAMIC_EXECUTION ->
+                    "Dynamic SQL cannot be estimated";
+            case PlanCodes.PLAN_LIMIT_REACHED ->
+                    "SQL exceeds the execution plan size limit";
+            default -> "This statement cannot be estimated";
+        };
     }
 
     private static boolean isCancelled(SQLException e) {

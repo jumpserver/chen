@@ -48,6 +48,11 @@ public final class SqlStatementAnalyzer {
     private static final Pattern PREPARE_EXECUTE = Pattern.compile(
             "(?i)\\b(execute\\s+immediate|execute\\s+procedure|prepare\\s+\\S+\\s+as|call\\s+\\S+\\s*\\()\\b"
     );
+    // PostgreSQL CTE materialization (AS [NOT] MATERIALIZED (...)) is not accepted by Druid 1.2.28
+    // after AS. Strip only that optional clause for parse; keep the original SQL for EXPLAIN.
+    private static final Pattern CTE_MATERIALIZED = Pattern.compile(
+            "(?i)(\\bAS)\\s+(NOT\\s+)?MATERIALIZED\\s*(\\()"
+    );
 
     private SqlStatementAnalyzer() {
     }
@@ -64,7 +69,7 @@ public final class SqlStatementAnalyzer {
 
         List<SQLStatement> statements;
         try {
-            statements = SQLUtils.parseStatements(original, dbType);
+            statements = parseStatements(dbType, original);
         } catch (RuntimeException e) {
             return rejected(original, StatementKind.OTHER, null, false, List.of(), List.of(PARSE_FAILED));
         }
@@ -127,6 +132,22 @@ public final class SqlStatementAnalyzer {
 
     static String stripTrailingDelimiter(String sql) {
         return TRAILING_DELIMITER.matcher(sql).replaceFirst("");
+    }
+
+    static String sqlForParse(String sql) {
+        return CTE_MATERIALIZED.matcher(sql).replaceAll("$1 $3");
+    }
+
+    private static List<SQLStatement> parseStatements(DbType dbType, String sql) {
+        try {
+            return SQLUtils.parseStatements(sql, dbType);
+        } catch (RuntimeException originalError) {
+            String parseSql = sqlForParse(sql);
+            if (parseSql.equals(sql)) {
+                throw originalError;
+            }
+            return SQLUtils.parseStatements(parseSql, dbType);
+        }
     }
 
     private static boolean hasExecutableComment(String sql) {
