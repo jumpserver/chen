@@ -2,6 +2,12 @@ SHELL := /bin/bash
 .DEFAULT_GOAL := help
 .NOTPARALLEL:
 
+MAVEN ?= mvn
+LOCAL_REVISION ?= 0.0.1
+LOCAL_MAVEN_TEST_ARGS ?= -Dmaven.test.skip=true
+LOCAL_JAVA_HOME ?= $(shell if [[ -x /usr/libexec/java_home ]]; then /usr/libexec/java_home -v 21 2>/dev/null; elif [[ -n "$$JAVA_HOME" ]]; then printf '%s' "$$JAVA_HOME"; fi)
+LOCAL_JAVA_ENV := $(if $(strip $(LOCAL_JAVA_HOME)),JAVA_HOME="$(LOCAL_JAVA_HOME)")
+
 DOCKER_COMPOSE ?= docker compose
 COMPOSE_PARALLEL_LIMIT ?= 1
 WISP_IMAGE_REPOSITORY ?= ghcr.io/jumpserver/wisp
@@ -29,7 +35,8 @@ DEV_COMPOSE := $(DOCKER_COMPOSE) $(DEV_COMPOSE_FILES)
 help:
 	@printf '%s\n' \
 		'Chen development commands:' \
-		'  make dev                 Run in the foreground (make dev run also works)' \
+		'  make run                 Build and run Chen locally' \
+		'  make dev                 Run Chen and Wisp with Compose in the foreground' \
 		'  make dev-up              Build and run in the background' \
 		'  make dev-wisp            Rebuild/recreate only Wisp' \
 		'  make dev-wisp-image      Show the resolved Wisp image' \
@@ -47,13 +54,24 @@ help:
 		'  make dev WISP_TAG=latest' \
 		'  make dev WISP_IMAGE=registry/wisp:tag WISP_PULL_POLICY=always'
 
-# Both spellings are supported, including one invocation written as
-# `make dev run`. GNU Make updates their shared prerequisite only once.
-dev run: dev-run
+dev: dev-run
 	@:
 
 dev-run:
 	@$(DEV_COMPOSE) up --build
+
+run:
+	@$(LOCAL_JAVA_ENV) $(MAVEN) -U \
+		-Drevision=$(LOCAL_REVISION) \
+		$(LOCAL_MAVEN_TEST_ARGS) \
+		-Dmaven.antrun.skip=true \
+		clean org.codehaus.mojo:flatten-maven-plugin:1.6.0:flatten install
+	@cd backend/web && $(LOCAL_JAVA_ENV) $(MAVEN) \
+		-Drevision=$(LOCAL_REVISION) \
+		$(LOCAL_MAVEN_TEST_ARGS) \
+		spring-boot:run \
+		-Dmaven.antrun.skip=true \
+		-Dspring-boot.run.arguments="--spring.config.additional-location=file:$(CURDIR)/config/ --driver.driver-path=$(CURDIR)/drivers"
 
 dev-up:
 	@$(DEV_COMPOSE) up -d --build
