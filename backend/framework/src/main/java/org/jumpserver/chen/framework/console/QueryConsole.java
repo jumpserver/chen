@@ -6,6 +6,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.jumpserver.chen.framework.console.action.DataViewAction;
 import org.jumpserver.chen.framework.console.action.QueryConsoleAction;
+import org.jumpserver.chen.framework.console.plan.ExecutionPlanService;
+import org.jumpserver.chen.framework.console.plan.QueryConsolePlanContext;
 import org.jumpserver.chen.framework.console.dataview.DataView;
 import org.jumpserver.chen.framework.console.dataview.QueryDataViewTableEditContextFactory;
 import org.jumpserver.chen.framework.console.dataview.UpdateDataView;
@@ -30,6 +32,15 @@ import org.jumpserver.chen.framework.datasource.sql.SQL;
 import org.jumpserver.chen.framework.datasource.sql.SQLActuator;
 import org.jumpserver.chen.framework.datasource.sql.SQLExecutePlan;
 import org.jumpserver.chen.framework.datasource.sql.SQLQueryResult;
+import org.jumpserver.chen.framework.datasource.plan.ConnectionInvalidatedException;
+import org.jumpserver.chen.framework.datasource.plan.ExecutionPlan;
+import org.jumpserver.chen.framework.datasource.plan.ExecutionPlanJson;
+import org.jumpserver.chen.framework.datasource.plan.PlanCodes;
+import org.jumpserver.chen.framework.datasource.plan.PlanDiagnostic;
+import org.jumpserver.chen.framework.datasource.plan.PlanEffects;
+import org.jumpserver.chen.framework.datasource.plan.PlanLimits;
+import org.jumpserver.chen.framework.datasource.plan.PlanMode;
+import org.jumpserver.chen.framework.datasource.plan.PlanStatus;
 import org.jumpserver.chen.framework.i18n.MessageUtils;
 import org.jumpserver.chen.framework.jms.acl.ACLResult;
 import org.jumpserver.chen.framework.jms.entity.CommandRecord;
@@ -360,6 +371,7 @@ public class QueryConsole extends AbstractConsole {
                 var schema = (String) action.getData();
                 this.onManualChangeContext(schema);
             }
+            case QueryConsoleAction.ACTION_GET_EXECUTION_PLAN -> this.onGetExecutionPlan(action);
         }
     }
 
@@ -575,6 +587,164 @@ public class QueryConsole extends AbstractConsole {
         result.setReason(reason);
         result.setDataView(dataView.getId());
         return result;
+    }
+
+    private void onGetExecutionPlan(QueryConsoleAction action) {
+        String requestId = StringUtils.trimToEmpty(action.getRequestId());
+        String sql = action.getData() == null ? "" : String.valueOf(action.getData());
+        if (StringUtils.isBlank(requestId)) {
+            this.getMessager().send(Message.error("Invalid plan request", PlanCodes.MISSING_REQUEST_ID));
+            return;
+        }
+
+        String previousStatus = this.getState().getExecutionStatus();
+        this.getState().setCanCancel(true);
+        this.stateManager.commit();
+
+        QueryConsolePlanContext planContext = null;
+        ActiveExecution execution = null;
+        try {
+            Connection connection = this.getConnection();
+            String serverVersion = null;
+            try {
+                serverVersion = connection.getMetaData().getDatabaseProductVersion();
+            } catch (SQLException ignored) {
+            }
+            planContext = new QueryConsolePlanContext(
+                    connection,
+                    this.transactionStateInspector,
+                    new AtomicBoolean(false),
+                    System.currentTimeMillis() + PlanLimits.DEFAULT_TIMEOUT_MS,
+                    serverVersion
+            );
+            QueryConsolePlanContext contextRef = planContext;
+            execution = new ActiveExecution(sql, contextRef::cancelCurrent);
+            this.currentExecution = execution;
+
+            Session session = SessionManager.getCurrentSession();
+            ACLResult aclResult = session.checkACL(sql, connection);
+            if (!this.canExecuteStatement(session, sql, aclResult)) {
+                PlanStatus status = StringUtils.equals(this.getState().getExecutionStatus(), EXECUTION_STATUS_CANCELLED)
+                        ? PlanStatus.CANCELLED
+                        : PlanStatus.ERROR;
+                String code = status == PlanStatus.CANCELLED ? PlanCodes.CANCELLED : PlanCodes.PLAN_PERMISSION_DENIED;
+                this.getState().setExecutionStatus(previousStatus);
+                this.sendExecutionPlan(new ExecutionPlan(
+                        requestId,
+                        this.datasource.getExecutionPlanDialect().database(),
+                        serverVersion,
+                        PlanMode.ESTIMATED,
+                        status,
+                        sql,
+                        java.util.List.of(),
+                        null,
+                        null,
+                        null,
+                        false,
+                        this.datasource.getExecutionPlanDialect().capabilities(),
+                        java.util.List.of(),
+                        PlanEffects.unchangedReuse(),
+                        PlanDiagnostic.of(code, MessageUtils.get("ACLRejectError")),
+                        java.util.List.of()
+                ));
+                return;
+            }
+            this.getState().setExecutionStatus(previousStatus);
+            ExecutionPlan plan = new ExecutionPlanService().explainEstimated(
+                    this.datasource,
+                    planContext,
+                    sql,
+                    requestId
+            );
+            this.sendExecutionPlan(plan);
+        } catch (ConnectionInvalidatedException e) {
+            this.invalidateConnection("execution-plan");
+            ExecutionPlan plan = e.partialResult() == null
+                    ? new ExecutionPlan(
+                    requestId,
+                    this.datasource.getExecutionPlanDialect().database(),
+                    null,
+                    PlanMode.ESTIMATED,
+                    PlanStatus.CONNECTION_INVALIDATED,
+                    sql,
+                    java.util.List.of(),
+                    null,
+                    null,
+                    null,
+                    false,
+                    this.datasource.getExecutionPlanDialect().capabilities(),
+                    java.util.List.of(),
+                    PlanEffects.discard(PlanEffects.SessionState.UNKNOWN, PlanEffects.TransactionState.UNKNOWN),
+                    e.originalError() == null
+                            ? PlanDiagnostic.of(PlanCodes.CONNECTION_INVALIDATED, StringUtils.defaultString(e.getMessage()))
+                            : e.originalError(),
+                    e.diagnostics()
+            )
+                    : ExecutionPlan.fromDialect(
+                    requestId,
+                    this.datasource.getExecutionPlanDialect().database(),
+                    PlanMode.ESTIMATED,
+                    sql,
+                    e.partialResult()
+            );
+            if (plan.status() != PlanStatus.CONNECTION_INVALIDATED) {
+                plan = new ExecutionPlan(
+                        plan.requestId(),
+                        plan.database(),
+                        plan.serverVersion(),
+                        plan.mode(),
+                        PlanStatus.CONNECTION_INVALIDATED,
+                        plan.sql(),
+                        plan.roots(),
+                        plan.rawText(),
+                        plan.rawFormat(),
+                        plan.rawFormatVersion(),
+                        plan.rawTruncated(),
+                        plan.capabilities(),
+                        plan.prerequisites(),
+                        PlanEffects.discard(PlanEffects.SessionState.UNKNOWN, PlanEffects.TransactionState.UNKNOWN),
+                        plan.error() == null
+                                ? PlanDiagnostic.of(PlanCodes.CONNECTION_INVALIDATED, StringUtils.defaultString(e.getMessage()))
+                                : plan.error(),
+                        plan.warnings()
+                );
+            }
+            this.sendExecutionPlan(plan);
+        } catch (SQLException e) {
+            this.sendExecutionPlan(new ExecutionPlan(
+                    requestId,
+                    this.datasource.getExecutionPlanDialect().database(),
+                    null,
+                    PlanMode.ESTIMATED,
+                    PlanStatus.ERROR,
+                    sql,
+                    java.util.List.of(),
+                    null,
+                    null,
+                    null,
+                    false,
+                    this.datasource.getExecutionPlanDialect().capabilities(),
+                    java.util.List.of(),
+                    PlanEffects.unchangedReuse(),
+                    new PlanDiagnostic(
+                            PlanCodes.SQL_ERROR,
+                            StringUtils.defaultString(e.getMessage()),
+                            e.getSQLState(),
+                            Integer.toString(e.getErrorCode())
+                    ),
+                    java.util.List.of()
+            ));
+        } finally {
+            if (this.currentExecution == execution) {
+                this.currentExecution = null;
+            }
+            this.getState().setCanCancel(false);
+            this.stateManager.commit();
+        }
+    }
+
+    private void sendExecutionPlan(ExecutionPlan plan) {
+        this.getPacketIO().sendPacket(Packet.TYPE_EXECUTION_PLAN, ExecutionPlanJson.toJsonTree(plan));
     }
 
     public void onCancel() {

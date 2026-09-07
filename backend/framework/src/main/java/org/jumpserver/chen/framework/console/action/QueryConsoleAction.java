@@ -12,6 +12,7 @@ public class QueryConsoleAction extends Action {
     public static final String ACTION_RUN_SQL_FILE = "run_sql_file";
     public static final String ACTION_CANCEL = "cancel";
     public static final String ACTION_CHANGE_CURRENT_CONTEXT = "change_current_context";
+    public static final String ACTION_GET_EXECUTION_PLAN = "get_execution_plan";
 
-
+    private String requestId;
 }
