@@ -36,8 +36,20 @@ public final class QueryTransactionStateInspector {
             // Only explicit probe failures (SQLException / driver-compat reflection errors wrapped
             // by the probe) become a probeFailed result. Program errors such as NPE,
             // ClassCastException or IllegalStateException are NOT caught here and must propagate.
-            log.debug("probe transaction state failed", e);
-            return QueryTransactionProbeResult.failed();
+            Throwable cause = e.getCause() == null ? e : e.getCause();
+            log.warn(
+                    "probe transaction state failed: connectionClass={}, classLoader={}, cause={}",
+                    this.connection == null ? "null" : this.connection.getClass().getName(),
+                    this.connection == null ? "null" : PostgresqlTransactionStateProbe.classLoaderName(this.connection),
+                    cause.toString()
+            );
+            return QueryTransactionProbeResult.failed(summarize(cause));
         }
+    }
+
+    private static String summarize(Throwable cause) {
+        String type = cause.getClass().getSimpleName();
+        String message = cause.getMessage();
+        return message == null || message.isBlank() ? type : type + ": " + message;
     }
 }

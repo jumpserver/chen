@@ -9,6 +9,8 @@ import org.jumpserver.chen.framework.datasource.entity.resource.TreeNode;
 import org.jumpserver.chen.framework.datasource.entity.action.Action;
 import org.jumpserver.chen.framework.datasource.entity.form.FormData;
 import org.jumpserver.chen.framework.datasource.metadata.MetadataCatalog;
+import org.jumpserver.chen.framework.datasource.plan.ExecutionPlanDialect;
+import org.jumpserver.chen.framework.datasource.plan.UnsupportedExecutionPlanDialect;
 
 
 import java.sql.SQLException;
@@ -37,6 +39,10 @@ public interface Datasource {
     ConnectionManager getConnectionManager();
     ResourceBrowser getResourceBrowser();
     MetadataCatalog getMetadataCatalog();
+
+    default ExecutionPlanDialect getExecutionPlanDialect() {
+        return UnsupportedExecutionPlanDialect.getInstance();
+    }
 
     void close();
 }
