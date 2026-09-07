@@ -33,7 +33,7 @@ directly, and connects Chen to `wisp:9090` over the Compose network.
 
 ### Use a Wisp image
 
-`make dev` defaults to `ghcr.io/jumpserver/wisp:<chen-branch>`. The branch is
+`make run` defaults to `ghcr.io/jumpserver/wisp:<chen-branch>`. The branch is
 resolved from the current branch's tracking branch first, then from the local
 branch. JumpServer-style branches such as `pr@new_terminal@feat_ai` resolve to
 their base branch (`new_terminal`), and characters that cannot appear in a
@@ -51,9 +51,9 @@ described below, or set `WISP_IMAGE` to a private-registry or locally built
 image:
 
 ```bash
-make dev WISP_TAG=latest
+make run WISP_TAG=latest
 
-make dev \
+make run \
   WISP_IMAGE=registry.example.com/wisp:my-branch \
   WISP_PULL_POLICY=always
 ```
@@ -72,7 +72,7 @@ Add `docker-compose.wisp-source.yml` and set `WISP_SOURCE` to any local checkout
 path. It does not need to be `../wisp`:
 
 ```bash
-make dev WISP_SOURCE=/absolute/path/to/wisp
+make run WISP_SOURCE=/absolute/path/to/wisp
 ```
 
 `WISP_SOURCE` is a BuildKit named context, so it may also be a Git context URL
@@ -95,9 +95,11 @@ make proto-sync WISP_SOURCE=/absolute/path/to/wisp
 make dev-up WISP_SOURCE=/absolute/path/to/wisp
 ```
 
-Use `make dev-up` for detached startup, `make dev-logs` to follow both service
-logs, and `make dev-down` to stop the environment. Run `make help` for all
-development commands. `make dev run` is accepted as an alias of `make dev`.
+With JDK 21 and Maven installed, use `make dev` to build and start Chen directly
+on the host. Use `make run` to build and start Chen and Wisp together with
+Compose. Use `make dev-up` for detached Compose startup, `make dev-logs` to
+follow both service logs, and `make dev-down` to stop the environment. Run
+`make help` for all development commands.
 
 The build and runtime limits can be adjusted with `WISP_BUILD_PROCS`,
 `WISP_BUILD_MEMORY`, `WISP_CPUS`, `WISP_MEMORY_LIMIT`, `CHEN_CPUS`, and
