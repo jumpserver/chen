@@ -14,6 +14,7 @@ import com.alibaba.druid.sql.ast.statement.SQLReplaceStatement;
 import com.alibaba.druid.sql.ast.SQLObject;
 import com.alibaba.druid.sql.ast.statement.SQLSelectQueryBlock;
 import com.alibaba.druid.sql.ast.statement.SQLSelectStatement;
+import com.alibaba.druid.sql.dialect.oracle.visitor.OracleASTVisitor;
 import com.alibaba.druid.sql.dialect.postgresql.ast.stmt.PGSelectQueryBlock;
 import com.alibaba.druid.sql.ast.statement.SQLSetStatement;
 import com.alibaba.druid.sql.ast.statement.SQLUpdateStatement;
@@ -204,7 +205,7 @@ public final class SqlStatementAnalyzer {
         );
     }
 
-    private static final class FactsVisitor extends SQLASTVisitorAdapter {
+    private static final class FactsVisitor extends SQLASTVisitorAdapter implements OracleASTVisitor {
         private boolean nestedWrite;
         private boolean lockingRead;
         private boolean selectInto;

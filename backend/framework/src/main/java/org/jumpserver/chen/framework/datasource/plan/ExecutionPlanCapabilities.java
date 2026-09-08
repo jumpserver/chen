@@ -32,6 +32,13 @@ public record ExecutionPlanCapabilities(
         );
     }
 
+    public static ExecutionPlanCapabilities oracle() {
+        return new ExecutionPlanCapabilities(
+                true, true, true, true, true, true, true, false, true,
+                PlanTransactionPolicy.AUXILIARY_DML
+        );
+    }
+
     public static ExecutionPlanCapabilities mysql() {
         return new ExecutionPlanCapabilities(
                 true, true, true, true, true, true, false, false, false,
