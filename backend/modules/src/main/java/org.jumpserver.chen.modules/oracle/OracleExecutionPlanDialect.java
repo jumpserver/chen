@@ -1,50 +1,32 @@
 package org.jumpserver.chen.modules.oracle;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonNull;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonPrimitive;
 import org.jumpserver.chen.framework.datasource.analysis.SqlStatementAnalysis;
 import org.jumpserver.chen.framework.datasource.plan.BaseExecutionPlanDialect;
 import org.jumpserver.chen.framework.datasource.plan.ConnectionInvalidatedException;
 import org.jumpserver.chen.framework.datasource.plan.DialectPlanResult;
 import org.jumpserver.chen.framework.datasource.plan.ExecutionPlanCapabilities;
-import org.jumpserver.chen.framework.datasource.plan.ExecutionPlanJson;
 import org.jumpserver.chen.framework.datasource.plan.PlanCodes;
 import org.jumpserver.chen.framework.datasource.plan.PlanDatabase;
 import org.jumpserver.chen.framework.datasource.plan.PlanDiagnostic;
 import org.jumpserver.chen.framework.datasource.plan.PlanEffects;
 import org.jumpserver.chen.framework.datasource.plan.PlanExecutionContext;
-import org.jumpserver.chen.framework.datasource.plan.PlanLimits;
 import org.jumpserver.chen.framework.datasource.plan.PlanPrerequisite;
 import org.jumpserver.chen.framework.datasource.plan.PlanRawFormat;
 import org.jumpserver.chen.framework.datasource.plan.PlanStatus;
 import org.jumpserver.chen.framework.datasource.plan.PlanTransactionState;
 
-import java.math.BigDecimal;
-import java.nio.charset.StandardCharsets;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.sql.Types;
 import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Pattern;
 
 public class OracleExecutionPlanDialect extends BaseExecutionPlanDialect {
     static final String RAW_FORMAT_VERSION = "chen-table-v1";
-    private static final String PLAN_TABLE = "PLAN_TABLE";
-    private static final int MAX_SYNONYM_DEPTH = 8;
     private static final String ORACLE_19C_BASELINE = "Oracle 19c validated baseline";
     private static final String ORACLE_26AI_23_26_BASELINE =
             "Oracle AI Database 26ai 23.26.x validated baseline";
@@ -63,22 +45,6 @@ public class OracleExecutionPlanDialect extends BaseExecutionPlanDialect {
     private static final Pattern ORACLE_26AI_23_26_VERSION = Pattern.compile(
             "(?<![\\d.])23\\.26(?:\\.\\d+){3}(?![\\d.])"
     );
-
-    private static final List<String> PLAN_COLUMNS = List.of(
-            "STATEMENT_ID", "PLAN_ID", "TIMESTAMP", "REMARKS", "OPERATION", "OPTIONS",
-            "OBJECT_NODE", "OBJECT_OWNER", "OBJECT_NAME", "OBJECT_ALIAS", "OBJECT_INSTANCE",
-            "OBJECT_TYPE", "OPTIMIZER", "SEARCH_COLUMNS", "ID", "PARENT_ID", "DEPTH",
-            "POSITION", "COST", "CARDINALITY", "BYTES", "OTHER_TAG", "PARTITION_START",
-            "PARTITION_STOP", "PARTITION_ID", "OTHER", "DISTRIBUTION", "CPU_COST", "IO_COST",
-            "TEMP_SPACE", "ACCESS_PREDICATES", "FILTER_PREDICATES", "PROJECTION", "TIME",
-            "QBLOCK_NAME", "OTHER_XML"
-    );
-    private static final Set<String> REQUIRED_COLUMNS = Set.of(
-            "STATEMENT_ID", "OPERATION", "ID", "PARENT_ID", "POSITION", "COST", "CARDINALITY"
-    );
-    private static final Set<String> CHARACTER_COLUMNS = Set.of("STATEMENT_ID", "OPERATION");
-    private static final Set<String> NUMBER_COLUMNS = Set.of("ID", "PARENT_ID", "POSITION", "COST", "CARDINALITY");
-    private static final Set<String> REQUIRED_PRIVILEGES = Set.of("SELECT", "INSERT", "DELETE");
 
     private static final Set<String> SAFE_SCHEMAS = Set.of("sys", "standard");
     private static final Set<String> SAFE_FUNCTIONS = Set.of(
@@ -168,7 +134,7 @@ public class OracleExecutionPlanDialect extends BaseExecutionPlanDialect {
         }
         prerequisites.add(PlanPrerequisite.met("transaction", transaction.message()));
 
-        PlanTableResolution resolution = resolvePlanTable(context);
+        OraclePlanTable.Resolution resolution = OraclePlanTable.resolve(context);
         if (resolution.failure() != null) {
             prerequisites.add(resolution.failure());
             return unmet(
@@ -177,13 +143,13 @@ public class OracleExecutionPlanDialect extends BaseExecutionPlanDialect {
                     PlanDiagnostic.of(resolution.failure().code(), resolution.failure().message())
             );
         }
-        PlanTableTarget target = resolution.target();
+        OraclePlanTable.Target target = resolution.target();
         prerequisites.add(PlanPrerequisite.met(
                 "plan-table",
                 "Using " + target.qualifiedName() + (target.temporary() ? " (global temporary)" : "")
         ));
 
-        PlanPrerequisite lifecycleFailure = validateLifecycle(target, transaction);
+        PlanPrerequisite lifecycleFailure = OraclePlanTable.validateLifecycle(target, transaction.autoCommit());
         if (lifecycleFailure != null) {
             prerequisites.add(lifecycleFailure);
             return unmet(
@@ -192,9 +158,12 @@ public class OracleExecutionPlanDialect extends BaseExecutionPlanDialect {
                     PlanDiagnostic.of(lifecycleFailure.code(), lifecycleFailure.message())
             );
         }
-        prerequisites.add(PlanPrerequisite.met("plan-row-lifecycle", planRowLifecycle(target)));
+        prerequisites.add(PlanPrerequisite.met(
+                "plan-row-lifecycle",
+                OraclePlanTable.lifecycleDescription(target)
+        ));
 
-        PlanPrerequisite columnFailure = validateColumns(target.columns());
+        PlanPrerequisite columnFailure = OraclePlanTable.validateColumns(target);
         if (columnFailure != null) {
             prerequisites.add(columnFailure);
             return unmet(
@@ -205,9 +174,7 @@ public class OracleExecutionPlanDialect extends BaseExecutionPlanDialect {
         }
         prerequisites.add(PlanPrerequisite.met("plan-table-columns", "PLAN_TABLE has compatible columns"));
 
-        Set<String> privileges = loadPrivileges(context, target);
-        Set<String> missingPrivileges = new LinkedHashSet<>(REQUIRED_PRIVILEGES);
-        missingPrivileges.removeAll(privileges);
+        Set<String> missingPrivileges = OraclePlanTable.missingPrivileges(context, target);
         if (!missingPrivileges.isEmpty()) {
             String message = "Missing PLAN_TABLE privileges: " + String.join(", ", missingPrivileges);
             PlanPrerequisite failure = PlanPrerequisite.unmet(
@@ -227,20 +194,20 @@ public class OracleExecutionPlanDialect extends BaseExecutionPlanDialect {
     private DialectPlanResult generateReadAndCleanup(
             PlanExecutionContext context,
             SqlStatementAnalysis statement,
-            PlanTableTarget target,
+            OraclePlanTable.Target target,
             TransactionCheck transaction,
             List<PlanPrerequisite> prerequisites
     ) throws SQLException {
         String statementId = statementId();
-        RawCapture raw = null;
+        OraclePlanTableAccess.Capture raw = null;
         SQLException originalError = null;
         boolean generationAttempted = false;
 
         try {
             context.throwIfCancelled();
             generationAttempted = true;
-            executeExplain(context, statement, target, statementId);
-            raw = readPlanRows(context, target, statementId);
+            OraclePlanTableAccess.explain(context, statement, target, statementId);
+            raw = OraclePlanTableAccess.read(context, target, statementId);
         } catch (SQLException e) {
             originalError = e;
         }
@@ -248,32 +215,26 @@ public class OracleExecutionPlanDialect extends BaseExecutionPlanDialect {
         SQLException cleanupError = null;
         if (generationAttempted) {
             try {
-                deletePlanRows(context, target, statementId);
+                OraclePlanTableAccess.delete(context, target, statementId);
             } catch (SQLException e) {
                 cleanupError = e;
             }
         }
 
         if (cleanupError != null) {
-            boolean discard = transaction.participates()
-                    || context.isCancelled()
-                    || isConnectionBroken(cleanupError)
-                    || (originalError != null && isConnectionBroken(originalError));
-            if (discard) {
+            if (!canReuseAfterCleanupFailure(context, transaction, originalError, cleanupError)) {
                 throw invalidatedAfterCleanupFailure(
                         context,
                         originalError,
                         cleanupError,
                         raw,
                         prerequisites,
-                        transaction,
                         statementId
                 );
             }
 
             PlanDiagnostic cleanupWarning = cleanupDiagnostic(cleanupError, statementId);
             PlanEffects effects = effects(
-                    transaction,
                     PlanEffects.AuxiliaryStorage.RESIDUAL,
                     PlanEffects.ConnectionDisposition.REUSE,
                     PlanEffects.TransactionState.UNCHANGED
@@ -284,168 +245,29 @@ public class OracleExecutionPlanDialect extends BaseExecutionPlanDialect {
             return resultFromRaw(context, raw, prerequisites, effects, List.of(cleanupWarning));
         }
 
-        if (originalError != null) {
-            if (isConnectionBroken(originalError)) {
-                throw invalidated(context, originalError, null, PlanEffects.discard(
-                        PlanEffects.SessionState.UNKNOWN,
-                        PlanEffects.TransactionState.UNKNOWN
-                ));
-            }
-            PlanEffects.TransactionState transactionEffect = transaction.participates()
-                    ? PlanEffects.TransactionState.PARTICIPATED
-                    : PlanEffects.TransactionState.UNCHANGED;
-            return errorResult(
-                    context,
-                    originalError,
-                    raw,
-                    prerequisites,
-                    effects(
-                            transaction,
-                            PlanEffects.AuxiliaryStorage.CLEANED,
-                            PlanEffects.ConnectionDisposition.REUSE,
-                            transactionEffect
-                    ),
-                    List.of()
-            );
-        }
-
         PlanEffects.TransactionState transactionEffect = transaction.participates()
                 ? PlanEffects.TransactionState.PARTICIPATED
                 : PlanEffects.TransactionState.UNCHANGED;
-        return resultFromRaw(
-                context,
-                raw,
-                prerequisites,
-                effects(
-                        transaction,
-                        PlanEffects.AuxiliaryStorage.CLEANED,
-                        PlanEffects.ConnectionDisposition.REUSE,
-                        transactionEffect
-                ),
-                List.of()
+        PlanEffects completedEffects = effects(
+                PlanEffects.AuxiliaryStorage.CLEANED,
+                PlanEffects.ConnectionDisposition.REUSE,
+                transactionEffect
         );
-    }
-
-    private void executeExplain(
-            PlanExecutionContext context,
-            SqlStatementAnalysis statement,
-            PlanTableTarget target,
-            String statementId
-    ) throws SQLException {
-        String sql = "EXPLAIN PLAN SET STATEMENT_ID = '" + statementId + "' INTO "
-                + target.qualifiedName() + " FOR " + statement.sql();
-        try (TrackedStatement tracked = trackedStatement(context, true)) {
-            tracked.statement().execute(sql);
+        if (originalError == null) {
+            return resultFromRaw(context, raw, prerequisites, completedEffects, List.of());
         }
-    }
-
-    private RawCapture readPlanRows(
-            PlanExecutionContext context,
-            PlanTableTarget target,
-            String statementId
-    ) throws SQLException {
-        List<String> columns = target.selectedColumns();
-        String selected = columns.stream().map(OracleExecutionPlanDialect::quote).reduce((a, b) -> a + ", " + b).orElseThrow();
-        String sql = "SELECT " + selected + " FROM " + target.qualifiedName()
-                + " WHERE " + quote("STATEMENT_ID") + " = ? ORDER BY " + quote("ID") + ", " + quote("POSITION");
-
-        try (TrackedPreparedStatement tracked = trackedPreparedStatement(context, sql, true)) {
-            tracked.statement().setString(1, statementId);
-            try (ResultSet resultSet = tracked.statement().executeQuery()) {
-                return captureTable(resultSet, context.maxRawBytes(), context.maxNodes());
-            }
+        if (isConnectionBroken(originalError)) {
+            throw invalidated(context, originalError, null, PlanEffects.discard(
+                    PlanEffects.SessionState.UNKNOWN,
+                    PlanEffects.TransactionState.UNKNOWN
+            ));
         }
-    }
-
-    private void deletePlanRows(
-            PlanExecutionContext context,
-            PlanTableTarget target,
-            String statementId
-    ) throws SQLException {
-        String sql = "DELETE FROM " + target.qualifiedName() + " WHERE " + quote("STATEMENT_ID") + " = ?";
-        try (TrackedPreparedStatement tracked = trackedPreparedStatement(context, sql, false)) {
-            tracked.statement().setString(1, statementId);
-            tracked.statement().executeUpdate();
-        }
-    }
-
-    private RawCapture captureTable(ResultSet resultSet, int maxRawBytes, int maxRows) throws SQLException {
-        ResultSetMetaData metadata = resultSet.getMetaData();
-        JsonObject envelope = new JsonObject();
-        JsonArray resultSets = new JsonArray();
-        JsonObject table = new JsonObject();
-        table.addProperty("name", "PLAN_TABLE");
-        JsonArray columns = new JsonArray();
-        for (int index = 1; index <= metadata.getColumnCount(); index++) {
-            JsonObject column = new JsonObject();
-            column.addProperty("name", metadata.getColumnLabel(index));
-            column.addProperty("type", metadata.getColumnTypeName(index));
-            columns.add(column);
-        }
-        table.add("columns", columns);
-        JsonArray rows = new JsonArray();
-        table.add("rows", rows);
-        resultSets.add(table);
-        envelope.add("resultSets", resultSets);
-        envelope.addProperty("truncated", false);
-
-        boolean truncated = false;
-        int rowCount = 0;
-        int capturedBytes = ExecutionPlanJson.GSON.toJson(envelope).getBytes(StandardCharsets.UTF_8).length;
-        while (resultSet.next()) {
-            if (rowCount >= maxRows) {
-                truncated = true;
-                break;
-            }
-            JsonArray row = new JsonArray();
-            for (int index = 1; index <= metadata.getColumnCount(); index++) {
-                row.add(jsonValue(resultSet, metadata.getColumnType(index), index));
-            }
-            int rowBytes = ExecutionPlanJson.GSON.toJson(row).getBytes(StandardCharsets.UTF_8).length;
-            int separatorBytes = rows.isEmpty() ? 0 : 1;
-            if ((long) capturedBytes + separatorBytes + rowBytes > maxRawBytes) {
-                truncated = true;
-                break;
-            }
-            rows.add(row);
-            capturedBytes += separatorBytes + rowBytes;
-            rowCount++;
-        }
-        envelope.addProperty("truncated", truncated);
-        String json = ExecutionPlanJson.GSON.toJson(envelope);
-        if (json.getBytes(StandardCharsets.UTF_8).length > maxRawBytes) {
-            JsonObject minimal = new JsonObject();
-            minimal.add("resultSets", new JsonArray());
-            minimal.addProperty("truncated", true);
-            json = ExecutionPlanJson.GSON.toJson(minimal);
-            truncated = true;
-        }
-        return new RawCapture(json, truncated);
-    }
-
-    private static com.google.gson.JsonElement jsonValue(ResultSet resultSet, int jdbcType, int index)
-            throws SQLException {
-        if (isNumericJdbcType(jdbcType)) {
-            BigDecimal value = resultSet.getBigDecimal(index);
-            return value == null ? JsonNull.INSTANCE : new JsonPrimitive(value);
-        }
-        if (jdbcType == Types.BOOLEAN || jdbcType == Types.BIT) {
-            boolean value = resultSet.getBoolean(index);
-            return resultSet.wasNull() ? JsonNull.INSTANCE : new JsonPrimitive(value);
-        }
-        String value = resultSet.getString(index);
-        return value == null ? JsonNull.INSTANCE : new JsonPrimitive(value);
-    }
-
-    private static boolean isNumericJdbcType(int jdbcType) {
-        return jdbcType == Types.BIGINT || jdbcType == Types.DECIMAL || jdbcType == Types.DOUBLE
-                || jdbcType == Types.FLOAT || jdbcType == Types.INTEGER || jdbcType == Types.NUMERIC
-                || jdbcType == Types.REAL || jdbcType == Types.SMALLINT || jdbcType == Types.TINYINT;
+        return errorResult(context, originalError, raw, prerequisites, completedEffects, List.of());
     }
 
     private DialectPlanResult resultFromRaw(
             PlanExecutionContext context,
-            RawCapture raw,
+            OraclePlanTableAccess.Capture raw,
             List<PlanPrerequisite> prerequisites,
             PlanEffects effects,
             List<PlanDiagnostic> extraWarnings
@@ -487,7 +309,7 @@ public class OracleExecutionPlanDialect extends BaseExecutionPlanDialect {
     private DialectPlanResult errorResult(
             PlanExecutionContext context,
             SQLException error,
-            RawCapture raw,
+            OraclePlanTableAccess.Capture raw,
             List<PlanPrerequisite> prerequisites,
             PlanEffects effects,
             List<PlanDiagnostic> warnings
@@ -562,331 +384,6 @@ public class OracleExecutionPlanDialect extends BaseExecutionPlanDialect {
         );
     }
 
-    private PlanTableResolution resolvePlanTable(PlanExecutionContext context) throws SQLException {
-        SessionIdentity identity = sessionIdentity(context);
-        String owner = identity.currentSchema();
-        String name = PLAN_TABLE;
-        Set<String> visited = new HashSet<>();
-
-        ObjectType local = objectType(context, owner, name);
-        if (local == null) {
-            Synonym synonym = synonym(context, "PUBLIC", name);
-            if (synonym == null) {
-                return PlanTableResolution.failed(PlanPrerequisite.unmet(
-                        PlanCodes.PLAN_TABLE_MISSING,
-                        "PLAN_TABLE is not resolvable in the current Oracle schema",
-                        "Create a compatible private PLAN_TABLE or grant access through the standard public synonym"
-                ));
-            }
-            owner = synonym.owner();
-            name = synonym.name();
-            if (synonym.databaseLink() != null) {
-                return remotePlanTable();
-            }
-        } else if (local == ObjectType.SYNONYM) {
-            Synonym synonym = synonym(context, owner, name);
-            if (synonym == null) {
-                return PlanTableResolution.failed(PlanPrerequisite.unmet(
-                        PlanCodes.PLAN_TABLE_MISSING,
-                        "The private PLAN_TABLE synonym cannot be resolved",
-                        "Repair or remove the private synonym"
-                ));
-            }
-            owner = synonym.owner();
-            name = synonym.name();
-            if (synonym.databaseLink() != null) {
-                return remotePlanTable();
-            }
-        } else if (local != ObjectType.TABLE) {
-            return incompatibleObject(owner, name, local);
-        }
-
-        for (int depth = 0; depth < MAX_SYNONYM_DEPTH; depth++) {
-            String key = owner + "." + name;
-            if (!visited.add(key)) {
-                return PlanTableResolution.failed(PlanPrerequisite.unmet(
-                        PlanCodes.PLAN_TABLE_INCOMPATIBLE,
-                        "PLAN_TABLE synonym resolution contains a cycle",
-                        "Repair the PLAN_TABLE synonym chain"
-                ));
-            }
-
-            TableInfo table = tableInfo(context, owner, name);
-            if (table != null) {
-                Map<String, String> columns = tableColumns(context, owner, name);
-                return PlanTableResolution.resolved(new PlanTableTarget(
-                        owner,
-                        name,
-                        table.temporary(),
-                        table.duration(),
-                        columns,
-                        identity.sessionUser()
-                ));
-            }
-
-            ObjectType type = objectType(context, owner, name);
-            if (type != ObjectType.SYNONYM) {
-                if (type != null) {
-                    return incompatibleObject(owner, name, type);
-                }
-                return PlanTableResolution.failed(PlanPrerequisite.unmet(
-                        PlanCodes.PLAN_TABLE_MISSING,
-                        "Resolved PLAN_TABLE target " + quote(owner) + "." + quote(name) + " is not accessible",
-                        "Grant access to a compatible PLAN_TABLE target"
-                ));
-            }
-            Synonym nested = synonym(context, owner, name);
-            if (nested == null) {
-                return PlanTableResolution.failed(PlanPrerequisite.unmet(
-                        PlanCodes.PLAN_TABLE_MISSING,
-                        "PLAN_TABLE synonym target cannot be resolved",
-                        "Repair the PLAN_TABLE synonym chain"
-                ));
-            }
-            if (nested.databaseLink() != null) {
-                return remotePlanTable();
-            }
-            owner = nested.owner();
-            name = nested.name();
-        }
-        return PlanTableResolution.failed(PlanPrerequisite.unmet(
-                PlanCodes.PLAN_TABLE_INCOMPATIBLE,
-                "PLAN_TABLE synonym chain is too deep",
-                "Point PLAN_TABLE directly at a compatible local table"
-        ));
-    }
-
-    private SessionIdentity sessionIdentity(PlanExecutionContext context) throws SQLException {
-        String sql = "SELECT SYS_CONTEXT('USERENV','CURRENT_SCHEMA'), USER FROM DUAL";
-        try (TrackedStatement tracked = trackedStatement(context, true);
-             ResultSet resultSet = tracked.statement().executeQuery(sql)) {
-            if (!resultSet.next()) {
-                throw new SQLException("Oracle session identity query returned no row");
-            }
-            return new SessionIdentity(resultSet.getString(1), resultSet.getString(2));
-        }
-    }
-
-    private ObjectType objectType(PlanExecutionContext context, String owner, String name) throws SQLException {
-        String sql = "SELECT OBJECT_TYPE FROM ALL_OBJECTS "
-                + "WHERE OWNER = ? AND OBJECT_NAME = ? "
-                + "AND OBJECT_TYPE IN ('TABLE','VIEW','SYNONYM') "
-                + "ORDER BY CASE OBJECT_TYPE WHEN 'TABLE' THEN 1 WHEN 'VIEW' THEN 2 ELSE 3 END";
-        try (TrackedPreparedStatement tracked = trackedPreparedStatement(context, sql, true)) {
-            PreparedStatement statement = tracked.statement();
-            statement.setString(1, owner);
-            statement.setString(2, name);
-            try (ResultSet resultSet = statement.executeQuery()) {
-                if (!resultSet.next()) {
-                    return null;
-                }
-                return ObjectType.valueOf(resultSet.getString(1).toUpperCase(Locale.ROOT));
-            }
-        }
-    }
-
-    private Synonym synonym(PlanExecutionContext context, String owner, String name) throws SQLException {
-        String sql = "SELECT TABLE_OWNER, TABLE_NAME, DB_LINK FROM ALL_SYNONYMS "
-                + "WHERE OWNER = ? AND SYNONYM_NAME = ?";
-        try (TrackedPreparedStatement tracked = trackedPreparedStatement(context, sql, true)) {
-            PreparedStatement statement = tracked.statement();
-            statement.setString(1, owner);
-            statement.setString(2, name);
-            try (ResultSet resultSet = statement.executeQuery()) {
-                if (!resultSet.next()) {
-                    return null;
-                }
-                return new Synonym(
-                        resultSet.getString(1),
-                        resultSet.getString(2),
-                        resultSet.getString(3)
-                );
-            }
-        }
-    }
-
-    private TableInfo tableInfo(PlanExecutionContext context, String owner, String name) throws SQLException {
-        String sql = "SELECT TEMPORARY, DURATION FROM ALL_TABLES WHERE OWNER = ? AND TABLE_NAME = ?";
-        try (TrackedPreparedStatement tracked = trackedPreparedStatement(context, sql, true)) {
-            PreparedStatement statement = tracked.statement();
-            statement.setString(1, owner);
-            statement.setString(2, name);
-            try (ResultSet resultSet = statement.executeQuery()) {
-                if (!resultSet.next()) {
-                    return null;
-                }
-                return new TableInfo("Y".equalsIgnoreCase(resultSet.getString(1)), resultSet.getString(2));
-            }
-        }
-    }
-
-    private Map<String, String> tableColumns(
-            PlanExecutionContext context,
-            String owner,
-            String name
-    ) throws SQLException {
-        String sql = "SELECT COLUMN_NAME, DATA_TYPE FROM ALL_TAB_COLUMNS "
-                + "WHERE OWNER = ? AND TABLE_NAME = ? ORDER BY COLUMN_ID";
-        Map<String, String> columns = new LinkedHashMap<>();
-        try (TrackedPreparedStatement tracked = trackedPreparedStatement(context, sql, true)) {
-            PreparedStatement statement = tracked.statement();
-            statement.setString(1, owner);
-            statement.setString(2, name);
-            try (ResultSet resultSet = statement.executeQuery()) {
-                while (resultSet.next()) {
-                    columns.put(upper(resultSet.getString(1)), upper(resultSet.getString(2)));
-                }
-            }
-        }
-        return columns;
-    }
-
-    private Set<String> loadPrivileges(PlanExecutionContext context, PlanTableTarget target) throws SQLException {
-        if (target.owner().equals(target.sessionUser())) {
-            return REQUIRED_PRIVILEGES;
-        }
-
-        Set<String> privileges = new HashSet<>();
-        String grantsSql = "SELECT DISTINCT PRIVILEGE FROM ALL_TAB_PRIVS "
-                + "WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? "
-                + "AND (GRANTEE = ? OR GRANTEE = 'PUBLIC' OR GRANTEE IN (SELECT ROLE FROM SESSION_ROLES))";
-        try (TrackedPreparedStatement tracked = trackedPreparedStatement(context, grantsSql, true)) {
-            PreparedStatement statement = tracked.statement();
-            statement.setString(1, target.owner());
-            statement.setString(2, target.name());
-            statement.setString(3, target.sessionUser());
-            try (ResultSet resultSet = statement.executeQuery()) {
-                while (resultSet.next()) {
-                    privileges.add(upper(resultSet.getString(1)));
-                }
-            }
-        }
-
-        String systemSql = "SELECT PRIVILEGE FROM SESSION_PRIVS "
-                + "WHERE PRIVILEGE IN ('SELECT ANY TABLE','INSERT ANY TABLE','DELETE ANY TABLE')";
-        try (TrackedStatement tracked = trackedStatement(context, true);
-             ResultSet resultSet = tracked.statement().executeQuery(systemSql)) {
-            while (resultSet.next()) {
-                String privilege = upper(resultSet.getString(1));
-                if (privilege != null && privilege.endsWith(" ANY TABLE")) {
-                    privileges.add(privilege.substring(0, privilege.length() - " ANY TABLE".length()));
-                }
-            }
-        }
-        return privileges;
-    }
-
-    private PlanPrerequisite validateLifecycle(PlanTableTarget target, TransactionCheck transaction) {
-        if (!target.temporary()) {
-            return null;
-        }
-        String duration = upper(target.duration());
-        if (!"SYS$SESSION".equals(duration) && !"SYS$TRANSACTION".equals(duration)) {
-            return PlanPrerequisite.unmet(
-                    PlanCodes.PLAN_TABLE_INCOMPATIBLE,
-                    "PLAN_TABLE has an unknown temporary-row duration",
-                    "Use a standard Oracle PLAN_TABLE definition"
-            );
-        }
-        if (transaction.autoCommit() && "SYS$TRANSACTION".equals(duration)) {
-            return PlanPrerequisite.unmet(
-                    PlanCodes.TRANSACTION_CONTEXT_UNSAFE,
-                    "PLAN_TABLE deletes rows on commit, so auto-commit would erase the plan before it can be read",
-                    "Use the standard ON COMMIT PRESERVE ROWS PLAN_TABLE or an active transaction"
-            );
-        }
-        return null;
-    }
-
-    private PlanPrerequisite validateColumns(Map<String, String> columns) {
-        Set<String> missing = new LinkedHashSet<>(REQUIRED_COLUMNS);
-        missing.removeAll(columns.keySet());
-        if (!missing.isEmpty()) {
-            return PlanPrerequisite.unmet(
-                    PlanCodes.PLAN_TABLE_INCOMPATIBLE,
-                    "PLAN_TABLE is missing required columns: " + String.join(", ", missing),
-                    "Replace it with a compatible Oracle PLAN_TABLE definition"
-            );
-        }
-        for (String name : CHARACTER_COLUMNS) {
-            if (!isCharacterType(columns.get(name))) {
-                return incompatibleColumn(name, columns.get(name));
-            }
-        }
-        for (String name : NUMBER_COLUMNS) {
-            if (!isNumberType(columns.get(name))) {
-                return incompatibleColumn(name, columns.get(name));
-            }
-        }
-        return null;
-    }
-
-    private static PlanPrerequisite incompatibleColumn(String name, String type) {
-        return PlanPrerequisite.unmet(
-                PlanCodes.PLAN_TABLE_INCOMPATIBLE,
-                "PLAN_TABLE column " + name + " has incompatible type " + type,
-                "Replace it with a compatible Oracle PLAN_TABLE definition"
-        );
-    }
-
-    private static boolean isCharacterType(String type) {
-        return type != null && (type.contains("CHAR") || "CLOB".equals(type));
-    }
-
-    private static boolean isNumberType(String type) {
-        return type != null && (type.contains("NUMBER") || type.contains("FLOAT") || type.contains("DOUBLE")
-                || type.contains("INTEGER") || type.contains("DECIMAL"));
-    }
-
-    private TrackedStatement trackedStatement(PlanExecutionContext context, boolean checkCancellation)
-            throws SQLException {
-        if (checkCancellation) {
-            context.throwIfCancelled();
-        }
-        Statement statement = context.connection().createStatement();
-        context.registerStatement(statement);
-        try {
-            configureTimeout(statement, context, checkCancellation);
-            return new TrackedStatement(statement, context);
-        } catch (SQLException e) {
-            context.unregisterStatement(statement);
-            closeQuietly(statement);
-            throw e;
-        }
-    }
-
-    private TrackedPreparedStatement trackedPreparedStatement(
-            PlanExecutionContext context,
-            String sql,
-            boolean checkCancellation
-    ) throws SQLException {
-        if (checkCancellation) {
-            context.throwIfCancelled();
-        }
-        PreparedStatement statement = context.connection().prepareStatement(sql);
-        context.registerStatement(statement);
-        try {
-            configureTimeout(statement, context, checkCancellation);
-            return new TrackedPreparedStatement(statement, context);
-        } catch (SQLException e) {
-            context.unregisterStatement(statement);
-            closeQuietly(statement);
-            throw e;
-        }
-    }
-
-    private static void configureTimeout(
-            Statement statement,
-            PlanExecutionContext context,
-            boolean useRequestDeadline
-    ) throws SQLException {
-        long remainingMillis = useRequestDeadline
-                ? Math.max(1L, context.deadlineMillis() - System.currentTimeMillis())
-                : PlanLimits.CLEANUP_TIMEOUT_MS;
-        long seconds = Math.max(1L, (remainingMillis + 999L) / 1_000L);
-        statement.setQueryTimeout((int) Math.min(Integer.MAX_VALUE, seconds));
-    }
-
     private DialectPlanResult unmet(
             PlanExecutionContext context,
             List<PlanPrerequisite> prerequisites,
@@ -928,40 +425,42 @@ public class OracleExecutionPlanDialect extends BaseExecutionPlanDialect {
         return null;
     }
 
-    private static String planRowLifecycle(PlanTableTarget target) {
-        if (!target.temporary()) {
-            return "Regular table rows are isolated by generated STATEMENT_ID and explicitly deleted";
-        }
-        return "Temporary table duration " + target.duration() + " is compatible with this transaction state";
-    }
-
-    private static PlanTableResolution remotePlanTable() {
-        return PlanTableResolution.failed(PlanPrerequisite.unmet(
-                PlanCodes.PLAN_TABLE_INCOMPATIBLE,
-                "A remote PLAN_TABLE synonym is not supported",
-                "Point PLAN_TABLE at a compatible table in the current database"
-        ));
-    }
-
-    private static PlanTableResolution incompatibleObject(String owner, String name, ObjectType type) {
-        return PlanTableResolution.failed(PlanPrerequisite.unmet(
-                PlanCodes.PLAN_TABLE_INCOMPATIBLE,
-                "Resolved PLAN_TABLE object " + quote(owner) + "." + quote(name) + " is a " + type,
-                "Use a compatible Oracle table for PLAN_TABLE"
-        ));
-    }
-
-    private static String quote(String identifier) {
-        return "\"" + identifier.replace("\"", "\"\"") + "\"";
-    }
-
-    private static String upper(String value) {
-        return value == null ? null : value.toUpperCase(Locale.ROOT);
-    }
-
     private static boolean isConnectionBroken(SQLException error) {
         String state = error.getSQLState();
         return state != null && state.startsWith("08");
+    }
+
+    private static boolean canReuseAfterCleanupFailure(
+            PlanExecutionContext context,
+            TransactionCheck transaction,
+            SQLException originalError,
+            SQLException cleanupError
+    ) {
+        if (transaction.participates()
+                || transaction.state() != PlanTransactionState.AUTO_COMMIT
+                || !transaction.autoCommit()
+                || context.isCancelled()
+                || isConnectionBroken(cleanupError)
+                || (originalError != null && isConnectionBroken(originalError))) {
+            return false;
+        }
+        try {
+            if (!context.connection().getAutoCommit()) {
+                return false;
+            }
+            String sql = "SELECT DBMS_TRANSACTION.LOCAL_TRANSACTION_ID(FALSE) FROM DUAL";
+            try (OraclePlanJdbc.Tracked<Statement> tracked = OraclePlanJdbc.statement(context, false);
+                 ResultSet resultSet = tracked.statement().executeQuery(sql)) {
+                if (!resultSet.next()) {
+                    return false;
+                }
+                String transactionId = resultSet.getString(1);
+                return transactionId == null || transactionId.isBlank();
+            }
+        } catch (SQLException probeError) {
+            cleanupError.addSuppressed(probeError);
+            return false;
+        }
     }
 
     static String validatedVersionBaseline(String version) {
@@ -993,7 +492,6 @@ public class OracleExecutionPlanDialect extends BaseExecutionPlanDialect {
     }
 
     private static PlanEffects effects(
-            TransactionCheck transaction,
             PlanEffects.AuxiliaryStorage auxiliaryStorage,
             PlanEffects.ConnectionDisposition disposition,
             PlanEffects.TransactionState transactionState
@@ -1019,9 +517,8 @@ public class OracleExecutionPlanDialect extends BaseExecutionPlanDialect {
             PlanExecutionContext context,
             SQLException original,
             SQLException cleanup,
-            RawCapture raw,
+            OraclePlanTableAccess.Capture raw,
             List<PlanPrerequisite> prerequisites,
-            TransactionCheck transaction,
             String statementId
     ) {
         SQLException cause = original == null ? cleanup : original;
@@ -1031,7 +528,6 @@ public class OracleExecutionPlanDialect extends BaseExecutionPlanDialect {
         PlanDiagnostic cleanupDiagnostic = cleanupDiagnostic(cleanup, statementId);
         List<PlanDiagnostic> warnings = List.of(cleanupDiagnostic);
         PlanEffects partialEffects = effects(
-                transaction,
                 PlanEffects.AuxiliaryStorage.RESIDUAL,
                 PlanEffects.ConnectionDisposition.DISCARD,
                 PlanEffects.TransactionState.UNKNOWN
@@ -1093,21 +589,6 @@ public class OracleExecutionPlanDialect extends BaseExecutionPlanDialect {
         );
     }
 
-    private enum ObjectType {
-        TABLE,
-        VIEW,
-        SYNONYM
-    }
-
-    private record SessionIdentity(String currentSchema, String sessionUser) {
-    }
-
-    private record Synonym(String owner, String name, String databaseLink) {
-    }
-
-    private record TableInfo(boolean temporary, String duration) {
-    }
-
     private record TransactionCheck(
             PlanTransactionState state,
             boolean autoCommit,
@@ -1123,79 +604,4 @@ public class OracleExecutionPlanDialect extends BaseExecutionPlanDialect {
         }
     }
 
-    private record PlanTableTarget(
-            String owner,
-            String name,
-            boolean temporary,
-            String duration,
-            Map<String, String> columns,
-            String sessionUser
-    ) {
-        String qualifiedName() {
-            return quote(owner) + "." + quote(name);
-        }
-
-        List<String> selectedColumns() {
-            List<String> selected = new ArrayList<>();
-            for (String column : PLAN_COLUMNS) {
-                if (columns.containsKey(column)) {
-                    selected.add(column);
-                }
-            }
-            return selected;
-        }
-    }
-
-    private record PlanTableResolution(PlanTableTarget target, PlanPrerequisite failure) {
-        static PlanTableResolution resolved(PlanTableTarget target) {
-            return new PlanTableResolution(target, null);
-        }
-
-        static PlanTableResolution failed(PlanPrerequisite failure) {
-            return new PlanTableResolution(null, failure);
-        }
-    }
-
-    private record RawCapture(String json, boolean truncated) {
-    }
-
-    private static final class TrackedStatement implements AutoCloseable {
-        private final Statement statement;
-        private final PlanExecutionContext context;
-
-        private TrackedStatement(Statement statement, PlanExecutionContext context) {
-            this.statement = statement;
-            this.context = context;
-        }
-
-        private Statement statement() {
-            return statement;
-        }
-
-        @Override
-        public void close() throws SQLException {
-            context.unregisterStatement(statement);
-            statement.close();
-        }
-    }
-
-    private static final class TrackedPreparedStatement implements AutoCloseable {
-        private final PreparedStatement statement;
-        private final PlanExecutionContext context;
-
-        private TrackedPreparedStatement(PreparedStatement statement, PlanExecutionContext context) {
-            this.statement = statement;
-            this.context = context;
-        }
-
-        private PreparedStatement statement() {
-            return statement;
-        }
-
-        @Override
-        public void close() throws SQLException {
-            context.unregisterStatement(statement);
-            statement.close();
-        }
-    }
 }

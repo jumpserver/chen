@@ -25,11 +25,6 @@ public final class OraclePlanParser {
     public static final String ROWS_MEANING = "Oracle estimated output cardinality";
     public static final String COST_MEANING = "Oracle optimizer estimated subtree cost";
 
-    private static final Set<String> NUMERIC_COLUMNS = Set.of(
-            "ID", "PARENT_ID", "DEPTH", "POSITION", "COST", "CARDINALITY", "BYTES",
-            "CPU_COST", "IO_COST", "TEMP_SPACE", "TIME", "SEARCH_COLUMNS", "OBJECT_INSTANCE"
-    );
-
     private OraclePlanParser() {
     }
 
@@ -366,14 +361,7 @@ public final class OraclePlanParser {
             try {
                 return value.getAsBigDecimal();
             } catch (RuntimeException e) {
-                if (!NUMERIC_COLUMNS.contains(name)) {
-                    return null;
-                }
-                try {
-                    return new BigDecimal(value.getAsString());
-                } catch (RuntimeException ignored) {
-                    return null;
-                }
+                return null;
             }
         }
     }
