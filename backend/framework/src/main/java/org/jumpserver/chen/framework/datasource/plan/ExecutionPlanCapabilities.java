@@ -31,4 +31,11 @@ public record ExecutionPlanCapabilities(
                 PlanTransactionPolicy.SAVEPOINT_IF_ACTIVE
         );
     }
+
+    public static ExecutionPlanCapabilities oracle() {
+        return new ExecutionPlanCapabilities(
+                true, true, true, true, true, true, true, false, true,
+                PlanTransactionPolicy.AUXILIARY_DML
+        );
+    }
 }
