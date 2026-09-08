@@ -39,11 +39,30 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.regex.Pattern;
 
 public class OracleExecutionPlanDialect extends BaseExecutionPlanDialect {
     static final String RAW_FORMAT_VERSION = "chen-table-v1";
     private static final String PLAN_TABLE = "PLAN_TABLE";
     private static final int MAX_SYNONYM_DEPTH = 8;
+    private static final String ORACLE_19C_BASELINE = "Oracle 19c validated baseline";
+    private static final String ORACLE_26AI_23_26_BASELINE =
+            "Oracle AI Database 26ai 23.26.x validated baseline";
+    private static final Pattern ORACLE_DATABASE_PRODUCT = Pattern.compile(
+            "\\bOracle(?:\\s+AI)?\\s+Database\\b",
+            Pattern.CASE_INSENSITIVE
+    );
+    private static final Pattern ORACLE_19C_VERSION = Pattern.compile(
+            "(?:\\b19c\\b|(?<![\\d.])19(?:\\.\\d+){4}(?![\\d.]))",
+            Pattern.CASE_INSENSITIVE
+    );
+    private static final Pattern ORACLE_26AI_PRODUCT = Pattern.compile(
+            "\\bOracle\\s+(?:AI\\s+Database|Database)\\s+26\\s*ai\\b",
+            Pattern.CASE_INSENSITIVE
+    );
+    private static final Pattern ORACLE_26AI_23_26_VERSION = Pattern.compile(
+            "(?<![\\d.])23\\.26(?:\\.\\d+){3}(?![\\d.])"
+    );
 
     private static final List<String> PLAN_COLUMNS = List.of(
             "STATEMENT_ID", "PLAN_ID", "TIMESTAMP", "REMARKS", "OPERATION", "OPTIONS",
@@ -122,20 +141,21 @@ public class OracleExecutionPlanDialect extends BaseExecutionPlanDialect {
             return unmet(context, prerequisites, unsafe);
         }
 
-        if (!isValidatedVersion(context.serverVersion())) {
+        String validatedVersionBaseline = validatedVersionBaseline(context.serverVersion());
+        if (validatedVersionBaseline == null) {
             String version = context.serverVersion();
             String message = version == null || version.isBlank()
-                    ? "Oracle server version could not be determined"
-                    : "Oracle server version has not been validated for estimated plans: " + version;
-            PlanPrerequisite versionFailure = PlanPrerequisite.unknown(
+                    ? "Oracle server version could not be determined; continuing with runtime capability checks"
+                    : "Oracle server version has not been validated for estimated plans; "
+                            + "continuing with runtime capability checks: " + version;
+            prerequisites.add(PlanPrerequisite.unknown(
                     PlanCodes.VERSION_NOT_VALIDATED,
                     message,
-                    "Use the validated Oracle 19c baseline or complete the version safety checks"
-            );
-            prerequisites.add(versionFailure);
-            return unmet(context, prerequisites, PlanDiagnostic.of(versionFailure.code(), message));
+                    "Verify that the PLAN_TABLE, privilege, and transaction prerequisites pass"
+            ));
+        } else {
+            prerequisites.add(PlanPrerequisite.met("server-version", validatedVersionBaseline));
         }
-        prerequisites.add(PlanPrerequisite.met("server-version", "Oracle 19c validated baseline"));
 
         TransactionCheck transaction = checkTransaction(context);
         if (transaction.failure() != null) {
@@ -728,7 +748,7 @@ public class OracleExecutionPlanDialect extends BaseExecutionPlanDialect {
 
         Set<String> privileges = new HashSet<>();
         String grantsSql = "SELECT DISTINCT PRIVILEGE FROM ALL_TAB_PRIVS "
-                + "WHERE OWNER = ? AND TABLE_NAME = ? "
+                + "WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? "
                 + "AND (GRANTEE = ? OR GRANTEE = 'PUBLIC' OR GRANTEE IN (SELECT ROLE FROM SESSION_ROLES))";
         try (TrackedPreparedStatement tracked = trackedPreparedStatement(context, grantsSql, true)) {
             PreparedStatement statement = tracked.statement();
@@ -944,8 +964,18 @@ public class OracleExecutionPlanDialect extends BaseExecutionPlanDialect {
         return state != null && state.startsWith("08");
     }
 
-    private static boolean isValidatedVersion(String version) {
-        return version != null && version.matches("(?is).*\\b19(?:c|\\.).*");
+    static String validatedVersionBaseline(String version) {
+        if (version == null || version.isBlank() || !ORACLE_DATABASE_PRODUCT.matcher(version).find()) {
+            return null;
+        }
+        if (ORACLE_19C_VERSION.matcher(version).find()) {
+            return ORACLE_19C_BASELINE;
+        }
+        if (ORACLE_26AI_PRODUCT.matcher(version).find()
+                && ORACLE_26AI_23_26_VERSION.matcher(version).find()) {
+            return ORACLE_26AI_23_26_BASELINE;
+        }
+        return null;
     }
 
     private static boolean isCancelled(PlanExecutionContext context, SQLException error) {
