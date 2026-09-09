@@ -628,7 +628,9 @@ public class SqlAgentToolService {
         ));
         String dialect = StringUtils.defaultString(context.dialect()).toLowerCase(Locale.ROOT);
         if ("mysql".equals(dialect) || "mariadb".equals(dialect)) {
-            return new RelationScope(database != null ? database : schema, null);
+            // MySQL/MariaDB providers query INFORMATION_SCHEMA by scope.schema(),
+            // matching ResourceBrowser.resolveScope(catalog=null, schema=database).
+            return new RelationScope(null, schema != null ? schema : database);
         }
         if ("oracle".equals(dialect) || "dameng".equals(dialect) || "dm".equals(dialect)) {
             return new RelationScope(null, schema);
