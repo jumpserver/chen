@@ -34,7 +34,9 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 public class JMSSession extends BaseSession {
@@ -295,7 +297,7 @@ public class JMSSession extends BaseSession {
         }
         SessionManager.setContext(this.getWebToken());
         try {
-            this.getPacketIO().sendPacket("session_close", null);
+            this.getPacketIO().sendPacket("session_close", sessionClosePacketData(reason, args));
 
             var dialog = new Dialog(MessageUtils.get("SessionFinished"));
             dialog.setBody(MessageUtils.get(message, args));
@@ -386,5 +388,22 @@ public class JMSSession extends BaseSession {
         } catch (RuntimeException replayFailure) {
             primaryFailure.addSuppressed(replayFailure);
         }
+    }
+
+    static final String ADMIN_TERMINATE_REASON = "admin_terminate";
+
+    static Map<String, Object> sessionClosePacketData(String reason, Object... args) {
+        if (!ADMIN_TERMINATE_REASON.equals(reason)) {
+            return null;
+        }
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("reason", ADMIN_TERMINATE_REASON);
+        if (args != null && args.length > 0 && args[0] != null) {
+            String terminatedBy = String.valueOf(args[0]).trim();
+            if (!terminatedBy.isEmpty()) {
+                data.put("terminatedBy", terminatedBy);
+            }
+        }
+        return data;
     }
 }
