@@ -17,6 +17,7 @@ import java.sql.Clob;
 import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -108,57 +109,51 @@ class DataExportExcel implements DataExportInterface {
 class DataExportCSV implements DataExportInterface {
     @Override
     public void exportData(String path, DataViewData data) throws Exception {
-        var writer = Files.newBufferedWriter(Path.of(path));
+        try (BufferedWriter writer = Files.newBufferedWriter(Path.of(path))) {
+            List<Field> fields = data.getFields().stream()
+                    .filter(f -> !f.getName().equalsIgnoreCase("ROWNUM"))
+                    .toList();
 
-        List<Field> fields = data.getFields().stream()
-                .filter(f -> !f.getName().equalsIgnoreCase("ROWNUM"))
-                .toList();
+            List<Map<String, Object>> rows = data.getData().stream()
+                    .map(m -> {
+                        Map<String, Object> newMap = new LinkedHashMap<>(m);
+                        newMap.remove("ROWNUM");
+                        return newMap;
+                    })
+                    .toList();
 
-        List<Map<String, Object>> rows = data.getData().stream()
-                .map(m -> {
-                    Map<String, Object> newMap = new LinkedHashMap<>(m);
-                    newMap.remove("ROWNUM");
-                    return newMap;
-                })
-                .toList();
-
-        for (Field field : fields) {
-            writeString(writer, field.getName());
-            writer.write(",");
-        }
-        writer.newLine();
-        for (Map<String, Object> row : rows) {
-            for (Field field : fields) {
-                var obj = row.get(field.getName());
-                if (obj == null) {
-                    writer.write("NULL");
-                    writer.write(",");
-                } else if (obj instanceof Clob clob) {
-                    writer.write(CodeUtils.escapeCsvValue(clob.getSubString(1, (int) clob.length())));
-                    writer.write(",");
-                } else if (obj instanceof Date) {
-                    SimpleDateFormat fmt = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-                    writeString(writer, fmt.format(obj));
-                    writer.write(",");
-                } else {
-                    writeString(writer, row.get(field.getName()));
-                    writer.write(",");
+            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+            writeCsvRow(writer, fields.stream().map(field -> CodeUtils.escapeCsvValue(field.getName())).toList());
+            for (Map<String, Object> row : rows) {
+                List<String> values = new ArrayList<>(fields.size());
+                for (Field field : fields) {
+                    values.add(formatCsvCell(row.get(field.getName()), dateFormat));
                 }
+                writeCsvRow(writer, values);
             }
-            writer.newLine();
         }
-
-        writer.newLine();
-        writer.flush();
-        writer.close();
     }
 
-    private static void writeString(BufferedWriter writer, Object object) throws IOException {
-        var str = object.toString();
-
-        if (str.contains("\"") || str.contains(",")) {
-            str = "\"" + str.replace("\"", "\"\"") + "\"";
+    private static void writeCsvRow(BufferedWriter writer, List<String> values) throws IOException {
+        for (int i = 0; i < values.size(); i++) {
+            if (i > 0) {
+                writer.write(",");
+            }
+            writer.write(values.get(i));
         }
-        writer.write(str);
+        writer.newLine();
+    }
+
+    private static String formatCsvCell(Object obj, SimpleDateFormat dateFormat) throws Exception {
+        if (obj == null) {
+            return "NULL";
+        }
+        if (obj instanceof Clob clob) {
+            return CodeUtils.escapeCsvValue(clob.getSubString(1, (int) clob.length()));
+        }
+        if (obj instanceof Date) {
+            return CodeUtils.escapeCsvValue(dateFormat.format(obj));
+        }
+        return CodeUtils.escapeCsvValue(obj.toString());
     }
 }
