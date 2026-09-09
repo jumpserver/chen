@@ -39,7 +39,7 @@ public class OracleMetadataProvider extends BaseDatabaseMetadataProvider {
                    NULL AS engine,
                    NULL AS character_set,
                    NULL AS collation,
-                   c.comments AS comment
+                   c.comments AS "comment"
             FROM all_tables t
             LEFT JOIN all_tab_comments c
               ON c.owner = t.owner AND c.table_name = t.table_name AND c.table_type = 'TABLE'
@@ -78,7 +78,7 @@ public class OracleMetadataProvider extends BaseDatabaseMetadataProvider {
             """;
 
     private static final String SQL_VIEWS = """
-            SELECT v.view_name AS name, 'VIEW' AS type, c.comments AS comment
+            SELECT v.view_name AS name, 'VIEW' AS type, c.comments AS "comment"
             FROM all_views v
             LEFT JOIN all_tab_comments c
               ON c.owner = v.owner AND c.table_name = v.view_name AND c.table_type = 'VIEW'
