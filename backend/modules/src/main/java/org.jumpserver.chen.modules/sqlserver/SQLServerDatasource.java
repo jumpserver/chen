@@ -5,8 +5,10 @@ import org.jumpserver.chen.framework.datasource.DatasourceFactory;
 import org.jumpserver.chen.framework.datasource.base.BaseDatasource;
 import org.jumpserver.chen.framework.datasource.entity.DBConnectInfo;
 import org.jumpserver.chen.framework.datasource.metadata.MetadataCatalog;
+import org.jumpserver.chen.framework.datasource.plan.ExecutionPlanDialect;
 
 public class SQLServerDatasource extends BaseDatasource {
+    private final ExecutionPlanDialect executionPlanDialect = new SqlServerExecutionPlanDialect();
 
     static {
         DatasourceFactory.Register(SQLServerDatasource.class);
@@ -30,5 +32,9 @@ public class SQLServerDatasource extends BaseDatasource {
         return DbType.sqlserver;
     }
 
+    @Override
+    public ExecutionPlanDialect getExecutionPlanDialect() {
+        return this.executionPlanDialect;
+    }
 
 }

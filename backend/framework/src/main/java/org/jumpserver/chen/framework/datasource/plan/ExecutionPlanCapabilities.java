@@ -52,4 +52,11 @@ public record ExecutionPlanCapabilities(
                 PlanTransactionPolicy.STATEMENT_ONLY
         );
     }
+
+    public static ExecutionPlanCapabilities sqlserver() {
+        return new ExecutionPlanCapabilities(
+                true, true, true, true, true, true, true, true, false,
+                PlanTransactionPolicy.RESTORE_SESSION
+        );
+    }
 }
