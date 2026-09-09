@@ -63,7 +63,6 @@ class DataExportExcel implements DataExportInterface {
             List<Field> fields = data.getFields().stream()
                     .filter(f -> !f.getName().equalsIgnoreCase("ROWNUM"))
                     .toList();
-            data.setFields(fields);
 
             List<Map<String, Object>> rows = data.getData().stream()
                     .map(m -> {
@@ -114,7 +113,6 @@ class DataExportCSV implements DataExportInterface {
         List<Field> fields = data.getFields().stream()
                 .filter(f -> !f.getName().equalsIgnoreCase("ROWNUM"))
                 .toList();
-        data.setFields(fields);
 
         List<Map<String, Object>> rows = data.getData().stream()
                 .map(m -> {
