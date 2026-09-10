@@ -55,6 +55,8 @@ class SqlAgentToolServiceTest {
                   "consoleId": "console-1",
                   "workspaceTabId": "query-1",
                   "workspaceTabKind": "query",
+                  "tabId": "query-1",
+                  "proposalTarget": "selection",
                   "documentSql": "SELECT 1;\\nSELECT id FROM settings_setting",
                   "selectionFrom": 10,
                   "selectionTo": 41
@@ -162,6 +164,7 @@ class SqlAgentToolServiceTest {
                   "nodeKey":"%s",
                   "paneId":"pane-1",
                   "workspaceTabKind":"database",
+                  "proposalTarget":"new_query",
                   "revision":0,
                   "selectionFrom":0,
                   "selectionTo":0
@@ -178,6 +181,63 @@ class SqlAgentToolServiceTest {
         assertTrue(result.getAsJsonObject("analysis").get("valid").getAsBoolean());
         assertEquals("new_query", result.getAsJsonObject("proposal")
                 .getAsJsonObject("base").get("target").getAsString());
+    }
+
+    @Test
+    void usesExplicitProposalTargetInsteadOfInferringItFromEditorContext() throws Exception {
+        String nodeKey = "datasource:root,schema:public";
+        var session = mock(Session.class);
+        var datasource = mock(Datasource.class);
+        var connectionManager = mock(ConnectionManager.class);
+        var console = mock(Console.class);
+        var connectInfo = new DBConnectInfo();
+        connectInfo.setDbType("postgresql");
+
+        when(session.isActive()).thenReturn(true);
+        when(session.getDatasource()).thenReturn(datasource);
+        when(session.getConsoles()).thenReturn(Map.of("console-1", console));
+        when(datasource.getConnectInfo()).thenReturn(connectInfo);
+        when(datasource.getConnectionManager()).thenReturn(connectionManager);
+        when(datasource.getDruidDbType()).thenReturn(DbType.postgresql);
+        when(connectionManager.getContextKey()).thenReturn("schema");
+        when(connectionManager.getDatabaseContextKey()).thenReturn("database");
+        when(console.getNodeKey()).thenReturn(nodeKey);
+        when(console.getContext()).thenReturn(new ConsoleContext(
+                nodeKey, "schema", "jumpserver", "public", ""
+        ));
+
+        var service = new SqlAgentToolService();
+        for (var expected : List.of(
+                List.of("console", "new_query"),
+                List.of("query", "document"),
+                List.of("console", "document")
+        )) {
+            var context = service.resolveRequestContext(session, """
+                    {
+                      "nodeKey":"%s",
+                      "consoleId":"console-1",
+                      "paneId":"pane-1",
+                      "tabId":"tab-1",
+                      "workspaceTabId":"tab-1",
+                      "workspaceTabKind":"%s",
+                      "proposalTarget":"%s",
+                      "documentSql":"SELECT 1",
+                      "selectionFrom":0,
+                      "selectionTo":0
+                    }
+                    """.formatted(nodeKey, expected.get(0), expected.get(1)), "generate");
+            var result = JsonParser.parseString(service.execute(
+                    session,
+                    context,
+                    "propose_sql",
+                    "{\"sql\":\"SELECT 2\",\"explanation\":\"Next query\"}"
+            )).getAsJsonObject();
+
+            assertEquals(expected.get(1), result.getAsJsonObject("proposal")
+                    .getAsJsonObject("base").get("target").getAsString());
+            assertEquals("tab-1", result.getAsJsonObject("proposal")
+                    .getAsJsonObject("base").get("tabId").getAsString());
+        }
     }
 
     @Test
@@ -333,6 +393,8 @@ class SqlAgentToolServiceTest {
                           "nodeKey":"%s",
                           "consoleId":"console-1",
                           "workspaceTabKind":"query",
+                          "tabId":"tab-1",
+                          "proposalTarget":"document",
                           "documentSql":"SELECT sys.id FROM users AS sys",
                           "selectionFrom":0,
                           "selectionTo":0
@@ -351,6 +413,8 @@ class SqlAgentToolServiceTest {
                           "nodeKey":"%s",
                           "consoleId":"console-1",
                           "workspaceTabKind":"query",
+                          "tabId":"tab-1",
+                          "proposalTarget":"document",
                           "documentSql":"SELECT * FROM information_schema.tables",
                           "selectionFrom":0,
                           "selectionTo":0
@@ -365,6 +429,8 @@ class SqlAgentToolServiceTest {
                           "nodeKey":"%s",
                           "consoleId":"console-1",
                           "workspaceTabKind":"query",
+                          "tabId":"tab-1",
+                          "proposalTarget":"document",
                           "documentSql":"SELECT * FRM information_schema.tables",
                           "selectionFrom":0,
                           "selectionTo":0

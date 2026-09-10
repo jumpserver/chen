@@ -62,6 +62,8 @@ public class SqlAgentToolService {
             Set.of(RelationKind.TABLE, RelationKind.VIEW, RelationKind.MATERIALIZED_VIEW);
     private static final Set<String> WORKSPACE_TAB_KINDS =
             Set.of("query", "console", "data-view", "database", "none");
+    private static final Set<String> PROPOSAL_TARGETS =
+            Set.of("selection", "document", "new_query");
 
     public AgentRequestContext resolveRequestContext(Session session, String contextJson, String operation) {
         if (session == null || session.isClosing() || !session.isActive()) {
@@ -134,6 +136,14 @@ public class SqlAgentToolService {
         }
         boolean hasSelection = selectionTo > selectionFrom;
         String selectedSql = hasSelection ? documentSql.substring(selectionFrom, selectionTo) : "";
+        String tabId = boundedString(submitted, "tabId", 256, false);
+        String proposalTarget = boundedString(submitted, "proposalTarget", 32, true);
+        if (!PROPOSAL_TARGETS.contains(proposalTarget)
+                || ("selection".equals(proposalTarget) && !hasSelection)
+                || (("selection".equals(proposalTarget) || "document".equals(proposalTarget))
+                && tabId.isBlank())) {
+            throw new IllegalArgumentException("Invalid SQL proposal target");
+        }
         long revision = submitted.has("revision") ? submitted.get("revision").getAsLong() : 0;
         if (revision < 0) {
             throw new IllegalArgumentException("Invalid SQL editor revision");
@@ -159,7 +169,8 @@ public class SqlAgentToolService {
         addNullableString(sanitized, "table", node.table());
         sanitized.addProperty("consoleId", consoleId);
         sanitized.addProperty("paneId", boundedString(submitted, "paneId", 256, false));
-        sanitized.addProperty("tabId", boundedString(submitted, "tabId", 256, false));
+        sanitized.addProperty("tabId", tabId);
+        sanitized.addProperty("proposalTarget", proposalTarget);
         sanitized.addProperty("workspaceTabId", workspaceTabId);
         sanitized.addProperty("workspaceTabKind", workspaceTabKind);
         sanitized.addProperty("currentContext", currentContext);
@@ -250,8 +261,7 @@ public class SqlAgentToolService {
         Map<String, Object> analysis = validation.parseable() ? validation.toAnalysisMap() : null;
         int selectionFrom = editor.get("selectionFrom").getAsInt();
         int selectionTo = editor.get("selectionTo").getAsInt();
-        String tabId = editor.get("tabId").getAsString();
-        String target = selectionTo > selectionFrom ? "selection" : tabId.isBlank() ? "new_query" : "document";
+        String target = editor.get("proposalTarget").getAsString();
         String originalSQL = "selection".equals(target)
                 ? editor.get("selectedSql").getAsString()
                 : "document".equals(target) ? editor.get("documentSql").getAsString() : "";
