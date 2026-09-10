@@ -13,6 +13,8 @@ public final class PlanCodes {
     public static final String SESSION_STATE_UNSAFE = "SESSION_STATE_UNSAFE";
     public static final String SESSION_RESTORE_FAILED = "SESSION_RESTORE_FAILED";
     public static final String MISSING_REQUEST_ID = "MISSING_REQUEST_ID";
+    public static final String PLAN_REQUEST_NOT_FOUND = "PLAN_REQUEST_NOT_FOUND";
+    public static final String PLAN_REQUEST_AMBIGUOUS = "PLAN_REQUEST_AMBIGUOUS";
     public static final String CANCELLED = "CANCELLED";
     public static final String CONNECTION_INVALIDATED = "CONNECTION_INVALIDATED";
     public static final String SQL_ERROR = "SQL_ERROR";
