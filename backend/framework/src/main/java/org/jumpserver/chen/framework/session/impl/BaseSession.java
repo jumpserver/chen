@@ -9,6 +9,7 @@ import org.jumpserver.chen.framework.datasource.sql.SQLQueryResult;
 import org.jumpserver.chen.framework.jms.entity.CommandRecord;
 import org.jumpserver.chen.framework.jms.exception.CommandRejectException;
 import org.jumpserver.chen.framework.session.QueryAuditFunction;
+import org.jumpserver.chen.framework.session.MetadataQueryAuditFunction;
 import org.jumpserver.chen.framework.session.Session;
 import org.jumpserver.chen.framework.session.SessionManager;
 import org.jumpserver.chen.framework.jms.acl.ACLResult;
@@ -140,6 +141,14 @@ public class BaseSession implements Session {
 
     @Override
     public SQLQueryResult withAudit(String command, QueryAuditFunction queryAuditFunction) throws SQLException, CommandRejectException {
+        return queryAuditFunction.run();
+    }
+
+    @Override
+    public List<Map<String, Object>> withMetadataQueryAudit(
+            String command,
+            MetadataQueryAuditFunction queryAuditFunction
+    ) throws SQLException {
         return queryAuditFunction.run();
     }
 

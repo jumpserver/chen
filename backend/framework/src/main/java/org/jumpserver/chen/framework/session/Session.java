@@ -89,6 +89,11 @@ public interface Session {
     // 在有审计的情况下执行命令
     SQLQueryResult withAudit(String command, QueryAuditFunction queryAuditFunction) throws SQLException, CommandRejectException;
 
+    List<Map<String, Object>> withMetadataQueryAudit(
+            String command,
+            MetadataQueryAuditFunction queryAuditFunction
+    ) throws SQLException;
+
     void recordCommand(String command);
 
     void recordCommand(CommandRecord commandRecord);
