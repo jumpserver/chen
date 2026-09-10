@@ -1,5 +1,6 @@
 package org.jumpserver.chen.framework.console;
 
+import com.alibaba.druid.DbType;
 import com.alibaba.druid.sql.parser.ParserException;
 import com.google.gson.Gson;
 import lombok.extern.slf4j.Slf4j;
@@ -61,6 +62,7 @@ import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.sql.Connection;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
@@ -71,8 +73,11 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 
 @Slf4j
@@ -92,6 +97,12 @@ public class QueryConsole extends AbstractConsole {
     private static final String EXECUTION_STATUS_SUCCESS = "success";
     private static final String EXECUTION_STATUS_ERROR = "error";
     private static final String EXECUTION_STATUS_CANCELLED = "cancelled";
+    private static final AtomicInteger CANCEL_THREAD_SEQUENCE = new AtomicInteger();
+    private static final ExecutorService CANCEL_EXECUTOR = Executors.newCachedThreadPool(runnable -> {
+        Thread thread = new Thread(runnable, "query-console-cancel-" + CANCEL_THREAD_SEQUENCE.incrementAndGet());
+        thread.setDaemon(true);
+        return thread;
+    });
 
     private final Datasource datasource;
     private final boolean consoleMode;
@@ -104,7 +115,8 @@ public class QueryConsole extends AbstractConsole {
     // getConnection() throughout its execution without observing closed=true midway through.
     private final ReentrantLock executionLock = new ReentrantLock();
     private final AtomicBoolean closed = new AtomicBoolean(false);
-    private Connection conn;
+    private volatile Connection conn;
+    private volatile long backendSessionId;
     // Driver-specific transaction probe created alongside the physical connection. The driver's
     // cached autoCommit flag does not reflect explicit BEGIN/START TRANSACTION on MySQL, Oracle,
     // SQL Server, Dameng or DB2, so the server-side probe is the real source of truth for whether
@@ -242,6 +254,7 @@ public class QueryConsole extends AbstractConsole {
                     candidate
             );
 
+            this.captureBackendSessionId(candidate);
             this.conn = candidate;
             this.transactionStateInspector = candidateInspector;
             return candidate;
@@ -267,6 +280,10 @@ public class QueryConsole extends AbstractConsole {
 
     @Override
     public void handle(Packet packet) {
+        if (StringUtils.equals(packet.getType(), "ping")) {
+            this.getPacketIO().sendPacket("pong", null);
+            return;
+        }
         if (this.isCancelPacket(packet)) {
             this.handleCancel();
             return;
@@ -337,9 +354,7 @@ public class QueryConsole extends AbstractConsole {
     private void onAction(QueryConsoleAction action) {
         switch (action.getAction()) {
             case QueryConsoleAction.ACTION_RUN_SQL -> {
-                this.getState().setInQuery(true);
-                this.stateManager.commit();
-
+                this.beginNewSqlSubmission();
                 var sql = (String) action.getData();
                 this.onSQL(sql);
 
@@ -354,9 +369,7 @@ public class QueryConsole extends AbstractConsole {
             }
 
             case QueryConsoleAction.ACTION_RUN_SQL_FILE -> {
-                this.getState().setInQuery(true);
-                this.stateManager.commit();
-
+                this.beginNewSqlSubmission();
                 var sqlFile = (String) action.getData();
                 this.onSQLFile(sqlFile);
 
@@ -383,7 +396,7 @@ public class QueryConsole extends AbstractConsole {
             this.getConsoleLogger().error("Invalid SQL chunk transfer: %s", e.getMessage());
             return;
         }
-        sql.ifPresent(this::onSQL);
+        this.runAssembledSql(sql);
     }
 
     private void handleSQLComplete(QueryConsoleAction action) {
@@ -394,7 +407,21 @@ public class QueryConsole extends AbstractConsole {
             this.getConsoleLogger().error("Invalid SQL chunk transfer: %s", e.getMessage());
             return;
         }
-        sql.ifPresent(this::onSQL);
+        this.runAssembledSql(sql);
+    }
+
+    private void beginNewSqlSubmission() {
+        this.getState().setInQuery(true);
+        this.getState().setExecutionStatus(EXECUTION_STATUS_RUNNING);
+        this.getState().setCanCancel(true);
+        this.stateManager.commit();
+    }
+
+    private void runAssembledSql(Optional<String> sql) {
+        sql.ifPresent(assembled -> {
+            this.beginNewSqlSubmission();
+            this.onSQL(assembled);
+        });
     }
 
     private void onDataViewAction(DataViewAction action) {
@@ -544,6 +571,7 @@ public class QueryConsole extends AbstractConsole {
         Connection old = this.conn;
         this.conn = null;
         this.transactionStateInspector = null;
+        this.backendSessionId = 0;
         return old;
     }
 
@@ -748,23 +776,94 @@ public class QueryConsole extends AbstractConsole {
     }
 
     public void onCancel() {
-        this.getState().setExecutionStatus(EXECUTION_STATUS_CANCELLED);
+        var execution = this.currentExecution;
+        if (this.stateManager != null) {
+            this.getState().setExecutionStatus(EXECUTION_STATUS_CANCELLED);
+            this.getState().setCanCancel(false);
+            this.getState().setInQuery(false);
+            this.stateManager.commit();
+            this.getConsoleLogger().warn("cancel query: %s", execution == null ? "" : execution.sql());
+        }
+        CANCEL_EXECUTOR.execute(() -> this.interruptExecution(execution));
+    }
+
+    private void interruptExecution(ActiveExecution execution) {
+        if (execution == null) {
+            return;
+        }
+        Connection connectionToAbort = this.conn;
+        CANCEL_EXECUTOR.execute(() -> this.abortPhysicalConnection(execution, connectionToAbort));
+        CANCEL_EXECUTOR.execute(this::tryKillServerQuery);
         try {
-            var execution = this.currentExecution;
-            if (execution != null) {
-                execution.cancelAction().cancel();
-                this.getConsoleLogger().warn("cancel query: %s", execution.sql());
-            }
+            execution.cancelAction().cancel();
         } catch (SQLException | RuntimeException e) {
             log.error("cancel failed ", e);
         }
     }
 
-    private void handleCancel() {
+    private void abortPhysicalConnection(ActiveExecution execution, Connection connection) {
+        if (execution == null || connection == null || this.currentExecution != execution) {
+            return;
+        }
+        try {
+            connection.abort(CANCEL_EXECUTOR);
+        } catch (SQLException | RuntimeException | AbstractMethodError e) {
+            log.warn("connection abort failed", e);
+        }
+        if (this.currentExecution == execution && this.conn == connection) {
+            this.detachConnection();
+        }
+    }
+
+    private void captureBackendSessionId(Connection connection) {
+        String sql = switch (this.datasource.getDruidDbType()) {
+            case mysql, mariadb -> "SELECT CONNECTION_ID()";
+            case postgresql -> "SELECT pg_backend_pid()";
+            default -> null;
+        };
+        this.backendSessionId = 0;
+        if (sql == null) {
+            return;
+        }
+        try (Statement statement = connection.createStatement();
+             ResultSet resultSet = statement.executeQuery(sql)) {
+            if (resultSet.next()) {
+                this.backendSessionId = resultSet.getLong(1);
+            }
+        } catch (SQLException e) {
+            log.debug("capture backend session id failed", e);
+        }
+    }
+
+    private void tryKillServerQuery() {
+        long sessionId = this.backendSessionId;
+        if (sessionId <= 0) {
+            return;
+        }
+        String killSql = switch (this.datasource.getDruidDbType()) {
+            case mysql, mariadb -> "KILL QUERY " + sessionId;
+            case postgresql -> "SELECT pg_cancel_backend(" + sessionId + ")";
+            default -> null;
+        };
+        if (killSql == null) {
+            return;
+        }
+        Connection killer = null;
+        try {
+            killer = this.datasource.getConnectionManager().getPhysicalConnection();
+            try (Statement statement = killer.createStatement()) {
+                statement.execute(killSql);
+            }
+        } catch (SQLException e) {
+            log.warn("server-side query cancel failed: {}", e.getMessage());
+        } finally {
+            closeQuietly(killer);
+        }
+    }
+
+    public void handleCancel() {
         this.sqlChunkTransfers.cancelAll();
         this.onCancel();
-        this.getState().setInQuery(false);
-        this.stateManager.commit();
     }
 
     public void onManualChangeContext(String context) {
@@ -886,7 +985,14 @@ public class QueryConsole extends AbstractConsole {
 
     public void onSQL(String sql) {
         this.getState().setInQuery(true);
+        if (this.isCancelled()) {
+            this.getState().setCanCancel(false);
+            this.getState().setInQuery(false);
+            this.stateManager.commit();
+            return;
+        }
         this.getState().setExecutionStatus(EXECUTION_STATUS_RUNNING);
+        this.getState().setCanCancel(true);
         this.stateManager.commit();
         var session = SessionManager.getCurrentSession();
 
@@ -923,6 +1029,9 @@ public class QueryConsole extends AbstractConsole {
         var statements = this.getSqlActuator().parseSQL(SQL.of(sql));
         var clearOthers = true;
         for (String statement : statements) {
+            if (this.isCancelled()) {
+                break;
+            }
             var aclResult = session.checkACL(statement, this.getConnection());
             if (!this.canExecuteStatement(session, statement, aclResult)) {
                 break;
@@ -940,6 +1049,9 @@ public class QueryConsole extends AbstractConsole {
     private void runRawConsoleSQL(String sql, Session session) throws SQLException {
         Connection connection = this.getConnection();
         for (String statement : ConsoleStatementBoundaryScanner.split(sql)) {
+            if (this.isCancelled()) {
+                break;
+            }
             ACLResult aclResult = session.checkACL(statement, connection);
             if (!this.canExecuteStatement(session, statement, aclResult)) {
                 break;
@@ -971,11 +1083,13 @@ public class QueryConsole extends AbstractConsole {
 
     private SQLQueryResult executeRawConsoleSQL(String sql, ACLResult aclResult, Connection connection)
             throws SQLException {
+        if (this.isCancelled()) {
+            throw new SQLException(MessageUtils.get("ExecutionCanceled"));
+        }
         SQLActuator actuator = this.datasource.getConnectionManager().getSqlActuator().withConnection(connection);
         SQLExecutePlan plan = actuator.createPlan(SQL.of(sql));
         plan.setAclResult(aclResult);
-        Statement statement = plan.createStatement();
-        ActiveExecution execution = new ActiveExecution(sql, statement::cancel);
+        ActiveExecution execution = new ActiveExecution(sql, plan::cancel);
         this.currentExecution = execution;
         this.getState().setCanCancel(true);
         this.stateManager.commit();
@@ -989,6 +1103,10 @@ public class QueryConsole extends AbstractConsole {
             this.getState().setCanCancel(false);
             this.stateManager.commit();
         }
+    }
+
+    private boolean isCancelled() {
+        return StringUtils.equals(this.getState().getExecutionStatus(), EXECUTION_STATUS_CANCELLED);
     }
 
     private void logAffectedRows(DataView dataView) {
