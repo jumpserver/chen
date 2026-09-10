@@ -52,6 +52,11 @@ public class ConsoleWebSocketHandler extends TextWebSocketHandler {
         var token = (String) session.getAttributes().get("token");
         var packet = GSON.fromJson(message.getPayload().toString(), Packet.class);
 
+        if (StringUtils.equals(packet.getType(), "ping")) {
+            new PacketIO(session).sendPacket("pong", null);
+            return;
+        }
+
         if (this.isQueryConsoleCancel(token, session.getId(), packet)) {
             this.cancelQueryConsole(token, session.getId());
             return;
@@ -117,7 +122,7 @@ public class ConsoleWebSocketHandler extends TextWebSocketHandler {
         }
         var console = currentSession.getConsoles().get(sessionId);
         if (console instanceof QueryConsole queryConsole) {
-            queryConsole.onCancel();
+            queryConsole.handleCancel();
         }
     }
 

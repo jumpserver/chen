@@ -100,12 +100,15 @@ public class DataViewConsole extends AbstractConsole {
 
     @Override
     public void handle(Packet packet) {
+        if ("ping".equals(packet.getType())) {
+            this.getPacketIO().sendPacket("pong", null);
+            return;
+        }
         if (!this.beginExecution()) {
             return;
         }
         try {
             switch (packet.getType()) {
-                case "ping" -> this.getPacketIO().sendPacket("pong", null);
                 case Packet.TYPE_DATA_VIEW_ACTION -> {
                     var action = GSON.fromJson(GSON.toJson(packet.getData()), DataViewAction.class);
                     this.onDataViewAction(action);
