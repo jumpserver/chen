@@ -1,6 +1,7 @@
 package org.jumpserver.chen.framework.datasource.metadata;
 
 import org.jumpserver.chen.framework.datasource.ConnectionManager;
+import org.jumpserver.chen.framework.session.SessionManager;
 
 import java.math.BigDecimal;
 import java.sql.SQLException;
@@ -33,7 +34,15 @@ public abstract class BaseDatabaseMetadataProvider implements DatabaseMetadataPr
      * already canonical-validated by the caller.
      */
     protected List<Map<String, Object>> query(String sql, List<?> parameters) throws SQLException {
-        return this.connectionManager.getSqlActuator().queryRows(sql, parameters);
+        var query = this.connectionManager.getSqlActuator();
+        if (!MetadataQueryAuditContext.isActive()) {
+            return query.queryRows(sql, parameters);
+        }
+        var session = SessionManager.getCurrentSession();
+        if (session == null) {
+            return query.queryRows(sql, parameters);
+        }
+        return session.withMetadataQueryAudit(sql, () -> query.queryRows(sql, parameters));
     }
 
     /**

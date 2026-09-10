@@ -17,6 +17,7 @@ import org.jumpserver.chen.framework.jms.impl.ACLFilterImpl;
 import org.jumpserver.chen.framework.jms.impl.CommandHandlerImpl;
 import org.jumpserver.chen.framework.jms.impl.ReplayHandlerImpl;
 import org.jumpserver.chen.framework.session.QueryAuditFunction;
+import org.jumpserver.chen.framework.session.MetadataQueryAuditFunction;
 import org.jumpserver.chen.framework.session.SessionManager;
 import org.jumpserver.chen.framework.session.controller.dialog.Button;
 import org.jumpserver.chen.framework.session.controller.dialog.Dialog;
@@ -40,6 +41,8 @@ import java.util.Map;
 
 @Slf4j
 public class JMSSession extends BaseSession {
+
+    private static final int METADATA_AUDIT_ERROR_MAX_LENGTH = 1024;
 
     @Getter
     private final Common.Session jmsSession;
@@ -380,6 +383,67 @@ public class JMSSession extends BaseSession {
                 }
             }
         }
+    }
+
+    @Override
+    public List<Map<String, Object>> withMetadataQueryAudit(
+            String command,
+            MetadataQueryAuditFunction queryAuditFunction
+    ) throws SQLException {
+        CommandRecord commandRecord = new CommandRecord(command);
+        Throwable primaryFailure = null;
+
+        try {
+            this.replayHandler.writeInput(commandRecord.getInput());
+
+            var rows = queryAuditFunction.run();
+            var output = String.format("Metadata query OK, %d rows discovered", rows.size());
+            commandRecord.setOutput(output);
+            this.replayHandler.writeOutput(output);
+            return rows;
+        } catch (SQLException | RuntimeException e) {
+            primaryFailure = e;
+            var output = metadataAuditErrorSummary(e);
+            commandRecord.setError(output);
+            this.writeReplayFailure(output, e);
+            throw e;
+        } finally {
+            try {
+                this.commandHandler.recordCommand(commandRecord);
+            } catch (RuntimeException auditFailure) {
+                if (primaryFailure != null) {
+                    primaryFailure.addSuppressed(auditFailure);
+                } else {
+                    throw auditFailure;
+                }
+            }
+        }
+    }
+
+    private static String metadataAuditErrorSummary(Throwable failure) {
+        SQLException sqlFailure = null;
+        for (var cause = failure; cause != null; cause = cause.getCause()) {
+            if (cause instanceof SQLException sqlException) {
+                sqlFailure = sqlException;
+            }
+        }
+        var message = failure.getMessage();
+        if (sqlFailure != null && sqlFailure.getMessage() != null) {
+            message = sqlFailure.getMessage();
+        }
+        message = message == null || message.isBlank() ? "Metadata query failed" : message;
+        message = message.replaceAll("[\\r\\n\\t]+", " ").trim();
+        var summary = sqlFailure == null
+                ? message
+                : String.format(
+                        "SQLState=%s, vendorCode=%d, message=%s",
+                        sqlFailure.getSQLState() == null ? "" : sqlFailure.getSQLState(),
+                        sqlFailure.getErrorCode(),
+                        message
+                );
+        return summary.length() <= METADATA_AUDIT_ERROR_MAX_LENGTH
+                ? summary
+                : summary.substring(0, METADATA_AUDIT_ERROR_MAX_LENGTH);
     }
 
     private void writeReplayFailure(String output, Throwable primaryFailure) {

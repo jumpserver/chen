@@ -8,6 +8,7 @@ import org.jumpserver.chen.framework.datasource.metadata.ForeignKeyMetadata;
 import org.jumpserver.chen.framework.datasource.metadata.IndexMetadata;
 import org.jumpserver.chen.framework.datasource.metadata.MetadataCapabilities;
 import org.jumpserver.chen.framework.datasource.metadata.MetadataCatalog;
+import org.jumpserver.chen.framework.datasource.metadata.MetadataQueryAuditContext;
 import org.jumpserver.chen.framework.datasource.metadata.ObjectRef;
 import org.jumpserver.chen.framework.datasource.metadata.PrimaryKeyMetadata;
 import org.jumpserver.chen.framework.datasource.metadata.RelationKind;
@@ -26,6 +27,9 @@ import java.util.Set;
 @Service
 public class TableMetadataService {
     private static final Set<String> DEFAULT_SECTIONS = Set.of("columns", "primaryKey");
+    private static final Set<String> AUDITED_PROPERTY_SECTIONS = Set.of(
+            "foreignKeys", "indexes", "constraints", "ddl"
+    );
 
     public TableMetadata getTableMetadata(TableMetadataRequest request) {
         var session = SessionManager.getCurrentSession();
@@ -33,14 +37,21 @@ public class TableMetadataService {
         var node = resolveTableNode(datasource.getResourceBrowser(), request == null ? null : request.nodeKey());
         var ref = new ObjectRef(node.database(), node.schema(), node.table(), RelationKind.TABLE);
         try {
-            return load(
-                    datasource.getMetadataCatalog(), ref,
-                    normalizeSections(request == null ? null : request.sections()),
-                    request != null && request.force()
-            );
+            var sections = normalizeSections(request == null ? null : request.sections());
+            var force = request != null && request.force();
+            if (!shouldAuditPropertyQuery(sections, force)) {
+                return load(datasource.getMetadataCatalog(), ref, sections, force);
+            }
+            try (var ignored = MetadataQueryAuditContext.open()) {
+                return load(datasource.getMetadataCatalog(), ref, sections, force);
+            }
         } catch (SQLException | IllegalArgumentException e) {
             throw new ChenException("Failed to load table metadata", e);
         }
+    }
+
+    static boolean shouldAuditPropertyQuery(Set<String> sections, boolean force) {
+        return !force && sections.stream().anyMatch(AUDITED_PROPERTY_SECTIONS::contains);
     }
 
     TableMetadata load(MetadataCatalog catalog, ObjectRef ref, Set<String> sections, boolean force)

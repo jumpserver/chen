@@ -5,6 +5,7 @@ import org.jumpserver.chen.framework.datasource.ResourceBrowser;
 import org.jumpserver.chen.framework.datasource.entity.resource.ResourceNodeSnapshot;
 import org.jumpserver.chen.framework.datasource.metadata.MetadataCapabilities;
 import org.jumpserver.chen.framework.datasource.metadata.MetadataCatalog;
+import org.jumpserver.chen.framework.datasource.metadata.MetadataQueryAuditContext;
 import org.jumpserver.chen.framework.datasource.metadata.ObjectStatistics;
 import org.jumpserver.chen.framework.datasource.metadata.RelationKind;
 import org.jumpserver.chen.framework.datasource.metadata.RelationScope;
@@ -42,10 +43,12 @@ public class SchemaOverviewService {
         try {
             var scope = new RelationScope(node.database(), node.schema());
             var sections = normalizeSections(request == null ? null : request.sections());
-            return this.load(
-                    datasource.getMetadataCatalog(), scope, sections,
-                    request != null && request.force()
-            );
+            try (var ignored = MetadataQueryAuditContext.open()) {
+                return this.load(
+                        datasource.getMetadataCatalog(), scope, sections,
+                        request != null && request.force()
+                );
+            }
         } catch (SQLException | IllegalArgumentException e) {
             throw new ChenException("Failed to load schema overview metadata", e);
         }
