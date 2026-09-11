@@ -7,7 +7,6 @@ import org.jumpserver.chen.framework.console.entity.response.SaveChangesResult;
 import org.jumpserver.chen.framework.datasource.edit.bind.PreparedStatementBinder;
 import org.jumpserver.chen.framework.datasource.edit.command.PreparedTableChangeCommand;
 import org.jumpserver.chen.framework.datasource.edit.exception.CommitOutcomeUnknownException;
-import org.jumpserver.chen.framework.datasource.edit.exception.OptimisticLockConflictException;
 import org.jumpserver.chen.framework.datasource.edit.exception.RollbackFailedException;
 import org.jumpserver.chen.framework.datasource.edit.exception.RolledBackConnectionUnavailableException;
 import org.jumpserver.chen.framework.datasource.edit.exception.RowNotFoundOrNotUniqueException;
@@ -32,7 +31,6 @@ import java.util.concurrent.atomic.AtomicReference;
 public class TableChangesSaveService {
     public static final String ACL_REJECTED = "ACL_REJECTED";
     public static final String ACL_RISK_LEVEL_UNRECOGNIZED = "ACL_RISK_LEVEL_UNRECOGNIZED";
-    public static final String OPTIMISTIC_LOCK_CONFLICT = "OPTIMISTIC_LOCK_CONFLICT";
     public static final String ROW_NOT_FOUND_OR_NOT_UNIQUE = "ROW_NOT_FOUND_OR_NOT_UNIQUE";
     public static final String AFFECTED_ROWS_UNEXPECTED = "AFFECTED_ROWS_UNEXPECTED";
     public static final String SAVE_CHANGES_EXECUTE_FAILED = "SAVE_CHANGES_EXECUTE_FAILED";
@@ -85,7 +83,7 @@ public class TableChangesSaveService {
         }
 
         TableChangesPlan plan = buildResult.getPlan();
-        fillPlanResult(result, plan);
+        fillPlanResult(result, plan, context.isMaskedPrimaryKey());
 
         try {
             TransactionBoundary transactionBoundary = transactionBoundary(executionContext, context.getDbType());
@@ -99,19 +97,6 @@ public class TableChangesSaveService {
             return executeAcceptedSave(result, plan, executionContext.connection(),
                     executionContext.connectionOwnership(),
                     session, transactionBoundary);
-        } catch (OptimisticLockConflictException e) {
-            PreparedTableChangeCommand command = commandAt(plan, e.getChangeIndex());
-            log.warn(
-                    "save changes optimistic lock conflict, dataView={}, table={}.{}, changeIndex={}, sourceColumn={}, pkColumn={}",
-                    plan.getDataView(),
-                    plan.getSchema(),
-                    plan.getTable(),
-                    e.getChangeIndex(),
-                    command != null ? command.getSourceColumn() : null,
-                    command != null ? command.getPkColumn() : null
-            );
-            return reject(result, OPTIMISTIC_LOCK_CONFLICT, e.getChangeIndex(),
-                    command != null ? command.getChange() : null, command);
         } catch (UnexpectedAffectedRowsException e) {
             PreparedTableChangeCommand command = commandAt(plan, e.getChangeIndex());
             log.error(
@@ -125,7 +110,7 @@ public class TableChangesSaveService {
                     e.getAffectedRows()
             );
             return reject(result, AFFECTED_ROWS_UNEXPECTED, e.getChangeIndex(),
-                    command != null ? command.getChange() : null, command);
+                    command != null ? command.getChange() : null, clientFailedOperation(command));
         } catch (RowNotFoundOrNotUniqueException e) {
             PreparedTableChangeCommand command = commandAt(plan, e.getChangeIndex());
             log.warn(
@@ -138,7 +123,7 @@ public class TableChangesSaveService {
                     command != null ? command.getPkColumn() : null
             );
             return reject(result, ROW_NOT_FOUND_OR_NOT_UNIQUE, e.getChangeIndex(),
-                    command != null ? command.getChange() : null, command);
+                    command != null ? command.getChange() : null, clientFailedOperation(command));
         } catch (RollbackFailedException e) {
             log.error(
                     "save changes rollback failed and connection was invalidated, dataView={}, table={}.{}",
@@ -437,7 +422,7 @@ public class TableChangesSaveService {
             if (command.getOperation() == PreparedTableChangeCommand.Operation.INSERT) {
                 throw new UnexpectedAffectedRowsException(changeIndex, affectedRows);
             }
-            throw new OptimisticLockConflictException(changeIndex);
+            throw new RowNotFoundOrNotUniqueException(changeIndex);
         }
         if (affectedRows > 1) {
             log.error(
@@ -553,7 +538,7 @@ public class TableChangesSaveService {
         return result;
     }
 
-    private void fillPlanResult(SaveChangesResult result, TableChangesPlan plan) {
+    private void fillPlanResult(SaveChangesResult result, TableChangesPlan plan, boolean redactPrimaryKey) {
         result.setDataView(plan.getDataView());
         result.setSchema(plan.getSchema());
         result.setTable(plan.getTable());
@@ -561,7 +546,9 @@ public class TableChangesSaveService {
         result.setUpdateCount(plan.getUpdateCount());
         result.setInsertCount(plan.getInsertCount());
         result.setDeleteCount(plan.getDeleteCount());
-        result.setAuditSql(plan.getAuditSql());
+        if (!redactPrimaryKey) {
+            result.setAuditSql(plan.getAuditSql());
+        }
         for (PreparedTableChangeCommand command : plan.getCommands()) {
             SaveChangesResult.ResultItem item = new SaveChangesResult.ResultItem();
             item.setOperation(command.getOperation().name());
@@ -570,6 +557,19 @@ public class TableChangesSaveService {
             item.setPreparedSql(command.getPreparedSql());
             result.getStatements().add(item);
         }
+    }
+
+    private Object clientFailedOperation(PreparedTableChangeCommand command) {
+        if (command == null) {
+            return null;
+        }
+        if (command.getChange() != null) {
+            return command.getChange();
+        }
+        if (command.getDeleteRow() != null) {
+            return command.getDeleteRow();
+        }
+        return command.getInsertRow();
     }
 
     private PreparedTableChangeCommand commandAt(TableChangesPlan plan, int index) {

@@ -265,6 +265,7 @@ public class DataViewConsole extends AbstractConsole {
                     this.getDatasource().getDruidDbType(),
                     true
             );
+            context.setRowRefPrimaryKeys(this.tableDataView.getRowRefPrimaryKeys());
             var result = this.tableChangesPreviewService.preview(context, action.getDataView(), request);
             this.getPacketIO().sendPacket(PACKET_SAVE_CHANGES_PREVIEW_RESULT, result);
             return;
@@ -279,6 +280,7 @@ public class DataViewConsole extends AbstractConsole {
                     this.getDatasource().getDruidDbType(),
                     true
             );
+            context.setRowRefPrimaryKeys(this.tableDataView.getRowRefPrimaryKeys());
             var result = this.tableChangesSaveService.save(
                     context,
                     action.getDataView(),

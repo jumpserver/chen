@@ -24,13 +24,9 @@ abstract class AbstractTableEditDialect implements TableEditDialect {
 
     @Override
     public String buildPreparedUpdateSql(String schema, String table, String sourceColumn, String pkColumn) {
-        String qualifiedTable = this.qualifiedTable(schema, table);
-        String quotedSourceColumn = this.quoteIdentifier(sourceColumn);
-        String quotedPkColumn = this.quoteIdentifier(pkColumn);
-        return "UPDATE " + qualifiedTable + "\n" +
-                "SET " + quotedSourceColumn + " = ?\n" +
-                "WHERE " + quotedPkColumn + " = ?\n" +
-                "  AND " + this.buildPreparedOldValueCondition(quotedSourceColumn);
+        return "UPDATE " + this.qualifiedTable(schema, table) + "\n" +
+                "SET " + this.quoteIdentifier(sourceColumn) + " = ?\n" +
+                "WHERE " + this.quoteIdentifier(pkColumn) + " = ?";
     }
 
     @Override
@@ -52,11 +48,6 @@ abstract class AbstractTableEditDialect implements TableEditDialect {
     }
 
     @Override
-    public int oldValueParameterCount() {
-        return 1;
-    }
-
-    @Override
     public String renderLiteral(Object value, boolean isNull, Field field) throws SQLException {
         return TableEditTypeCodecs.renderLiteral(value, isNull, field, this.dbType);
     }
@@ -72,22 +63,17 @@ abstract class AbstractTableEditDialect implements TableEditDialect {
             String pkColumn,
             Field pkField,
             Object pkValue,
-            boolean pkValueIsNull,
-            Object oldValue,
-            boolean oldValueIsNull
+            boolean pkValueIsNull
     ) throws SQLException {
         if (targetField != null && StringUtils.isNotBlank(targetField.getSourceColumn()) &&
                 !StringUtils.equals(targetField.getSourceColumn(), sourceColumn)) {
             throw new SQLException("sourceColumn does not match targetField.sourceColumn");
         }
-        String qualifiedTable = this.qualifiedTable(schema, table);
-        String quotedSourceColumn = this.quoteIdentifier(sourceColumn);
-        String quotedPkColumn = this.quoteIdentifier(pkColumn);
-        String renderedOldValue = this.renderLiteral(oldValue, oldValueIsNull, targetField);
-        return "UPDATE " + qualifiedTable + "\n" +
-                "SET " + quotedSourceColumn + " = " + this.renderLiteral(newValue, newValueIsNull, targetField) + "\n" +
-                "WHERE " + quotedPkColumn + " = " + this.renderLiteral(pkValue, pkValueIsNull, pkField) + "\n" +
-                "  AND " + this.buildAuditOldValueCondition(quotedSourceColumn, renderedOldValue) + ";";
+        return "UPDATE " + this.qualifiedTable(schema, table) + "\n" +
+                "SET " + this.quoteIdentifier(sourceColumn) + " = " +
+                this.renderLiteral(newValue, newValueIsNull, targetField) + "\n" +
+                "WHERE " + this.quoteIdentifier(pkColumn) + " = " +
+                this.renderLiteral(pkValue, pkValueIsNull, pkField) + ";";
     }
 
     @Override
@@ -125,19 +111,6 @@ abstract class AbstractTableEditDialect implements TableEditDialect {
         }
         return "INSERT INTO " + this.qualifiedTable(schema, table) + " (" + columns + ")\n" +
                 "VALUES (" + renderedValues + ");";
-    }
-
-    protected abstract String buildPreparedOldValueCondition(String quotedSourceColumn);
-
-    protected abstract String buildAuditOldValueCondition(String quotedSourceColumn, String renderedOldValue);
-
-    protected String buildPreparedNullableEqualityCondition(String quotedSourceColumn) {
-        return "(" + quotedSourceColumn + " = ? OR (" + quotedSourceColumn + " IS NULL AND ? IS NULL))";
-    }
-
-    protected String buildAuditNullableEqualityCondition(String quotedSourceColumn, String renderedOldValue) {
-        return "(" + quotedSourceColumn + " = " + renderedOldValue + " OR (" +
-                quotedSourceColumn + " IS NULL AND " + renderedOldValue + " IS NULL))";
     }
 
     protected String qualifiedTable(String schema, String table) {

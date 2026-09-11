@@ -13,7 +13,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.jumpserver.chen.framework.datasource.ConnectionManager;
 import org.jumpserver.chen.framework.datasource.entity.resource.Field;
 import org.jumpserver.chen.framework.datasource.sql.*;
-import org.jumpserver.chen.framework.datasource.edit.analyzer.EditabilityReason;
 import org.jumpserver.chen.framework.datasource.edit.pk.JdbcPrimaryKeyResolver;
 import org.jumpserver.chen.framework.datasource.edit.analyzer.QueryResultEditabilityAnalyzer;
 import org.jumpserver.chen.framework.jms.exception.CommandRejectException;
@@ -710,15 +709,13 @@ public abstract class BaseSQLActuator implements SQLActuator {
             for (Common.DataMaskingRule rule : rules) {
                 if (this.matchField(field, rule.getFieldsPattern())) {
                     field.setMasked(true);
-                    field.setEditable(false);
-                    field.setEditReason(EditabilityReason.DATA_MASKED);
-                    field.setInsertable(false);
-                    field.setInsertReason(EditabilityReason.DATA_MASKED);
                     maskIndexes.add(i);
                     maskRules.put(i, rule);
                 }
             }
         }
+
+        this.captureUnmaskedPrimaryKeyValues(result, maskIndexes);
 
         for (var i = 0; i < result.getData().size(); i++) {
             for (var j = 0; j < result.getData().get(i).size(); j++) {
@@ -734,6 +731,25 @@ public abstract class BaseSQLActuator implements SQLActuator {
                 }
             }
         }
+    }
+
+    private void captureUnmaskedPrimaryKeyValues(SQLQueryResult result, java.util.List<?> maskIndexes) {
+        int pkIndex = -1;
+        for (int i = 0; i < result.getFields().size(); i++) {
+            if (result.getFields().get(i).isPrimaryKey()) {
+                pkIndex = i;
+                break;
+            }
+        }
+        if (pkIndex < 0 || !maskIndexes.contains(pkIndex)) {
+            result.setUnmaskedPrimaryKeyValues(null);
+            return;
+        }
+        java.util.List<Object> values = new java.util.ArrayList<>(result.getData().size());
+        for (java.util.List<Object> row : result.getData()) {
+            values.add(pkIndex < row.size() ? row.get(pkIndex) : null);
+        }
+        result.setUnmaskedPrimaryKeyValues(values);
     }
 
     private boolean matchField(Field field, String pattern) {

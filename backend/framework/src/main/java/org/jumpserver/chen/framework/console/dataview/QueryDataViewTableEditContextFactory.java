@@ -34,7 +34,9 @@ public class QueryDataViewTableEditContextFactory {
 
         ensureEditableFieldsMatchSource(editableFields, sourceSchema, sourceTable);
 
-        return new TableEditContext(dataView.getTitle(), sourceSchema, sourceTable, fields, dbType);
+        TableEditContext context = new TableEditContext(dataView.getTitle(), sourceSchema, sourceTable, fields, dbType);
+        context.setRowRefPrimaryKeys(dataView.getRowRefPrimaryKeys());
+        return context;
     }
 
     private List<Field> getRequiredFields(DataView dataView) {
