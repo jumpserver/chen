@@ -626,14 +626,11 @@ public class QueryConsole extends AbstractConsole {
         }
 
         String previousStatus = this.getState().getExecutionStatus();
-        this.getState().setCanCancel(true);
-        this.stateManager.commit();
-
         QueryConsolePlanContext planContext = null;
         ActiveExecution execution = null;
+        String serverVersion = null;
         try {
             Connection connection = this.getConnection();
-            String serverVersion = null;
             try {
                 serverVersion = connection.getMetaData().getDatabaseProductVersion();
             } catch (SQLException ignored) {
@@ -646,67 +643,69 @@ public class QueryConsole extends AbstractConsole {
                     serverVersion
             );
             QueryConsolePlanContext contextRef = planContext;
-            execution = new ActiveExecution(sql, contextRef::cancelCurrent);
+            execution = new ActiveExecution(sql, contextRef::cancelCurrent, false);
             this.currentExecution = execution;
+            this.getState().setCanCancel(true);
+            this.stateManager.commit();
+
+            if (this.sendCancelledPlanIfRequested(requestId, sql, serverVersion, planContext)) {
+                return;
+            }
 
             Session session = SessionManager.getCurrentSession();
             ACLResult aclResult = session.checkACL(sql, connection);
+            if (this.sendCancelledPlanIfRequested(requestId, sql, serverVersion, planContext)) {
+                return;
+            }
             if (!this.canExecuteStatement(session, sql, aclResult)) {
-                PlanStatus status = StringUtils.equals(this.getState().getExecutionStatus(), EXECUTION_STATUS_CANCELLED)
+                PlanStatus status = this.planRequestCancelled(planContext)
                         ? PlanStatus.CANCELLED
                         : PlanStatus.ERROR;
                 String code = status == PlanStatus.CANCELLED ? PlanCodes.CANCELLED : PlanCodes.PLAN_PERMISSION_DENIED;
-                this.getState().setExecutionStatus(previousStatus);
-                this.sendExecutionPlan(new ExecutionPlan(
+                this.sendExecutionPlan(this.planResult(
                         requestId,
-                        this.datasource.getExecutionPlanDialect().database(),
                         serverVersion,
-                        PlanMode.ESTIMATED,
-                        status,
                         sql,
-                        java.util.List.of(),
-                        null,
-                        null,
-                        null,
-                        false,
-                        this.datasource.getExecutionPlanDialect().capabilities(),
-                        java.util.List.of(),
+                        status,
                         PlanEffects.unchangedReuse(),
-                        PlanDiagnostic.of(code, MessageUtils.get("ACLRejectError")),
-                        java.util.List.of()
+                        PlanDiagnostic.of(code, MessageUtils.get("ACLRejectError"))
                 ));
                 return;
             }
-            this.getState().setExecutionStatus(previousStatus);
+            if (this.sendCancelledPlanIfRequested(requestId, sql, serverVersion, planContext)) {
+                return;
+            }
             ExecutionPlan plan = new ExecutionPlanService().explainEstimated(
                     this.datasource,
                     planContext,
                     sql,
                     requestId
             );
+            if (this.connectionDetachedOrUnusable()) {
+                this.invalidateConnection("execution-plan-cancel");
+                this.sendExecutionPlan(this.planResult(
+                        requestId,
+                        serverVersion,
+                        sql,
+                        PlanStatus.CONNECTION_INVALIDATED,
+                        PlanEffects.discard(PlanEffects.SessionState.UNKNOWN, PlanEffects.TransactionState.UNKNOWN),
+                        PlanDiagnostic.of(PlanCodes.CONNECTION_INVALIDATED, "Connection was discarded during cancel")
+                ));
+                return;
+            }
             this.sendExecutionPlan(plan);
         } catch (ConnectionInvalidatedException e) {
             this.invalidateConnection("execution-plan");
             ExecutionPlan plan = e.partialResult() == null
-                    ? new ExecutionPlan(
+                    ? this.planResult(
                     requestId,
-                    this.datasource.getExecutionPlanDialect().database(),
                     null,
-                    PlanMode.ESTIMATED,
-                    PlanStatus.CONNECTION_INVALIDATED,
                     sql,
-                    java.util.List.of(),
-                    null,
-                    null,
-                    null,
-                    false,
-                    this.datasource.getExecutionPlanDialect().capabilities(),
-                    java.util.List.of(),
+                    PlanStatus.CONNECTION_INVALIDATED,
                     PlanEffects.discard(PlanEffects.SessionState.UNKNOWN, PlanEffects.TransactionState.UNKNOWN),
                     e.originalError() == null
                             ? PlanDiagnostic.of(PlanCodes.CONNECTION_INVALIDATED, StringUtils.defaultString(e.getMessage()))
-                            : e.originalError(),
-                    e.diagnostics()
+                            : e.originalError()
             )
                     : ExecutionPlan.fromDialect(
                     requestId,
@@ -739,36 +738,123 @@ public class QueryConsole extends AbstractConsole {
             }
             this.sendExecutionPlan(plan);
         } catch (SQLException e) {
-            this.sendExecutionPlan(new ExecutionPlan(
+            if (this.connectionDetachedOrUnusable()) {
+                this.invalidateConnection("execution-plan");
+                this.sendExecutionPlan(this.planResult(
+                        requestId,
+                        serverVersion,
+                        sql,
+                        PlanStatus.CONNECTION_INVALIDATED,
+                        PlanEffects.discard(PlanEffects.SessionState.UNKNOWN, PlanEffects.TransactionState.UNKNOWN),
+                        new PlanDiagnostic(
+                                PlanCodes.CONNECTION_INVALIDATED,
+                                StringUtils.defaultString(e.getMessage()),
+                                e.getSQLState(),
+                                Integer.toString(e.getErrorCode())
+                        )
+                ));
+                return;
+            }
+            boolean cancelled = this.planRequestCancelled(planContext)
+                    || "57014".equals(e.getSQLState())
+                    || (e.getMessage() != null && e.getMessage().toLowerCase().contains("cancel"));
+            this.sendExecutionPlan(this.planResult(
                     requestId,
-                    this.datasource.getExecutionPlanDialect().database(),
-                    null,
-                    PlanMode.ESTIMATED,
-                    PlanStatus.ERROR,
+                    serverVersion,
                     sql,
-                    java.util.List.of(),
-                    null,
-                    null,
-                    null,
-                    false,
-                    this.datasource.getExecutionPlanDialect().capabilities(),
-                    java.util.List.of(),
+                    cancelled ? PlanStatus.CANCELLED : PlanStatus.ERROR,
                     PlanEffects.unchangedReuse(),
                     new PlanDiagnostic(
-                            PlanCodes.SQL_ERROR,
+                            cancelled ? PlanCodes.CANCELLED : PlanCodes.SQL_ERROR,
                             StringUtils.defaultString(e.getMessage()),
                             e.getSQLState(),
                             Integer.toString(e.getErrorCode())
-                    ),
-                    java.util.List.of()
+                    )
             ));
         } finally {
             if (this.currentExecution == execution) {
                 this.currentExecution = null;
             }
             this.getState().setCanCancel(false);
+            this.getState().setExecutionStatus(previousStatus);
             this.stateManager.commit();
         }
+    }
+
+    private boolean sendCancelledPlanIfRequested(
+            String requestId,
+            String sql,
+            String serverVersion,
+            QueryConsolePlanContext planContext
+    ) {
+        if (!this.planRequestCancelled(planContext)) {
+            return false;
+        }
+        if (this.connectionDetachedOrUnusable()) {
+            this.invalidateConnection("execution-plan-cancel");
+            this.sendExecutionPlan(this.planResult(
+                    requestId,
+                    serverVersion,
+                    sql,
+                    PlanStatus.CONNECTION_INVALIDATED,
+                    PlanEffects.discard(PlanEffects.SessionState.UNKNOWN, PlanEffects.TransactionState.UNKNOWN),
+                    PlanDiagnostic.of(PlanCodes.CONNECTION_INVALIDATED, "Connection was discarded during cancel")
+            ));
+            return true;
+        }
+        this.sendExecutionPlan(this.planResult(
+                requestId,
+                serverVersion,
+                sql,
+                PlanStatus.CANCELLED,
+                PlanEffects.unchangedReuse(),
+                PlanDiagnostic.of(PlanCodes.CANCELLED, "Execution plan request cancelled")
+        ));
+        return true;
+    }
+
+    private boolean planRequestCancelled(QueryConsolePlanContext planContext) {
+        return planContext != null && planContext.isCancelled();
+    }
+
+    private boolean connectionDetachedOrUnusable() {
+        Connection connection = this.conn;
+        if (connection == null) {
+            return true;
+        }
+        try {
+            return connection.isClosed();
+        } catch (SQLException e) {
+            return true;
+        }
+    }
+
+    private ExecutionPlan planResult(
+            String requestId,
+            String serverVersion,
+            String sql,
+            PlanStatus status,
+            PlanEffects effects,
+            PlanDiagnostic error
+    ) {
+        return new ExecutionPlan(
+                requestId,
+                this.datasource.getExecutionPlanDialect().database(),
+                serverVersion,
+                PlanMode.ESTIMATED,
+                status,
+                sql,
+                java.util.List.of(),
+                null,
+                null,
+                null,
+                false,
+                this.datasource.getExecutionPlanDialect().capabilities(),
+                java.util.List.of(),
+                effects,
+                error,
+                java.util.List.of()
+        );
     }
 
     private void sendExecutionPlan(ExecutionPlan plan) {
@@ -791,8 +877,10 @@ public class QueryConsole extends AbstractConsole {
         if (execution == null) {
             return;
         }
-        Connection connectionToAbort = this.conn;
-        CANCEL_EXECUTOR.execute(() -> this.abortPhysicalConnection(execution, connectionToAbort));
+        if (execution.abortOnCancel()) {
+            Connection connectionToAbort = this.conn;
+            CANCEL_EXECUTOR.execute(() -> this.abortPhysicalConnection(execution, connectionToAbort));
+        }
         CANCEL_EXECUTOR.execute(this::tryKillServerQuery);
         try {
             execution.cancelAction().cancel();
@@ -1362,6 +1450,9 @@ public class QueryConsole extends AbstractConsole {
         void cancel() throws SQLException;
     }
 
-    private record ActiveExecution(String sql, ExecutionCancel cancelAction) {
+    private record ActiveExecution(String sql, ExecutionCancel cancelAction, boolean abortOnCancel) {
+        private ActiveExecution(String sql, ExecutionCancel cancelAction) {
+            this(sql, cancelAction, true);
+        }
     }
 }
