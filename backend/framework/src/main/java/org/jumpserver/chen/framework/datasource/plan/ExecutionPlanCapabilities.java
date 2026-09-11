@@ -66,4 +66,18 @@ public record ExecutionPlanCapabilities(
                 PlanTransactionPolicy.AUXILIARY_DML
         );
     }
+
+    public static ExecutionPlanCapabilities dm() {
+        return new ExecutionPlanCapabilities(
+                true, true, true, true, true, false, false, false, false,
+                PlanTransactionPolicy.STATEMENT_ONLY
+        );
+    }
+
+    public static ExecutionPlanCapabilities clickhouse() {
+        return new ExecutionPlanCapabilities(
+                true, true, true, false, false, false, false, false, false,
+                PlanTransactionPolicy.STATEMENT_ONLY
+        );
+    }
 }
