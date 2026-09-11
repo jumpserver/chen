@@ -3,6 +3,7 @@ package org.jumpserver.chen.framework.datasource.edit.dialect;
 import org.jumpserver.chen.framework.datasource.entity.resource.Field;
 
 import java.sql.SQLException;
+import java.util.List;
 
 public interface TableEditDialect {
     String quoteIdentifier(String identifier);
@@ -11,11 +12,8 @@ public interface TableEditDialect {
 
     String buildPreparedDeleteSql(String schema, String table, String pkColumn);
 
-    String buildPreparedInsertSql(String schema, String table, java.util.List<String> sourceColumns);
+    String buildPreparedInsertSql(String schema, String table, List<String> sourceColumns);
 
-    int oldValueParameterCount();
-
-    // For preview/audit SQL only. Real writes must use PreparedStatement binding.
     String renderLiteral(Object value, boolean isNull, Field field) throws SQLException;
 
     String buildAuditUpdateSql(
@@ -28,9 +26,7 @@ public interface TableEditDialect {
             String pkColumn,
             Field pkField,
             Object pkValue,
-            boolean pkValueIsNull,
-            Object oldValue,
-            boolean oldValueIsNull
+            boolean pkValueIsNull
     ) throws SQLException;
 
     String buildAuditDeleteSql(
@@ -45,9 +41,9 @@ public interface TableEditDialect {
     String buildAuditInsertSql(
             String schema,
             String table,
-            java.util.List<String> sourceColumns,
-            java.util.List<Field> fields,
-            java.util.List<Object> values,
-            java.util.List<Boolean> valueIsNulls
+            List<String> sourceColumns,
+            List<Field> fields,
+            List<Object> values,
+            List<Boolean> valueIsNulls
     ) throws SQLException;
 }

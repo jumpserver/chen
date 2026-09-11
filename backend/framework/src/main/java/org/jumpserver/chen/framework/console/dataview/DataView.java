@@ -2,6 +2,7 @@ package org.jumpserver.chen.framework.console.dataview;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.ToString;
 import org.jumpserver.chen.framework.console.action.DataViewAction;
 import org.jumpserver.chen.framework.console.component.Logger;
 import org.jumpserver.chen.framework.console.dataview.export.DataExport;
@@ -18,7 +19,9 @@ import org.jumpserver.chen.framework.session.controller.message.MessageLevel;
 import org.jumpserver.chen.framework.ws.io.PacketIO;
 
 import java.io.File;
+import java.security.SecureRandom;
 import java.sql.SQLException;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,6 +29,9 @@ import java.util.Map;
 @EqualsAndHashCode(callSuper = true)
 @Data
 public class DataView extends SQLResult {
+    public static final String ROW_REF_KEY = "__chenRowRef";
+    private static final SecureRandom ROW_REF_RANDOM = new SecureRandom();
+
     private final String id;
     private final String title;
     private final StateManager<DataViewState> stateManager;
@@ -37,6 +43,9 @@ public class DataView extends SQLResult {
     private DataViewState state;
 
     private Logger consoleLogger;
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private final Map<String, Object> rowRefPrimaryKeys = new HashMap<>();
 
     public DataView(String title, PacketIO packetIO, Logger logger) {
         this(title, title, packetIO, logger);
@@ -139,6 +148,7 @@ public class DataView extends SQLResult {
 
         this.getStateManager().getState().setTotal(result.getTotal());
         this.fullDataViewData(this.data, result);
+        this.bindMaskedPrimaryKeyRowRefs(this.data, result);
     }
 
 
@@ -170,6 +180,30 @@ public class DataView extends SQLResult {
             }
             viewData.getData().add(map);
         }
+    }
+
+    private void bindMaskedPrimaryKeyRowRefs(DataViewData viewData, SQLQueryResult result) {
+        this.rowRefPrimaryKeys.clear();
+        Field primaryKey = viewData.getFields().stream()
+                .filter(field -> field != null && field.isPrimaryKey())
+                .findFirst()
+                .orElse(null);
+        List<Object> originals = result.getUnmaskedPrimaryKeyValues();
+        if (primaryKey == null || !primaryKey.isMasked() || originals == null ||
+                originals.size() != viewData.getData().size()) {
+            return;
+        }
+        for (int i = 0; i < originals.size(); i++) {
+            String rowRef = nextRowRef();
+            this.rowRefPrimaryKeys.put(rowRef, originals.get(i));
+            viewData.getData().get(i).put(ROW_REF_KEY, rowRef);
+        }
+    }
+
+    private static String nextRowRef() {
+        byte[] bytes = new byte[16];
+        ROW_REF_RANDOM.nextBytes(bytes);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
 

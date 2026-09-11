@@ -34,11 +34,12 @@ public class TableChangesPlanBuilder {
     public static final String SOURCE_SCHEMA_MISMATCH = "SOURCE_SCHEMA_MISMATCH";
     public static final String SOURCE_TABLE_MISMATCH = "SOURCE_TABLE_MISMATCH";
     public static final String SOURCE_COLUMN_NOT_EDITABLE = "SOURCE_COLUMN_NOT_EDITABLE";
-    public static final String NO_OP_CHANGE = "NO_OP_CHANGE";
     public static final String TYPE_CONVERSION_FAILED = "TYPE_CONVERSION_FAILED";
     public static final String ROW_OPERATIONS_TABLE_BROWSE_ONLY = "ROW_OPERATIONS_TABLE_BROWSE_ONLY";
     public static final String INSERT_VALUES_REQUIRED = "INSERT_VALUES_REQUIRED";
     public static final String INSERT_COLUMN_NOT_WRITABLE = "INSERT_COLUMN_NOT_WRITABLE";
+    public static final String ROW_REF_REQUIRED = "ROW_REF_REQUIRED";
+    public static final String ROW_REF_NOT_FOUND = "ROW_REF_NOT_FOUND";
 
     public TableChangesPlanBuildResult build(TableEditContext context, String actionDataView, SaveChangesRequest request) {
         TableEditDialect dialect = TableEditDialects.find(context.getDbType()).orElse(null);
@@ -146,8 +147,11 @@ public class TableChangesPlanBuilder {
             if (!StringUtils.equals(deleteRow.getPkColumn(), pkColumn)) {
                 return BuildCommandsResult.failure(PK_COLUMN_MISMATCH, commandIndexOffset + i, deleteRow);
             }
-            if (deleteRow.isPkValueIsNull() || deleteRow.getPkValue() == null) {
-                return BuildCommandsResult.failure(PRIMARY_KEY_VALUE_REQUIRED, commandIndexOffset + i, deleteRow);
+            PrimaryKeyValue pkValue = resolvePrimaryKeyValue(
+                    context, primaryKey, deleteRow.getRowRef(), deleteRow.getPkValue(), deleteRow.isPkValueIsNull()
+            );
+            if (pkValue.reason() != null) {
+                return BuildCommandsResult.failure(pkValue.reason(), commandIndexOffset + i, deleteRow);
             }
 
             PreparedTableChangeCommand command = new PreparedTableChangeCommand();
@@ -157,7 +161,7 @@ public class TableChangesPlanBuilder {
             command.setPreparedSql(dialect.buildPreparedDeleteSql(context.getSchema(), context.getTable(), pkColumn));
             try {
                 PreparedTableChangeCommand.Parameter pkParameter = convertedParameter(
-                        "pkValue", pkColumn, primaryKey, deleteRow.getPkValue(), deleteRow.isPkValueIsNull(), context.getDbType()
+                        "pkValue", pkColumn, primaryKey, pkValue.value(), pkValue.valueIsNull(), context.getDbType()
                 );
                 command.getParameters().add(pkParameter);
                 renderedSqlList.add(dialect.buildAuditDeleteSql(
@@ -166,7 +170,7 @@ public class TableChangesPlanBuilder {
                         pkColumn,
                         primaryKey,
                         pkParameter.getValue(),
-                        deleteRow.isPkValueIsNull()
+                        pkValue.valueIsNull()
                 ));
                 plan.getCommands().add(command);
             } catch (SQLException e) {
@@ -214,17 +218,10 @@ public class TableChangesPlanBuilder {
                         "newValue", sourceColumn, targetField, change.getNewValue(), change.isNewValueIsNull(), context.getDbType()
                 );
                 PreparedTableChangeCommand.Parameter pkParameter = convertedParameter(
-                        "pkValue", pkColumn, primaryKey, change.getPkValue(), change.isPkValueIsNull(), context.getDbType()
-                );
-                PreparedTableChangeCommand.Parameter oldParameter = convertedParameter(
-                        "oldValue", sourceColumn, targetField, change.getOldValue(), change.isOldValueIsNull(), context.getDbType()
+                        "pkValue", pkColumn, primaryKey, validation.pkValue(), validation.pkValueIsNull(), context.getDbType()
                 );
                 command.getParameters().add(newParameter);
                 command.getParameters().add(pkParameter);
-                command.getParameters().add(oldParameter);
-                if (dialect.oldValueParameterCount() > 1) {
-                    command.getParameters().add(oldParameter);
-                }
                 renderedSqlList.add(dialect.buildAuditUpdateSql(
                         context.getSchema(),
                         context.getTable(),
@@ -235,9 +232,7 @@ public class TableChangesPlanBuilder {
                         pkColumn,
                         primaryKey,
                         pkParameter.getValue(),
-                        change.isPkValueIsNull(),
-                        oldParameter.getValue(),
-                        change.isOldValueIsNull()
+                        validation.pkValueIsNull()
                 ));
                 plan.getCommands().add(command);
             } catch (SQLException e) {
@@ -339,12 +334,11 @@ public class TableChangesPlanBuilder {
         if (!StringUtils.equals(change.getPkColumn(), primaryKey.getSourceColumn())) {
             return ChangeValidation.failure(PK_COLUMN_MISMATCH);
         }
-        if (change.isPkValueIsNull() || change.getPkValue() == null) {
-            return ChangeValidation.failure(PRIMARY_KEY_VALUE_REQUIRED);
-        }
-        if (change.isOldValueIsNull() == change.isNewValueIsNull() &&
-                Objects.equals(change.getOldValue(), change.getNewValue())) {
-            return ChangeValidation.failure(NO_OP_CHANGE);
+        PrimaryKeyValue pkValue = resolvePrimaryKeyValue(
+                context, primaryKey, change.getRowRef(), change.getPkValue(), change.isPkValueIsNull()
+        );
+        if (pkValue.reason() != null) {
+            return ChangeValidation.failure(pkValue.reason());
         }
         if (StringUtils.equals(change.getSourceColumn(), primaryKey.getSourceColumn())) {
             return ChangeValidation.failure(PRIMARY_KEY_COLUMN_NOT_EDITABLE);
@@ -362,9 +356,6 @@ public class TableChangesPlanBuilder {
         if (sourceReason != null) {
             return ChangeValidation.failure(sourceReason);
         }
-        if (field.isMasked()) {
-            return ChangeValidation.failure(EditabilityReason.DATA_MASKED);
-        }
         if (field.isAutoIncrement() || field.isReadOnly() || field.isGenerated()) {
             return ChangeValidation.failure(SOURCE_COLUMN_NOT_EDITABLE);
         }
@@ -377,16 +368,13 @@ public class TableChangesPlanBuilder {
         if (!TableEditTypeCodecs.supports(field, context.getDbType())) {
             return ChangeValidation.failure(EditabilityReason.TYPE_NOT_SUPPORTED_FOR_EDIT);
         }
-        return ChangeValidation.success(field);
+        return ChangeValidation.success(field, pkValue.value(), pkValue.valueIsNull());
     }
 
     private InsertValidation validateInsertField(TableEditContext context, Field field) {
         String sourceReason = validateSourceField(context, field);
         if (sourceReason != null) {
             return InsertValidation.failure(sourceReason);
-        }
-        if (field.isMasked()) {
-            return InsertValidation.failure(EditabilityReason.DATA_MASKED);
         }
         if (!field.isInsertable()) {
             return InsertValidation.failure(StringUtils.defaultIfBlank(field.getInsertReason(), INSERT_COLUMN_NOT_WRITABLE));
@@ -398,6 +386,33 @@ public class TableChangesPlanBuilder {
             return InsertValidation.failure(EditabilityReason.TYPE_NOT_SUPPORTED_FOR_EDIT);
         }
         return InsertValidation.success();
+    }
+
+    private PrimaryKeyValue resolvePrimaryKeyValue(
+            TableEditContext context,
+            Field primaryKey,
+            String rowRef,
+            Object pkValue,
+            boolean pkValueIsNull
+    ) {
+        if (primaryKey.isMasked()) {
+            if (StringUtils.isBlank(rowRef)) {
+                return PrimaryKeyValue.failure(ROW_REF_REQUIRED);
+            }
+            Map<String, Object> rowRefs = context.getRowRefPrimaryKeys();
+            if (rowRefs == null || !rowRefs.containsKey(rowRef)) {
+                return PrimaryKeyValue.failure(ROW_REF_NOT_FOUND);
+            }
+            Object realPkValue = rowRefs.get(rowRef);
+            if (realPkValue == null) {
+                return PrimaryKeyValue.failure(PRIMARY_KEY_VALUE_REQUIRED);
+            }
+            return PrimaryKeyValue.success(realPkValue, false);
+        }
+        if (pkValueIsNull || pkValue == null) {
+            return PrimaryKeyValue.failure(PRIMARY_KEY_VALUE_REQUIRED);
+        }
+        return PrimaryKeyValue.success(pkValue, false);
     }
 
     private PreparedTableChangeCommand.Parameter convertedParameter(
@@ -474,13 +489,23 @@ public class TableChangesPlanBuilder {
         return list == null ? 0 : list.size();
     }
 
-    private record ChangeValidation(String reason, Field field) {
-        static ChangeValidation success(Field field) {
-            return new ChangeValidation(null, field);
+    private record ChangeValidation(String reason, Field field, Object pkValue, boolean pkValueIsNull) {
+        static ChangeValidation success(Field field, Object pkValue, boolean pkValueIsNull) {
+            return new ChangeValidation(null, field, pkValue, pkValueIsNull);
         }
 
         static ChangeValidation failure(String reason) {
-            return new ChangeValidation(reason, null);
+            return new ChangeValidation(reason, null, null, false);
+        }
+    }
+
+    private record PrimaryKeyValue(String reason, Object value, boolean valueIsNull) {
+        static PrimaryKeyValue success(Object value, boolean valueIsNull) {
+            return new PrimaryKeyValue(null, value, valueIsNull);
+        }
+
+        static PrimaryKeyValue failure(String reason) {
+            return new PrimaryKeyValue(reason, null, false);
         }
     }
 

@@ -308,11 +308,6 @@ public class QueryResultEditabilityAnalyzer {
             field.setEditReason(EditabilityReason.PRIMARY_KEY_COLUMN_NOT_EDITABLE);
             return;
         }
-        if (field.isMasked()) {
-            field.setEditable(false);
-            field.setEditReason(EditabilityReason.DATA_MASKED);
-            return;
-        }
         if (field.isAutoIncrement() || field.isReadOnly() || field.isGenerated()) {
             field.setEditable(false);
             field.setEditReason(TableChangesPlanBuilder.SOURCE_COLUMN_NOT_EDITABLE);
@@ -338,10 +333,6 @@ public class QueryResultEditabilityAnalyzer {
     }
 
     private void applyInsertability(Field field) {
-        if (field.isMasked()) {
-            this.markNotInsertable(field, EditabilityReason.DATA_MASKED);
-            return;
-        }
         if (!TableEditTypeCodecs.supports(field, this.dbType)) {
             this.markNotInsertable(field, EditabilityReason.TYPE_NOT_SUPPORTED_FOR_EDIT);
             return;

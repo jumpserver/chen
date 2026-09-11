@@ -23,6 +23,7 @@ public class SQLQueryResult {
     private List<Field> fields = new ArrayList<>();
     private List<List<Object>> data = new ArrayList<>();
     private List<SQLQueryResult> results = new ArrayList<>();
+    private transient List<Object> unmaskedPrimaryKeyValues;
 
     private Time startTime;
     private Time endTime;

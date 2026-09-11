@@ -15,12 +15,11 @@ public class SaveChangesRequest {
 
     @Data
     public static class ChangeItem {
+        private String rowRef;
         private String pkColumn;
         private Object pkValue;
         private boolean pkValueIsNull;
         private String sourceColumn;
-        private Object oldValue;
-        private boolean oldValueIsNull;
         private Object newValue;
         private boolean newValueIsNull;
     }
@@ -32,6 +31,7 @@ public class SaveChangesRequest {
 
     @Data
     public static class DeleteRow {
+        private String rowRef;
         private String pkColumn;
         private Object pkValue;
         private boolean pkValueIsNull;

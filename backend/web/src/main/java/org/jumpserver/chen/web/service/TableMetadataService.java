@@ -34,8 +34,10 @@ public class TableMetadataService {
     public TableMetadata getTableMetadata(TableMetadataRequest request) {
         var session = SessionManager.getCurrentSession();
         var datasource = session.getDatasource();
-        var node = resolveTableNode(datasource.getResourceBrowser(), request == null ? null : request.nodeKey());
-        var ref = new ObjectRef(node.database(), node.schema(), node.table(), RelationKind.TABLE);
+        var node = resolveRelationNode(datasource.getResourceBrowser(), request == null ? null : request.nodeKey());
+        var ref = new ObjectRef(
+                node.database(), node.schema(), node.table(), relationKindForNodeType(node.type())
+        );
         try {
             var sections = normalizeSections(request == null ? null : request.sections());
             var force = request != null && request.force();
@@ -158,14 +160,25 @@ public class TableMetadataService {
         return Set.copyOf(normalized);
     }
 
-    private ResourceNodeSnapshot resolveTableNode(ResourceBrowser browser, String nodeKey) {
+    static RelationKind relationKindForNodeType(String type) {
+        if ("view".equals(type)) {
+            return RelationKind.VIEW;
+        }
+        if ("table".equals(type)) {
+            return RelationKind.TABLE;
+        }
+        throw new ChenException("Invalid table metadata context");
+    }
+
+    ResourceNodeSnapshot resolveRelationNode(ResourceBrowser browser, String nodeKey) {
         if (StringUtils.isBlank(nodeKey)) {
             throw new ChenException("Invalid table metadata context");
         }
         var node = browser.getIndexedNode(nodeKey);
-        if (node == null || !"table".equals(node.type()) || StringUtils.isBlank(node.table())) {
+        if (node == null || StringUtils.isBlank(node.table())) {
             throw new ChenException("Invalid table metadata context");
         }
+        relationKindForNodeType(node.type());
         return node;
     }
 }

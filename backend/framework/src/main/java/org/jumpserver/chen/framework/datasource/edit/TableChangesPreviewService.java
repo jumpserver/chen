@@ -30,11 +30,12 @@ public class TableChangesPreviewService {
     public static final String SOURCE_SCHEMA_MISMATCH = TableChangesPlanBuilder.SOURCE_SCHEMA_MISMATCH;
     public static final String SOURCE_TABLE_MISMATCH = TableChangesPlanBuilder.SOURCE_TABLE_MISMATCH;
     public static final String SOURCE_COLUMN_NOT_EDITABLE = TableChangesPlanBuilder.SOURCE_COLUMN_NOT_EDITABLE;
-    public static final String NO_OP_CHANGE = TableChangesPlanBuilder.NO_OP_CHANGE;
     public static final String TYPE_CONVERSION_FAILED = TableChangesPlanBuilder.TYPE_CONVERSION_FAILED;
     public static final String ROW_OPERATIONS_TABLE_BROWSE_ONLY = TableChangesPlanBuilder.ROW_OPERATIONS_TABLE_BROWSE_ONLY;
     public static final String INSERT_VALUES_REQUIRED = TableChangesPlanBuilder.INSERT_VALUES_REQUIRED;
     public static final String INSERT_COLUMN_NOT_WRITABLE = TableChangesPlanBuilder.INSERT_COLUMN_NOT_WRITABLE;
+    public static final String ROW_REF_REQUIRED = TableChangesPlanBuilder.ROW_REF_REQUIRED;
+    public static final String ROW_REF_NOT_FOUND = TableChangesPlanBuilder.ROW_REF_NOT_FOUND;
 
     private final TableChangesPlanBuilder planBuilder = new TableChangesPlanBuilder();
 
@@ -50,13 +51,16 @@ public class TableChangesPreviewService {
         }
 
         TableChangesPlan plan = buildResult.getPlan();
+        boolean redactPrimaryKey = context.isMaskedPrimaryKey();
         result.setSuccess(true);
         result.setAllowed(true);
         result.setChangeCount(plan.getChangeCount());
         result.setUpdateCount(plan.getUpdateCount());
         result.setInsertCount(plan.getInsertCount());
         result.setDeleteCount(plan.getDeleteCount());
-        result.setAuditSql(plan.getAuditSql());
+        if (!redactPrimaryKey) {
+            result.setAuditSql(plan.getAuditSql());
+        }
         for (PreparedTableChangeCommand command : plan.getCommands()) {
             SaveChangesPreviewResult.PreviewItem previewItem = new SaveChangesPreviewResult.PreviewItem();
             previewItem.setOperation(command.getOperation().name());
@@ -65,6 +69,9 @@ public class TableChangesPreviewService {
             previewItem.setPreparedSql(command.getPreparedSql());
             ArrayList<Object> paramsPreview = new ArrayList<>();
             for (PreparedTableChangeCommand.Parameter parameter : command.getParameters()) {
+                if (redactPrimaryKey && "pkValue".equals(parameter.getName())) {
+                    continue;
+                }
                 paramsPreview.add(paramPreviewValue(parameter.getValue(), parameter.isValueIsNull()));
             }
             previewItem.setParamsPreview(paramsPreview);
