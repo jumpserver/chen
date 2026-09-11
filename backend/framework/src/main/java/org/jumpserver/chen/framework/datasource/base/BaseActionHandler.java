@@ -104,6 +104,11 @@ public abstract class BaseActionHandler implements ActionHandler {
     public List<Action> getViewActions(TreeNode node) {
         return List.of(
                 Action.builder()
+                        .label(MessageUtils.get("ViewData"))
+                        .key("view_data")
+                        .icon("el-icon-view")
+                        .build(),
+                Action.builder()
                         .label(MessageUtils.get("Refresh"))
                         .key("refresh_node")
                         .divided(true)

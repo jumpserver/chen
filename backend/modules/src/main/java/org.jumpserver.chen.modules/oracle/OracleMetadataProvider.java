@@ -198,8 +198,9 @@ public class OracleMetadataProvider extends BaseDatabaseMetadataProvider {
 
     @Override
     public String getTableDefinition(ObjectRef relation) throws SQLException {
-        var rows = query("SELECT DBMS_METADATA.GET_DDL('TABLE', ?, ?) AS definition FROM dual",
-                List.of(relation.name(), relation.schema()));
+        var objectType = relation.kind() == RelationKind.TABLE ? "TABLE" : "VIEW";
+        var rows = query("SELECT DBMS_METADATA.GET_DDL(?, ?, ?) AS definition FROM dual",
+                List.of(objectType, relation.name(), relation.schema()));
         return rows.isEmpty() ? null : stringValue(rows.get(0), "definition");
     }
 
