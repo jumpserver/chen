@@ -30,6 +30,11 @@ public final class TableEditTypeCodecs {
     private static final int ORACLE_TIMESTAMPTZ = -101;
     private static final int ORACLE_TIMESTAMPLTZ = -102;
     private static final int ORACLE_JSON = 2016;
+    private static final BigInteger UNSIGNED_TINYINT_MAX = BigInteger.valueOf(255);
+    private static final BigInteger UNSIGNED_SMALLINT_MAX = BigInteger.valueOf(65_535);
+    private static final BigInteger UNSIGNED_MEDIUMINT_MAX = BigInteger.valueOf(16_777_215);
+    private static final BigInteger UNSIGNED_INT_MAX = BigInteger.valueOf(4_294_967_295L);
+    private static final BigInteger UNSIGNED_BIGINT_MAX = new BigInteger("18446744073709551615");
 
     private TableEditTypeCodecs() {
     }
@@ -63,6 +68,11 @@ public final class TableEditTypeCodecs {
                 case SMALLINT -> toShort(value);
                 case INTEGER -> toInteger(value);
                 case BIGINT -> toLong(value);
+                case UNSIGNED_TINYINT -> exactInteger(value, BigInteger.ZERO, UNSIGNED_TINYINT_MAX).intValueExact();
+                case UNSIGNED_SMALLINT -> exactInteger(value, BigInteger.ZERO, UNSIGNED_SMALLINT_MAX).intValueExact();
+                case UNSIGNED_MEDIUMINT -> exactInteger(value, BigInteger.ZERO, UNSIGNED_MEDIUMINT_MAX).intValueExact();
+                case UNSIGNED_INT -> exactInteger(value, BigInteger.ZERO, UNSIGNED_INT_MAX).longValueExact();
+                case UNSIGNED_BIGINT -> exactInteger(value, BigInteger.ZERO, UNSIGNED_BIGINT_MAX);
                 case DECIMAL -> toBigDecimal(value);
                 case FLOATING -> toFiniteDouble(value);
                 case BOOLEAN -> toBoolean(value);
@@ -117,7 +127,7 @@ public final class TableEditTypeCodecs {
         String type = normalizeType(field);
         Integer jdbcType = field.getJdbcType();
         if (isUnsignedType(type)) {
-            return Kind.UNSUPPORTED;
+            return mysqlMariaUnsignedIntegerKind(type, dbType);
         }
         if (jdbcType != null) {
             if (jdbcType == SQLSERVER_GUID) {
@@ -329,6 +339,28 @@ public final class TableEditTypeCodecs {
         return StringUtils.equalsAny(type, "real", "float", "float4", "float8", "double", "double precision");
     }
 
+    private static Kind mysqlMariaUnsignedIntegerKind(String type, DbType dbType) {
+        if (dbType != DbType.mysql && dbType != DbType.mariadb) {
+            return Kind.UNSUPPORTED;
+        }
+        if (StringUtils.equals(type, "tinyint unsigned")) {
+            return Kind.UNSIGNED_TINYINT;
+        }
+        if (StringUtils.equals(type, "smallint unsigned")) {
+            return Kind.UNSIGNED_SMALLINT;
+        }
+        if (StringUtils.equals(type, "mediumint unsigned")) {
+            return Kind.UNSIGNED_MEDIUMINT;
+        }
+        if (StringUtils.equalsAny(type, "int unsigned", "integer unsigned")) {
+            return Kind.UNSIGNED_INT;
+        }
+        if (StringUtils.equals(type, "bigint unsigned")) {
+            return Kind.UNSIGNED_BIGINT;
+        }
+        return Kind.UNSUPPORTED;
+    }
+
     private static boolean isUnsignedType(String type) {
         return StringUtils.endsWith(type, " unsigned") || StringUtils.startsWith(type, "uint");
     }
@@ -508,6 +540,11 @@ public final class TableEditTypeCodecs {
         SMALLINT,
         INTEGER,
         BIGINT,
+        UNSIGNED_TINYINT,
+        UNSIGNED_SMALLINT,
+        UNSIGNED_MEDIUMINT,
+        UNSIGNED_INT,
+        UNSIGNED_BIGINT,
         DECIMAL,
         FLOATING,
         BOOLEAN,
