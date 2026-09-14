@@ -67,6 +67,7 @@ public class ACLFilterImpl implements ACLFilter {
             }
             case Reject -> {
                 result.setRiskLevel(Common.RiskLevel.Reject);
+                result.setMessage(MessageUtils.get("ACLRejectError"));
             }
             case Review -> {
                 var decisionLatch = new CountDownLatch(1);
@@ -139,6 +140,7 @@ public class ACLFilterImpl implements ACLFilter {
                     }
                     if (!submitted.get() || exception.get() != null) {
                         result.setRiskLevel(Common.RiskLevel.ReviewReject);
+                        result.setMessage(reviewRejectMessage(exception.get()));
                     } else {
                         result.setRiskLevel(Common.RiskLevel.ReviewAccept);
                     }
@@ -146,6 +148,7 @@ public class ACLFilterImpl implements ACLFilter {
                     Thread.currentThread().interrupt();
                     controller.cancelCurrentDialog(dialogOwner);
                     result.setRiskLevel(Common.RiskLevel.ReviewReject);
+                    result.setMessage(MessageUtils.get("UserCancelCommandReviewError"));
                 } finally {
                     dialogHandle.get().close();
                 }
@@ -156,6 +159,12 @@ public class ACLFilterImpl implements ACLFilter {
         return result;
     }
 
+    private String reviewRejectMessage(Exception exception) {
+        if (exception != null && exception.getMessage() != null && !exception.getMessage().isBlank()) {
+            return exception.getMessage();
+        }
+        return MessageUtils.get("UserCancelCommandReviewError");
+    }
 
     private void createAndWaitTicket(String command, Common.CommandACL commandACL, ACLCommandContext context) {
         OptionalInt affectedRows = this.estimateAffectedRows(command, context);

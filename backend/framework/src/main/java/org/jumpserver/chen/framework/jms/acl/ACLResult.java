@@ -13,4 +13,5 @@ public class ACLResult {
 
     private boolean Notify = false;
 
+    private String message;
 }
