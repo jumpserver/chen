@@ -25,4 +25,18 @@ public class MessageUtils {
             return msgKey;
         }
     }
+
+    public static String getOrDefault(String msgKey, String defaultMessage, Object... args) {
+        try {
+            var locale = SessionManager.getCurrentSession().getLocale();
+            var text = messageSource.getMessage(msgKey, null, locale);
+            return String.format(text, args);
+        } catch (Exception e) {
+            try {
+                return String.format(defaultMessage, args);
+            } catch (Exception ignored) {
+                return defaultMessage;
+            }
+        }
+    }
 }

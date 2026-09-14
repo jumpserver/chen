@@ -5,6 +5,7 @@ import org.jumpserver.chen.framework.datasource.ResourceBrowser;
 import org.jumpserver.chen.framework.datasource.entity.resource.ResourceNodeSnapshot;
 import org.jumpserver.chen.framework.datasource.metadata.RelationKind;
 import org.jumpserver.chen.framework.datasource.metadata.RelationMetadata;
+import org.jumpserver.chen.framework.i18n.MessageUtils;
 import org.jumpserver.chen.framework.session.SessionManager;
 import org.jumpserver.chen.web.exception.ChenException;
 import org.springframework.stereotype.Service;
@@ -47,17 +48,17 @@ public class HintsService {
             }
             return suggestions;
         } catch (SQLException | IllegalArgumentException e) {
-            throw new ChenException("Failed to load SQL hints", e);
+            throw new ChenException(MessageUtils.getOrDefault("FailedToLoadSqlHints", "Failed to load SQL hints"), e);
         }
     }
 
     private ResourceNodeSnapshot resolveNode(ResourceBrowser browser, String nodeKey) {
         if (StringUtils.isBlank(nodeKey)) {
-            throw new ChenException("Invalid metadata context");
+            throw new ChenException(MessageUtils.getOrDefault("InvalidMetadataContext", "Invalid metadata context"));
         }
         var node = browser.getIndexedNode(nodeKey);
         if (node == null || !QUERY_NODE_TYPES.contains(node.type())) {
-            throw new ChenException("Invalid metadata context");
+            throw new ChenException(MessageUtils.getOrDefault("InvalidMetadataContext", "Invalid metadata context"));
         }
         return node;
     }

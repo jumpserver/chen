@@ -163,8 +163,11 @@ public class ACLFilterImpl implements ACLFilter {
         var input = reviewTicketCommand(command, context);
         String affectedRowsValue = affectedRows.isPresent()
                 ? Integer.toString(affectedRows.getAsInt())
-                : "unknown";
-        input = String.format("Affected rows: %s\n%s", affectedRowsValue, input);
+                : MessageUtils.getOrDefault("Unknown", "unknown");
+        input = String.format("%s: %s\n%s",
+                MessageUtils.getOrDefault("AffectedRows", "Affected rows"),
+                affectedRowsValue,
+                input);
 
         var req = ServiceOuterClass.CommandConfirmRequest
                 .newBuilder()
@@ -176,7 +179,10 @@ public class ACLFilterImpl implements ACLFilter {
                 .withDeadlineAfter(REVIEW_RPC_TIMEOUT_SECONDS, TimeUnit.SECONDS)
                 .createCommandTicket(req);
         if (!resp.getStatus().getOk()) {
-            throw new RuntimeException("create command ticket failed: " + resp.getStatus().getErr());
+            throw new RuntimeException(MessageUtils.getOrDefault(
+                    "CreateCommandTicketFailed",
+                    "Failed to create command ticket: %s",
+                    resp.getStatus().getErr()));
         }
         this.waitForTicketStatusChange(resp.getInfo());
     }
@@ -210,7 +216,14 @@ public class ACLFilterImpl implements ACLFilter {
         if (batchSql == null || batchSql.isBlank() || batchSql.equals(command)) {
             return command;
         }
-        return String.format("Batch SQL:\n%s\n\nReview-triggering SQL:\n%s", batchSql, command);
+        return String.format(
+                MessageUtils.getOrDefault(
+                        "BatchSqlReview",
+                        "Batch SQL:\n%s\n\nReview-triggering SQL:\n%s"
+                ),
+                batchSql,
+                command
+        );
     }
 
 

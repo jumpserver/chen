@@ -210,7 +210,8 @@ public class DataView extends SQLResult {
     public void export(String scope, String format) throws SQLException {
         var session = SessionManager.getCurrentSession();
 
-        CommandRecord command = new CommandRecord(String.format("Export data: %s", this.title));
+        CommandRecord command = new CommandRecord(String.format(
+                MessageUtils.getOrDefault("ExportDataNamed", "Export data: %s"), this.title));
 
         try {
             if (!SessionManager.getCurrentSession().canDownload()) {
@@ -227,7 +228,9 @@ public class DataView extends SQLResult {
             switch (scope) {
                 case "current":
                     f = DataExport.export(format, this.data);
-                    command.setOutput(String.format("%d rows exported", this.data.getData().size()));
+                    command.setOutput(String.format(
+                            MessageUtils.getOrDefault("RowsExported", "%d rows exported"),
+                            this.data.getData().size()));
                     break;
                 case "all":
                     SQLQueryParams queryParams = new SQLQueryParams();
@@ -237,7 +240,9 @@ public class DataView extends SQLResult {
                     var viewData = new DataViewData();
                     this.fullDataViewData(viewData, result);
                     f = DataExport.export(format, viewData);
-                    command.setOutput(String.format("%d rows exported", result.getData().size()));
+                    command.setOutput(String.format(
+                            MessageUtils.getOrDefault("RowsExported", "%d rows exported"),
+                            result.getData().size()));
                     break;
             }
 

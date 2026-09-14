@@ -35,7 +35,7 @@ public final class UnsupportedExecutionPlanDialect implements ExecutionPlanDiale
                 capabilities(),
                 java.util.List.of(),
                 PlanEffects.unchangedReuse(),
-                PlanDiagnostic.of(PlanCodes.UNSUPPORTED_DATABASE, "Execution plan is not implemented for this datasource"),
+                PlanDiagnostic.of(PlanCodes.UNSUPPORTED_DATABASE, PlanI18n.msg("Plan.UnsupportedDatabase", "Execution plan is not implemented for this datasource")),
                 java.util.List.of()
         );
     }

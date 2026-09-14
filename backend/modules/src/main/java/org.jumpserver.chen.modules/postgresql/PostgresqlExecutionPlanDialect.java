@@ -9,6 +9,7 @@ import org.jumpserver.chen.framework.datasource.plan.PlanCodes;
 import org.jumpserver.chen.framework.datasource.plan.PlanDatabase;
 import org.jumpserver.chen.framework.datasource.plan.PlanDiagnostic;
 import org.jumpserver.chen.framework.datasource.plan.PlanEffects;
+import org.jumpserver.chen.framework.datasource.plan.PlanI18n;
 import org.jumpserver.chen.framework.datasource.plan.PlanExecutionContext;
 import org.jumpserver.chen.framework.datasource.plan.PlanPrerequisite;
 import org.jumpserver.chen.framework.datasource.plan.PlanRawFormat;
@@ -74,7 +75,7 @@ public class PostgresqlExecutionPlanDialect extends BaseExecutionPlanDialect {
             prerequisites.add(PlanPrerequisite.unmet(
                     PlanCodes.UNSAFE_TO_ESTIMATE,
                     unsafe.message(),
-                    "Remove user-defined or planning-time-unsafe functions and retry"
+                    PlanI18n.msg("Plan.RemoveUnsafeFunctions", "Remove user-defined or planning-time-unsafe functions and retry")
             ));
             return unmet(context, prerequisites, unsafe, PlanEffects.unchangedReuse());
         }
@@ -83,12 +84,12 @@ public class PostgresqlExecutionPlanDialect extends BaseExecutionPlanDialect {
         if (context.transactionProbeFailed()) {
             String detail = context.transactionProbeDetail();
             String message = (detail == null || detail.isBlank())
-                    ? "PostgreSQL transaction state probe failed"
-                    : "PostgreSQL transaction state probe failed: " + detail;
+                    ? PlanI18n.msg("Plan.PostgresTxProbeFailed", "PostgreSQL transaction state probe failed")
+                    : PlanI18n.msg("Plan.PostgresTxProbeFailedDetail", "PostgreSQL transaction state probe failed: %s", detail);
             prerequisites.add(PlanPrerequisite.unknown(
                     PlanCodes.TRANSACTION_CONTEXT_UNSAFE,
                     message,
-                    "Reconnect and retry without relying on SAVEPOINT probing"
+                    PlanI18n.msg("Plan.ReconnectWithoutSavepointProbe", "Reconnect and retry without relying on SAVEPOINT probing")
             ));
             return unmet(
                     context,
@@ -100,44 +101,44 @@ public class PostgresqlExecutionPlanDialect extends BaseExecutionPlanDialect {
         if (txState == PlanTransactionState.UNKNOWN) {
             prerequisites.add(PlanPrerequisite.unknown(
                     PlanCodes.TRANSACTION_CONTEXT_UNSAFE,
-                    "PostgreSQL transaction state is unknown",
-                    "Reconnect and retry without relying on SAVEPOINT probing"
+                    PlanI18n.msg("Plan.PostgresTxUnknown", "PostgreSQL transaction state is unknown"),
+                    PlanI18n.msg("Plan.ReconnectWithoutSavepointProbe", "Reconnect and retry without relying on SAVEPOINT probing")
             ));
             return unmet(
                     context,
                     prerequisites,
-                    PlanDiagnostic.of(PlanCodes.TRANSACTION_CONTEXT_UNSAFE, "PostgreSQL transaction state is unknown"),
+                    PlanDiagnostic.of(PlanCodes.TRANSACTION_CONTEXT_UNSAFE, PlanI18n.msg("Plan.PostgresTxUnknown", "PostgreSQL transaction state is unknown")),
                     PlanEffects.unchangedReuse()
             );
         }
         if (txState == PlanTransactionState.TRANSACTION_FAILED) {
             prerequisites.add(PlanPrerequisite.unmet(
                     PlanCodes.TRANSACTION_CONTEXT_UNSAFE,
-                    "The current PostgreSQL transaction is already aborted",
-                    "Rollback or finish the existing transaction, then retry"
+                    PlanI18n.msg("Plan.PostgresTransactionAborted", "The current PostgreSQL transaction is already aborted"),
+                    PlanI18n.msg("Plan.RollbackThenRetry", "Rollback or finish the existing transaction, then retry")
             ));
             return unmet(
                     context,
                     prerequisites,
-                    PlanDiagnostic.of(PlanCodes.TRANSACTION_CONTEXT_UNSAFE, "Cannot estimate a plan in a failed transaction"),
+                    PlanDiagnostic.of(PlanCodes.TRANSACTION_CONTEXT_UNSAFE, PlanI18n.msg("Plan.CannotEstimateFailedTransaction", "Cannot estimate a plan in a failed transaction")),
                     PlanEffects.unchangedReuse()
             );
         }
         if (txState == PlanTransactionState.MANUAL_COMMIT_IDLE) {
             prerequisites.add(PlanPrerequisite.unmet(
                     PlanCodes.TRANSACTION_CONTEXT_UNSAFE,
-                    "A manual-commit idle connection cannot start a plan transaction",
-                    "Run EXPLAIN while auto-commit idle or inside an already-open transaction"
+                    PlanI18n.msg("Plan.ManualCommitIdleCannotStart", "A manual-commit idle connection cannot start a plan transaction"),
+                    PlanI18n.msg("Plan.RunExplainAutoCommitOrOpenTx", "Run EXPLAIN while auto-commit idle or inside an already-open transaction")
             ));
             return unmet(
                     context,
                     prerequisites,
-                    PlanDiagnostic.of(PlanCodes.TRANSACTION_CONTEXT_UNSAFE, "Manual-commit idle connections are not used for EXPLAIN"),
+                    PlanDiagnostic.of(PlanCodes.TRANSACTION_CONTEXT_UNSAFE, PlanI18n.msg("Plan.ManualCommitIdleNotUsed", "Manual-commit idle connections are not used for EXPLAIN")),
                     PlanEffects.unchangedReuse()
             );
         }
 
-        prerequisites.add(PlanPrerequisite.met("statement", "Single SELECT"));
+        prerequisites.add(PlanPrerequisite.met("statement", PlanI18n.msg("Plan.SingleSelect", "Single SELECT")));
         boolean useSavepoint = txState == PlanTransactionState.TRANSACTION_ACTIVE;
         if (useSavepoint) {
             return explainWithSavepoint(context, statement, prerequisites);
@@ -161,10 +162,10 @@ public class PostgresqlExecutionPlanDialect extends BaseExecutionPlanDialect {
                     context,
                     List.of(PlanPrerequisite.unmet(
                             PlanCodes.TRANSACTION_CONTEXT_UNSAFE,
-                            "Failed to create a request-scoped SAVEPOINT",
-                            "Check the transaction state and retry"
+                            PlanI18n.msg("Plan.SavepointCreateFailed", "Failed to create a request-scoped SAVEPOINT"),
+                            PlanI18n.msg("Plan.CheckTxAndRetry", "Check the transaction state and retry")
                     )),
-                    sqlDiagnostic(PlanCodes.TRANSACTION_CONTEXT_UNSAFE, "Failed to create SAVEPOINT", e),
+                    sqlDiagnostic(PlanCodes.TRANSACTION_CONTEXT_UNSAFE, PlanI18n.msg("Plan.FailedToCreateSavepoint", "Failed to create SAVEPOINT"), e),
                     PlanEffects.unchangedReuse()
             );
         }
@@ -189,7 +190,7 @@ public class PostgresqlExecutionPlanDialect extends BaseExecutionPlanDialect {
 
         if (restoreError != null) {
             PlanDiagnostic original = explainError == null
-                    ? PlanDiagnostic.of(PlanCodes.SQL_ERROR, "SAVEPOINT restore failed after EXPLAIN")
+                    ? PlanDiagnostic.of(PlanCodes.SQL_ERROR, PlanI18n.msg("Plan.SavepointRestoreFailed", "SAVEPOINT restore failed after EXPLAIN"))
                     : sqlDiagnostic(PlanCodes.SQL_ERROR, explainError.getMessage(), explainError);
             throw new ConnectionInvalidatedException(
                     "PostgreSQL SAVEPOINT restore failed",
@@ -243,7 +244,7 @@ public class PostgresqlExecutionPlanDialect extends BaseExecutionPlanDialect {
                         prerequisites,
                         effects,
                         null,
-                        List.of(PlanDiagnostic.of(PlanCodes.PLAN_LIMIT_REACHED, "Raw plan exceeded the display limit"))
+                        List.of(PlanDiagnostic.of(PlanCodes.PLAN_LIMIT_REACHED, PlanI18n.msg("Plan.RawPlanExceededDisplayLimit", "Raw plan exceeded the display limit")))
                 );
             }
 
@@ -366,19 +367,19 @@ public class PostgresqlExecutionPlanDialect extends BaseExecutionPlanDialect {
             if (UNSAFE_FUNCTIONS.contains(function)) {
                 return PlanDiagnostic.of(
                         PlanCodes.UNSAFE_TO_ESTIMATE,
-                        "Function " + name + " is not safe to estimate at planning time"
+                        PlanI18n.msg("Plan.FunctionNotSafeAtPlanTime", "Function %s is not safe to estimate at planning time", name)
                 );
             }
             if (!schema.isEmpty() && !SAFE_SCHEMAS.contains(schema)) {
                 return PlanDiagnostic.of(
                         PlanCodes.UNSAFE_TO_ESTIMATE,
-                        "Function " + name + " is outside pg_catalog and cannot be proven side-effect free"
+                        PlanI18n.msg("Plan.FunctionOutsidePgCatalog", "Function %s is outside pg_catalog and cannot be proven side-effect free", name)
                 );
             }
             if (schema.isEmpty() && !BUILTIN_FUNCTIONS.contains(function)) {
                 return PlanDiagnostic.of(
                         PlanCodes.UNSAFE_TO_ESTIMATE,
-                        "Function " + name + " is not a known PostgreSQL builtin"
+                        PlanI18n.msg("Plan.FunctionNotPostgresBuiltin", "Function %s is not a known PostgreSQL builtin", name)
                 );
             }
         }

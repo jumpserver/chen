@@ -29,13 +29,13 @@ public class ConsoleController {
         // export 文件名只能是单个文件名，先拒绝跨平台的路径分隔符和遍历片段。
         if (fileKey == null || fileKey.isBlank()
                 || fileKey.contains("/") || fileKey.contains("\\") || fileKey.contains("..")) {
-            throw new ChenException("Invalid export file");
+            throw new ChenException(MessageUtils.getOrDefault("InvalidExportFile", "Invalid export file"));
         }
         var basePath = SessionManager.getCurrentSession().getTempPath().toAbsolutePath().normalize();
         var filePath = basePath.resolve(fileKey).normalize();
         // normalize 后仍须落在会话目录内，且禁止末级符号链接指向目录外文件。
         if (!filePath.startsWith(basePath) || !Files.isRegularFile(filePath, LinkOption.NOFOLLOW_LINKS)) {
-            throw new ChenException("Invalid export file");
+            throw new ChenException(MessageUtils.getOrDefault("InvalidExportFile", "Invalid export file"));
         }
         Resource resource = new FileSystemResource(filePath.toFile());
         var resp = ResponseEntity

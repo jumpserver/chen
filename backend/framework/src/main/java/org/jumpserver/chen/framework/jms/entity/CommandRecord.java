@@ -2,6 +2,7 @@ package org.jumpserver.chen.framework.jms.entity;
 
 import lombok.Data;
 import org.jumpserver.chen.framework.datasource.sql.SQLQueryResult;
+import org.jumpserver.chen.framework.i18n.MessageUtils;
 import org.jumpserver.wisp.Common;
 
 @Data
@@ -20,18 +21,20 @@ public class CommandRecord {
 
     public void setError(String errorMessage) {
         this.error = true;
-        this.output = String.format("Error: %s", errorMessage);
+        this.output = String.format(MessageUtils.getOrDefault("ErrorPrefix", "Error: %s"), errorMessage);
     }
 
     public void setOutput(SQLQueryResult result) {
         if (this.error) {
-            this.output = String.format("Error: %s", result.getOutput());
+            this.output = String.format(MessageUtils.getOrDefault("ErrorPrefix", "Error: %s"), result.getOutput());
             return;
         }
         if (!result.isHasResultSet()) {
             this.output = result.getOutput();
         } else {
-            this.output = String.format("Query OK, %d rows  discovered ", result.getData().size());
+            this.output = String.format(
+                    MessageUtils.getOrDefault("QueryOkRows", "Query OK, %d rows discovered"),
+                    result.getData().size());
         }
     }
 

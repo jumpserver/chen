@@ -9,6 +9,7 @@ import org.jumpserver.chen.framework.datasource.metadata.MetadataQueryAuditConte
 import org.jumpserver.chen.framework.datasource.metadata.ObjectStatistics;
 import org.jumpserver.chen.framework.datasource.metadata.RelationKind;
 import org.jumpserver.chen.framework.datasource.metadata.RelationScope;
+import org.jumpserver.chen.framework.i18n.MessageUtils;
 import org.jumpserver.chen.framework.session.SessionManager;
 import org.jumpserver.chen.web.entity.SchemaOverviewMetadata;
 import org.jumpserver.chen.web.entity.SchemaOverviewRequest;
@@ -50,7 +51,7 @@ public class SchemaOverviewService {
                 );
             }
         } catch (SQLException | IllegalArgumentException e) {
-            throw new ChenException("Failed to load schema overview metadata", e);
+            throw new ChenException(MessageUtils.getOrDefault("FailedToLoadSchemaOverview", "Failed to load schema overview metadata"), e);
         }
     }
 
@@ -210,7 +211,8 @@ public class SchemaOverviewService {
             }
             var value = section.trim().toLowerCase(Locale.ROOT).replace('_', '-');
             if (!ALLOWED_SECTIONS.contains(value)) {
-                throw new IllegalArgumentException("Unknown schema metadata section: " + section);
+                throw new IllegalArgumentException(MessageUtils.getOrDefault(
+                        "UnknownSchemaMetadataSection", "Unknown schema metadata section: %s", section));
             }
             normalized.add(value);
         }
@@ -223,11 +225,11 @@ public class SchemaOverviewService {
 
     private ResourceNodeSnapshot resolveSchemaNode(ResourceBrowser browser, String nodeKey) {
         if (StringUtils.isBlank(nodeKey)) {
-            throw new ChenException("Invalid schema overview context");
+            throw new ChenException(MessageUtils.getOrDefault("InvalidSchemaOverviewContext", "Invalid schema overview context"));
         }
         var node = browser.getIndexedNode(nodeKey);
         if (node == null || !"schema".equals(node.type()) || StringUtils.isBlank(node.schema())) {
-            throw new ChenException("Invalid schema overview context");
+            throw new ChenException(MessageUtils.getOrDefault("InvalidSchemaOverviewContext", "Invalid schema overview context"));
         }
         return node;
     }
