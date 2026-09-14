@@ -34,6 +34,7 @@ public class TableChangesPlanBuilder {
     public static final String SOURCE_SCHEMA_MISMATCH = "SOURCE_SCHEMA_MISMATCH";
     public static final String SOURCE_TABLE_MISMATCH = "SOURCE_TABLE_MISMATCH";
     public static final String SOURCE_COLUMN_NOT_EDITABLE = "SOURCE_COLUMN_NOT_EDITABLE";
+    public static final String NULL_VALUE_NOT_ALLOWED = "NULL_VALUE_NOT_ALLOWED";
     public static final String TYPE_CONVERSION_FAILED = "TYPE_CONVERSION_FAILED";
     public static final String ROW_OPERATIONS_TABLE_BROWSE_ONLY = "ROW_OPERATIONS_TABLE_BROWSE_ONLY";
     public static final String INSERT_VALUES_REQUIRED = "INSERT_VALUES_REQUIRED";
@@ -228,7 +229,7 @@ public class TableChangesPlanBuilder {
                         sourceColumn,
                         targetField,
                         newParameter.getValue(),
-                        change.isNewValueIsNull(),
+                        newParameter.isValueIsNull(),
                         pkColumn,
                         primaryKey,
                         pkParameter.getValue(),
@@ -275,7 +276,12 @@ public class TableChangesPlanBuilder {
                 if (cellValue == null) {
                     return BuildCommandsResult.failure(INSERT_VALUES_REQUIRED, commandIndexOffset + i, insertRow);
                 }
-                InsertValidation validation = validateInsertField(context, field);
+                InsertValidation validation = validateInsertField(
+                        context,
+                        field,
+                        cellValue.getValue(),
+                        cellValue.isValueIsNull()
+                );
                 if (validation.reason() != null) {
                     return BuildCommandsResult.failure(validation.reason(), commandIndexOffset + i, insertRow);
                 }
@@ -286,7 +292,7 @@ public class TableChangesPlanBuilder {
                 } catch (SQLException e) {
                     return BuildCommandsResult.failure(TYPE_CONVERSION_FAILED, commandIndexOffset + i, insertRow);
                 }
-                valueIsNulls.add(cellValue.isValueIsNull());
+                valueIsNulls.add(isNullValue(cellValue.getValue(), cellValue.isValueIsNull()));
             }
 
             if (sourceColumns.size() != requestedValues.size()) {
@@ -365,13 +371,21 @@ public class TableChangesPlanBuilder {
         if (!field.isEditable()) {
             return ChangeValidation.failure(StringUtils.defaultIfBlank(field.getEditReason(), SOURCE_COLUMN_NOT_EDITABLE));
         }
+        if (isNullValue(change.getNewValue(), change.isNewValueIsNull()) && !field.isNullable()) {
+            return ChangeValidation.failure(NULL_VALUE_NOT_ALLOWED);
+        }
         if (!TableEditTypeCodecs.supports(field, context.getDbType())) {
             return ChangeValidation.failure(EditabilityReason.TYPE_NOT_SUPPORTED_FOR_EDIT);
         }
         return ChangeValidation.success(field, pkValue.value(), pkValue.valueIsNull());
     }
 
-    private InsertValidation validateInsertField(TableEditContext context, Field field) {
+    private InsertValidation validateInsertField(
+            TableEditContext context,
+            Field field,
+            Object value,
+            boolean valueIsNull
+    ) {
         String sourceReason = validateSourceField(context, field);
         if (sourceReason != null) {
             return InsertValidation.failure(sourceReason);
@@ -381,6 +395,9 @@ public class TableChangesPlanBuilder {
         }
         if (field.isAutoIncrement() || field.isReadOnly() || field.isGenerated()) {
             return InsertValidation.failure(INSERT_COLUMN_NOT_WRITABLE);
+        }
+        if (isNullValue(value, valueIsNull) && !field.isNullable()) {
+            return InsertValidation.failure(NULL_VALUE_NOT_ALLOWED);
         }
         if (!TableEditTypeCodecs.supports(field, context.getDbType())) {
             return InsertValidation.failure(EditabilityReason.TYPE_NOT_SUPPORTED_FOR_EDIT);
@@ -423,22 +440,27 @@ public class TableChangesPlanBuilder {
             boolean valueIsNull,
             com.alibaba.druid.DbType dbType
     ) throws SQLException {
+        boolean nullValue = isNullValue(value, valueIsNull);
         return new PreparedTableChangeCommand.Parameter(
                 name,
                 column,
                 field,
-                convertValue(value, valueIsNull, field, dbType),
-                valueIsNull,
+                convertValue(value, nullValue, field, dbType),
+                nullValue,
                 field != null ? field.getJdbcType() : null,
                 dbType
         );
     }
 
     private Object convertValue(Object value, boolean valueIsNull, Field field, com.alibaba.druid.DbType dbType) throws SQLException {
-        if (valueIsNull || value == null) {
+        if (isNullValue(value, valueIsNull)) {
             return null;
         }
         return TableEditValueConverter.coerce(value, field, dbType);
+    }
+
+    private boolean isNullValue(Object value, boolean valueIsNull) {
+        return valueIsNull || value == null;
     }
 
     private String validateSourceField(TableEditContext context, Field field) {

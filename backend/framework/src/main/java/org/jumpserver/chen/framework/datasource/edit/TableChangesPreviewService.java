@@ -30,6 +30,7 @@ public class TableChangesPreviewService {
     public static final String SOURCE_SCHEMA_MISMATCH = TableChangesPlanBuilder.SOURCE_SCHEMA_MISMATCH;
     public static final String SOURCE_TABLE_MISMATCH = TableChangesPlanBuilder.SOURCE_TABLE_MISMATCH;
     public static final String SOURCE_COLUMN_NOT_EDITABLE = TableChangesPlanBuilder.SOURCE_COLUMN_NOT_EDITABLE;
+    public static final String NULL_VALUE_NOT_ALLOWED = TableChangesPlanBuilder.NULL_VALUE_NOT_ALLOWED;
     public static final String TYPE_CONVERSION_FAILED = TableChangesPlanBuilder.TYPE_CONVERSION_FAILED;
     public static final String ROW_OPERATIONS_TABLE_BROWSE_ONLY = TableChangesPlanBuilder.ROW_OPERATIONS_TABLE_BROWSE_ONLY;
     public static final String INSERT_VALUES_REQUIRED = TableChangesPlanBuilder.INSERT_VALUES_REQUIRED;
