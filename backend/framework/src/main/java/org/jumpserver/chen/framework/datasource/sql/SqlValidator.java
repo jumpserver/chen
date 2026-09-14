@@ -6,6 +6,7 @@ import com.alibaba.druid.sql.ast.SQLStatement;
 import com.alibaba.druid.sql.visitor.SchemaStatVisitor;
 import com.alibaba.druid.stat.TableStat;
 import org.apache.commons.lang3.StringUtils;
+import org.jumpserver.chen.framework.i18n.MessageUtils;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -17,6 +18,10 @@ import java.util.Set;
 public final class SqlValidator {
     public static final String QUERY_UNSUPPORTED_MESSAGE =
             "This SQL is not supported by Query because Chen cannot parse it with Druid. Use Console to draft and run it.";
+
+    public static String queryUnsupportedMessage() {
+        return MessageUtils.getOrDefault("QueryUnsupported", QUERY_UNSUPPORTED_MESSAGE);
+    }
 
     private static final int MAX_OBJECTS = 50;
     private static final int MAX_ANALYSIS_COLUMNS = 512;

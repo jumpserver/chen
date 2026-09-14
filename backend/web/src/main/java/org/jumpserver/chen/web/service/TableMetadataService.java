@@ -12,6 +12,7 @@ import org.jumpserver.chen.framework.datasource.metadata.MetadataQueryAuditConte
 import org.jumpserver.chen.framework.datasource.metadata.ObjectRef;
 import org.jumpserver.chen.framework.datasource.metadata.PrimaryKeyMetadata;
 import org.jumpserver.chen.framework.datasource.metadata.RelationKind;
+import org.jumpserver.chen.framework.i18n.MessageUtils;
 import org.jumpserver.chen.framework.session.SessionManager;
 import org.jumpserver.chen.web.entity.TableMetadata;
 import org.jumpserver.chen.web.entity.TableMetadataRequest;
@@ -48,7 +49,7 @@ public class TableMetadataService {
                 return load(datasource.getMetadataCatalog(), ref, sections, force);
             }
         } catch (SQLException | IllegalArgumentException e) {
-            throw new ChenException("Failed to load table metadata", e);
+            throw new ChenException(MessageUtils.getOrDefault("FailedToLoadTableMetadata", "Failed to load table metadata"), e);
         }
     }
 
@@ -154,7 +155,8 @@ public class TableMetadataService {
                 case "indexes", "indices" -> "indexes";
                 case "constraints" -> "constraints";
                 case "ddl" -> "ddl";
-                default -> throw new IllegalArgumentException("Unknown table metadata section: " + section);
+                default -> throw new IllegalArgumentException(MessageUtils.getOrDefault(
+                        "UnknownTableMetadataSection", "Unknown table metadata section: %s", section));
             });
         }
         return Set.copyOf(normalized);
@@ -167,16 +169,16 @@ public class TableMetadataService {
         if ("table".equals(type)) {
             return RelationKind.TABLE;
         }
-        throw new ChenException("Invalid table metadata context");
+        throw new ChenException(MessageUtils.getOrDefault("InvalidTableMetadataContext", "Invalid table metadata context"));
     }
 
     ResourceNodeSnapshot resolveRelationNode(ResourceBrowser browser, String nodeKey) {
         if (StringUtils.isBlank(nodeKey)) {
-            throw new ChenException("Invalid table metadata context");
+            throw new ChenException(MessageUtils.getOrDefault("InvalidTableMetadataContext", "Invalid table metadata context"));
         }
         var node = browser.getIndexedNode(nodeKey);
         if (node == null || StringUtils.isBlank(node.table())) {
-            throw new ChenException("Invalid table metadata context");
+            throw new ChenException(MessageUtils.getOrDefault("InvalidTableMetadataContext", "Invalid table metadata context"));
         }
         relationKindForNodeType(node.type());
         return node;

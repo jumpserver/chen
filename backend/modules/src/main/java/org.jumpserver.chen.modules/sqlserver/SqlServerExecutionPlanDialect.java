@@ -9,6 +9,7 @@ import org.jumpserver.chen.framework.datasource.plan.PlanCodes;
 import org.jumpserver.chen.framework.datasource.plan.PlanDatabase;
 import org.jumpserver.chen.framework.datasource.plan.PlanDiagnostic;
 import org.jumpserver.chen.framework.datasource.plan.PlanEffects;
+import org.jumpserver.chen.framework.datasource.plan.PlanI18n;
 import org.jumpserver.chen.framework.datasource.plan.PlanExecutionContext;
 import org.jumpserver.chen.framework.datasource.plan.PlanPrerequisite;
 import org.jumpserver.chen.framework.datasource.plan.PlanRawFormat;
@@ -76,7 +77,7 @@ public class SqlServerExecutionPlanDialect extends BaseExecutionPlanDialect {
             prerequisites.add(PlanPrerequisite.unmet(
                     PlanCodes.UNSAFE_TO_ESTIMATE,
                     unsafe.message(),
-                    "Remove user-defined functions or external rowset access and retry"
+                    PlanI18n.msg("Plan.RemoveUdfOrExternalRowset", "Remove user-defined functions or external rowset access and retry")
             ));
             return unmet(context, prerequisites, unsafe, PlanEffects.unchangedReuse());
         }
@@ -184,7 +185,7 @@ public class SqlServerExecutionPlanDialect extends BaseExecutionPlanDialect {
                 "showplan-permission",
                 "Current database SHOWPLAN permission is available; referenced databases are verified during compilation"
         ));
-        prerequisites.add(PlanPrerequisite.met("statement", "Single SELECT"));
+        prerequisites.add(PlanPrerequisite.met("statement", PlanI18n.msg("Plan.SingleSelect", "Single SELECT")));
 
         return executeShowplan(context, statement, transactionState, prerequisites);
     }

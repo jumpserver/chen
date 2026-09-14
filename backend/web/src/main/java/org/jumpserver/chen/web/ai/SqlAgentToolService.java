@@ -254,7 +254,7 @@ public class SqlAgentToolService {
         SqlValidationResult validation = SqlValidator.validate(datasource.getDruidDbType(), sql);
         if (!validation.parseable()) {
             if (!consoleWorkspace) {
-                throw new IllegalArgumentException(SqlValidator.QUERY_UNSUPPORTED_MESSAGE);
+                throw new IllegalArgumentException(SqlValidator.queryUnsupportedMessage());
             }
             explanation = appendNotice(explanation, CONSOLE_UNPARSEABLE_NOTICE);
         }

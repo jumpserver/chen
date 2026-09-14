@@ -57,7 +57,7 @@ public abstract class BaseExecutionPlanDialect implements ExecutionPlanDialect {
             return;
         }
         String message = error.getMessage() == null
-                ? "Connection became unusable during execution plan"
+                ? PlanI18n.msg("Plan.ConnectionUnusable", "Connection became unusable during execution plan")
                 : error.getMessage();
         PlanDiagnostic diagnostic = new PlanDiagnostic(
                 PlanCodes.CONNECTION_INVALIDATED,

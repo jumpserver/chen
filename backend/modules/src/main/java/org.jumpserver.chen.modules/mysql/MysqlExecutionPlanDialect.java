@@ -12,6 +12,7 @@ import org.jumpserver.chen.framework.datasource.plan.PlanCodes;
 import org.jumpserver.chen.framework.datasource.plan.PlanDatabase;
 import org.jumpserver.chen.framework.datasource.plan.PlanDiagnostic;
 import org.jumpserver.chen.framework.datasource.plan.PlanEffects;
+import org.jumpserver.chen.framework.datasource.plan.PlanI18n;
 import org.jumpserver.chen.framework.datasource.plan.PlanExecutionContext;
 import org.jumpserver.chen.framework.datasource.plan.PlanNode;
 import org.jumpserver.chen.framework.datasource.plan.PlanPrerequisite;
@@ -71,24 +72,24 @@ public class MysqlExecutionPlanDialect extends BaseExecutionPlanDialect {
             prerequisites.add(PlanPrerequisite.unmet(
                     PlanCodes.UNSAFE_TO_ESTIMATE,
                     unsafe.message(),
-                    "Remove user-defined or planning-time-unsafe functions and retry"
+                    PlanI18n.msg("Plan.RemoveUnsafeFunctions", "Remove user-defined or planning-time-unsafe functions and retry")
             ));
             return unmet(context, prerequisites, unsafe);
         }
         if (context.transactionState() == PlanTransactionState.TRANSACTION_FAILED) {
             prerequisites.add(PlanPrerequisite.unmet(
                     PlanCodes.TRANSACTION_CONTEXT_UNSAFE,
-                    "The current MySQL transaction is already aborted",
-                    "Rollback or finish the existing transaction, then retry"
+                    PlanI18n.msg("Plan.MysqlTransactionAborted", "The current MySQL transaction is already aborted"),
+                    PlanI18n.msg("Plan.RollbackThenRetry", "Rollback or finish the existing transaction, then retry")
             ));
             return unmet(
                     context,
                     prerequisites,
-                    PlanDiagnostic.of(PlanCodes.TRANSACTION_CONTEXT_UNSAFE, "Cannot estimate a plan in a failed transaction")
+                    PlanDiagnostic.of(PlanCodes.TRANSACTION_CONTEXT_UNSAFE, PlanI18n.msg("Plan.CannotEstimateFailedTransaction", "Cannot estimate a plan in a failed transaction"))
             );
         }
 
-        prerequisites.add(PlanPrerequisite.met("statement", "Single SELECT"));
+        prerequisites.add(PlanPrerequisite.met("statement", PlanI18n.msg("Plan.SingleSelect", "Single SELECT")));
         PlanEffects effects = PlanEffects.unchangedReuse();
         if (jsonSupported(context.serverVersion())) {
             try {
@@ -112,13 +113,13 @@ public class MysqlExecutionPlanDialect extends BaseExecutionPlanDialect {
         BoundedRaw raw = executeExplain(context, "EXPLAIN FORMAT=JSON " + statement.sql());
         if (raw.truncated()) {
             return rawOnly(context, prerequisites, effects, raw.text(), PlanRawFormat.JSON, MysqlPlanParser.V1, true,
-                    PlanDiagnostic.of(PlanCodes.PLAN_LIMIT_REACHED, "Raw plan exceeded the display limit"));
+                    PlanDiagnostic.of(PlanCodes.PLAN_LIMIT_REACHED, PlanI18n.msg("Plan.RawPlanExceededDisplayLimit", "Raw plan exceeded the display limit")));
         }
         MysqlPlanParser.ParseResult parsed = MysqlPlanParser.parse(raw.text(), context.maxNodes(), context.maxDepth());
         if (!parsed.structured()) {
             return rawOnly(context, prerequisites, effects, raw.text(), PlanRawFormat.JSON, parsed.rawFormatVersion(), false,
                     parsed.warnings().isEmpty()
-                            ? PlanDiagnostic.of(PlanCodes.PLAN_PARSE_FAILED, "MySQL plan JSON could not be normalized")
+                            ? PlanDiagnostic.of(PlanCodes.PLAN_PARSE_FAILED, PlanI18n.msg("Plan.MysqlJsonNormalizeFailed", "MySQL plan JSON could not be normalized"))
                             : parsed.warnings().get(parsed.warnings().size() - 1));
         }
         return new DialectPlanResult(
@@ -166,7 +167,7 @@ public class MysqlExecutionPlanDialect extends BaseExecutionPlanDialect {
                         bounded.truncated(),
                         PlanDiagnostic.of(
                                 bounded.truncated() ? PlanCodes.PLAN_LIMIT_REACHED : PlanCodes.PLAN_PARSE_FAILED,
-                                bounded.truncated() ? "Raw plan exceeded the display limit" : "Classic EXPLAIN produced no rows"
+                                bounded.truncated() ? PlanI18n.msg("Plan.RawPlanExceededDisplayLimit", "Raw plan exceeded the display limit") : PlanI18n.msg("Plan.ClassicExplainEmpty", "Classic EXPLAIN produced no rows")
                         )
                 );
             }
@@ -256,13 +257,13 @@ public class MysqlExecutionPlanDialect extends BaseExecutionPlanDialect {
             String schema = dot < 0 ? "" : lower.substring(0, dot);
             String function = dot < 0 ? lower : lower.substring(dot + 1);
             if (UNSAFE_FUNCTIONS.contains(function)) {
-                return PlanDiagnostic.of(PlanCodes.UNSAFE_TO_ESTIMATE, "Function " + name + " is not safe to estimate");
+                return PlanDiagnostic.of(PlanCodes.UNSAFE_TO_ESTIMATE, PlanI18n.msg("Plan.FunctionNotSafeToEstimate", "Function %s is not safe to estimate", name));
             }
             if (!schema.isEmpty() && !SAFE_SCHEMAS.contains(schema)) {
-                return PlanDiagnostic.of(PlanCodes.UNSAFE_TO_ESTIMATE, "Function " + name + " is outside known MySQL catalogs");
+                return PlanDiagnostic.of(PlanCodes.UNSAFE_TO_ESTIMATE, PlanI18n.msg("Plan.FunctionOutsideMysqlCatalogs", "Function %s is outside known MySQL catalogs", name));
             }
             if (schema.isEmpty() && !BUILTIN_FUNCTIONS.contains(function)) {
-                return PlanDiagnostic.of(PlanCodes.UNSAFE_TO_ESTIMATE, "Function " + name + " is not a known MySQL builtin");
+                return PlanDiagnostic.of(PlanCodes.UNSAFE_TO_ESTIMATE, PlanI18n.msg("Plan.FunctionNotMysqlBuiltin", "Function %s is not a known MySQL builtin", name));
             }
         }
         return null;

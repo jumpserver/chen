@@ -9,6 +9,7 @@ import org.jumpserver.chen.framework.datasource.metadata.RelationKind;
 import org.jumpserver.chen.framework.datasource.metadata.RelationMetadata;
 import org.jumpserver.chen.framework.datasource.metadata.RelationScope;
 import org.jumpserver.chen.framework.datasource.metadata.SchemaMetadata;
+import org.jumpserver.chen.framework.i18n.MessageUtils;
 import org.jumpserver.chen.framework.session.SessionManager;
 import org.jumpserver.chen.web.entity.MetadataColumnsRequest;
 import org.jumpserver.chen.web.entity.MetadataColumnsResponse;
@@ -72,7 +73,7 @@ public class SqlMetadataService {
                     .toList();
             return new RelationMetadataPage(items, truncated);
         } catch (SQLException | IllegalArgumentException e) {
-            throw new ChenException("Failed to load SQL relation metadata", e);
+            throw new ChenException(MessageUtils.getOrDefault("FailedToLoadSqlRelationMetadata", "Failed to load SQL relation metadata"), e);
         }
     }
 
@@ -102,7 +103,7 @@ public class SqlMetadataService {
                     .toList();
             return new MetadataColumnsResponse(items);
         } catch (SQLException | IllegalArgumentException e) {
-            throw new ChenException("Failed to load SQL column metadata", e);
+            throw new ChenException(MessageUtils.getOrDefault("FailedToLoadSqlColumnMetadata", "Failed to load SQL column metadata"), e);
         }
     }
 
@@ -113,7 +114,7 @@ public class SqlMetadataService {
             return List.of();
         }
         if (requestedRelations.size() > MAX_COLUMN_RELATIONS) {
-            throw new IllegalArgumentException("Too many relations in one metadata request");
+            throw new IllegalArgumentException(MessageUtils.getOrDefault("TooManyRelationsInMetadataRequest", "Too many relations in one metadata request"));
         }
 
         var availableSchemas = catalog.listSchemas(scope.catalog()).stream().map(SchemaMetadata::name).toList();
@@ -122,7 +123,9 @@ public class SqlMetadataService {
         for (var requested : requestedRelations) {
             this.validateRequestedRelation(requested, scope.catalog());
             var requestedSchema = StringUtils.defaultIfBlank(requested.schema(), scope.schema());
-            var canonicalSchema = this.resolveCanonicalIdentifier(availableSchemas, requestedSchema, "Unknown relation schema");
+            var canonicalSchema = this.resolveCanonicalIdentifier(
+                    availableSchemas, requestedSchema,
+                    MessageUtils.getOrDefault("UnknownRelationSchema", "Unknown relation schema"));
 
             var availableRelations = relationsBySchema.get(canonicalSchema);
             if (availableRelations == null) {
@@ -137,7 +140,7 @@ public class SqlMetadataService {
                 var canonicalName = this.resolveCanonicalIdentifier(
                         availableRelations.values().stream().filter(ref -> ref.kind() == kind).map(ObjectRef::name).toList(),
                         requested.name(),
-                        "Unknown relation"
+                        MessageUtils.getOrDefault("UnknownRelation", "Unknown relation")
                 );
                 canonical = availableRelations.get(new RelationKey(canonicalSchema, canonicalName, kind));
             }
@@ -158,11 +161,11 @@ public class SqlMetadataService {
 
     private void validateRequestedRelation(QualifiedRelation relation, String catalog) {
         if (relation == null || StringUtils.isBlank(relation.name()) || !RELATION_KIND_STRINGS.contains(relation.kind())) {
-            throw new IllegalArgumentException("Invalid relation metadata request");
+            throw new IllegalArgumentException(MessageUtils.getOrDefault("InvalidRelationMetadataRequest", "Invalid relation metadata request"));
         }
         if (StringUtils.isNotBlank(relation.catalog()) && StringUtils.isNotBlank(catalog)
                 && !relation.catalog().equals(catalog)) {
-            throw new IllegalArgumentException("Relation catalog does not match the active context");
+            throw new IllegalArgumentException(MessageUtils.getOrDefault("RelationCatalogMismatch", "Relation catalog does not match the active context"));
         }
     }
 
@@ -212,11 +215,11 @@ public class SqlMetadataService {
 
     private ResourceNodeSnapshot resolveNode(ResourceBrowser browser, String nodeKey) {
         if (StringUtils.isBlank(nodeKey)) {
-            throw new ChenException("Invalid metadata context");
+            throw new ChenException(MessageUtils.getOrDefault("InvalidMetadataContext", "Invalid metadata context"));
         }
         var node = browser.getIndexedNode(nodeKey);
         if (node == null || !QUERY_NODE_TYPES.contains(node.type())) {
-            throw new ChenException("Invalid metadata context");
+            throw new ChenException(MessageUtils.getOrDefault("InvalidMetadataContext", "Invalid metadata context"));
         }
         return node;
     }

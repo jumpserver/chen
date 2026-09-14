@@ -9,6 +9,7 @@ import org.jumpserver.chen.framework.datasource.plan.PlanCodes;
 import org.jumpserver.chen.framework.datasource.plan.PlanDatabase;
 import org.jumpserver.chen.framework.datasource.plan.PlanDiagnostic;
 import org.jumpserver.chen.framework.datasource.plan.PlanEffects;
+import org.jumpserver.chen.framework.datasource.plan.PlanI18n;
 import org.jumpserver.chen.framework.datasource.plan.PlanExecutionContext;
 import org.jumpserver.chen.framework.datasource.plan.PlanPrerequisite;
 import org.jumpserver.chen.framework.datasource.plan.PlanRawFormat;
@@ -87,7 +88,7 @@ public class Db2ExecutionPlanDialect extends BaseExecutionPlanDialect {
             prerequisites.add(PlanPrerequisite.unmet(
                     PlanCodes.UNSAFE_TO_ESTIMATE,
                     unsafe.message(),
-                    "Remove user-defined or planning-time-unsafe functions and retry"
+                    PlanI18n.msg("Plan.RemoveUnsafeFunctions", "Remove user-defined or planning-time-unsafe functions and retry")
             ));
             return unmet(context.serverVersion(), prerequisites, unsafe);
         }
@@ -165,7 +166,7 @@ public class Db2ExecutionPlanDialect extends BaseExecutionPlanDialect {
                 "explain-table-privileges",
                 "SELECT, INSERT, and DELETE privileges available for the resolved Explain table set"
         ));
-        prerequisites.add(PlanPrerequisite.met("statement", "Single SELECT"));
+        prerequisites.add(PlanPrerequisite.met("statement", PlanI18n.msg("Plan.SingleSelect", "Single SELECT")));
 
         return generateReadAndCleanup(
                 context, statement, server.displayVersion(), target, transaction, prerequisites
@@ -435,7 +436,7 @@ public class Db2ExecutionPlanDialect extends BaseExecutionPlanDialect {
             return TransactionCheck.failed(PlanPrerequisite.unmet(
                     PlanCodes.TRANSACTION_CONTEXT_UNSAFE,
                     "The current DB2 transaction is not usable",
-                    "Finish the existing transaction and retry"
+                    PlanI18n.msg("Plan.FinishTxAndRetry", "Finish the existing transaction and retry")
             ));
         }
         if (state == PlanTransactionState.MANUAL_COMMIT_IDLE) {

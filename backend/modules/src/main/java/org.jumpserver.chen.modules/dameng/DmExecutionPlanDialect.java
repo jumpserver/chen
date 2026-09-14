@@ -8,6 +8,7 @@ import org.jumpserver.chen.framework.datasource.plan.PlanCodes;
 import org.jumpserver.chen.framework.datasource.plan.PlanDatabase;
 import org.jumpserver.chen.framework.datasource.plan.PlanDiagnostic;
 import org.jumpserver.chen.framework.datasource.plan.PlanEffects;
+import org.jumpserver.chen.framework.datasource.plan.PlanI18n;
 import org.jumpserver.chen.framework.datasource.plan.PlanExecutionContext;
 import org.jumpserver.chen.framework.datasource.plan.PlanPrerequisite;
 import org.jumpserver.chen.framework.datasource.plan.PlanRawFormat;

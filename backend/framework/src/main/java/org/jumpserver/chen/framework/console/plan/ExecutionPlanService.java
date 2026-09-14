@@ -14,6 +14,7 @@ import org.jumpserver.chen.framework.datasource.plan.PlanDatabase;
 import org.jumpserver.chen.framework.datasource.plan.PlanDiagnostic;
 import org.jumpserver.chen.framework.datasource.plan.PlanEffects;
 import org.jumpserver.chen.framework.datasource.plan.PlanExecutionContext;
+import org.jumpserver.chen.framework.datasource.plan.PlanI18n;
 import org.jumpserver.chen.framework.datasource.plan.PlanLimits;
 import org.jumpserver.chen.framework.datasource.plan.PlanMode;
 import org.jumpserver.chen.framework.datasource.plan.PlanStatus;
@@ -45,7 +46,7 @@ public final class ExecutionPlanService {
                     capabilities,
                     PlanStatus.UNSUPPORTED_STATEMENT,
                     PlanCodes.PLAN_LIMIT_REACHED,
-                    "SQL exceeds the execution plan size limit"
+                    PlanI18n.msg("Plan.SqlExceedsSizeLimit", "SQL exceeds the execution plan size limit")
             );
         }
 
@@ -77,7 +78,7 @@ public final class ExecutionPlanService {
                     capabilities,
                     PlanStatus.UNSUPPORTED_DATABASE,
                     PlanCodes.UNSUPPORTED_DATABASE,
-                    "Execution plan is not implemented for this datasource"
+                    PlanI18n.msg("Plan.UnsupportedDatabase", "Execution plan is not implemented for this datasource")
             );
         }
 
@@ -95,7 +96,7 @@ public final class ExecutionPlanService {
                         capabilities,
                         PlanStatus.CANCELLED,
                         PlanCodes.CANCELLED,
-                        e.getMessage() == null ? "Execution plan request cancelled" : e.getMessage(),
+                        e.getMessage() == null ? PlanI18n.msg("Plan.RequestCancelled", "Execution plan request cancelled") : e.getMessage(),
                         e
                 );
             }
@@ -106,7 +107,7 @@ public final class ExecutionPlanService {
                     capabilities,
                     PlanStatus.ERROR,
                     PlanCodes.SQL_ERROR,
-                    e.getMessage() == null ? "Failed to estimate execution plan" : e.getMessage(),
+                    e.getMessage() == null ? PlanI18n.msg("Plan.EstimateFailed", "Failed to estimate execution plan") : e.getMessage(),
                     e
             );
         }
@@ -114,34 +115,34 @@ public final class ExecutionPlanService {
 
     static String rejectionMessage(String code) {
         if (code == null || code.isBlank()) {
-            return "This statement cannot be estimated";
+            return PlanI18n.msg("Plan.StatementCannotBeEstimated", "This statement cannot be estimated");
         }
         return switch (code) {
             case SqlStatementAnalyzer.PARSE_FAILED ->
-                    "Chen cannot parse this SQL for an estimated plan";
+                    PlanI18n.msg("Plan.ParseFailed", "Chen cannot parse this SQL for an estimated plan");
             case SqlStatementAnalyzer.MULTI_STATEMENT ->
-                    "Multiple SQL statements cannot be estimated";
+                    PlanI18n.msg("Plan.MultiStatement", "Multiple SQL statements cannot be estimated");
             case SqlStatementAnalyzer.NOT_SINGLE_SELECT ->
-                    "Only a single SELECT statement can be estimated";
+                    PlanI18n.msg("Plan.NotSingleSelect", "Only a single SELECT statement can be estimated");
             case SqlStatementAnalyzer.EMPTY_SQL ->
-                    "SQL statement is empty";
+                    PlanI18n.msg("Plan.EmptySql", "SQL statement is empty");
             case SqlStatementAnalyzer.NESTED_WRITE ->
-                    "Statements with nested writes cannot be estimated";
+                    PlanI18n.msg("Plan.NestedWrite", "Statements with nested writes cannot be estimated");
             case SqlStatementAnalyzer.LOCKING_READ ->
-                    "Locking reads cannot be estimated";
+                    PlanI18n.msg("Plan.LockingRead", "Locking reads cannot be estimated");
             case SqlStatementAnalyzer.SELECT_INTO ->
-                    "SELECT INTO cannot be estimated";
+                    PlanI18n.msg("Plan.SelectInto", "SELECT INTO cannot be estimated");
             case SqlStatementAnalyzer.ASSIGNMENT ->
-                    "Statements with assignment cannot be estimated";
+                    PlanI18n.msg("Plan.Assignment", "Statements with assignment cannot be estimated");
             case SqlStatementAnalyzer.EXPLAIN_WRAPPER ->
-                    "Wrapped EXPLAIN statements cannot be estimated";
+                    PlanI18n.msg("Plan.ExplainWrapper", "Wrapped EXPLAIN statements cannot be estimated");
             case SqlStatementAnalyzer.UNBOUND_PARAMETER ->
-                    "Statements with unbound parameters cannot be estimated";
+                    PlanI18n.msg("Plan.UnboundParameter", "Statements with unbound parameters cannot be estimated");
             case SqlStatementAnalyzer.DYNAMIC_EXECUTION ->
-                    "Dynamic SQL cannot be estimated";
+                    PlanI18n.msg("Plan.DynamicSql", "Dynamic SQL cannot be estimated");
             case PlanCodes.PLAN_LIMIT_REACHED ->
-                    "SQL exceeds the execution plan size limit";
-            default -> "This statement cannot be estimated";
+                    PlanI18n.msg("Plan.SqlExceedsSizeLimit", "SQL exceeds the execution plan size limit");
+            default -> PlanI18n.msg("Plan.StatementCannotBeEstimated", "This statement cannot be estimated");
         };
     }
 
