@@ -1231,13 +1231,25 @@ public class QueryConsole extends AbstractConsole {
                             ? EXECUTION_STATUS_CANCELLED
                             : EXECUTION_STATUS_ERROR
             );
-            this.getConsoleLogger().error("%s", MessageUtils.get("ACLRejectError"));
+            String rejectMessage = this.aclRejectMessage(aclResult);
+            this.getConsoleLogger().error("%s", rejectMessage);
+            this.sendSQLError("acl", rejectMessage, StringUtils.defaultString(sql), sql, null);
             CommandRecord commandRecord = new CommandRecord(sql);
             commandRecord.setRiskLevel(aclResult.getRiskLevel());
             session.recordCommand(commandRecord);
             return false;
         }
         return !aclResult.isNotify() || this.confirmStatementWarning(session);
+    }
+
+    private String aclRejectMessage(ACLResult aclResult) {
+        if (StringUtils.isNotBlank(aclResult.getMessage())) {
+            return aclResult.getMessage();
+        }
+        if (aclResult.getRiskLevel() == Common.RiskLevel.ReviewCancel) {
+            return MessageUtils.get("UserCancelCommandReviewError");
+        }
+        return MessageUtils.get("ACLRejectError");
     }
 
     private boolean confirmStatementWarning(Session session) {

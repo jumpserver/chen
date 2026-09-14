@@ -525,6 +525,7 @@ public class TableChangesSaveService {
         result.setCmdAclId(source.getCmdAclId());
         result.setCmdGroupId(source.getCmdGroupId());
         result.setNotify(source.isNotify());
+        result.setMessage(source.getMessage());
         return result;
     }
 
