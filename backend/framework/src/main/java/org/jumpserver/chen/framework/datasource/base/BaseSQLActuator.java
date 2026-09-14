@@ -343,7 +343,7 @@ public abstract class BaseSQLActuator implements SQLActuator {
         var metaData = resultSet.getMetaData();
         var columnCount = metaData.getColumnCount();
         for (int index = 1; index <= columnCount; index++) {
-            result.getFields().add(buildField(metaData, index));
+            result.getFields().add(buildField(metaData, index, this.getDruidDbType()));
         }
         while (resultSet.next()) {
             if (result.getData().size() >= rowLimit) {
@@ -371,6 +371,10 @@ public abstract class BaseSQLActuator implements SQLActuator {
     }
 
     static Field buildField(ResultSetMetaData metaData, int columnIndex) throws SQLException {
+        return buildField(metaData, columnIndex, null);
+    }
+
+    private static Field buildField(ResultSetMetaData metaData, int columnIndex, DbType dbType) throws SQLException {
         Field field = new Field();
 
         String columnLabel = metaData.getColumnLabel(columnIndex);
@@ -379,13 +383,23 @@ public abstract class BaseSQLActuator implements SQLActuator {
         field.setName(fieldName);
         field.setColumnName(columnName);
         field.setLabel(columnLabel);
-        fillOptionalFieldMetadata(field, metaData, columnIndex);
+        fillOptionalFieldMetadata(field, metaData, columnIndex, dbType);
         return field;
     }
 
-    private static void fillOptionalFieldMetadata(Field field, ResultSetMetaData metaData, int columnIndex) {
+    private static void fillOptionalFieldMetadata(
+            Field field,
+            ResultSetMetaData metaData,
+            int columnIndex,
+            DbType dbType
+    ) {
         //后续还要靠 SQL AST 和主键解析再判断
-        field.setSchema(getNullableMetadataValue(() -> metaData.getSchemaName(columnIndex), "schema", columnIndex));
+        String schema = getNullableMetadataValue(() -> metaData.getSchemaName(columnIndex), "schema", columnIndex);
+        if (StringUtils.isBlank(schema) && (dbType == DbType.mysql || dbType == DbType.mariadb)) {
+            // Connector/J exposes the MySQL database through catalog metadata by default.
+            schema = getNullableMetadataValue(() -> metaData.getCatalogName(columnIndex), "catalog", columnIndex);
+        }
+        field.setSchema(schema);
         field.setTable(getNullableMetadataValue(() -> metaData.getTableName(columnIndex), "table", columnIndex));
         field.setType(getNullableMetadataValue(() -> metaData.getColumnTypeName(columnIndex), "type", columnIndex));
         try {
@@ -544,16 +558,29 @@ public abstract class BaseSQLActuator implements SQLActuator {
     }
 
     static void markGeneratedColumns(Connection connection, DbType dbType, List<Field> fields) {
-        if (dbType != DbType.postgresql || connection == null || fields == null || fields.isEmpty()) {
+        if (connection == null || fields == null || fields.isEmpty()) {
             return;
         }
-        String sql = """
-                SELECT is_generated, generation_expression
-                FROM information_schema.columns
-                WHERE table_schema = ?
-                  AND table_name = ?
-                  AND column_name = ?
-                """;
+        boolean postgresql = dbType == DbType.postgresql;
+        boolean mysqlFamily = dbType == DbType.mysql || dbType == DbType.mariadb;
+        if (!postgresql && !mysqlFamily) {
+            return;
+        }
+        String sql = postgresql
+                ? """
+                    SELECT is_generated, generation_expression
+                    FROM information_schema.columns
+                    WHERE table_schema = ?
+                      AND table_name = ?
+                      AND column_name = ?
+                    """
+                : """
+                    SELECT extra, generation_expression
+                    FROM information_schema.columns
+                    WHERE table_schema = ?
+                      AND table_name = ?
+                      AND column_name = ?
+                    """;
         for (Field field : fields) {
             if (field == null ||
                     StringUtils.isBlank(field.getSchema()) ||
@@ -569,15 +596,25 @@ public abstract class BaseSQLActuator implements SQLActuator {
                     if (!resultSet.next()) {
                         continue;
                     }
-                    String isGenerated = resultSet.getString("is_generated");
                     String generationExpression = resultSet.getString("generation_expression");
-                    if ("ALWAYS".equalsIgnoreCase(isGenerated) || StringUtils.isNotBlank(generationExpression)) {
+                    boolean generated;
+                    if (postgresql) {
+                        generated = "ALWAYS".equalsIgnoreCase(resultSet.getString("is_generated")) ||
+                                StringUtils.isNotBlank(generationExpression);
+                    } else {
+                        String extra = resultSet.getString("extra");
+                        generated = StringUtils.isNotBlank(generationExpression) ||
+                                StringUtils.containsIgnoreCase(extra, "STORED GENERATED") ||
+                                StringUtils.containsIgnoreCase(extra, "VIRTUAL GENERATED");
+                    }
+                    if (generated) {
                         field.setGenerated(true);
                         field.setReadOnly(true);
                     }
                 }
             } catch (SQLException e) {
-                log.debug("read postgresql generated column metadata failed for {}.{}.{}",
+                log.debug("read {} generated column metadata failed for {}.{}.{}",
+                        dbType,
                         field.getSchema(),
                         field.getTable(),
                         field.getColumnName(),
