@@ -16,6 +16,7 @@ import org.jumpserver.chen.framework.utils.TreeUtils;
 import java.lang.reflect.InvocationTargetException;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -73,6 +74,16 @@ public abstract class BaseResourceBrowser implements ResourceBrowser {
 
     @Override
     public List<TreeNode> getChildren(TreeNode node, boolean fromCache) throws SQLException {
+        return this.getChildren(node, fromCache, null);
+    }
+
+    /**
+     * Reloads {@code node} from the source. Previously loaded descendants (children != null)
+     * are fetched again so a schema/database refresh keeps expanded tables/views populated.
+     * Never-loaded descendants stay {@code children == null} and are fetched on the next expand.
+     */
+    private List<TreeNode> getChildren(TreeNode node, boolean fromCache, Set<String> loadedDescendantKeys)
+            throws SQLException {
         if (node == null) {
             return List.of(this.root);
         }
@@ -83,11 +94,45 @@ public abstract class BaseResourceBrowser implements ResourceBrowser {
             }
         }
         var cachedNode = TreeUtils.getNode(this.root, node.getKey());
+        var loadedKeys = loadedDescendantKeys != null
+                ? loadedDescendantKeys
+                : this.collectLoadedDescendantKeys(cachedNode);
         var children = this.getChildNodes(node);
-        if (!children.isEmpty() || cachedNode != null && cachedNode.getChildren() != null) {
-            this.saveTreeNode(node, children);
+        this.saveTreeNode(node, children);
+        if (!fromCache) {
+            this.reloadLoadedChildren(children, loadedKeys);
         }
         return children;
+    }
+
+    private Set<String> collectLoadedDescendantKeys(TreeNode node) {
+        var keys = new HashSet<String>();
+        this.collectLoadedDescendantKeys(node, keys);
+        return keys;
+    }
+
+    private void collectLoadedDescendantKeys(TreeNode node, Set<String> keys) {
+        if (node == null || node.getChildren() == null) {
+            return;
+        }
+        for (var child : node.getChildren()) {
+            if (child.getChildren() != null) {
+                keys.add(child.getKey());
+            }
+            this.collectLoadedDescendantKeys(child, keys);
+        }
+    }
+
+    private void reloadLoadedChildren(List<TreeNode> children, Set<String> loadedKeys) throws SQLException {
+        if (children == null || children.isEmpty() || loadedKeys.isEmpty()) {
+            return;
+        }
+        for (var child : children) {
+            if (!loadedKeys.contains(child.getKey())) {
+                continue;
+            }
+            child.setChildren(this.getChildren(child, false, loadedKeys));
+        }
     }
 
     public List<TreeNode> getChildNodes(TreeNode node) throws SQLException {
