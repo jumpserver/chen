@@ -45,6 +45,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.StringJoiner;
+import java.util.UUID;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
@@ -759,15 +760,32 @@ public abstract class BaseSQLActuator implements SQLActuator {
                 if (maskIndexes.contains(j)) {
                     var rule = maskRules.get(j);
                     var val = result.getData().get(i).get(j);
-                    if (val instanceof String) {
-                        var rep = this.replaceColumnVal(rule, (String) val);
-                        result.getData().get(i).set(j, rep);
+                    if (val instanceof String text) {
+                        result.getData().get(i).set(j, this.replaceColumnVal(rule, text));
+                    } else if (isValueBasedMaskingMethod(rule.getMaskingMethod()) && isScalarMaskingValue(val)) {
+                        result.getData().get(i).set(j, this.replaceColumnVal(rule, val.toString()));
                     } else {
                         result.getData().get(i).set(j, rule.getMaskPattern());
                     }
                 }
             }
         }
+    }
+
+    private boolean isValueBasedMaskingMethod(String method) {
+        return switch (method) {
+            case "hide_middle", "keep_prefix", "keep_suffix" -> true;
+            default -> false;
+        };
+    }
+
+    private boolean isScalarMaskingValue(Object value) {
+        return value instanceof Number
+                || value instanceof Boolean
+                || value instanceof Character
+                || value instanceof CharSequence
+                || value instanceof UUID
+                || value instanceof Enum<?>;
     }
 
     private void captureUnmaskedPrimaryKeyValues(SQLQueryResult result, java.util.List<?> maskIndexes) {
@@ -846,12 +864,18 @@ public abstract class BaseSQLActuator implements SQLActuator {
 
             case "hide_middle":
                 // 隐藏中间
-                if (val == null || val.length() < 3) {
+                if (val == null) {
                     return pattern.isEmpty() ? "####" : pattern;
                 }
-                return val.charAt(0)
-                        + "*".repeat(val.length() - 2)
-                        + val.substring(val.length() - 1);
+                int codePointCount = val.codePointCount(0, val.length());
+                if (codePointCount < 3) {
+                    return pattern.isEmpty() ? "####" : pattern;
+                }
+                int firstCodePointEnd = val.offsetByCodePoints(0, 1);
+                int lastCodePointStart = val.offsetByCodePoints(0, codePointCount - 1);
+                return val.substring(0, firstCodePointEnd)
+                        + "*".repeat(codePointCount - 2)
+                        + val.substring(lastCodePointStart);
 
             case "keep_prefix":
                 // 保留前缀
