@@ -39,7 +39,7 @@ public class DmMetadataProvider extends BaseDatabaseMetadataProvider {
                    NULL AS engine,
                    NULL AS character_set,
                    NULL AS collation,
-                   c.comments AS comment
+                   c.comments AS object_comment
             FROM all_tables t
             LEFT JOIN all_tab_comments c
               ON c.owner = t.owner AND c.table_name = t.table_name AND c.table_type = 'TABLE'
@@ -57,7 +57,7 @@ public class DmMetadataProvider extends BaseDatabaseMetadataProvider {
             """;
 
     private static final String SQL_VIEWS = """
-            SELECT v.view_name AS name, 'VIEW' AS type, c.comments AS comment
+            SELECT v.view_name AS name, 'VIEW' AS type, c.comments AS object_comment
             FROM all_views v
             LEFT JOIN all_tab_comments c
               ON c.owner = v.owner AND c.table_name = v.view_name AND c.table_type = 'VIEW'
@@ -88,7 +88,7 @@ public class DmMetadataProvider extends BaseDatabaseMetadataProvider {
                    c.DATA_TYPE AS native_type, c.DATA_TYPE AS jdbc_type_name,
                    COALESCE(c.CHAR_LENGTH, c.DATA_PRECISION, c.DATA_LENGTH) AS size,
                    c.DATA_SCALE AS scale, c.NULLABLE AS nullable,
-                   c.DATA_DEFAULT AS default_value, cc.COMMENTS AS comment
+                   c.DATA_DEFAULT AS default_value, cc.COMMENTS AS object_comment
             FROM ALL_TAB_COLUMNS c
             LEFT JOIN ALL_COL_COMMENTS cc
               ON cc.OWNER = c.OWNER AND cc.TABLE_NAME = c.TABLE_NAME AND cc.COLUMN_NAME = c.COLUMN_NAME
@@ -134,7 +134,7 @@ public class DmMetadataProvider extends BaseDatabaseMetadataProvider {
             for (var row : query(SQL_TABLES, List.of(scope.schema()))) {
                 result.add(new RelationMetadata(
                         new ObjectRef(scope.catalog(), scope.schema(), stringValue(row, "name"), RelationKind.TABLE),
-                        stringValue(row, "comment"),
+                        stringValue(row, "object_comment"),
                         null,
                         null,
                         null
@@ -145,7 +145,7 @@ public class DmMetadataProvider extends BaseDatabaseMetadataProvider {
             for (var row : query(SQL_VIEWS, List.of(scope.schema()))) {
                 result.add(new RelationMetadata(
                         new ObjectRef(scope.catalog(), scope.schema(), stringValue(row, "name"), RelationKind.VIEW),
-                        stringValue(row, "comment"),
+                        stringValue(row, "object_comment"),
                         null,
                         null,
                         null
