@@ -93,18 +93,38 @@ public class PostgresqlMetadataProvider extends BaseDatabaseMetadataProvider {
             """;
 
     private static final String SQL_COLUMNS = """
-            SELECT c.column_name AS name, c.table_name AS table_name, c.ordinal_position AS ordinal,
-                   CASE WHEN c.data_type IN ('USER-DEFINED', 'ARRAY') THEN c.udt_name ELSE c.data_type END AS native_type,
-                   c.data_type AS jdbc_type_name,
-                   COALESCE(c.character_maximum_length, c.numeric_precision, c.datetime_precision) AS size,
-                   c.numeric_scale AS scale, c.is_nullable AS nullable,
-                   c.column_default AS default_value, col_description(pc.oid, a.attnum) AS comment
-            FROM information_schema.columns c
-            LEFT JOIN pg_namespace n ON n.nspname = c.table_schema
-            LEFT JOIN pg_class pc ON pc.relnamespace = n.oid AND pc.relname = c.table_name
-            LEFT JOIN pg_attribute a ON a.attrelid = pc.oid AND a.attname = c.column_name
-            WHERE c.table_schema = ? AND c.table_name IN (__IN__)
-            ORDER BY c.table_name, c.ordinal_position
+            SELECT a.attname AS name, c.relname AS table_name, a.attnum AS ordinal,
+                   CASE WHEN bt.typelem <> 0 AND bt.typlen = -1 THEN bt.typname
+                        WHEN btn.nspname <> 'pg_catalog' THEN bt.typname
+                        ELSE pg_catalog.format_type(bt.oid, NULL) END AS native_type,
+                   CASE WHEN bt.typelem <> 0 AND bt.typlen = -1 THEN 'ARRAY'
+                        WHEN btn.nspname <> 'pg_catalog' THEN 'USER-DEFINED'
+                        ELSE pg_catalog.format_type(bt.oid, NULL) END AS jdbc_type_name,
+                   COALESCE(
+                       information_schema._pg_char_max_length(bt.oid,
+                           CASE WHEN dt.typtype = 'd' THEN dt.typtypmod ELSE a.atttypmod END),
+                       information_schema._pg_numeric_precision(bt.oid,
+                           CASE WHEN dt.typtype = 'd' THEN dt.typtypmod ELSE a.atttypmod END),
+                       information_schema._pg_datetime_precision(bt.oid,
+                           CASE WHEN dt.typtype = 'd' THEN dt.typtypmod ELSE a.atttypmod END)
+                   ) AS size,
+                   information_schema._pg_numeric_scale(bt.oid,
+                       CASE WHEN dt.typtype = 'd' THEN dt.typtypmod ELSE a.atttypmod END) AS scale,
+                   NOT a.attnotnull AS nullable,
+                   CASE WHEN a.attgenerated = '' AND a.attidentity = ''
+                        THEN pg_catalog.pg_get_expr(ad.adbin, ad.adrelid) END AS default_value,
+                   pg_catalog.col_description(c.oid, a.attnum) AS comment
+            FROM pg_catalog.pg_class c
+            JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+            JOIN pg_catalog.pg_attribute a ON a.attrelid = c.oid
+            JOIN pg_catalog.pg_type dt ON dt.oid = a.atttypid
+            JOIN pg_catalog.pg_type bt ON bt.oid = CASE WHEN dt.typtype = 'd' THEN dt.typbasetype ELSE dt.oid END
+            JOIN pg_catalog.pg_namespace btn ON btn.oid = bt.typnamespace
+            LEFT JOIN pg_catalog.pg_attrdef ad ON ad.adrelid = a.attrelid AND ad.adnum = a.attnum
+            WHERE n.nspname = ? AND c.relname IN (__IN__)
+              AND c.relkind IN ('r', 'p', 'v', 'm', 'f')
+              AND a.attnum > 0 AND NOT a.attisdropped
+            ORDER BY c.relname, a.attnum
             """;
 
     private static final String SQL_TABLE_INDEXES = """

@@ -9,6 +9,7 @@ import java.util.Map;
 public class TreeNode {
     private String key;
     private String type;
+    private String relationKind;
     private String label;
     private Map<String, Object> meta;
     private boolean hasChildren = true;

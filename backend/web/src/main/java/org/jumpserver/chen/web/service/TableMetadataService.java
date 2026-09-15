@@ -37,7 +37,7 @@ public class TableMetadataService {
         var datasource = session.getDatasource();
         var node = resolveRelationNode(datasource.getResourceBrowser(), request == null ? null : request.nodeKey());
         var ref = new ObjectRef(
-                node.database(), node.schema(), node.table(), relationKindForNodeType(node.type())
+                node.database(), node.schema(), node.table(), relationKindForNode(node)
         );
         try {
             var sections = normalizeSections(request == null ? null : request.sections());
@@ -172,6 +172,13 @@ public class TableMetadataService {
         throw new ChenException(MessageUtils.getOrDefault("InvalidTableMetadataContext", "Invalid table metadata context"));
     }
 
+    static RelationKind relationKindForNode(ResourceNodeSnapshot node) {
+        if (node.relationKind() != null) {
+            return node.relationKind();
+        }
+        return relationKindForNodeType(node.type());
+    }
+
     ResourceNodeSnapshot resolveRelationNode(ResourceBrowser browser, String nodeKey) {
         if (StringUtils.isBlank(nodeKey)) {
             throw new ChenException(MessageUtils.getOrDefault("InvalidTableMetadataContext", "Invalid table metadata context"));
@@ -180,7 +187,7 @@ public class TableMetadataService {
         if (node == null || StringUtils.isBlank(node.table())) {
             throw new ChenException(MessageUtils.getOrDefault("InvalidTableMetadataContext", "Invalid table metadata context"));
         }
-        relationKindForNodeType(node.type());
+        relationKindForNode(node);
         return node;
     }
 }
