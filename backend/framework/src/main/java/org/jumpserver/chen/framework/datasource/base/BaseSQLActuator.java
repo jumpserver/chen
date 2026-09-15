@@ -45,6 +45,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.StringJoiner;
+import java.util.UUID;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
@@ -761,10 +762,7 @@ public abstract class BaseSQLActuator implements SQLActuator {
                     var val = result.getData().get(i).get(j);
                     if (val instanceof String text) {
                         result.getData().get(i).set(j, this.replaceColumnVal(rule, text));
-                    } else if (val != null && "hide_middle".equals(rule.getMaskingMethod())) {
-                        // PostgreSQL int4 values are exposed as Integer rather than String.
-                        // Apply hide_middle to the displayed text instead of silently degrading
-                        // the configured partial mask to a full mask.
+                    } else if (isValueBasedMaskingMethod(rule.getMaskingMethod()) && isScalarMaskingValue(val)) {
                         result.getData().get(i).set(j, this.replaceColumnVal(rule, val.toString()));
                     } else {
                         result.getData().get(i).set(j, rule.getMaskPattern());
@@ -772,6 +770,22 @@ public abstract class BaseSQLActuator implements SQLActuator {
                 }
             }
         }
+    }
+
+    private boolean isValueBasedMaskingMethod(String method) {
+        return switch (method) {
+            case "hide_middle", "keep_prefix", "keep_suffix" -> true;
+            default -> false;
+        };
+    }
+
+    private boolean isScalarMaskingValue(Object value) {
+        return value instanceof Number
+                || value instanceof Boolean
+                || value instanceof Character
+                || value instanceof CharSequence
+                || value instanceof UUID
+                || value instanceof Enum<?>;
     }
 
     private void captureUnmaskedPrimaryKeyValues(SQLQueryResult result, java.util.List<?> maskIndexes) {
