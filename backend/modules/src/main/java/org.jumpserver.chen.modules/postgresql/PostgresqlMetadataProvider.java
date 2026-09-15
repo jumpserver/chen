@@ -110,8 +110,9 @@ public class PostgresqlMetadataProvider extends BaseDatabaseMetadataProvider {
                    ) AS size,
                    information_schema._pg_numeric_scale(bt.oid,
                        CASE WHEN dt.typtype = 'd' THEN dt.typtypmod ELSE a.atttypmod END) AS scale,
-                   NOT a.attnotnull AS nullable,
-                   CASE WHEN a.attgenerated = '' AND a.attidentity = ''
+                   NOT (a.attnotnull OR (dt.typtype = 'd' AND dt.typnotnull)) AS nullable,
+                   CASE WHEN COALESCE(pg_catalog.to_jsonb(a)->>'attgenerated', '') = ''
+                                  AND COALESCE(pg_catalog.to_jsonb(a)->>'attidentity', '') = ''
                         THEN pg_catalog.pg_get_expr(ad.adbin, ad.adrelid) END AS default_value,
                    pg_catalog.col_description(c.oid, a.attnum) AS comment
             FROM pg_catalog.pg_class c
@@ -124,6 +125,10 @@ public class PostgresqlMetadataProvider extends BaseDatabaseMetadataProvider {
             WHERE n.nspname = ? AND c.relname IN (__IN__)
               AND c.relkind IN ('r', 'p', 'v', 'm', 'f')
               AND a.attnum > 0 AND NOT a.attisdropped
+              AND NOT pg_catalog.pg_is_other_temp_schema(n.oid)
+              AND (pg_catalog.pg_has_role(c.relowner, 'USAGE')
+                   OR pg_catalog.has_column_privilege(
+                       c.oid, a.attnum, 'SELECT, INSERT, UPDATE, REFERENCES'))
             ORDER BY c.relname, a.attnum
             """;
 
