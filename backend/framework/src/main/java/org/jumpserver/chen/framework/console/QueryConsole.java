@@ -241,6 +241,8 @@ public class QueryConsole extends AbstractConsole {
                             connectionManager.getDatabaseContextKey()
                     )) {
                 connectionManager.setDatabaseContext(currentContext);
+            } else if (this.getContext() != null && StringUtils.isNotBlank(this.getContext().database())) {
+                connectionManager.setDatabaseContext(this.getContext().database());
             }
 
             candidate = connectionManager.getPhysicalConnection();
