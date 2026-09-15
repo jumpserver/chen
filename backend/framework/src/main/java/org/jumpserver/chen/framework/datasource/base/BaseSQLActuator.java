@@ -451,6 +451,41 @@ public abstract class BaseSQLActuator implements SQLActuator {
 
     // Normalize JDBC driver objects before Gson sees them in update_data_view packets.
     protected Object normalizeJdbcValue(ResultSet resultSet, int columnIndex) throws SQLException {
+        int jdbcType = Types.OTHER;
+        String typeName = null;
+        try {
+            ResultSetMetaData metaData = resultSet.getMetaData();
+            try {
+                jdbcType = metaData.getColumnType(columnIndex);
+            } catch (SQLException e) {
+                log.debug("read result set jdbc type failed for column {}", columnIndex, e);
+            }
+            try {
+                typeName = metaData.getColumnTypeName(columnIndex);
+            } catch (SQLException e) {
+                log.debug("read result set type name failed for column {}", columnIndex, e);
+            }
+        } catch (SQLException e) {
+            log.debug("read result set metadata failed for column {}", columnIndex, e);
+        }
+
+        if (JdbcDisplayValue.isDecimalType(jdbcType, typeName)) {
+            try {
+                BigDecimal decimal = resultSet.getBigDecimal(columnIndex);
+                return decimal == null ? null : decimal.toPlainString();
+            } catch (SQLException | AbstractMethodError e) {
+                log.debug("read decimal value failed for column {}", columnIndex, e);
+            }
+        }
+
+        if (JdbcDisplayValue.isGeometryType(jdbcType, typeName)) {
+            return this.normalizeGeometryValue(resultSet, columnIndex);
+        }
+
+        if (JdbcDisplayValue.isBlobType(jdbcType, typeName)) {
+            return this.normalizeBlobValue(resultSet, columnIndex);
+        }
+
         return this.normalizeJdbcValue(resultSet.getObject(columnIndex));
     }
 
@@ -493,7 +528,7 @@ public abstract class BaseSQLActuator implements SQLActuator {
         }
 
         if (value instanceof Blob blob) {
-            return HexUtils.bytesToHex(blob.getBytes(1, (int) blob.length()));
+            return this.summarizeBlob(blob);
         }
 
         if (value.getClass().getSimpleName().equalsIgnoreCase("pgobject")) {
@@ -505,6 +540,78 @@ public abstract class BaseSQLActuator implements SQLActuator {
         }
 
         return value;
+    }
+
+    private Object normalizeGeometryValue(ResultSet resultSet, int columnIndex) throws SQLException {
+        Object value;
+        boolean objectReadFailed = false;
+        try {
+            value = resultSet.getObject(columnIndex);
+        } catch (SQLException | AbstractMethodError e) {
+            log.debug("read geometry object failed for column {}", columnIndex, e);
+            value = null;
+            objectReadFailed = true;
+        }
+        if (!objectReadFailed && value == null) {
+            return null;
+        }
+        String display = JdbcDisplayValue.toGeometryDisplay(value, this.getDruidDbType());
+        if (display != null && JdbcDisplayValue.looksLikeWkt(display)) {
+            return display;
+        }
+        try {
+            String text = resultSet.getString(columnIndex);
+            if (JdbcDisplayValue.looksLikeWkt(text)) {
+                return text.trim();
+            }
+        } catch (SQLException | AbstractMethodError e) {
+            log.debug("read geometry as string failed for column {}", columnIndex, e);
+        }
+        if (display != null) {
+            return display;
+        }
+        return JdbcDisplayValue.geometrySummary(null);
+    }
+
+    private Object normalizeBlobValue(ResultSet resultSet, int columnIndex) throws SQLException {
+        try {
+            Blob blob = resultSet.getBlob(columnIndex);
+            if (blob != null) {
+                return this.summarizeBlob(blob);
+            }
+            if (resultSet.wasNull()) {
+                return null;
+            }
+        } catch (SQLException | AbstractMethodError e) {
+            log.debug("read blob locator failed for column {}", columnIndex, e);
+        }
+
+        Object value = resultSet.getObject(columnIndex);
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Blob blob) {
+            return this.summarizeBlob(blob);
+        }
+        if (value instanceof byte[] bytes) {
+            return JdbcDisplayValue.blobSummary(bytes.length);
+        }
+        return this.normalizeJdbcValue(value);
+    }
+
+    private String summarizeBlob(Blob blob) throws SQLException {
+        try {
+            return JdbcDisplayValue.blobSummary(blob.length());
+        } catch (SQLException e) {
+            log.debug("read blob length failed", e);
+            return JdbcDisplayValue.blobSummary();
+        } finally {
+            try {
+                blob.free();
+            } catch (SQLException e) {
+                log.debug("free blob failed", e);
+            }
+        }
     }
 
     private String normalizeOracleTimestampWithTimeZone(Object value) throws SQLException {
