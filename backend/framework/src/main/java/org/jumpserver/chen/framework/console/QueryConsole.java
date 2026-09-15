@@ -13,6 +13,7 @@ import org.jumpserver.chen.framework.console.dataview.DataView;
 import org.jumpserver.chen.framework.console.dataview.QueryDataViewTableEditContextFactory;
 import org.jumpserver.chen.framework.console.dataview.UpdateDataView;
 import org.jumpserver.chen.framework.console.context.ConsoleContext;
+import org.jumpserver.chen.framework.console.context.ConsoleContextBinding;
 import org.jumpserver.chen.framework.console.entity.request.Connect;
 import org.jumpserver.chen.framework.console.entity.request.SaveChangesRequest;
 import org.jumpserver.chen.framework.console.entity.response.Message;
@@ -186,20 +187,27 @@ public class QueryConsole extends AbstractConsole {
         this.getState().setLoading(true);
         this.stateManager.commit();
 
-        var context = this.getInitialContext();
         try {
-            var currentContext = this.getSqlActuator().getCurrentSchema();
+            var actuator = this.getSqlActuator();
+            var currentContext = actuator.getCurrentSchema();
+            var schemas = actuator.getSchemas();
+            this.replaceAllowedContexts(schemas);
 
-            if (StringUtils.isNotEmpty(context)
-                    && !StringUtils.equals(currentContext, context)) {
-                this.getSqlActuator().changeSchema(context);
-            }
-            this.getState().setCurrentContext(
-                    StringUtils.defaultIfEmpty(context, currentContext)
+            var target = ConsoleContextBinding.initialUiContext(
+                    this.getInitialContext(),
+                    this.getContext().nodeType(),
+                    this.getDatasource().getConnectionManager().getContextKey(),
+                    schemas,
+                    currentContext
             );
 
-            var schemas = this.getSqlActuator().getSchemas();
-            this.replaceAllowedContexts(schemas);
+            if (StringUtils.isNotEmpty(target)
+                    && !StringUtils.equals(currentContext, target)) {
+                actuator.changeSchema(target);
+            }
+            this.getState().setCurrentContext(
+                    StringUtils.defaultIfEmpty(target, currentContext)
+            );
             this.getState().setContexts(schemas);
 
         } catch (SQLException e) {
@@ -234,20 +242,22 @@ public class QueryConsole extends AbstractConsole {
         Connection candidate = null;
         try {
             var connectionManager = this.getDatasource().getConnectionManager();
-            String currentContext = this.currentConnectionContext();
-            if (StringUtils.isNotBlank(currentContext) &&
-                    StringUtils.equals(
-                            connectionManager.getContextKey(),
-                            connectionManager.getDatabaseContextKey()
-                    )) {
-                connectionManager.setDatabaseContext(currentContext);
+            String targetDatabase = ConsoleContextBinding.physicalDatabase(
+                    this.getContext(),
+                    connectionManager.getContextKey(),
+                    connectionManager.getDatabaseContextKey(),
+                    this.currentConnectionContext()
+            );
+            if (StringUtils.isNotBlank(targetDatabase)) {
+                connectionManager.setDatabaseContext(targetDatabase);
             }
 
             candidate = connectionManager.getPhysicalConnection();
-            if (StringUtils.isNotBlank(currentContext)) {
+            String schemaContext = this.currentConnectionContext();
+            if (StringUtils.isNotBlank(schemaContext)) {
                 connectionManager.getSqlActuator()
                         .withConnection(candidate)
-                        .changeSchema(currentContext);
+                        .changeSchema(schemaContext);
             }
             QueryTransactionStateInspector candidateInspector = QueryTransactionStateInspector.create(
                     this.getDatasource().getDruidDbType(),
