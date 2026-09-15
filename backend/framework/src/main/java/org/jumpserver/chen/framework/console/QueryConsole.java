@@ -13,7 +13,6 @@ import org.jumpserver.chen.framework.console.dataview.DataView;
 import org.jumpserver.chen.framework.console.dataview.QueryDataViewTableEditContextFactory;
 import org.jumpserver.chen.framework.console.dataview.UpdateDataView;
 import org.jumpserver.chen.framework.console.context.ConsoleContext;
-import org.jumpserver.chen.framework.console.context.ConsoleContextBinding;
 import org.jumpserver.chen.framework.console.entity.request.Connect;
 import org.jumpserver.chen.framework.console.entity.request.SaveChangesRequest;
 import org.jumpserver.chen.framework.console.entity.response.Message;
@@ -187,27 +186,20 @@ public class QueryConsole extends AbstractConsole {
         this.getState().setLoading(true);
         this.stateManager.commit();
 
+        var context = this.getInitialContext();
         try {
-            var actuator = this.getSqlActuator();
-            var currentContext = actuator.getCurrentSchema();
-            var schemas = actuator.getSchemas();
-            this.replaceAllowedContexts(schemas);
+            var currentContext = this.getSqlActuator().getCurrentSchema();
 
-            var target = ConsoleContextBinding.initialUiContext(
-                    this.getInitialContext(),
-                    this.getContext().nodeType(),
-                    this.getDatasource().getConnectionManager().getContextKey(),
-                    schemas,
-                    currentContext
-            );
-
-            if (StringUtils.isNotEmpty(target)
-                    && !StringUtils.equals(currentContext, target)) {
-                actuator.changeSchema(target);
+            if (StringUtils.isNotEmpty(context)
+                    && !StringUtils.equals(currentContext, context)) {
+                this.getSqlActuator().changeSchema(context);
             }
             this.getState().setCurrentContext(
-                    StringUtils.defaultIfEmpty(target, currentContext)
+                    StringUtils.defaultIfEmpty(context, currentContext)
             );
+
+            var schemas = this.getSqlActuator().getSchemas();
+            this.replaceAllowedContexts(schemas);
             this.getState().setContexts(schemas);
 
         } catch (SQLException e) {
@@ -242,22 +234,22 @@ public class QueryConsole extends AbstractConsole {
         Connection candidate = null;
         try {
             var connectionManager = this.getDatasource().getConnectionManager();
-            String targetDatabase = ConsoleContextBinding.physicalDatabase(
-                    this.getContext(),
-                    connectionManager.getContextKey(),
-                    connectionManager.getDatabaseContextKey(),
-                    this.currentConnectionContext()
-            );
-            if (StringUtils.isNotBlank(targetDatabase)) {
-                connectionManager.setDatabaseContext(targetDatabase);
+            String currentContext = this.currentConnectionContext();
+            if (StringUtils.isNotBlank(currentContext) &&
+                    StringUtils.equals(
+                            connectionManager.getContextKey(),
+                            connectionManager.getDatabaseContextKey()
+                    )) {
+                connectionManager.setDatabaseContext(currentContext);
+            } else if (this.getContext() != null && StringUtils.isNotBlank(this.getContext().database())) {
+                connectionManager.setDatabaseContext(this.getContext().database());
             }
 
             candidate = connectionManager.getPhysicalConnection();
-            String schemaContext = this.currentConnectionContext();
-            if (StringUtils.isNotBlank(schemaContext)) {
+            if (StringUtils.isNotBlank(currentContext)) {
                 connectionManager.getSqlActuator()
                         .withConnection(candidate)
-                        .changeSchema(schemaContext);
+                        .changeSchema(currentContext);
             }
             QueryTransactionStateInspector candidateInspector = QueryTransactionStateInspector.create(
                     this.getDatasource().getDruidDbType(),
