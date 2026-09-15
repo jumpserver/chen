@@ -69,6 +69,12 @@ public abstract class BaseDatabaseMetadataProvider implements DatabaseMetadataPr
         return value == null ? null : String.valueOf(value);
     }
 
+    /** Canonical {@code comment} alias, with Dameng's reserved-word-safe {@code object_comment}. */
+    protected static String commentValue(Map<String, Object> row) {
+        var value = stringValue(row, "comment");
+        return value != null ? value : stringValue(row, "object_comment");
+    }
+
     protected static Long longValue(Map<String, Object> row, String key) {
         var value = row.get(key);
         if (value instanceof Number number) {
@@ -210,7 +216,8 @@ public abstract class BaseDatabaseMetadataProvider implements DatabaseMetadataPr
      * (comma-separated) {@code ?} placeholders are inserted, and project the
      * canonical aliases {@code name}/{@code table_name}/{@code ordinal}/
      * {@code native_type}/{@code jdbc_type_name}/{@code size}/{@code scale}/
-     * {@code nullable}/{@code default_value}/{@code comment}.</p>
+     * {@code nullable}/{@code default_value}/{@code comment}. Dameng projects
+     * comments as {@code object_comment} because {@code COMMENT} is reserved.</p>
      */
     protected List<ColumnMetadata> loadColumns(String sqlTemplate, List<ObjectRef> relations) throws SQLException {
         if (relations.isEmpty()) {
@@ -253,7 +260,7 @@ public abstract class BaseDatabaseMetadataProvider implements DatabaseMetadataPr
                             integerValue(row, "scale"),
                             Boolean.TRUE.equals(booleanValue(row, "nullable")),
                             stringValue(row, "default_value"),
-                            stringValue(row, "comment")
+                            commentValue(row)
                     ));
                 }
             }
