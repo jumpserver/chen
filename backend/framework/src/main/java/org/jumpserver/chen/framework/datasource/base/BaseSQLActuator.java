@@ -759,9 +759,13 @@ public abstract class BaseSQLActuator implements SQLActuator {
                 if (maskIndexes.contains(j)) {
                     var rule = maskRules.get(j);
                     var val = result.getData().get(i).get(j);
-                    if (val instanceof String) {
-                        var rep = this.replaceColumnVal(rule, (String) val);
-                        result.getData().get(i).set(j, rep);
+                    if (val instanceof String text) {
+                        result.getData().get(i).set(j, this.replaceColumnVal(rule, text));
+                    } else if (val != null && "hide_middle".equals(rule.getMaskingMethod())) {
+                        // PostgreSQL int4 values are exposed as Integer rather than String.
+                        // Apply hide_middle to the displayed text instead of silently degrading
+                        // the configured partial mask to a full mask.
+                        result.getData().get(i).set(j, this.replaceColumnVal(rule, val.toString()));
                     } else {
                         result.getData().get(i).set(j, rule.getMaskPattern());
                     }
@@ -846,12 +850,18 @@ public abstract class BaseSQLActuator implements SQLActuator {
 
             case "hide_middle":
                 // 隐藏中间
-                if (val == null || val.length() < 3) {
+                if (val == null) {
                     return pattern.isEmpty() ? "####" : pattern;
                 }
-                return val.charAt(0)
-                        + "*".repeat(val.length() - 2)
-                        + val.substring(val.length() - 1);
+                int codePointCount = val.codePointCount(0, val.length());
+                if (codePointCount < 3) {
+                    return pattern.isEmpty() ? "####" : pattern;
+                }
+                int firstCodePointEnd = val.offsetByCodePoints(0, 1);
+                int lastCodePointStart = val.offsetByCodePoints(0, codePointCount - 1);
+                return val.substring(0, firstCodePointEnd)
+                        + "*".repeat(codePointCount - 2)
+                        + val.substring(lastCodePointStart);
 
             case "keep_prefix":
                 // 保留前缀
