@@ -3,7 +3,8 @@ package org.jumpserver.chen.framework.datasource.metadata;
 /**
  * Canonical relation kind. The {@link #code()} value is the wire form used in
  * {@link ObjectRef}; keep it stable so it stays JSON-compatible with the
- * completion client contract ("table" / "view").
+ * completion and table-metadata client contract
+ * ("table" / "view" / "materialized_view").
  */
 public enum RelationKind {
     TABLE("table"),

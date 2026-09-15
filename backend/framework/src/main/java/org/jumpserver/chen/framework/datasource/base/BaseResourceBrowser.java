@@ -193,6 +193,7 @@ public abstract class BaseResourceBrowser implements ResourceBrowser {
                         var view = new View();
                         view.setName(relation.ref().name());
                         view.setSchema(relation.ref().schema());
+                        view.setRelationKind(relation.ref().kind());
                         return view.toResourceNode(parent);
                     })
                     .toList();
@@ -253,7 +254,8 @@ public abstract class BaseResourceBrowser implements ResourceBrowser {
                 database,
                 schema,
                 table,
-                node.getLabel()
+                node.getLabel(),
+                relationKindForNode(node)
         ));
         if (node.getChildren() != null) {
             var snapshot = this.nodeIndex.get(node.getKey());
@@ -261,6 +263,17 @@ public abstract class BaseResourceBrowser implements ResourceBrowser {
                 this.registerNode(child, snapshot);
             }
         }
+    }
+
+    private RelationKind relationKindForNode(TreeNode node) {
+        if (StringUtils.isNotBlank(node.getRelationKind())) {
+            return RelationKind.fromCode(node.getRelationKind());
+        }
+        return switch (node.getType()) {
+            case "table" -> RelationKind.TABLE;
+            case "view" -> RelationKind.VIEW;
+            default -> null;
+        };
     }
 
     private void removeIndexedDescendants(String parentKey) {
