@@ -178,6 +178,7 @@ public class TableChangesSaveService {
         } catch (SQLException e) {
             // Statement-level detail (changeIndex, columns, sqlState) was already logged by
             // executeCommand; record only the save-level summary here.
+            String sqlMessage = sqlExceptionMessage(e);
             log.warn(
                     "save changes failed, reason={}, dataView={}, table={}.{}, sqlState={}, vendorCode={}, message={}",
                     SAVE_CHANGES_EXECUTE_FAILED,
@@ -186,9 +187,11 @@ public class TableChangesSaveService {
                     plan.getTable(),
                     e.getSQLState(),
                     e.getErrorCode(),
-                    e.getMessage()
+                    sqlMessage
             );
-            return reject(result, SAVE_CHANGES_EXECUTE_FAILED, null, null);
+            SaveChangesResult rejected = reject(result, SAVE_CHANGES_EXECUTE_FAILED, null, null);
+            rejected.setMessage(sqlMessage);
+            return rejected;
         }
     }
 
@@ -578,6 +581,16 @@ public class TableChangesSaveService {
             return null;
         }
         return plan.getCommands().get(index);
+    }
+
+    private static String sqlExceptionMessage(SQLException e) {
+        for (Throwable current = e; current != null; current = current.getCause()) {
+            String message = current.getMessage();
+            if (message != null && !message.isBlank()) {
+                return message.trim();
+            }
+        }
+        return null;
     }
 
     private SaveChangesResult reject(
