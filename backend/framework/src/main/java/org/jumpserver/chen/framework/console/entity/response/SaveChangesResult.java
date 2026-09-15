@@ -15,6 +15,7 @@ public class SaveChangesResult {
     private boolean auditSucceeded;
     private boolean connectionInvalidated;
     private String reason;
+    private String message;
     private Integer failedChangeIndex;
     private SaveChangesRequest.ChangeItem failedChange;
     private Object failedOperation;
