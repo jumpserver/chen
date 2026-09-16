@@ -10,12 +10,15 @@ import org.jumpserver.chen.framework.datasource.edit.dialect.TableEditDialect;
 import org.jumpserver.chen.framework.datasource.edit.dialect.TableEditDialects;
 import org.jumpserver.chen.framework.datasource.entity.resource.Field;
 
+import lombok.extern.slf4j.Slf4j;
+
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+@Slf4j
 public class TableChangesPlanBuilder {
     public static final int MAX_CHANGES = 500;
     public static final String DATABASE_NOT_SUPPORTED_FOR_EDIT = "DATABASE_NOT_SUPPORTED_FOR_EDIT";
@@ -464,15 +467,34 @@ public class TableChangesPlanBuilder {
     }
 
     private String validateSourceField(TableEditContext context, Field field) {
-        if (StringUtils.isNotBlank(field.getSourceSchema()) && !StringUtils.equals(field.getSourceSchema(), context.getSchema())) {
+        if (StringUtils.isNotBlank(field.getSourceSchema())
+                && !StringUtils.equals(field.getSourceSchema(), context.getSchema())) {
+            log.warn(
+                    "SOURCE_SCHEMA_MISMATCH contextSchema={}, sourceSchema={}, contextTable={}, sourceTable={}, sourceColumn={}",
+                    context.getSchema(),
+                    field.getSourceSchema(),
+                    context.getTable(),
+                    field.getSourceTable(),
+                    field.getSourceColumn()
+            );
             return SOURCE_SCHEMA_MISMATCH;
         }
-        if (StringUtils.isNotBlank(field.getSourceTable()) && !StringUtils.equals(field.getSourceTable(), context.getTable())) {
+
+        if (StringUtils.isNotBlank(field.getSourceTable())
+                && !StringUtils.equals(field.getSourceTable(), context.getTable())) {
+            log.warn(
+                    "SOURCE_TABLE_MISMATCH contextSchema={}, sourceSchema={}, contextTable={}, sourceTable={}, sourceColumn={}",
+                    context.getSchema(),
+                    field.getSourceSchema(),
+                    context.getTable(),
+                    field.getSourceTable(),
+                    field.getSourceColumn()
+            );
             return SOURCE_TABLE_MISMATCH;
         }
+
         return null;
     }
-
     private Field resolveSinglePrimaryKey(List<Field> fields) {
         if (fields == null) {
             return null;
