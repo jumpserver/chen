@@ -1237,7 +1237,7 @@ public class QueryConsole extends AbstractConsole {
             this.getConsoleLogger().error("%s", rejectMessage);
             this.sendSQLError("acl", rejectMessage, StringUtils.defaultString(sql), sql, null);
             CommandRecord commandRecord = new CommandRecord(sql);
-            commandRecord.setRiskLevel(aclResult.getRiskLevel());
+            commandRecord.applyAcl(aclResult);
             session.recordCommand(commandRecord);
             return false;
         }

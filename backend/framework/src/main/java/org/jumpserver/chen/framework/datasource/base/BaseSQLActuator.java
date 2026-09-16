@@ -1106,7 +1106,7 @@ public abstract class BaseSQLActuator implements SQLActuator {
     public SQLQueryResult executeWithAudit(SQLExecutePlan plan) throws SQLException {
         var sess = SessionManager.getCurrentSession();
         try {
-            return sess.withAudit(plan.getTargetSQL(), () -> this.execute(plan));
+            return sess.withAudit(plan.getTargetSQL(), plan.getAclResult(), () -> this.execute(plan));
         } catch (CommandRejectException e) {
             throw new SQLException(e.getMessage());
         }
@@ -1116,7 +1116,7 @@ public abstract class BaseSQLActuator implements SQLActuator {
     public SQLQueryResult executeRawWithAudit(SQLExecutePlan plan) throws SQLException {
         var sess = SessionManager.getCurrentSession();
         try {
-            return sess.withAudit(plan.getTargetSQL(), () -> this.executeRaw(plan));
+            return sess.withAudit(plan.getTargetSQL(), plan.getAclResult(), () -> this.executeRaw(plan));
         } catch (CommandRejectException e) {
             throw new SQLException(e.getMessage());
         }
