@@ -381,6 +381,9 @@ public abstract class BaseSQLActuator implements SQLActuator {
         String columnLabel = metaData.getColumnLabel(columnIndex);
         String columnName = metaData.getColumnName(columnIndex);
         String fieldName = StringUtils.isNotEmpty(columnLabel) ? columnLabel : columnName;
+        if (StringUtils.isEmpty(fieldName)) {
+            fieldName = "column_" + columnIndex;
+        }
         field.setName(fieldName);
         field.setColumnName(columnName);
         field.setLabel(columnLabel);
