@@ -252,7 +252,7 @@ public class QueryConsole extends AbstractConsole {
                         .changeSchema(currentContext);
             }
             QueryTransactionStateInspector candidateInspector = QueryTransactionStateInspector.create(
-                    this.getDatasource().getDruidDbType(),
+                    this.getDatasource().getDatabaseType(),
                     candidate
             );
 
