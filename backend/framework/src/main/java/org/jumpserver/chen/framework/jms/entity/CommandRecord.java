@@ -3,6 +3,7 @@ package org.jumpserver.chen.framework.jms.entity;
 import lombok.Data;
 import org.jumpserver.chen.framework.datasource.sql.SQLQueryResult;
 import org.jumpserver.chen.framework.i18n.MessageUtils;
+import org.jumpserver.chen.framework.jms.acl.ACLResult;
 import org.jumpserver.wisp.Common;
 
 @Data
@@ -17,6 +18,21 @@ public class CommandRecord {
 
     public CommandRecord(String input) {
         this.input = input;
+    }
+
+    public void applyAcl(ACLResult aclResult) {
+        if (aclResult == null) {
+            return;
+        }
+        if (aclResult.getCmdAclId() != null) {
+            this.setCmdAclId(aclResult.getCmdAclId());
+        }
+        if (aclResult.getCmdGroupId() != null) {
+            this.setCmdGroupId(aclResult.getCmdGroupId());
+        }
+        if (aclResult.getRiskLevel() != null) {
+            this.setRiskLevel(aclResult.getRiskLevel());
+        }
     }
 
     public void setError(String errorMessage) {
