@@ -43,7 +43,9 @@ public class OracleActuator extends BaseSQLActuator {
 
     @Override
     public SQLExecutePlan createPlan(String schema, String table, SQLQueryParams sqlQueryParams) throws SQLException {
-        var sql = SQL.of("select * from ?.\"?\"", schema, table);
+        var schemaIdentifier = SQLIdentifier.quote(this.getDbType(), schema);
+        var tableIdentifier = SQLIdentifier.quote(this.getDbType(), table);
+        var sql = SQL.of("select * from " + schemaIdentifier + "." + tableIdentifier);
         return this.createPlan(sql, sqlQueryParams);
     }
 

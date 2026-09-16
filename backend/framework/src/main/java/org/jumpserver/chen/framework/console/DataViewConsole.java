@@ -144,6 +144,12 @@ public class DataViewConsole extends AbstractConsole {
             this.tableDataView.loadData();
         } catch (SQLException e) {
             this.getMessager().send(Message.error(MessageUtils.get("FetchError"), e.getMessage()));
+        } catch (RuntimeException e) {
+            // A single DataView init/load failure (e.g. a ParserException from an
+            // unparseable generated SQL) must surface as an error to the client instead
+            // of tearing down the whole console websocket session.
+            this.getConsoleLogger().error("load data view error: %s", e.getMessage());
+            this.getMessager().send(Message.error(MessageUtils.get("FetchError"), e.getMessage()));
         } finally {
             this.tableDataView.getStateManager().getState().setLoading(false);
             this.tableDataView.getStateManager().commit();
