@@ -289,13 +289,12 @@ public class PageUtils {
         SQLBinaryOpExpr pageCondition = new SQLBinaryOpExpr(gt, SQLBinaryOperator.BooleanAnd, lteq, DbType.sqlserver);
         SQLServerSelectQueryBlock queryBlock;
         SQLAggregateExpr aggregateExpr;
-        SQLOrderBy orderBy;
         SQLServerSelectQueryBlock countQueryBlock;
         if (query instanceof SQLSelectQueryBlock) {
             queryBlock = (SQLServerSelectQueryBlock) query;
             if (offset <= 0) {
                 SQLTop top = queryBlock.getTop();
-                if (check && top != null && !top.isPercent() && top.getExpr() instanceof SQLNumericLiteralExpr) {
+                if (top != null && !top.isPercent() && top.getExpr() instanceof SQLNumericLiteralExpr) {
                     int rowCount = ((SQLNumericLiteralExpr) top.getExpr()).getNumber().intValue();
                     if (rowCount <= count) {
                         return false;
@@ -304,23 +303,8 @@ public class PageUtils {
                 queryBlock.setTop(new SQLTop(new SQLNumberExpr(count)));
                 return true;
             } else {
-                // 创建 SELECT NULL 的子查询
-                SQLSelectQueryBlock selectQueryBlock = new SQLSelectQueryBlock();
-                selectQueryBlock.addSelectItem(new SQLSelectItem(new SQLNullExpr()));
-
-                SQLSelect selectNull = new SQLSelect();
-                selectNull.setQuery(selectQueryBlock);
-
-                SQLQueryExpr selectNullExpr = new SQLQueryExpr(selectNull);
-
-                // 使用 SELECT NULL 的子查询作为 ORDER BY 的一部分
-                SQLSelectOrderByItem orderByItem = new SQLSelectOrderByItem(selectNullExpr);
-                SQLOrderBy orderByNull = new SQLOrderBy();
-                orderByNull.addItem(orderByItem);
-
                 aggregateExpr = new SQLAggregateExpr("ROW_NUMBER");
-                aggregateExpr.setOver(new SQLOver(orderByNull));
-
+                aggregateExpr.setOver(new SQLOver(sqlServerRowNumberOrderBy(select, queryBlock)));
                 queryBlock.getSelectList().add(new SQLSelectItem(aggregateExpr, "ROWNUM"));
 
                 countQueryBlock = new SQLServerSelectQueryBlock();
@@ -337,22 +321,8 @@ public class PageUtils {
                 select.setQuery(queryBlock);
                 return true;
             } else {
-                // 重复上述逻辑，因为需要处理非 SQLSelectQueryBlock 的情况
-                SQLSelectQueryBlock selectQueryBlockForNonBlock = new SQLSelectQueryBlock();
-                selectQueryBlockForNonBlock.addSelectItem(new SQLSelectItem(new SQLNullExpr()));
-
-                SQLSelect selectNullForNonBlock = new SQLSelect();
-                selectNullForNonBlock.setQuery(selectQueryBlockForNonBlock);
-
-                SQLQueryExpr selectNullExprForNonBlock = new SQLQueryExpr(selectNullForNonBlock);
-
-                SQLSelectOrderByItem orderByItemForNonBlock = new SQLSelectOrderByItem(selectNullExprForNonBlock);
-                SQLOrderBy orderByNullForNonBlock = new SQLOrderBy();
-                orderByNullForNonBlock.addItem(orderByItemForNonBlock);
-
                 aggregateExpr = new SQLAggregateExpr("ROW_NUMBER");
-                aggregateExpr.setOver(new SQLOver(orderByNullForNonBlock));
-
+                aggregateExpr.setOver(new SQLOver(sqlServerRowNumberOrderBy(select, null)));
                 queryBlock.getSelectList().add(new SQLSelectItem(aggregateExpr, "ROWNUM"));
 
                 countQueryBlock = new SQLServerSelectQueryBlock();
@@ -363,6 +333,35 @@ public class PageUtils {
                 return true;
             }
         }
+    }
+
+    private static SQLOrderBy sqlServerRowNumberOrderBy(SQLSelect select, SQLSelectQueryBlock queryBlock) {
+        SQLOrderBy orderBy = select.getOrderBy();
+        if (orderBy != null) {
+            select.setOrderBy(null);
+        } else if (queryBlock != null && queryBlock.getOrderBy() != null) {
+            orderBy = queryBlock.getOrderBy();
+            queryBlock.setOrderBy(null);
+        }
+        if (orderBy == null || orderBy.getItems().isEmpty()) {
+            return sqlServerDummyOrderBy();
+        }
+        return orderBy;
+    }
+
+    private static SQLOrderBy sqlServerDummyOrderBy() {
+        SQLSelectQueryBlock selectQueryBlock = new SQLSelectQueryBlock();
+        selectQueryBlock.addSelectItem(new SQLSelectItem(new SQLNullExpr()));
+
+        SQLSelect selectNull = new SQLSelect();
+        selectNull.setQuery(selectQueryBlock);
+
+        SQLQueryExpr selectNullExpr = new SQLQueryExpr(selectNull);
+        selectNullExpr.setParenthesized(true);
+
+        SQLOrderBy orderByNull = new SQLOrderBy();
+        orderByNull.addItem(new SQLSelectOrderByItem(selectNullExpr));
+        return orderByNull;
     }
 
 
@@ -647,6 +646,21 @@ public class PageUtils {
                     if (query instanceof OdpsSelectQueryBlock) {
                         limit = ((OdpsSelectQueryBlock) query).getLimit();
                         rowCountExpr = limit != null ? limit.getRowCount() : null;
+                        if (rowCountExpr instanceof SQLNumericLiteralExpr) {
+                            rowCount = ((SQLNumericLiteralExpr) rowCountExpr).getNumber().intValue();
+                            return rowCount;
+                        }
+
+                        return Integer.MAX_VALUE;
+                    }
+
+                    if (query instanceof SQLServerSelectQueryBlock) {
+                        SQLTop top = ((SQLServerSelectQueryBlock) query).getTop();
+                        if (top == null || top.isPercent()) {
+                            return -1;
+                        }
+
+                        rowCountExpr = top.getExpr();
                         if (rowCountExpr instanceof SQLNumericLiteralExpr) {
                             rowCount = ((SQLNumericLiteralExpr) rowCountExpr).getNumber().intValue();
                             return rowCount;
