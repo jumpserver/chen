@@ -294,7 +294,7 @@ public class PageUtils {
             queryBlock = (SQLServerSelectQueryBlock) query;
             if (offset <= 0) {
                 SQLTop top = queryBlock.getTop();
-                if (check && top != null && !top.isPercent() && top.getExpr() instanceof SQLNumericLiteralExpr) {
+                if (top != null && !top.isPercent() && top.getExpr() instanceof SQLNumericLiteralExpr) {
                     int rowCount = ((SQLNumericLiteralExpr) top.getExpr()).getNumber().intValue();
                     if (rowCount <= count) {
                         return false;
@@ -646,6 +646,21 @@ public class PageUtils {
                     if (query instanceof OdpsSelectQueryBlock) {
                         limit = ((OdpsSelectQueryBlock) query).getLimit();
                         rowCountExpr = limit != null ? limit.getRowCount() : null;
+                        if (rowCountExpr instanceof SQLNumericLiteralExpr) {
+                            rowCount = ((SQLNumericLiteralExpr) rowCountExpr).getNumber().intValue();
+                            return rowCount;
+                        }
+
+                        return Integer.MAX_VALUE;
+                    }
+
+                    if (query instanceof SQLServerSelectQueryBlock) {
+                        SQLTop top = ((SQLServerSelectQueryBlock) query).getTop();
+                        if (top == null || top.isPercent()) {
+                            return -1;
+                        }
+
+                        rowCountExpr = top.getExpr();
                         if (rowCountExpr instanceof SQLNumericLiteralExpr) {
                             rowCount = ((SQLNumericLiteralExpr) rowCountExpr).getNumber().intValue();
                             return rowCount;

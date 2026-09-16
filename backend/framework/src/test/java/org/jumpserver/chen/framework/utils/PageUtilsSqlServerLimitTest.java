@@ -81,6 +81,48 @@ class PageUtilsSqlServerLimitTest {
     }
 
     @Test
+    void getLimitRecognizesSqlServerTop() {
+        assertEquals(-1, PageUtils.getLimit(CROSS_JOIN_SQL, DbType.sqlserver));
+        assertEquals(10, PageUtils.getLimit("SELECT TOP 10 * FROM sys.all_objects", DbType.sqlserver));
+        assertEquals(20, PageUtils.getLimit("SELECT TOP (20) name FROM sys.all_objects", DbType.sqlserver));
+    }
+
+    @Test
+    void existingTopIsLeftToGetLimitInsteadOfBrokenWrap() {
+        String source = "SELECT TOP 10 * FROM sys.all_objects";
+        assertEquals(10, PageUtils.getLimit(source, DbType.sqlserver));
+
+        String firstPage = normalize(PageUtils.limit(source, DbType.sqlserver, 0, 100));
+        assertTrue(firstPage.contains("TOP 10"));
+        assertFalse(firstPage.contains("TOP 100"));
+        assertFalse(firstPage.contains("ROW_NUMBER()"));
+
+        String secondPage = normalize(PageUtils.limit(source, DbType.sqlserver, 100, 100));
+        assertTrue(secondPage.contains("ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS ROWNUM"));
+        assertFalse(secondPage.contains("ORDER BY SELECT NULL"));
+    }
+
+    @Test
+    void userTopIsNotOverwrittenByDefaultPageSize() {
+        String source = "SELECT TOP (5) id, name, CreditLimit FROM [dbo].[Customers] ORDER BY [CreditLimit] DESC";
+
+        assertEquals(-1, PageUtils.getLimit(
+                "SELECT id, name, CreditLimit FROM [dbo].[Customers] ORDER BY [CreditLimit] DESC",
+                DbType.sqlserver));
+        assertEquals(5, PageUtils.getLimit(source, DbType.sqlserver));
+
+        String wrapped = generateTargetSQL(source, 0, 50);
+        assertEquals(5, PageUtils.getLimit(wrapped, DbType.sqlserver));
+        assertFalse(normalize(wrapped).contains("TOP 50"));
+        assertTrue(normalize(wrapped).contains("TOP (5)") || normalize(wrapped).contains("TOP 5"));
+
+        String withoutTop = generateTargetSQL(
+                "SELECT id, name, CreditLimit FROM [dbo].[Customers] ORDER BY [CreditLimit] DESC",
+                0, 50);
+        assertTrue(normalize(withoutTop).startsWith("SELECT TOP 50 "));
+    }
+
+    @Test
     void otherDialectsKeepExistingLimitStyle() {
         String mysql = normalize(PageUtils.limit("SELECT id FROM t", DbType.mysql, 100, 50));
         assertTrue(mysql.contains("LIMIT 100, 50") || mysql.contains("LIMIT 50 OFFSET 100"));
@@ -94,6 +136,13 @@ class PageUtilsSqlServerLimitTest {
 
         String db2 = normalize(PageUtils.limit("SELECT id FROM t", DbType.db2, 0, 50)).toUpperCase();
         assertTrue(db2.contains("FETCH FIRST") || db2.contains("FIRST 50") || db2.contains("FIRST"));
+    }
+
+    private static String generateTargetSQL(String source, int offset, int limit) {
+        if (PageUtils.getLimit(source, DbType.sqlserver) > -1) {
+            return source;
+        }
+        return PageUtils.limit(source, DbType.sqlserver, offset, limit);
     }
 
     private static String normalize(String sql) {
