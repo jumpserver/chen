@@ -1,7 +1,7 @@
 package org.jumpserver.chen.framework.console.transaction;
 
-import com.alibaba.druid.DbType;
 import lombok.extern.slf4j.Slf4j;
+import org.jumpserver.chen.framework.datasource.plan.PlanDatabase;
 
 import java.sql.Connection;
 
@@ -10,8 +10,15 @@ public final class QueryTransactionStateInspector {
     private final Connection connection;
     private final TransactionStateProbe probe;
 
-    public static QueryTransactionStateInspector create(DbType dbType, Connection connection) {
-        TransactionStateProbe probe = switch (dbType) {
+    public static QueryTransactionStateInspector create(PlanDatabase database, Connection connection) {
+        return new QueryTransactionStateInspector(connection, probeFor(database));
+    }
+
+    static TransactionStateProbe probeFor(PlanDatabase database) {
+        if (database == null) {
+            return ignored -> QueryTransactionState.UNKNOWN;
+        }
+        return switch (database) {
             case postgresql -> new PostgresqlTransactionStateProbe();
             case mysql -> new MysqlDriverTransactionStateProbe();
             case mariadb -> new MysqlTransactionStateProbe();
@@ -21,7 +28,6 @@ public final class QueryTransactionStateInspector {
             case db2 -> new Db2TransactionStateProbe();
             default -> ignored -> QueryTransactionState.UNKNOWN;
         };
-        return new QueryTransactionStateInspector(connection, probe);
     }
 
     QueryTransactionStateInspector(Connection connection, TransactionStateProbe probe) {
