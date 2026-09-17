@@ -15,6 +15,28 @@ import java.util.List;
 public class OracleActionHandler extends BaseActionHandler {
 
     @Override
+    public List<Action> getSchemaActions(TreeNode node) {
+        return List.of(
+                Action.builder()
+                        .label(MessageUtils.get("Refresh"))
+                        .key("refresh_node")
+                        .divided(true)
+                        .icon("el-icon-refresh")
+                        .build(),
+                Action.builder()
+                        .label(MessageUtils.get("NewQuery"))
+                        .key("new_query")
+                        .icon("el-icon-search")
+                        .build(),
+                Action.builder()
+                        .label(MessageUtils.get("ShowProperties"))
+                        .key("show_properties")
+                        .icon("fa fa-align-justify")
+                        .build()
+        );
+    }
+
+    @Override
     public List<Action> getTableActions(TreeNode node) {
         return List.of(
                 Action.builder()
