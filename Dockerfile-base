@@ -24,18 +24,11 @@ RUN set -ex \
     && dpkg -i check_linux_${TARGETARCH}.deb \
     && rm -f check_linux_${TARGETARCH}.deb
 
-ARG WISP_VERSION=v0.2.14
+ARG WISP_VERSION=v0.2.15
 RUN set -ex \
     && wget https://github.com/jumpserver/wisp/releases/download/${WISP_VERSION}/wisp_linux_${TARGETARCH}.deb \
     && dpkg -i wisp_linux_${TARGETARCH}.deb \
     && rm -f wisp_linux_${TARGETARCH}.deb
-
-# Install NPM dependencies
-WORKDIR /opt/chen/frontend
-COPY frontend/package.json frontend/package-lock.json frontend/yarn.lock ./
-
-RUN --mount=type=cache,target=/usr/local/share/.cache/yarn,sharing=locked,id=chen \
-    npm install
 
 # Install Maven dependencies
 ARG MAVEN_VERSION=3.9.16
@@ -61,7 +54,6 @@ RUN set -ex \
     && rm -f /tmp/apache-maven.tar.gz \
     && ln -s /usr/share/maven/bin/mvn /usr/bin/mvn \
     && mkdir -p /root/.m2 \
-    && mkdir -p /opt/chen/frontend/dist \
     && sed -i "s@https://repo.maven.apache.org/maven2@${MAVEN_MIRROR}@g" settings.xml \
     && cp -f settings.xml /root/.m2/ \
     && mvn clean install

@@ -69,7 +69,10 @@ public class AuthController {
 
         return switch (langTag.toLowerCase()) {
             case "ja" -> Locale.JAPAN;
-            case "tw", "zh-hant" -> Locale.TAIWAN;
+            case "ko" -> Locale.KOREAN;
+            case "pt", "pt-br", "pt_br" -> Locale.of("pt", "BR");
+            case "es", "ru", "vi" -> Locale.of(langTag.toLowerCase());
+            case "tw", "zh-hant", "zh-tw" -> Locale.TAIWAN;
             case "zh", "zh-cn", "zh-hans" -> Locale.CHINA;
             default -> Locale.US;
         };

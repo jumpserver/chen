@@ -1,6 +1,7 @@
 package org.jumpserver.chen.framework.datasource.entity.resource;
 
 import lombok.Data;
+import org.jumpserver.chen.framework.datasource.metadata.RelationKind;
 import org.jumpserver.chen.framework.utils.TreeUtils;
 
 @Data
@@ -14,6 +15,7 @@ public class Table implements ResourceNode {
         TreeNode treeNode = new TreeNode();
         treeNode.setLabel(this.name);
         treeNode.setType("table");
+        treeNode.setRelationKind(RelationKind.TABLE.code());
         treeNode.setKey(TreeUtils.generateNodeKey(parent, treeNode.getType(), name));
         treeNode.setHasChildren(false);
         return treeNode;

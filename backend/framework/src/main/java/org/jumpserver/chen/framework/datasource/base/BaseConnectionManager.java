@@ -76,12 +76,37 @@ public abstract class BaseConnectionManager implements ConnectionManager {
 
     @Override
     public void setDatabaseContext(String database) {
-        this.currentDatabase.set(database);
+        if (StringUtils.isBlank(database)) {
+            this.currentDatabase.remove();
+        } else {
+            this.currentDatabase.set(database);
+        }
+    }
+
+    @Override
+    public <T> T withDatabaseContext(String database, DatabaseContextAction<T> action) throws SQLException {
+        var previousDatabase = this.currentDatabase.get();
+        try {
+            this.setDatabaseContext(database);
+            return action.run();
+        } finally {
+            if (previousDatabase == null) {
+                this.currentDatabase.remove();
+            } else {
+                this.currentDatabase.set(previousDatabase);
+            }
+        }
     }
 
     @Override
     public String getContextKey() {
         return "schema";
+    }
+
+    @Override
+    public String getDatabaseContextKey() {
+        // 大多数数据库的连接上下文是 database；MySQL/MariaDB 会覆盖为 schema。
+        return "database";
     }
 
     @Override

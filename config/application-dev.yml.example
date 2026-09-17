@@ -1,0 +1,9 @@
+mock:
+  enable: true
+  mysql:
+    db-type: mysql
+    host: host.docker.internal
+    port: 3306
+    user: root
+    password: your_password
+    db: test

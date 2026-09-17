@@ -3,6 +3,7 @@ package org.jumpserver.chen.framework.session;
 import org.jumpserver.chen.framework.console.Console;
 import org.jumpserver.chen.framework.datasource.Datasource;
 import org.jumpserver.chen.framework.datasource.sql.SQLQueryResult;
+import org.jumpserver.chen.framework.jms.acl.ACLCommandContext;
 import org.jumpserver.chen.framework.jms.acl.ACLResult;
 import org.jumpserver.chen.framework.jms.entity.CommandRecord;
 import org.jumpserver.chen.framework.jms.exception.CommandRejectException;
@@ -79,12 +80,24 @@ public interface Session {
 
     boolean isActive();
 
+    boolean isClosing();
+
     void close();
 
     void close(String message, Object... args);
 
     // 在有审计的情况下执行命令
     SQLQueryResult withAudit(String command, QueryAuditFunction queryAuditFunction) throws SQLException, CommandRejectException;
+
+    default SQLQueryResult withAudit(String command, ACLResult aclResult, QueryAuditFunction queryAuditFunction)
+            throws SQLException, CommandRejectException {
+        return withAudit(command, queryAuditFunction);
+    }
+
+    List<Map<String, Object>> withMetadataQueryAudit(
+            String command,
+            MetadataQueryAuditFunction queryAuditFunction
+    ) throws SQLException;
 
     void recordCommand(String command);
 
@@ -93,6 +106,10 @@ public interface Session {
     ACLResult checkACL(String command);
 
     ACLResult checkACL(String command, Connection connection);
+
+    default ACLResult checkACLWithContext(String command, ACLCommandContext context) {
+        return this.checkACL(command, context.connection());
+    }
 
     boolean enableAutoComplete();
 

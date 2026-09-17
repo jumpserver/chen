@@ -1,74 +1,165 @@
 package org.jumpserver.chen.framework.console;
 
+import com.alibaba.druid.DbType;
 import com.alibaba.druid.sql.parser.ParserException;
 import com.google.gson.Gson;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.jumpserver.chen.framework.console.action.DataViewAction;
 import org.jumpserver.chen.framework.console.action.QueryConsoleAction;
+import org.jumpserver.chen.framework.console.plan.ExecutionPlanService;
+import org.jumpserver.chen.framework.console.plan.QueryConsolePlanContext;
 import org.jumpserver.chen.framework.console.dataview.DataView;
+import org.jumpserver.chen.framework.console.dataview.QueryDataViewTableEditContextFactory;
 import org.jumpserver.chen.framework.console.dataview.UpdateDataView;
+import org.jumpserver.chen.framework.console.context.ConsoleContext;
 import org.jumpserver.chen.framework.console.entity.request.Connect;
+import org.jumpserver.chen.framework.console.entity.request.SaveChangesRequest;
 import org.jumpserver.chen.framework.console.entity.response.Message;
+import org.jumpserver.chen.framework.console.entity.response.SaveChangesPreviewResult;
+import org.jumpserver.chen.framework.console.entity.response.SaveChangesResult;
 import org.jumpserver.chen.framework.console.state.QueryConsoleState;
 import org.jumpserver.chen.framework.console.state.StateManager;
+import org.jumpserver.chen.framework.console.transaction.QueryTransactionProbeResult;
+import org.jumpserver.chen.framework.console.transaction.QueryTransactionStateInspector;
 import org.jumpserver.chen.framework.datasource.Datasource;
+import org.jumpserver.chen.framework.datasource.edit.ConnectionOwnership;
+import org.jumpserver.chen.framework.datasource.edit.SaveExecutionContext;
+import org.jumpserver.chen.framework.datasource.edit.ServiceManagedSaveExecutionContext;
+import org.jumpserver.chen.framework.datasource.edit.TableChangesPreviewService;
+import org.jumpserver.chen.framework.datasource.edit.TableChangesSaveService;
+import org.jumpserver.chen.framework.datasource.edit.UserManagedSaveExecutionContext;
 import org.jumpserver.chen.framework.datasource.sql.SQL;
 import org.jumpserver.chen.framework.datasource.sql.SQLActuator;
 import org.jumpserver.chen.framework.datasource.sql.SQLExecutePlan;
+import org.jumpserver.chen.framework.datasource.sql.SQLQueryResult;
+import org.jumpserver.chen.framework.datasource.plan.ConnectionInvalidatedException;
+import org.jumpserver.chen.framework.datasource.plan.ExecutionPlan;
+import org.jumpserver.chen.framework.datasource.plan.ExecutionPlanJson;
+import org.jumpserver.chen.framework.datasource.plan.PlanCodes;
+import org.jumpserver.chen.framework.datasource.plan.PlanDiagnostic;
+import org.jumpserver.chen.framework.datasource.plan.PlanEffects;
+import org.jumpserver.chen.framework.datasource.plan.PlanLimits;
+import org.jumpserver.chen.framework.datasource.plan.PlanMode;
+import org.jumpserver.chen.framework.datasource.plan.PlanStatus;
 import org.jumpserver.chen.framework.i18n.MessageUtils;
 import org.jumpserver.chen.framework.jms.acl.ACLResult;
 import org.jumpserver.chen.framework.jms.entity.CommandRecord;
+import org.jumpserver.chen.framework.session.Session;
 import org.jumpserver.chen.framework.session.SessionManager;
+import org.jumpserver.chen.framework.session.controller.DialogHandle;
 import org.jumpserver.chen.framework.session.controller.dialog.Button;
 import org.jumpserver.chen.framework.session.controller.dialog.Dialog;
-import org.jumpserver.chen.framework.utils.TreeUtils;
 import org.jumpserver.chen.framework.ws.io.Packet;
 import org.jumpserver.wisp.Common;
 import org.springframework.web.socket.WebSocketSession;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
+import java.nio.file.LinkOption;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.sql.Connection;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReentrantLock;
 
 @Slf4j
 public class QueryConsole extends AbstractConsole {
+    private static final String PACKET_SAVE_CHANGES_PREVIEW_RESULT = "save_changes_preview_result";
+    private static final String PACKET_SAVE_CHANGES_RESULT = "save_changes_result";
+    private static final long WARNING_DIALOG_TIMEOUT_SECONDS = 300;
+    static final String QUERY_CONSOLE_CONNECTION_UNAVAILABLE = "QUERY_CONSOLE_CONNECTION_UNAVAILABLE";
+    static final String QUERY_TRANSACTION_MANUAL_IDLE = "QUERY_TRANSACTION_MANUAL_IDLE";
+    static final String QUERY_TRANSACTION_FAILED = "QUERY_TRANSACTION_FAILED";
+    static final String QUERY_TRANSACTION_STATE_UNKNOWN = "QUERY_TRANSACTION_STATE_UNKNOWN";
+    static final String QUERY_TRANSACTION_PROBE_FAILED = "QUERY_TRANSACTION_PROBE_FAILED";
+    static final String QUERY_INSERT_NOT_SUPPORTED = "QUERY_INSERT_NOT_SUPPORTED";
+    static final String QUERY_DELETE_NOT_SUPPORTED = "QUERY_DELETE_NOT_SUPPORTED";
+    static final String CONSOLE_DATA_VIEW_EDIT_NOT_SUPPORTED = "CONSOLE_DATA_VIEW_EDIT_NOT_SUPPORTED";
+    private static final String EXECUTION_STATUS_RUNNING = "running";
+    private static final String EXECUTION_STATUS_SUCCESS = "success";
+    private static final String EXECUTION_STATUS_ERROR = "error";
+    private static final String EXECUTION_STATUS_CANCELLED = "cancelled";
+    private static final AtomicInteger CANCEL_THREAD_SEQUENCE = new AtomicInteger();
+    private static final ExecutorService CANCEL_EXECUTOR = Executors.newCachedThreadPool(runnable -> {
+        Thread thread = new Thread(runnable, "query-console-cancel-" + CANCEL_THREAD_SEQUENCE.incrementAndGet());
+        thread.setDaemon(true);
+        return thread;
+    });
 
     private final Datasource datasource;
-    private Connection conn;
-    private volatile SQLExecutePlan currentPlan;
+    private final boolean consoleMode;
+    private final int titleSequence;
+    private final TableChangesPreviewService tableChangesPreviewService = new TableChangesPreviewService();
+    private final TableChangesSaveService tableChangesSaveService = new TableChangesSaveService();
+    private final QueryDataViewTableEditContextFactory tableEditContextFactory = new QueryDataViewTableEditContextFactory();
+    // Single lifecycle lock: beginExecution() admits work before it can access the connection,
+    // and close() waits for admitted work to finish. Reentrancy lets the admitted handler call
+    // getConnection() throughout its execution without observing closed=true midway through.
+    private final ReentrantLock executionLock = new ReentrantLock();
+    private final AtomicBoolean closed = new AtomicBoolean(false);
+    private volatile Connection conn;
+    private volatile long backendSessionId;
+    // Driver-specific transaction probe created alongside the physical connection. The driver's
+    // cached autoCommit flag does not reflect explicit BEGIN/START TRANSACTION on MySQL, Oracle,
+    // SQL Server, Dameng or DB2, so the server-side probe is the real source of truth for whether
+    // a user transaction is open before a DataView save commits or stages behind a savepoint.
+    private volatile QueryTransactionStateInspector transactionStateInspector;
+    private volatile ActiveExecution currentExecution;
     private StateManager<QueryConsoleState> stateManager;
-    private final Map<String, DataView> dataViews = new HashMap<>();
+    private final Map<String, DataView> dataViews = new LinkedHashMap<>();
+    // Manual context changes remain restricted to values returned by the current server-side actuator.
     private volatile Map<String, String> allowedContexts = Map.of();
     private final SQLChunkTransferManager sqlChunkTransfers = new SQLChunkTransferManager();
 
     private static final Gson GSON = new Gson();
 
-    public QueryConsole(Datasource datasource, WebSocketSession ws, String nodeKey) {
-        super(datasource, ws, nodeKey);
-        this.setTitle(String.format(MessageUtils.get("Query") + "-%d", generateConsoleName()));
+    public QueryConsole(Datasource datasource, WebSocketSession ws, ConsoleContext context) {
+        this(datasource, ws, context, false);
+    }
+
+    public QueryConsole(
+            Datasource datasource,
+            WebSocketSession ws,
+            ConsoleContext context,
+            boolean consoleMode
+    ) {
+        super(datasource, ws, context);
+        this.consoleMode = consoleMode;
+        this.titleSequence = generateConsoleName(consoleMode);
+        this.setTitle(String.format(
+                MessageUtils.get(consoleMode ? "Console" : "Query") + "-%d",
+                this.titleSequence
+        ));
         this.datasource = datasource;
     }
 
-    private static int generateConsoleName() {
+    private static int generateConsoleName(boolean consoleMode) {
         int num = 1;
         var consoles = SessionManager
                 .getCurrentSession()
                 .getConsoles();
 
         for (var console : consoles.values()) {
-            if (console instanceof QueryConsole) {
-                ++num;
+            if (console instanceof QueryConsole queryConsole && queryConsole.consoleMode == consoleMode) {
+                num = Math.max(num, queryConsole.titleSequence + 1);
             }
         }
         return num;
@@ -76,8 +167,15 @@ public class QueryConsole extends AbstractConsole {
 
     @Override
     public void onInit(Connect connect) {
-        super.onInit(connect);
-        this.onConnect(connect);
+        if (!this.beginExecution()) {
+            return;
+        }
+        try {
+            super.onInit(connect);
+            this.onConnect(connect);
+        } finally {
+            this.executionLock.unlock();
+        }
     }
 
     public void onConnect(Connect connect) {
@@ -88,7 +186,7 @@ public class QueryConsole extends AbstractConsole {
         this.getState().setLoading(true);
         this.stateManager.commit();
 
-        var context = TreeUtils.getValue(connect.getNodeKey(), this.getDatasource().getConnectionManager().getContextKey());
+        var context = this.getInitialContext();
         try {
             var currentContext = this.getSqlActuator().getCurrentSchema();
 
@@ -106,6 +204,7 @@ public class QueryConsole extends AbstractConsole {
 
         } catch (SQLException e) {
             this.getConsoleLogger().error(MessageUtils.get("ConnectError") + ": %s", e.getMessage());
+            throw new IllegalStateException("Failed to initialize query console", e);
         }
 
         this.getState().setLoading(false);
@@ -113,27 +212,111 @@ public class QueryConsole extends AbstractConsole {
 
     }
 
-    private Connection getConnection() {
-        if (this.conn == null) {
-            try {
-                this.conn = this.getDatasource().getConnectionManager().getPhysicalConnection();
-            } catch (SQLException e) {
-                throw new RuntimeException(e);
-            }
-        }
-        return this.conn;
+    String getInitialContext() {
+        var contextKey = this.getDatasource().getConnectionManager().getContextKey();
+        return StringUtils.equals(contextKey, "database")
+                ? this.getContext().database()
+                : this.getContext().schema();
     }
 
+    private Connection getConnection() {
+        if (!this.executionLock.isHeldByCurrentThread()) {
+            throw new IllegalStateException("Connection access requires admitted execution");
+        }
+        return this.getOrCreateConnection();
+    }
+
+    private Connection getOrCreateConnection() {
+        if (this.conn != null) {
+            return this.conn;
+        }
+
+        Connection candidate = null;
+        try {
+            var connectionManager = this.getDatasource().getConnectionManager();
+            String currentContext = this.currentConnectionContext();
+            if (StringUtils.isNotBlank(currentContext) &&
+                    StringUtils.equals(
+                            connectionManager.getContextKey(),
+                            connectionManager.getDatabaseContextKey()
+                    )) {
+                connectionManager.setDatabaseContext(currentContext);
+            } else if (this.getContext() != null && StringUtils.isNotBlank(this.getContext().database())) {
+                connectionManager.setDatabaseContext(this.getContext().database());
+            }
+
+            candidate = connectionManager.getPhysicalConnection();
+            if (StringUtils.isNotBlank(currentContext)) {
+                connectionManager.getSqlActuator()
+                        .withConnection(candidate)
+                        .changeSchema(currentContext);
+            }
+            QueryTransactionStateInspector candidateInspector = QueryTransactionStateInspector.create(
+                    this.getDatasource().getDatabaseType(),
+                    candidate
+            );
+
+            this.captureBackendSessionId(candidate);
+            this.conn = candidate;
+            this.transactionStateInspector = candidateInspector;
+            return candidate;
+        } catch (SQLException e) {
+            closeQuietly(candidate);
+            throw new QueryConsoleConnectionUnavailableException(e);
+        } catch (RuntimeException e) {
+            closeQuietly(candidate);
+            throw e;
+        }
+    }
+
+    private String currentConnectionContext() {
+        if (this.stateManager == null) {
+            return null;
+        }
+        return this.getState().getCurrentContext();
+    }
+
+    public String getCurrentContext() {
+        return this.stateManager == null ? "" : StringUtils.defaultString(this.getState().getCurrentContext());
+    }
 
     @Override
     public void handle(Packet packet) {
+        if (StringUtils.equals(packet.getType(), "ping")) {
+            this.getPacketIO().sendPacket("pong", null);
+            return;
+        }
+        if (this.isCancelPacket(packet)) {
+            this.handleCancel();
+            return;
+        }
+        if (!this.beginExecution()) {
+            return;
+        }
+        try {
+            this.handleSerialPacket(packet);
+        } catch (QueryConsoleConnectionUnavailableException e) {
+            log.warn("query console connection unavailable", e);
+            this.getMessager().send(Message.error(
+                    MessageUtils.get("FetchError"),
+                    QUERY_CONSOLE_CONNECTION_UNAVAILABLE
+            ));
+        } finally {
+            this.executionLock.unlock();
+        }
+    }
+
+    private void handleSerialPacket(Packet packet) {
 
         switch (packet.getType()) {
             case "ping" -> this.getPacketIO().sendPacket("pong", null);
             case "close_data_view" -> {
-                var name = (String) packet.getData();
-                this.dataViews.remove(name);
-                log.info("close data view {}", name);
+                var reference = (String) packet.getData();
+                var dataView = this.findDataView(reference);
+                if (dataView != null) {
+                    this.dataViews.remove(dataView.getId());
+                }
+                log.info("close data view {}", reference);
             }
 
             case Packet.TYPE_QUERY_CONSOLE_ACTION -> {
@@ -149,13 +332,31 @@ public class QueryConsole extends AbstractConsole {
         }
     }
 
+    private boolean isCancelPacket(Packet packet) {
+        if (!StringUtils.equals(packet.getType(), Packet.TYPE_QUERY_CONSOLE_ACTION)) {
+            return false;
+        }
+        var action = GSON.fromJson(GSON.toJson(packet.getData()), QueryConsoleAction.class);
+        return StringUtils.equals(action.getAction(), QueryConsoleAction.ACTION_CANCEL);
+    }
+
+    private boolean beginExecution() {
+        if (this.closed.get()) {
+            return false;
+        }
+        this.executionLock.lock();
+        if (this.closed.get()) {
+            this.executionLock.unlock();
+            return false;
+        }
+        return true;
+    }
+
 
     private void onAction(QueryConsoleAction action) {
         switch (action.getAction()) {
             case QueryConsoleAction.ACTION_RUN_SQL -> {
-                this.getState().setInQuery(true);
-                this.stateManager.commit();
-
+                this.beginNewSqlSubmission();
                 var sql = (String) action.getData();
                 this.onSQL(sql);
 
@@ -170,9 +371,7 @@ public class QueryConsole extends AbstractConsole {
             }
 
             case QueryConsoleAction.ACTION_RUN_SQL_FILE -> {
-                this.getState().setInQuery(true);
-                this.stateManager.commit();
-
+                this.beginNewSqlSubmission();
                 var sqlFile = (String) action.getData();
                 this.onSQLFile(sqlFile);
 
@@ -180,17 +379,14 @@ public class QueryConsole extends AbstractConsole {
                 this.stateManager.commit();
             }
 
-
             case QueryConsoleAction.ACTION_CANCEL -> {
-                this.sqlChunkTransfers.cancelAll();
-                this.onCancel();
-                this.getState().setInQuery(false);
-                this.stateManager.commit();
+                this.handleCancel();
             }
             case QueryConsoleAction.ACTION_CHANGE_CURRENT_CONTEXT -> {
                 var schema = (String) action.getData();
                 this.onManualChangeContext(schema);
             }
+            case QueryConsoleAction.ACTION_GET_EXECUTION_PLAN -> this.onGetExecutionPlan(action);
         }
     }
 
@@ -202,7 +398,7 @@ public class QueryConsole extends AbstractConsole {
             this.getConsoleLogger().error("Invalid SQL chunk transfer: %s", e.getMessage());
             return;
         }
-        sql.ifPresent(this::onSQL);
+        this.runAssembledSql(sql);
     }
 
     private void handleSQLComplete(QueryConsoleAction action) {
@@ -213,13 +409,70 @@ public class QueryConsole extends AbstractConsole {
             this.getConsoleLogger().error("Invalid SQL chunk transfer: %s", e.getMessage());
             return;
         }
-        sql.ifPresent(this::onSQL);
+        this.runAssembledSql(sql);
+    }
+
+    private void beginNewSqlSubmission() {
+        this.getState().setInQuery(true);
+        this.getState().setExecutionStatus(EXECUTION_STATUS_RUNNING);
+        this.getState().setCanCancel(true);
+        this.stateManager.commit();
+    }
+
+    private void runAssembledSql(Optional<String> sql) {
+        sql.ifPresent(assembled -> {
+            this.beginNewSqlSubmission();
+            this.onSQL(assembled);
+        });
     }
 
     private void onDataViewAction(DataViewAction action) {
-        var dataView = this.dataViews.get(action.getDataView());
+        if (this.consoleMode && DataViewAction.ACTION_SAVE_CHANGES_PREVIEW.equals(action.getAction())) {
+            this.getPacketIO().sendPacket(PACKET_SAVE_CHANGES_PREVIEW_RESULT, Map.of(
+                    "success", false,
+                    "allowed", false,
+                    "reason", CONSOLE_DATA_VIEW_EDIT_NOT_SUPPORTED,
+                    "dataView", action.getDataView()
+            ));
+            return;
+        }
+        if (this.consoleMode && DataViewAction.ACTION_SAVE_CHANGES.equals(action.getAction())) {
+            this.getPacketIO().sendPacket(PACKET_SAVE_CHANGES_RESULT, Map.of(
+                    "success", false,
+                    "allowed", false,
+                    "reason", CONSOLE_DATA_VIEW_EDIT_NOT_SUPPORTED,
+                    "dataView", action.getDataView()
+            ));
+            return;
+        }
+        var dataView = this.findDataView(action.getDataView());
         if (dataView == null) {
             log.error("data view {} not found", action.getDataView());
+            return;
+        }
+        if (DataViewAction.ACTION_SAVE_CHANGES_PREVIEW.equals(action.getAction())) {
+            var request = GSON.fromJson(GSON.toJson(action.getData()), SaveChangesRequest.class);
+            String unsupportedReason = unsupportedQueryMutation(request);
+            if (unsupportedReason != null) {
+                this.getPacketIO().sendPacket(
+                        PACKET_SAVE_CHANGES_PREVIEW_RESULT,
+                        this.rejectedPreview(dataView, unsupportedReason)
+                );
+                return;
+            }
+            try {
+                var context = this.tableEditContextFactory.create(dataView, this.getDatasource().getDruidDbType());
+                var result = this.tableChangesPreviewService.preview(context, dataView.getTitle(), request);
+                this.getPacketIO().sendPacket(PACKET_SAVE_CHANGES_PREVIEW_RESULT, result);
+            } catch (IllegalArgumentException e) {
+                this.getPacketIO().sendPacket(PACKET_SAVE_CHANGES_PREVIEW_RESULT, this.rejectedPreview(dataView, e.getMessage()));
+            }
+            return;
+        }
+        if (DataViewAction.ACTION_SAVE_CHANGES.equals(action.getAction())) {
+            var request = GSON.fromJson(GSON.toJson(action.getData()), SaveChangesRequest.class);
+            SaveChangesResult result = this.saveQueryChanges(dataView, dataView.getTitle(), request);
+            this.getPacketIO().sendPacket(PACKET_SAVE_CHANGES_RESULT, result);
             return;
         }
         try {
@@ -228,7 +481,10 @@ public class QueryConsole extends AbstractConsole {
 
             dataView.doAction(action);
 
-            this.getPacketIO().sendPacket("update_data_view", new UpdateDataView(action.getDataView(), dataView.getData()));
+            this.getPacketIO().sendPacket(
+                    "update_data_view",
+                    new UpdateDataView(dataView.getId(), dataView.getTitle(), dataView.getData())
+            );
 
         } catch (SQLException e) {
             this.getMessager().send(Message.error(MessageUtils.get("FetchError"), e.getMessage()));
@@ -238,15 +494,466 @@ public class QueryConsole extends AbstractConsole {
         }
     }
 
-    public void onCancel() {
-        try {
-            if (this.currentPlan != null) {
-                this.currentPlan.cancel();
-                this.getConsoleLogger().error("cancel query: %s", this.currentPlan.getTargetSQL());
+    private SaveChangesResult saveQueryChanges(
+            DataView dataView,
+            String actionDataView,
+            SaveChangesRequest request
+    ) {
+        String unsupportedReason = unsupportedQueryMutation(request);
+        if (unsupportedReason != null) {
+            return this.rejectedSave(dataView, unsupportedReason);
+        }
+
+        // Probe the driver-side transaction state before touching the connection. The cached
+        // autoCommit flag is unreliable on MySQL/Oracle/SQL Server/Dameng/DB2 (it does not flip on
+        // explicit BEGIN), so the server-side probe is the source of truth:
+        //   AUTO_COMMIT            -> no user tx open; service-managed transaction committed for the user
+        //   TRANSACTION_ACTIVE     -> user owns the tx; batch staged behind a savepoint, outer tx never committed
+        //   MANUAL_COMMIT_IDLE     -> reject; Chen does not start a user transaction implicitly
+        //   TRANSACTION_FAILED     -> reject; the user must rollback the failed tx first
+        //   UNKNOWN / probeFailed  -> fail closed; never risk committing or staging on an uncertain connection
+        Connection connection = this.getConnection();
+        QueryTransactionStateInspector inspector = this.transactionStateInspector;
+        if (inspector == null) {
+            return this.rejectedSave(dataView, QUERY_CONSOLE_CONNECTION_UNAVAILABLE);
+        }
+        QueryTransactionProbeResult probeResult = inspector.probeNow();
+        if (probeResult.probeFailed()) {
+            return this.rejectedSave(dataView, QUERY_TRANSACTION_PROBE_FAILED);
+        }
+
+        SaveExecutionContext executionContext;
+        switch (probeResult.state()) {
+            case AUTO_COMMIT -> executionContext = new ServiceManagedSaveExecutionContext(
+                    connection,
+                    ConnectionOwnership.QUERY_CONSOLE
+            );
+            case TRANSACTION_ACTIVE -> executionContext = new UserManagedSaveExecutionContext(connection);
+            case MANUAL_COMMIT_IDLE -> {
+                return this.rejectedSave(dataView, QUERY_TRANSACTION_MANUAL_IDLE);
             }
+            case TRANSACTION_FAILED -> {
+                return this.rejectedSave(dataView, QUERY_TRANSACTION_FAILED);
+            }
+            case UNKNOWN -> {
+                return this.rejectedSave(dataView, QUERY_TRANSACTION_STATE_UNKNOWN);
+            }
+            default -> {
+                return this.rejectedSave(dataView, QUERY_TRANSACTION_STATE_UNKNOWN);
+            }
+        }
+
+        try {
+            var context = this.tableEditContextFactory.create(
+                    dataView,
+                    this.getDatasource().getDruidDbType()
+            );
+            SaveChangesResult result = this.tableChangesSaveService.save(
+                    context,
+                    actionDataView,
+                    request,
+                    executionContext,
+                    SessionManager.getCurrentSession()
+            );
+            if (result.isConnectionInvalidated()) {
+                this.invalidateConnection(result.getReason());
+            }
+            return result;
+        } catch (IllegalArgumentException e) {
+            return this.rejectedSave(dataView, e.getMessage());
+        }
+    }
+
+    private void invalidateConnection(String reason) {
+        closeQuietly(this.detachConnection());
+        log.warn("QueryConsole connection invalidated, reason={}", reason);
+    }
+
+    private Connection detachConnection() {
+        Connection old = this.conn;
+        this.conn = null;
+        this.transactionStateInspector = null;
+        this.backendSessionId = 0;
+        return old;
+    }
+
+    private static void closeQuietly(Connection connection) {
+        if (connection == null) {
+            return;
+        }
+        try {
+            connection.close();
+        } catch (SQLException | RuntimeException e) {
+            log.warn("close query console connection failed", e);
+        }
+    }
+
+    private static String unsupportedQueryMutation(SaveChangesRequest request) {
+        if (request == null) {
+            return null;
+        }
+        if (request.getInsertRows() != null && !request.getInsertRows().isEmpty()) {
+            return QUERY_INSERT_NOT_SUPPORTED;
+        }
+        if (request.getDeleteRows() != null && !request.getDeleteRows().isEmpty()) {
+            return QUERY_DELETE_NOT_SUPPORTED;
+        }
+        return null;
+    }
+
+    private SaveChangesPreviewResult rejectedPreview(DataView dataView, String reason) {
+        SaveChangesPreviewResult result = new SaveChangesPreviewResult();
+        result.setSuccess(false);
+        result.setAllowed(false);
+        result.setReason(reason);
+        result.setDataView(dataView.getId());
+        return result;
+    }
+
+    private SaveChangesResult rejectedSave(DataView dataView, String reason) {
+        SaveChangesResult result = new SaveChangesResult();
+        result.setSuccess(false);
+        result.setAllowed(false);
+        result.setReason(reason);
+        result.setDataView(dataView.getId());
+        return result;
+    }
+
+    private void onGetExecutionPlan(QueryConsoleAction action) {
+        String requestId = StringUtils.trimToEmpty(action.getRequestId());
+        String sql = action.getData() == null ? "" : String.valueOf(action.getData());
+        if (StringUtils.isBlank(requestId)) {
+            this.getMessager().send(Message.error("Invalid plan request", PlanCodes.MISSING_REQUEST_ID));
+            return;
+        }
+
+        String previousStatus = this.getState().getExecutionStatus();
+        QueryConsolePlanContext planContext = null;
+        ActiveExecution execution = null;
+        String serverVersion = null;
+        try {
+            Connection connection = this.getConnection();
+            try {
+                serverVersion = connection.getMetaData().getDatabaseProductVersion();
+            } catch (SQLException ignored) {
+            }
+            planContext = new QueryConsolePlanContext(
+                    connection,
+                    this.transactionStateInspector,
+                    new AtomicBoolean(false),
+                    System.currentTimeMillis() + PlanLimits.DEFAULT_TIMEOUT_MS,
+                    serverVersion
+            );
+            QueryConsolePlanContext contextRef = planContext;
+            execution = new ActiveExecution(sql, contextRef::cancelCurrent, false);
+            this.currentExecution = execution;
+            this.getState().setCanCancel(true);
+            this.stateManager.commit();
+
+            if (this.sendCancelledPlanIfRequested(requestId, sql, serverVersion, planContext)) {
+                return;
+            }
+
+            Session session = SessionManager.getCurrentSession();
+            ACLResult aclResult = session.checkACL(sql, connection);
+            if (this.sendCancelledPlanIfRequested(requestId, sql, serverVersion, planContext)) {
+                return;
+            }
+            if (!this.canExecuteStatement(session, sql, aclResult)) {
+                PlanStatus status = this.planRequestCancelled(planContext)
+                        ? PlanStatus.CANCELLED
+                        : PlanStatus.ERROR;
+                String code = status == PlanStatus.CANCELLED ? PlanCodes.CANCELLED : PlanCodes.PLAN_PERMISSION_DENIED;
+                this.sendExecutionPlan(this.planResult(
+                        requestId,
+                        serverVersion,
+                        sql,
+                        status,
+                        PlanEffects.unchangedReuse(),
+                        PlanDiagnostic.of(code, MessageUtils.get("ACLRejectError"))
+                ));
+                return;
+            }
+            if (this.sendCancelledPlanIfRequested(requestId, sql, serverVersion, planContext)) {
+                return;
+            }
+            ExecutionPlan plan = new ExecutionPlanService().explainEstimated(
+                    this.datasource,
+                    planContext,
+                    sql,
+                    requestId
+            );
+            if (this.connectionDetachedOrUnusable()) {
+                this.invalidateConnection("execution-plan-cancel");
+                this.sendExecutionPlan(this.planResult(
+                        requestId,
+                        serverVersion,
+                        sql,
+                        PlanStatus.CONNECTION_INVALIDATED,
+                        PlanEffects.discard(PlanEffects.SessionState.UNKNOWN, PlanEffects.TransactionState.UNKNOWN),
+                        PlanDiagnostic.of(PlanCodes.CONNECTION_INVALIDATED, "Connection was discarded during cancel")
+                ));
+                return;
+            }
+            this.sendExecutionPlan(plan);
+        } catch (ConnectionInvalidatedException e) {
+            this.invalidateConnection("execution-plan");
+            ExecutionPlan plan = e.partialResult() == null
+                    ? this.planResult(
+                    requestId,
+                    null,
+                    sql,
+                    PlanStatus.CONNECTION_INVALIDATED,
+                    PlanEffects.discard(PlanEffects.SessionState.UNKNOWN, PlanEffects.TransactionState.UNKNOWN),
+                    e.originalError() == null
+                            ? PlanDiagnostic.of(PlanCodes.CONNECTION_INVALIDATED, StringUtils.defaultString(e.getMessage()))
+                            : e.originalError()
+            )
+                    : ExecutionPlan.fromDialect(
+                    requestId,
+                    this.datasource.getExecutionPlanDialect().database(),
+                    PlanMode.ESTIMATED,
+                    sql,
+                    e.partialResult()
+            );
+            if (plan.status() != PlanStatus.CONNECTION_INVALIDATED) {
+                plan = new ExecutionPlan(
+                        plan.requestId(),
+                        plan.database(),
+                        plan.serverVersion(),
+                        plan.mode(),
+                        PlanStatus.CONNECTION_INVALIDATED,
+                        plan.sql(),
+                        plan.roots(),
+                        plan.rawText(),
+                        plan.rawFormat(),
+                        plan.rawFormatVersion(),
+                        plan.rawTruncated(),
+                        plan.capabilities(),
+                        plan.prerequisites(),
+                        PlanEffects.discard(PlanEffects.SessionState.UNKNOWN, PlanEffects.TransactionState.UNKNOWN),
+                        plan.error() == null
+                                ? PlanDiagnostic.of(PlanCodes.CONNECTION_INVALIDATED, StringUtils.defaultString(e.getMessage()))
+                                : plan.error(),
+                        plan.warnings()
+                );
+            }
+            this.sendExecutionPlan(plan);
         } catch (SQLException e) {
+            if (this.connectionDetachedOrUnusable()) {
+                this.invalidateConnection("execution-plan");
+                this.sendExecutionPlan(this.planResult(
+                        requestId,
+                        serverVersion,
+                        sql,
+                        PlanStatus.CONNECTION_INVALIDATED,
+                        PlanEffects.discard(PlanEffects.SessionState.UNKNOWN, PlanEffects.TransactionState.UNKNOWN),
+                        new PlanDiagnostic(
+                                PlanCodes.CONNECTION_INVALIDATED,
+                                StringUtils.defaultString(e.getMessage()),
+                                e.getSQLState(),
+                                Integer.toString(e.getErrorCode())
+                        )
+                ));
+                return;
+            }
+            boolean cancelled = this.planRequestCancelled(planContext)
+                    || "57014".equals(e.getSQLState())
+                    || (e.getMessage() != null && e.getMessage().toLowerCase().contains("cancel"));
+            this.sendExecutionPlan(this.planResult(
+                    requestId,
+                    serverVersion,
+                    sql,
+                    cancelled ? PlanStatus.CANCELLED : PlanStatus.ERROR,
+                    PlanEffects.unchangedReuse(),
+                    new PlanDiagnostic(
+                            cancelled ? PlanCodes.CANCELLED : PlanCodes.SQL_ERROR,
+                            StringUtils.defaultString(e.getMessage()),
+                            e.getSQLState(),
+                            Integer.toString(e.getErrorCode())
+                    )
+            ));
+        } finally {
+            if (this.currentExecution == execution) {
+                this.currentExecution = null;
+            }
+            this.getState().setCanCancel(false);
+            this.getState().setExecutionStatus(previousStatus);
+            this.stateManager.commit();
+        }
+    }
+
+    private boolean sendCancelledPlanIfRequested(
+            String requestId,
+            String sql,
+            String serverVersion,
+            QueryConsolePlanContext planContext
+    ) {
+        if (!this.planRequestCancelled(planContext)) {
+            return false;
+        }
+        if (this.connectionDetachedOrUnusable()) {
+            this.invalidateConnection("execution-plan-cancel");
+            this.sendExecutionPlan(this.planResult(
+                    requestId,
+                    serverVersion,
+                    sql,
+                    PlanStatus.CONNECTION_INVALIDATED,
+                    PlanEffects.discard(PlanEffects.SessionState.UNKNOWN, PlanEffects.TransactionState.UNKNOWN),
+                    PlanDiagnostic.of(PlanCodes.CONNECTION_INVALIDATED, "Connection was discarded during cancel")
+            ));
+            return true;
+        }
+        this.sendExecutionPlan(this.planResult(
+                requestId,
+                serverVersion,
+                sql,
+                PlanStatus.CANCELLED,
+                PlanEffects.unchangedReuse(),
+                PlanDiagnostic.of(PlanCodes.CANCELLED, "Execution plan request cancelled")
+        ));
+        return true;
+    }
+
+    private boolean planRequestCancelled(QueryConsolePlanContext planContext) {
+        return planContext != null && planContext.isCancelled();
+    }
+
+    private boolean connectionDetachedOrUnusable() {
+        Connection connection = this.conn;
+        if (connection == null) {
+            return true;
+        }
+        try {
+            return connection.isClosed();
+        } catch (SQLException e) {
+            return true;
+        }
+    }
+
+    private ExecutionPlan planResult(
+            String requestId,
+            String serverVersion,
+            String sql,
+            PlanStatus status,
+            PlanEffects effects,
+            PlanDiagnostic error
+    ) {
+        return new ExecutionPlan(
+                requestId,
+                this.datasource.getExecutionPlanDialect().database(),
+                serverVersion,
+                PlanMode.ESTIMATED,
+                status,
+                sql,
+                java.util.List.of(),
+                null,
+                null,
+                null,
+                false,
+                this.datasource.getExecutionPlanDialect().capabilities(),
+                java.util.List.of(),
+                effects,
+                error,
+                java.util.List.of()
+        );
+    }
+
+    private void sendExecutionPlan(ExecutionPlan plan) {
+        this.getPacketIO().sendPacket(Packet.TYPE_EXECUTION_PLAN, ExecutionPlanJson.toJsonTree(plan));
+    }
+
+    public void onCancel() {
+        var execution = this.currentExecution;
+        if (this.stateManager != null) {
+            this.getState().setExecutionStatus(EXECUTION_STATUS_CANCELLED);
+            this.getState().setCanCancel(false);
+            this.getState().setInQuery(false);
+            this.stateManager.commit();
+            this.getConsoleLogger().warn("cancel query: %s", execution == null ? "" : execution.sql());
+        }
+        CANCEL_EXECUTOR.execute(() -> this.interruptExecution(execution));
+    }
+
+    private void interruptExecution(ActiveExecution execution) {
+        if (execution == null) {
+            return;
+        }
+        if (execution.abortOnCancel()) {
+            Connection connectionToAbort = this.conn;
+            CANCEL_EXECUTOR.execute(() -> this.abortPhysicalConnection(execution, connectionToAbort));
+        }
+        CANCEL_EXECUTOR.execute(this::tryKillServerQuery);
+        try {
+            execution.cancelAction().cancel();
+        } catch (SQLException | RuntimeException e) {
             log.error("cancel failed ", e);
         }
+    }
+
+    private void abortPhysicalConnection(ActiveExecution execution, Connection connection) {
+        if (execution == null || connection == null || this.currentExecution != execution) {
+            return;
+        }
+        try {
+            connection.abort(CANCEL_EXECUTOR);
+        } catch (SQLException | RuntimeException | AbstractMethodError e) {
+            log.warn("connection abort failed", e);
+        }
+        if (this.currentExecution == execution && this.conn == connection) {
+            this.detachConnection();
+        }
+    }
+
+    private void captureBackendSessionId(Connection connection) {
+        String sql = switch (this.datasource.getDruidDbType()) {
+            case mysql, mariadb -> "SELECT CONNECTION_ID()";
+            case postgresql -> "SELECT pg_backend_pid()";
+            default -> null;
+        };
+        this.backendSessionId = 0;
+        if (sql == null) {
+            return;
+        }
+        try (Statement statement = connection.createStatement();
+             ResultSet resultSet = statement.executeQuery(sql)) {
+            if (resultSet.next()) {
+                this.backendSessionId = resultSet.getLong(1);
+            }
+        } catch (SQLException e) {
+            log.debug("capture backend session id failed", e);
+        }
+    }
+
+    private void tryKillServerQuery() {
+        long sessionId = this.backendSessionId;
+        if (sessionId <= 0) {
+            return;
+        }
+        String killSql = switch (this.datasource.getDruidDbType()) {
+            case mysql, mariadb -> "KILL QUERY " + sessionId;
+            case postgresql -> "SELECT pg_cancel_backend(" + sessionId + ")";
+            default -> null;
+        };
+        if (killSql == null) {
+            return;
+        }
+        Connection killer = null;
+        try {
+            killer = this.datasource.getConnectionManager().getPhysicalConnection();
+            try (Statement statement = killer.createStatement()) {
+                statement.execute(killSql);
+            }
+        } catch (SQLException e) {
+            log.warn("server-side query cancel failed: {}", e.getMessage());
+        } finally {
+            closeQuietly(killer);
+        }
+    }
+
+    public void handleCancel() {
+        this.sqlChunkTransfers.cancelAll();
+        this.onCancel();
     }
 
     public void onManualChangeContext(String context) {
@@ -262,6 +969,12 @@ public class QueryConsole extends AbstractConsole {
             this.stateManager.commit();
 
             this.getSqlActuator().changeSchema(allowedContext);
+            var connectionManager = this.getDatasource().getConnectionManager();
+            // 只有当前 UI 上下文本身就是 JDBC database 时，才同步连接池上下文，避免 PostgreSQL schema 被当 database。
+            if (StringUtils.isNotBlank(allowedContext) &&
+                    StringUtils.equals(connectionManager.getContextKey(), connectionManager.getDatabaseContextKey())) {
+                connectionManager.setDatabaseContext(allowedContext);
+            }
             this.getState().setCurrentContext(allowedContext);
 
         } catch (SQLException e) {
@@ -290,120 +1003,292 @@ public class QueryConsole extends AbstractConsole {
     }
 
     public void onSQLFile(String filename) {
-        if (StringUtils.isBlank(filename)
-                || filename.contains("/")
-                || filename.contains("\\")
-                || filename.contains("..")) {
+        var filePath = this.resolveSQLFileInSessionTemp(filename);
+        if (filePath == null) {
             log.warn("Rejected invalid SQL file name");
             return;
         }
-        var filePath = SessionManager.getCurrentSession().getTempPath().resolve(filename);
-        var file = filePath.toFile();
-
-        if (!file.exists()) {
+        if (!Files.exists(filePath, LinkOption.NOFOLLOW_LINKS)) {
             this.getConsoleLogger().error("%s: %s", MessageUtils.get("msg.error.file_not_found"), filename);
             return;
         }
-        if (!file.isFile()) {
+        if (!Files.isRegularFile(filePath, LinkOption.NOFOLLOW_LINKS)) {
             this.getConsoleLogger().error("%s: %s", MessageUtils.get("msg.error.file_not_file"), filename);
             return;
         }
-        if (!file.canRead()) {
+        if (!Files.isReadable(filePath)) {
             this.getConsoleLogger().error("%s: %s", MessageUtils.get("msg.error.file_not_readable"), filename);
             return;
         }
 
+        var shouldDelete = false;
         try {
-            var sql = Files.readString(file.toPath());
+            shouldDelete = true;
+            String sql;
+            try {
+                try (var inputStream = Files.newInputStream(
+                        filePath, StandardOpenOption.READ, LinkOption.NOFOLLOW_LINKS)) {
+                    sql = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+                }
+            } catch (IOException | SecurityException e) {
+                this.getConsoleLogger().error("%s: %s", MessageUtils.get("msg.error.file_read_error"), e.getMessage());
+                return;
+            }
             this.onSQL(sql);
-        } catch (IOException e) {
-            this.getConsoleLogger().error("%s: %s", MessageUtils.get("msg.error.file_read_error"), e.getMessage());
         } finally {
-            file.delete();
+            if (shouldDelete) {
+                try {
+                    Files.deleteIfExists(filePath);
+                } catch (IOException | SecurityException e) {
+                    log.warn("Failed to delete session SQL file", e);
+                }
+            }
+        }
+    }
+
+    private Path resolveSQLFileInSessionTemp(String filename) {
+        if (StringUtils.isBlank(filename)
+                || StringUtils.equalsAny(filename, ".", "..")
+                || filename.contains("..")
+                || filename.contains("/")
+                || filename.contains("\\")) {
+            return null;
+        }
+
+        try {
+            var requested = Path.of(filename);
+            if (requested.isAbsolute()
+                    || requested.getNameCount() != 1
+                    || !requested.equals(requested.getFileName())) {
+                return null;
+            }
+
+            var basePath = SessionManager.getCurrentSession().getTempPath()
+                    .toAbsolutePath()
+                    .normalize();
+            var resolvedPath = basePath.resolve(requested.getFileName()).normalize();
+            return resolvedPath.startsWith(basePath) ? resolvedPath : null;
+        } catch (InvalidPathException | SecurityException e) {
+            return null;
         }
     }
 
     public void onSQL(String sql) {
         this.getState().setInQuery(true);
+        if (this.isCancelled()) {
+            this.getState().setCanCancel(false);
+            this.getState().setInQuery(false);
+            this.stateManager.commit();
+            return;
+        }
+        this.getState().setExecutionStatus(EXECUTION_STATUS_RUNNING);
+        this.getState().setCanCancel(true);
         this.stateManager.commit();
         var session = SessionManager.getCurrentSession();
 
-        var aclResult = session.checkACL(sql, this.getConnection());
-        if (aclResult != null) {
-            if (aclResult.getRiskLevel() == Common.RiskLevel.Reject || aclResult.getRiskLevel() == Common.RiskLevel.ReviewReject) {
-                this.getConsoleLogger().error("%s", MessageUtils.get("ACLRejectError"));
-                CommandRecord commandRecord = new CommandRecord(sql);
-                commandRecord.setRiskLevel(aclResult.getRiskLevel());
-                session.recordCommand(commandRecord);
-
-                this.getState().setInQuery(false);
-                this.stateManager.commit();
-                return;
-            }
-
-            if (aclResult.isNotify()) {
-
-                var dialog = new Dialog(MessageUtils.get("Warning"));
-                dialog.setBody(MessageUtils.get("CommandWarningDialogMessage"));
-                var countDownLatch = new CountDownLatch(1);
-                AtomicBoolean hasNext = new AtomicBoolean(true);
-
-                dialog.addButton(new Button(MessageUtils.get("Submit"), "submit", countDownLatch::countDown));
-
-                dialog.addButton(new Button(MessageUtils.get("Cancel"), "cancel", () -> {
-                    hasNext.set(false);
-                    countDownLatch.countDown();
-                    this.getConsoleLogger().warn(MessageUtils.get("ExecutionCanceled"));
-                }));
-
-                SessionManager.getCurrentSession().getController().showDialog(dialog);
-
-                try {
-                    countDownLatch.await();
-
-                    if (!hasNext.get()) {
-                        this.getState().setInQuery(false);
-                        this.stateManager.commit();
-                        return;
-                    }
-
-                } catch (InterruptedException e) {
-                    this.getState().setInQuery(false);
-                    this.stateManager.commit();
-
-                    this.getConsoleLogger().error("获取结果失败!");
-                } finally {
-                    SessionManager.getCurrentSession().getController().closeDialog();
-                }
-            }
-        }
-
-
         try {
-            var stmts = this.getSqlActuator().parseSQL(SQL.of(sql));
-            var clearOthers = true;
-            for (String stmt : stmts) {
-                var dataView = this.runSingleSQL(stmt, aclResult);
-                if (!dataView.isHasTable()) {
-                    this.getConsoleLogger().success("%s , %s: %d",
-                            MessageUtils.get("ExecuteSuccess"),
-                            MessageUtils.get("AffectedRows"), dataView.getUpdateCount());
-                } else {
-                    this.sendDataView(dataView, clearOthers);
-                    clearOthers = false;
-                }
+            if (this.consoleMode) {
+                this.runRawConsoleSQL(sql, session);
+            } else {
+                this.runQuerySQL(sql, session);
             }
             this.ensureCurrentSchema();
         } catch (ParserException e) {
+            this.getState().setExecutionStatus(EXECUTION_STATUS_ERROR);
             this.getConsoleLogger().error("%s: %s", MessageUtils.get("ParseError"), e.getMessage());
             this.getPacketIO().sendPacket("message", Message.error(MessageUtils.get("ParseError"), e.getMessage()));
+            this.sendSQLError("parse", MessageUtils.get("ParseError"), e.getMessage(), sql, null);
         } catch (SQLException e) {
-            this.getConsoleLogger().error("%s: %s", MessageUtils.get("ExecuteError"), e.getMessage());
-            this.getPacketIO().sendPacket("message", Message.error(MessageUtils.get("ExecuteError"), e.getMessage()));
+            if (!StringUtils.equals(this.getState().getExecutionStatus(), EXECUTION_STATUS_CANCELLED)) {
+                this.getState().setExecutionStatus(EXECUTION_STATUS_ERROR);
+                this.getConsoleLogger().error("%s: %s", MessageUtils.get("ExecuteError"), e.getMessage());
+                this.getPacketIO().sendPacket("message", Message.error(MessageUtils.get("ExecuteError"), e.getMessage()));
+                this.sendSQLError("execute", MessageUtils.get("ExecuteError"), e.getMessage(), sql, e);
+            }
         } finally {
+            if (StringUtils.equals(this.getState().getExecutionStatus(), EXECUTION_STATUS_RUNNING)) {
+                this.getState().setExecutionStatus(EXECUTION_STATUS_SUCCESS);
+            }
             this.getState().setInQuery(false);
             this.getState().setCanCancel(false);
             this.stateManager.commit();
+        }
+    }
+
+    private void runQuerySQL(String sql, Session session) throws SQLException {
+        var statements = this.getSqlActuator().parseSQL(SQL.of(sql));
+        var clearOthers = true;
+        for (String statement : statements) {
+            if (this.isCancelled()) {
+                break;
+            }
+            var aclResult = session.checkACL(statement, this.getConnection());
+            if (!this.canExecuteStatement(session, statement, aclResult)) {
+                break;
+            }
+            var dataView = this.runSingleSQL(statement, aclResult);
+            if (!dataView.isHasTable()) {
+                this.logAffectedRows(dataView);
+            } else {
+                this.sendDataView(dataView, clearOthers);
+                clearOthers = false;
+            }
+        }
+    }
+
+    private void runRawConsoleSQL(String sql, Session session) throws SQLException {
+        Connection connection = this.getConnection();
+        for (String statement : ConsoleStatementBoundaryScanner.split(sql)) {
+            if (this.isCancelled()) {
+                break;
+            }
+            ACLResult aclResult = session.checkACL(statement, connection);
+            if (!this.canExecuteStatement(session, statement, aclResult)) {
+                break;
+            }
+            this.emitRawConsoleSQL(statement, aclResult, connection);
+        }
+    }
+
+    private void emitRawConsoleSQL(String sql, ACLResult aclResult, Connection connection) throws SQLException {
+        SQLQueryResult executionResult = this.executeRawConsoleSQL(sql, aclResult, connection);
+        if (executionResult.getResults().isEmpty()) {
+            this.getConsoleLogger().success("%s", MessageUtils.get("ExecuteSuccess"));
+        }
+        for (SQLQueryResult result : executionResult.getResults()) {
+            this.getConsoleLogger().success(result);
+            if (!result.isHasResultSet()) {
+                continue;
+            }
+
+            DataView dataView = new DataView(
+                    UUID.randomUUID().toString(), sql, this.getPacketIO(), this.getConsoleLogger()
+            );
+            dataView.setSql(sql);
+            dataView.setLoadDataInterface((ignored) -> result);
+            dataView.loadData();
+            this.sendDataView(dataView, false);
+        }
+    }
+
+    private SQLQueryResult executeRawConsoleSQL(String sql, ACLResult aclResult, Connection connection)
+            throws SQLException {
+        if (this.isCancelled()) {
+            throw new SQLException(MessageUtils.get("ExecutionCanceled"));
+        }
+        SQLActuator actuator = this.datasource.getConnectionManager().getSqlActuator().withConnection(connection);
+        SQLExecutePlan plan = actuator.createPlan(SQL.of(sql));
+        plan.setAclResult(aclResult);
+        ActiveExecution execution = new ActiveExecution(sql, plan::cancel);
+        this.currentExecution = execution;
+        this.getState().setCanCancel(true);
+        this.stateManager.commit();
+        try {
+            this.getConsoleLogger().info("execute sql: %s", sql);
+            return actuator.executeRawWithAudit(plan);
+        } finally {
+            if (this.currentExecution == execution) {
+                this.currentExecution = null;
+            }
+            this.getState().setCanCancel(false);
+            this.stateManager.commit();
+        }
+    }
+
+    private boolean isCancelled() {
+        return StringUtils.equals(this.getState().getExecutionStatus(), EXECUTION_STATUS_CANCELLED);
+    }
+
+    private void logAffectedRows(DataView dataView) {
+        this.getConsoleLogger().success("%s , %s: %d",
+                MessageUtils.get("ExecuteSuccess"),
+                MessageUtils.get("AffectedRows"), dataView.getUpdateCount());
+    }
+
+    private void sendSQLError(String kind, String title, String message, String sql, SQLException exception) {
+        var error = new LinkedHashMap<String, Object>();
+        error.put("kind", kind);
+        error.put("title", StringUtils.defaultString(title));
+        error.put("message", StringUtils.defaultString(message));
+        error.put("sql", StringUtils.defaultString(sql));
+        error.put("timestamp", System.currentTimeMillis());
+        if (exception != null) {
+            if (StringUtils.isNotBlank(exception.getSQLState())) {
+                error.put("sqlState", exception.getSQLState());
+            }
+            error.put("vendorCode", exception.getErrorCode());
+        }
+        this.getPacketIO().sendPacket("sql_error", error);
+    }
+
+    private boolean canExecuteStatement(Session session, String sql, ACLResult aclResult) {
+        if (aclResult == null) {
+            return true;
+        }
+        if (aclResult.getRiskLevel() == Common.RiskLevel.Reject ||
+                aclResult.getRiskLevel() == Common.RiskLevel.ReviewReject ||
+                aclResult.getRiskLevel() == Common.RiskLevel.ReviewCancel) {
+            this.getState().setExecutionStatus(
+                    aclResult.getRiskLevel() == Common.RiskLevel.ReviewCancel
+                            ? EXECUTION_STATUS_CANCELLED
+                            : EXECUTION_STATUS_ERROR
+            );
+            String rejectMessage = this.aclRejectMessage(aclResult);
+            this.getConsoleLogger().error("%s", rejectMessage);
+            this.sendSQLError("acl", rejectMessage, StringUtils.defaultString(sql), sql, null);
+            CommandRecord commandRecord = new CommandRecord(sql);
+            commandRecord.applyAcl(aclResult);
+            session.recordCommand(commandRecord);
+            return false;
+        }
+        return !aclResult.isNotify() || this.confirmStatementWarning(session);
+    }
+
+    private String aclRejectMessage(ACLResult aclResult) {
+        if (StringUtils.isNotBlank(aclResult.getMessage())) {
+            return aclResult.getMessage();
+        }
+        if (aclResult.getRiskLevel() == Common.RiskLevel.ReviewCancel) {
+            return MessageUtils.get("UserCancelCommandReviewError");
+        }
+        return MessageUtils.get("ACLRejectError");
+    }
+
+    private boolean confirmStatementWarning(Session session) {
+        var dialog = new Dialog(MessageUtils.get("Warning"));
+        dialog.setBody(MessageUtils.get("CommandWarningDialogMessage"));
+        var countDownLatch = new CountDownLatch(1);
+        AtomicBoolean hasNext = new AtomicBoolean(true);
+
+        dialog.addButton(new Button(MessageUtils.get("Submit"), "submit", countDownLatch::countDown));
+        dialog.addButton(new Button(MessageUtils.get("Cancel"), "cancel", () -> {
+            hasNext.set(false);
+            this.getState().setExecutionStatus(EXECUTION_STATUS_CANCELLED);
+            countDownLatch.countDown();
+            this.getConsoleLogger().warn(MessageUtils.get("ExecutionCanceled"));
+        }));
+
+        var controller = session.getController();
+        DialogHandle dialogHandle = controller.showDialog(dialog, () -> {
+            hasNext.set(false);
+            countDownLatch.countDown();
+        });
+
+        try {
+            if (!countDownLatch.await(WARNING_DIALOG_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+                hasNext.set(false);
+                this.getState().setExecutionStatus(EXECUTION_STATUS_CANCELLED);
+                dialogHandle.cancel();
+                this.getConsoleLogger().warn(MessageUtils.get("ExecutionCanceled"));
+            }
+            return hasNext.get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            this.getState().setExecutionStatus(EXECUTION_STATUS_ERROR);
+            this.getConsoleLogger().error("获取结果失败!");
+            return false;
+        } finally {
+            dialogHandle.close();
         }
     }
 
@@ -434,79 +1319,154 @@ public class QueryConsole extends AbstractConsole {
 
     private DataView runSingleSQL(String sql, ACLResult aclResult) throws SQLException {
 
-        SQLExecutePlan plan = this.datasource
-                .getConnectionManager()
-                .getSqlActuator()
-                .withConnection(this.getConnection())
-                .createPlan(SQL.of(sql));
-
-        plan.setAclResult(aclResult);
-        DataView dataView = new DataView(plan.getSourceSQL(), this.getPacketIO(), this.getConsoleLogger());
-        dataView.setSql(plan.getSourceSQL());
+        String sourceSQL = sql;
+        DataView dataView = new DataView(
+                UUID.randomUUID().toString(),
+                sourceSQL,
+                this.getPacketIO(),
+                this.getConsoleLogger()
+        );
+        dataView.setSql(sourceSQL);
 
         dataView.setLoadDataInterface((sqlQueryParams) -> {
             sqlQueryParams.setTimeout(this.getState().getTimeout());
 
+            SQLExecutePlan plan = this.datasource
+                    .getConnectionManager()
+                    .getSqlActuator()
+                    .withConnection(this.getConnection())
+                    .createPlan(SQL.of(sourceSQL));
+            plan.setAclResult(aclResult);
             plan.setSqlQueryParams(sqlQueryParams);
-            plan.generateTargetSQL();
-
-            this.getConsoleLogger().info("execute sql: %s", plan.getTargetSQL());
-
-            this.currentPlan = plan;
-
+            ActiveExecution execution = new ActiveExecution(sourceSQL, plan::cancel);
+            this.currentExecution = execution;
             this.getState().setCanCancel(true);
             this.stateManager.commit();
 
-            var result = plan.executeWithAudit();
-            this.currentPlan = null;
-
-            this.getConsoleLogger().success(result);
-            return result;
+            try {
+                plan.generateTargetSQL();
+                this.getConsoleLogger().info("execute sql: %s", plan.getTargetSQL());
+                var result = plan.executeWithAudit();
+                this.getConsoleLogger().success(result);
+                return result;
+            } finally {
+                if (this.currentExecution == execution) {
+                    this.currentExecution = null;
+                }
+                this.getState().setCanCancel(false);
+                this.stateManager.commit();
+            }
         });
 
 
         dataView.loadData();
-
-        this.getState().setCanCancel(false);
-        this.stateManager.commit();
 
         return dataView;
     }
 
 
     private void sendDataView(DataView dataView, boolean clearOthers) {
+        if (this.consoleMode) {
+            this.getPacketIO().sendPacket("console_result", Map.of(
+                    "id", dataView.getId(),
+                    "title", dataView.getTitle(),
+                    "data", dataView.getData(),
+                    "state", dataView.getStateManager().getState()
+            ));
+            return;
+        }
+
         if (clearOthers) {
-            var forDeleteDataViewTitles = new ArrayList<String>();
-            for (var title : this.dataViews.keySet()) {
-                if (!dataView.getTitle().equals(title) && !this.dataViews.get(title).getStateManager().getState().isPinned()) {
-                    forDeleteDataViewTitles.add(title);
+            var forDeleteDataViewIds = new ArrayList<String>();
+            for (var entry : this.dataViews.entrySet()) {
+                if (!entry.getValue().getStateManager().getState().isPinned()) {
+                    forDeleteDataViewIds.add(entry.getKey());
                 }
             }
-            forDeleteDataViewTitles.forEach(this.dataViews.keySet()::remove);
-            this.getPacketIO().sendPacket("close_data_view", forDeleteDataViewTitles);
+            forDeleteDataViewIds.forEach(this.dataViews.keySet()::remove);
+            this.getPacketIO().sendPacket("close_data_view", forDeleteDataViewIds);
         }
 
-        if (!this.dataViews.containsKey(dataView.getTitle())) {
-            this.getPacketIO().sendPacket("new_data_view", Map.of("title", dataView.getTitle()));
-        }
+        this.getPacketIO().sendPacket(
+                "new_data_view",
+                Map.of("id", dataView.getId(), "title", dataView.getTitle())
+        );
 
-        this.dataViews.put(dataView.getTitle(), dataView);
-        this.getPacketIO().sendPacket("update_data_view", new UpdateDataView(dataView.getTitle(), dataView.getData()));
+        this.dataViews.put(dataView.getId(), dataView);
+        this.getPacketIO().sendPacket(
+                "update_data_view",
+                new UpdateDataView(dataView.getId(), dataView.getTitle(), dataView.getData())
+        );
         dataView.getStateManager().commit();
+    }
+
+    private DataView findDataView(String reference) {
+        var dataView = this.dataViews.get(reference);
+        if (dataView != null) {
+            return dataView;
+        }
+        DataView matched = null;
+        for (var candidate : this.dataViews.values()) {
+            if (StringUtils.equals(candidate.getTitle(), reference)) {
+                matched = candidate;
+            }
+        }
+        return matched;
     }
 
 
     @Override
     public void close() {
+        if (!this.closed.compareAndSet(false, true)) {
+            return;
+        }
         this.sqlChunkTransfers.close();
-        if (this.currentPlan != null) {
-            // flush
-            var session = SessionManager.getCurrentSession();
-            var lastCmd = this.currentPlan.getTargetSQL();
-            var cmdRecord = new CommandRecord(lastCmd);
-            cmdRecord.setError("Abnormal exit");
-            session.recordCommand(cmdRecord);
+
+        var currentSession = SessionManager.getCurrentSession();
+        if (currentSession == null && this.getPacketIO().getWsSession().getAttributes() != null) {
+            Object token = this.getPacketIO().getWsSession().getAttributes().get("token");
+            if (token instanceof String sessionToken) {
+                currentSession = SessionManager.getSession(sessionToken);
+            }
+        }
+        if (currentSession != null && currentSession.getController() != null) {
+            currentSession.getController().cancelDialogs(this.getPacketIO().getWsSession().getId());
+        }
+
+        var execution = this.currentExecution;
+        if (execution != null) {
+            try {
+                // flush
+                var session = SessionManager.getCurrentSession();
+                var lastCmd = execution.sql();
+                var cmdRecord = new CommandRecord(lastCmd);
+                cmdRecord.setError("Abnormal exit");
+                if (session != null) {
+                    session.recordCommand(cmdRecord);
+                }
+            } catch (RuntimeException e) {
+                log.warn("record interrupted query failed", e);
+            }
+        }
+        this.onCancel();
+
+        this.executionLock.lock();
+        try {
+            closeQuietly(this.detachConnection());
+        } finally {
+            this.executionLock.unlock();
         }
         log.info("console closed");
+    }
+
+    @FunctionalInterface
+    private interface ExecutionCancel {
+        void cancel() throws SQLException;
+    }
+
+    private record ActiveExecution(String sql, ExecutionCancel cancelAction, boolean abortOnCancel) {
+        private ActiveExecution(String sql, ExecutionCancel cancelAction) {
+            this(sql, cancelAction, true);
+        }
     }
 }

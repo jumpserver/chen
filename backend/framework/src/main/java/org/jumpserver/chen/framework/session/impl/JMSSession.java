@@ -9,6 +9,7 @@ import org.jumpserver.chen.framework.i18n.MessageUtils;
 import org.jumpserver.chen.framework.jms.ACLFilter;
 import org.jumpserver.chen.framework.jms.CommandHandler;
 import org.jumpserver.chen.framework.jms.ReplayHandler;
+import org.jumpserver.chen.framework.jms.acl.ACLCommandContext;
 import org.jumpserver.chen.framework.jms.acl.ACLResult;
 import org.jumpserver.chen.framework.jms.entity.CommandRecord;
 import org.jumpserver.chen.framework.jms.exception.CommandRejectException;
@@ -16,6 +17,7 @@ import org.jumpserver.chen.framework.jms.impl.ACLFilterImpl;
 import org.jumpserver.chen.framework.jms.impl.CommandHandlerImpl;
 import org.jumpserver.chen.framework.jms.impl.ReplayHandlerImpl;
 import org.jumpserver.chen.framework.session.QueryAuditFunction;
+import org.jumpserver.chen.framework.session.MetadataQueryAuditFunction;
 import org.jumpserver.chen.framework.session.SessionManager;
 import org.jumpserver.chen.framework.session.controller.dialog.Button;
 import org.jumpserver.chen.framework.session.controller.dialog.Dialog;
@@ -33,10 +35,14 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 public class JMSSession extends BaseSession {
+
+    private static final int METADATA_AUDIT_ERROR_MAX_LENGTH = 1024;
 
     @Getter
     private final Common.Session jmsSession;
@@ -51,7 +57,6 @@ public class JMSSession extends BaseSession {
     private final List<Common.CommandACL> commandACLs;
     private final long maxIdleTimeDelta;
     private final long expireTime;
-
 
     private LocalDateTime maxSessionEndTime;
     private int maxSessionEndHours;
@@ -106,7 +111,6 @@ public class JMSSession extends BaseSession {
         this.commandACLs = tokenResp.getData().getFilterRulesList();
         this.expireTime = tokenResp.getData().getExpireInfo().getExpireAt();
         this.maxIdleTimeDelta = tokenResp.getData().getSetting().getMaxIdleTime();
-
         this.maxSessionEndHours = tokenResp.getData().getSetting().getMaxSessionTime();
         this.maxSessionEndTime = LocalDateTime.now().plusHours(tokenResp.getData().getSetting().getMaxSessionTime());
         this.dynamicEndTime = this.maxSessionEndTime;
@@ -150,11 +154,16 @@ public class JMSSession extends BaseSession {
 
     @Override
     public ACLResult checkACL(String command) {
-        return this.aclFilter.commandACLFilter(command, null);
+        return this.aclFilter.commandACLFilterWithContext(command, ACLCommandContext.executionOwned(null));
     }
 
     public ACLResult checkACL(String command, Connection connection) {
-        return this.aclFilter.commandACLFilter(command, connection);
+        return this.aclFilter.commandACLFilterWithContext(command, ACLCommandContext.queryConsoleOwned(connection));
+    }
+
+    @Override
+    public ACLResult checkACLWithContext(String command, ACLCommandContext context) {
+        return this.aclFilter.commandACLFilterWithContext(command, context);
     }
 
     @Override
@@ -261,6 +270,17 @@ public class JMSSession extends BaseSession {
 
     @Override
     public void close() {
+        if (!this.beginClose()) {
+            return;
+        }
+        this.closeJmsSessionResources();
+    }
+
+    private void closeJmsSessionResources() {
+        if (this.getController() != null) {
+            this.getController().cancelAllDialogs();
+        }
+        this.closeConsoles();
         try {
             this.replayHandler.release();
             this.finishedJmsSession();
@@ -270,23 +290,27 @@ public class JMSSession extends BaseSession {
             }
 
         } finally {
-            super.close();
+            super.closeSessionResources();
         }
     }
 
     public void close(String message, String reason, Object... args) {
+        if (!this.beginClose()) {
+            return;
+        }
         SessionManager.setContext(this.getWebToken());
+        try {
+            this.getPacketIO().sendPacket("session_close", sessionClosePacketData(reason, args));
 
-        this.getPacketIO().sendPacket("session_close", null);
+            var dialog = new Dialog(MessageUtils.get("SessionFinished"));
+            dialog.setBody(MessageUtils.get(message, args));
+            this.getController().showDialog(dialog);
 
-        var dialog = new Dialog(MessageUtils.get("SessionFinished"));
-        dialog.setBody(MessageUtils.get(message, args));
-        this.getController().showDialog(dialog);
-
-        this.recordLifecycle(ServiceOuterClass.SessionLifecycleLogRequest.EventType.AssetConnectFinished, reason);
-        this.closed = true;
-
-        this.close();
+            this.recordLifecycle(ServiceOuterClass.SessionLifecycleLogRequest.EventType.AssetConnectFinished, reason);
+            this.closed = true;
+        } finally {
+            this.closeJmsSessionResources();
+        }
     }
 
     private void finishedJmsSession() {
@@ -320,6 +344,12 @@ public class JMSSession extends BaseSession {
 
     @Override
     public SQLQueryResult withAudit(String command, QueryAuditFunction queryAuditFunction) throws SQLException, CommandRejectException {
+        return withAudit(command, null, queryAuditFunction);
+    }
+
+    @Override
+    public SQLQueryResult withAudit(String command, ACLResult aclResult, QueryAuditFunction queryAuditFunction)
+            throws SQLException, CommandRejectException {
         synchronized (this) {
             this.refreshLastActiveTime();
         }
@@ -328,26 +358,120 @@ public class JMSSession extends BaseSession {
         }
 
         CommandRecord commandRecord = new CommandRecord(command);
+        commandRecord.applyAcl(aclResult);
+        Throwable primaryFailure = null;
 
         try {
             this.replayHandler.writeInput(commandRecord.getInput());
 
             var result = queryAuditFunction.run();
             commandRecord.setOutput(result);
-
-            commandRecord.setCmdAclId(result.getAclResult().getCmdAclId());
-            commandRecord.setCmdGroupId(result.getAclResult().getCmdGroupId());
-            commandRecord.setRiskLevel(result.getAclResult().getRiskLevel());
+            commandRecord.applyAcl(result.getAclResult());
 
             this.replayHandler.writeOutput(result.getOutput());
             return result;
 
-        } catch (SQLException e) {
+        } catch (SQLException | RuntimeException e) {
+            primaryFailure = e;
             commandRecord.setError(e.getMessage());
-            this.replayHandler.writeOutput(e.getMessage());
+            this.writeReplayFailure(e.getMessage(), e);
             throw e;
         } finally {
-            this.commandHandler.recordCommand(commandRecord);
+            try {
+                this.commandHandler.recordCommand(commandRecord);
+            } catch (RuntimeException auditFailure) {
+                if (primaryFailure != null) {
+                    primaryFailure.addSuppressed(auditFailure);
+                } else {
+                    throw auditFailure;
+                }
+            }
         }
+    }
+
+    @Override
+    public List<Map<String, Object>> withMetadataQueryAudit(
+            String command,
+            MetadataQueryAuditFunction queryAuditFunction
+    ) throws SQLException {
+        CommandRecord commandRecord = new CommandRecord(command);
+        Throwable primaryFailure = null;
+
+        try {
+            this.replayHandler.writeInput(commandRecord.getInput());
+
+            var rows = queryAuditFunction.run();
+            var output = String.format("Metadata query OK, %d rows discovered", rows.size());
+            commandRecord.setOutput(output);
+            this.replayHandler.writeOutput(output);
+            return rows;
+        } catch (SQLException | RuntimeException e) {
+            primaryFailure = e;
+            var output = metadataAuditErrorSummary(e);
+            commandRecord.setError(output);
+            this.writeReplayFailure(output, e);
+            throw e;
+        } finally {
+            try {
+                this.commandHandler.recordCommand(commandRecord);
+            } catch (RuntimeException auditFailure) {
+                if (primaryFailure != null) {
+                    primaryFailure.addSuppressed(auditFailure);
+                } else {
+                    throw auditFailure;
+                }
+            }
+        }
+    }
+
+    private static String metadataAuditErrorSummary(Throwable failure) {
+        SQLException sqlFailure = null;
+        for (var cause = failure; cause != null; cause = cause.getCause()) {
+            if (cause instanceof SQLException sqlException) {
+                sqlFailure = sqlException;
+            }
+        }
+        var message = failure.getMessage();
+        if (sqlFailure != null && sqlFailure.getMessage() != null) {
+            message = sqlFailure.getMessage();
+        }
+        message = message == null || message.isBlank() ? "Metadata query failed" : message;
+        message = message.replaceAll("[\\r\\n\\t]+", " ").trim();
+        var summary = sqlFailure == null
+                ? message
+                : String.format(
+                        "SQLState=%s, vendorCode=%d, message=%s",
+                        sqlFailure.getSQLState() == null ? "" : sqlFailure.getSQLState(),
+                        sqlFailure.getErrorCode(),
+                        message
+                );
+        return summary.length() <= METADATA_AUDIT_ERROR_MAX_LENGTH
+                ? summary
+                : summary.substring(0, METADATA_AUDIT_ERROR_MAX_LENGTH);
+    }
+
+    private void writeReplayFailure(String output, Throwable primaryFailure) {
+        try {
+            this.replayHandler.writeOutput(output);
+        } catch (RuntimeException replayFailure) {
+            primaryFailure.addSuppressed(replayFailure);
+        }
+    }
+
+    static final String ADMIN_TERMINATE_REASON = "admin_terminate";
+
+    static Map<String, Object> sessionClosePacketData(String reason, Object... args) {
+        if (!ADMIN_TERMINATE_REASON.equals(reason)) {
+            return null;
+        }
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("reason", ADMIN_TERMINATE_REASON);
+        if (args != null && args.length > 0 && args[0] != null) {
+            String terminatedBy = String.valueOf(args[0]).trim();
+            if (!terminatedBy.isEmpty()) {
+                data.put("terminatedBy", terminatedBy);
+            }
+        }
+        return data;
     }
 }

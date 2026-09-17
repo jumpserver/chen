@@ -132,6 +132,14 @@ public class JmsSessionService implements SessionService {
         var platformSettings = tokenResp.getData().getPlatform().getProtocols(0).getSettingsMap();
         applyPlatformSettings(dbConnectInfo, platformSettings);
 
+        var connectOptions = tokenResp.getData().getConnectOptions().getSettingsMap();
+        var useSysDBA = "oracle".equals(dbConnectInfo.getDbType()) && Boolean.parseBoolean(
+                connectOptions.getOrDefault("use_sysdba", "false")
+        );
+        if (useSysDBA) {
+            dbConnectInfo.getOptions().put("internal_logon", "sysdba");
+        }
+
         var asset = tokenResp.getData().getAsset();
 
         if (asset.getSpecific().getUseSsl()) {
@@ -146,10 +154,6 @@ public class JmsSessionService implements SessionService {
     }
 
     static void applyPlatformSettings(DBConnectInfo dbConnectInfo, Map<String, String> platformSettings) {
-        if (platformSettings.containsKey("sysdba") && platformSettings.get("sysdba").equals("true")) {
-            dbConnectInfo.getOptions().put("internal_logon", "sysdba");
-        }
-
         if (platformSettings.containsKey("version")) {
             dbConnectInfo.getOptions().put("version", platformSettings.get("version"));
         }

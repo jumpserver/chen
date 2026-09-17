@@ -15,11 +15,10 @@ public class Packet {
     public static final String TYPE_DATA_VIEW_ACTION = "data_view_action";
     public static final String TYPE_UPDATE_DATA_VIEW = "update_data_view";
     public static final String TYPE_NEW_DATA_VIEW = "new_data_view";
+    public static final String TYPE_EXECUTION_PLAN = "execution_plan";
 
 
     private String type;
     private Object data;
 
 }
-
-

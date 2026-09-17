@@ -16,8 +16,8 @@ public class SessionInterceptor implements HandlerInterceptor {
         }
         //1. 从header 中获取 token
         String token = req.getHeader("token");
-        //2. 判断 token 是否认证
-        if (token == null || token.isEmpty() || SessionManager.getSession(token) == null || !SessionManager.getSession(token).isActive()) {
+        //2. /api/profile 等请求发生在 websocket 建立前，此时 session 已创建但尚未 active。
+        if (token == null || token.isEmpty() || SessionManager.getSession(token) == null) {
             //2.1 认证失败，返回错误信息
             resp.setStatus(401);
             resp.getWriter().write("Unauthorized");

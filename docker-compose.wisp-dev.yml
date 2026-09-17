@@ -1,0 +1,40 @@
+services:
+  chen-backend:
+    # Development runs Wisp as a sibling service. Start Java directly so the
+    # released Wisp binary bundled in the Chen image is not used.
+    command:
+      - java
+      - -Dfile.encoding=utf-8
+      - -XX:+ExitOnOutOfMemoryError
+      - -jar
+      - /opt/chen/chen.jar
+      - --spring.config.additional-location=optional:file:/opt/chen/config/
+      - --spring.profiles.active=dev
+    environment:
+      EXECUTE_PROGRAM: ""
+      GRPC_CLIENT_WISP_ADDRESS: static://wisp:9090
+    depends_on:
+      wisp:
+        # Arbitrary Wisp images do not necessarily provide a healthcheck.
+        condition: service_started
+    cpus: ${CHEN_CPUS:-2.0}
+    mem_limit: ${CHEN_MEMORY_LIMIT:-2g}
+
+  wisp:
+    image: ${WISP_IMAGE:-ghcr.io/jumpserver/wisp:latest}
+    pull_policy: ${WISP_PULL_POLICY:-missing}
+    container_name: chen-wisp-dev
+    environment:
+      COMPONENT_NAME: chen
+      CORE_HOST: ${CORE_HOST:-http://host.docker.internal:8080}
+      BOOTSTRAP_TOKEN: ${BOOTSTRAP_TOKEN:-PleaseChangeMe}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      WORK_DIR: /opt/wisp
+      EXECUTE_PROGRAM: ""
+    volumes:
+      - ./data:/opt/wisp/data
+    expose:
+      - "9090"
+    restart: unless-stopped
+    cpus: ${WISP_CPUS:-1.0}
+    mem_limit: ${WISP_MEMORY_LIMIT:-512m}

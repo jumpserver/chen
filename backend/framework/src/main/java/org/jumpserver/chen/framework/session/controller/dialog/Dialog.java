@@ -10,6 +10,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Data
 public class Dialog {
+    private String id;
     private String title = "提示";
     private String width = "30%";
     private String body;

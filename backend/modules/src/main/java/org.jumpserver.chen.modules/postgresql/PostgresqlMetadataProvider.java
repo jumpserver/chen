@@ -1,0 +1,340 @@
+package org.jumpserver.chen.modules.postgresql;
+
+import org.jumpserver.chen.framework.datasource.ConnectionManager;
+import org.jumpserver.chen.framework.datasource.metadata.BaseDatabaseMetadataProvider;
+import org.jumpserver.chen.framework.datasource.metadata.CatalogMetadata;
+import org.jumpserver.chen.framework.datasource.metadata.ColumnMetadata;
+import org.jumpserver.chen.framework.datasource.metadata.ConstraintMetadata;
+import org.jumpserver.chen.framework.datasource.metadata.IndexMetadata;
+import org.jumpserver.chen.framework.datasource.metadata.MetadataCapabilities;
+import org.jumpserver.chen.framework.datasource.metadata.ObjectProperties;
+import org.jumpserver.chen.framework.datasource.metadata.ForeignKeyMetadata;
+import org.jumpserver.chen.framework.datasource.metadata.ObjectRef;
+import org.jumpserver.chen.framework.datasource.metadata.PrimaryKeyMetadata;
+import org.jumpserver.chen.framework.datasource.metadata.ObjectStatistics;
+import org.jumpserver.chen.framework.datasource.metadata.RelationKind;
+import org.jumpserver.chen.framework.datasource.metadata.RelationMetadata;
+import org.jumpserver.chen.framework.datasource.metadata.RelationScope;
+import org.jumpserver.chen.framework.datasource.metadata.SchemaMetadata;
+import org.jumpserver.chen.framework.datasource.metadata.ScopeKind;
+import org.jumpserver.chen.framework.datasource.metadata.ScopeProperties;
+import org.jumpserver.chen.framework.datasource.metadata.ScopeRef;
+
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.Set;
+
+public class PostgresqlMetadataProvider extends BaseDatabaseMetadataProvider {
+
+    public PostgresqlMetadataProvider(ConnectionManager connectionManager) {
+        super(connectionManager);
+    }
+
+    private static final MetadataCapabilities CAPABILITIES = new MetadataCapabilities(
+            true, true, true, true, true, true, true, true, false,
+            true, true, false, false, false, true, true, true, false
+    );
+
+    private static final String SQL_CATALOGS = "SELECT DATNAME AS name FROM PG_DATABASE WHERE DATISTEMPLATE = FALSE";
+
+    private static final String SQL_SCHEMAS = "SELECT SCHEMA_NAME AS name FROM INFORMATION_SCHEMA.SCHEMATA";
+
+    private static final String SQL_TABLES = """
+            SELECT c.relname AS name,
+                   NULL::text AS character_set,
+                   NULL::text AS collation,
+                   obj_description(c.oid, 'pg_class') AS comment
+            FROM pg_class c
+            JOIN pg_namespace n ON n.oid = c.relnamespace
+            WHERE n.nspname = ? AND c.relkind IN ('r', 'p')
+            ORDER BY c.relname
+            """;
+
+    private static final String SQL_TABLE_STATS = """
+            SELECT c.relname AS name,
+                   c.reltuples::bigint AS estimated_rows,
+                   pg_total_relation_size(c.oid) AS total_size_bytes
+            FROM pg_class c
+            JOIN pg_namespace n ON n.oid = c.relnamespace
+            WHERE n.nspname = ? AND c.relkind IN ('r', 'p')
+            ORDER BY c.relname
+            """;
+
+    private static final String SQL_VIEWS = """
+            SELECT c.relname AS name,
+                   CASE c.relkind WHEN 'm' THEN 'MATERIALIZED VIEW' ELSE 'VIEW' END AS type,
+                   obj_description(c.oid, 'pg_class') AS comment
+            FROM pg_class c
+            JOIN pg_namespace n ON n.oid = c.relnamespace
+            WHERE n.nspname = ? AND c.relkind IN ('v', 'm')
+            ORDER BY c.relname
+            """;
+
+    private static final String SQL_INDEXES = """
+            SELECT ic.relname AS name,
+                   tc.relname AS table_name,
+                   a.attname AS column_name,
+                   CASE WHEN k.attnum = 0 THEN pg_get_indexdef(ic.oid, k.position::integer, true) END AS expression,
+                   i.indisunique AS is_unique,
+                   am.amname AS method,
+                   pg_get_indexdef(ic.oid) AS definition,
+                   CASE WHEN (i.indoption[(k.position - 1)::integer] & 1) = 1 THEN 'DESC' ELSE 'ASC' END AS sort_order
+            FROM pg_index i
+            JOIN pg_class ic ON ic.oid = i.indexrelid
+            JOIN pg_class tc ON tc.oid = i.indrelid
+            JOIN pg_namespace n ON n.oid = tc.relnamespace
+            JOIN pg_am am ON am.oid = ic.relam
+            LEFT JOIN LATERAL unnest(i.indkey) WITH ORDINALITY k(attnum, position) ON true
+            LEFT JOIN pg_attribute a ON a.attrelid = tc.oid AND a.attnum = k.attnum AND k.attnum > 0
+            WHERE n.nspname = ?
+            ORDER BY tc.relname, ic.relname, k.position
+            """;
+
+    private static final String SQL_COLUMNS = """
+            SELECT a.attname AS name, c.relname AS table_name, a.attnum AS ordinal,
+                   CASE WHEN bt.typelem <> 0 AND bt.typlen = -1 THEN bt.typname
+                        WHEN btn.nspname <> 'pg_catalog' THEN bt.typname
+                        ELSE pg_catalog.format_type(bt.oid, NULL) END AS native_type,
+                   CASE WHEN bt.typelem <> 0 AND bt.typlen = -1 THEN 'ARRAY'
+                        WHEN btn.nspname <> 'pg_catalog' THEN 'USER-DEFINED'
+                        ELSE pg_catalog.format_type(bt.oid, NULL) END AS jdbc_type_name,
+                   COALESCE(
+                       information_schema._pg_char_max_length(bt.oid,
+                           CASE WHEN dt.typtype = 'd' THEN dt.typtypmod ELSE a.atttypmod END),
+                       information_schema._pg_numeric_precision(bt.oid,
+                           CASE WHEN dt.typtype = 'd' THEN dt.typtypmod ELSE a.atttypmod END),
+                       information_schema._pg_datetime_precision(bt.oid,
+                           CASE WHEN dt.typtype = 'd' THEN dt.typtypmod ELSE a.atttypmod END)
+                   ) AS size,
+                   information_schema._pg_numeric_scale(bt.oid,
+                       CASE WHEN dt.typtype = 'd' THEN dt.typtypmod ELSE a.atttypmod END) AS scale,
+                   NOT (a.attnotnull OR (dt.typtype = 'd' AND dt.typnotnull)) AS nullable,
+                   CASE WHEN COALESCE(pg_catalog.to_jsonb(a)->>'attgenerated', '') = ''
+                                  AND COALESCE(pg_catalog.to_jsonb(a)->>'attidentity', '') = ''
+                        THEN pg_catalog.pg_get_expr(ad.adbin, ad.adrelid) END AS default_value,
+                   pg_catalog.col_description(c.oid, a.attnum) AS comment
+            FROM pg_catalog.pg_class c
+            JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+            JOIN pg_catalog.pg_attribute a ON a.attrelid = c.oid
+            JOIN pg_catalog.pg_type dt ON dt.oid = a.atttypid
+            JOIN pg_catalog.pg_type bt ON bt.oid = CASE WHEN dt.typtype = 'd' THEN dt.typbasetype ELSE dt.oid END
+            JOIN pg_catalog.pg_namespace btn ON btn.oid = bt.typnamespace
+            LEFT JOIN pg_catalog.pg_attrdef ad ON ad.adrelid = a.attrelid AND ad.adnum = a.attnum
+            WHERE n.nspname = ? AND c.relname IN (__IN__)
+              AND c.relkind IN ('r', 'p', 'v', 'm', 'f')
+              AND a.attnum > 0 AND NOT a.attisdropped
+              AND NOT pg_catalog.pg_is_other_temp_schema(n.oid)
+              AND (pg_catalog.pg_has_role(c.relowner, 'USAGE')
+                   OR pg_catalog.has_column_privilege(
+                       c.oid, a.attnum, 'SELECT, INSERT, UPDATE, REFERENCES'))
+            ORDER BY c.relname, a.attnum
+            """;
+
+    private static final String SQL_TABLE_INDEXES = """
+            SELECT ic.relname AS name, tc.relname AS table_name, a.attname AS column_name,
+                   CASE WHEN k.attnum = 0 THEN pg_get_indexdef(ic.oid, k.position::integer, true) END AS expression,
+                   i.indisunique AS is_unique, am.amname AS method, pg_get_indexdef(ic.oid) AS definition,
+                   CASE WHEN (i.indoption[(k.position - 1)::integer] & 1) = 1 THEN 'DESC' ELSE 'ASC' END AS sort_order
+            FROM pg_index i
+            JOIN pg_class ic ON ic.oid = i.indexrelid
+            JOIN pg_class tc ON tc.oid = i.indrelid
+            JOIN pg_namespace n ON n.oid = tc.relnamespace
+            JOIN pg_am am ON am.oid = ic.relam
+            LEFT JOIN LATERAL unnest(i.indkey) WITH ORDINALITY k(attnum, position) ON true
+            LEFT JOIN pg_attribute a ON a.attrelid = tc.oid AND a.attnum = k.attnum AND k.attnum > 0
+            WHERE n.nspname = ? AND tc.relname IN (__IN__)
+            ORDER BY tc.relname, ic.relname, k.position
+            """;
+
+    @Override
+    public MetadataCapabilities capabilities() {
+        return CAPABILITIES;
+    }
+
+    @Override
+    public List<CatalogMetadata> listCatalogs() throws SQLException {
+        var result = new ArrayList<CatalogMetadata>();
+        for (var row : query(SQL_CATALOGS, List.of())) {
+            result.add(new CatalogMetadata(stringValue(row, "name")));
+        }
+        return result;
+    }
+
+    @Override
+    public List<SchemaMetadata> listSchemas(String catalog) throws SQLException {
+        var result = new ArrayList<SchemaMetadata>();
+        for (var row : query(SQL_SCHEMAS, List.of())) {
+            result.add(new SchemaMetadata(catalog, stringValue(row, "name")));
+        }
+        return result;
+    }
+
+    @Override
+    public List<RelationMetadata> listRelations(RelationScope scope, Set<RelationKind> kinds) throws SQLException {
+        var result = new ArrayList<RelationMetadata>();
+        if (kinds.contains(RelationKind.TABLE)) {
+            for (var row : query(SQL_TABLES, List.of(scope.schema()))) {
+                result.add(new RelationMetadata(
+                        new ObjectRef(scope.catalog(), scope.schema(), stringValue(row, "name"), RelationKind.TABLE),
+                        stringValue(row, "comment"),
+                        null,
+                        null,
+                        null
+                ));
+            }
+        }
+        if (kinds.contains(RelationKind.VIEW) || kinds.contains(RelationKind.MATERIALIZED_VIEW)) {
+            for (var row : query(SQL_VIEWS, List.of(scope.schema()))) {
+                var type = stringValue(row, "type");
+                var kind = type != null && type.toUpperCase(Locale.ROOT).contains("MATERIALIZED")
+                        ? RelationKind.MATERIALIZED_VIEW
+                        : RelationKind.VIEW;
+                if (!kinds.contains(kind)) {
+                    continue;
+                }
+                result.add(new RelationMetadata(
+                        new ObjectRef(scope.catalog(), scope.schema(), stringValue(row, "name"), kind),
+                        stringValue(row, "comment"),
+                        null,
+                        null,
+                        null
+                ));
+            }
+        }
+        return result;
+    }
+
+    @Override
+    public List<ColumnMetadata> listColumns(List<ObjectRef> relations) throws SQLException {
+        return loadColumns(SQL_COLUMNS, relations);
+    }
+
+    @Override
+    public List<IndexMetadata> listIndexes(RelationScope scope) throws SQLException {
+        return groupIndexRows(query(SQL_INDEXES, List.of(scope.schema())), scope);
+    }
+
+    @Override
+    public List<IndexMetadata> listIndexes(List<ObjectRef> relations) throws SQLException {
+        if (relations.isEmpty()) {
+            return List.of();
+        }
+        var first = relations.get(0);
+        return groupIndexRows(queryKeys(SQL_TABLE_INDEXES, relations, first.schema()),
+                new RelationScope(first.catalog(), first.schema()));
+    }
+
+    @Override
+    public List<ObjectStatistics> listStatistics(RelationScope scope) throws SQLException {
+        var result = new ArrayList<ObjectStatistics>();
+        for (var row : query(SQL_TABLE_STATS, List.of(scope.schema()))) {
+            result.add(new ObjectStatistics(
+                    new ObjectRef(scope.catalog(), scope.schema(), stringValue(row, "name"), RelationKind.TABLE),
+                    longValue(row, "estimated_rows"),
+                    longValue(row, "total_size_bytes")
+            ));
+        }
+        return result;
+    }
+
+    private static final String SQL_TABLE_PROPERTIES = """
+            SELECT table_name, table_schema, table_type
+            FROM information_schema.tables
+            WHERE table_schema = ? AND table_name = ?
+            """;
+
+    private static final String SQL_DATABASE_PROPERTIES = """
+            SELECT datname, pg_database_size(datname) AS size,
+                   pg_size_pretty(pg_database_size(datname)) AS size_pretty,
+                   datcollate, datctype, datistemplate, datallowconn, datconnlimit
+            FROM pg_database
+            WHERE datname = ?
+            """;
+
+    @Override
+    public ObjectProperties objectProperties(ObjectRef ref) throws SQLException {
+        return loadObjectProperties(ref, SQL_TABLE_PROPERTIES);
+    }
+
+    @Override
+    public ScopeProperties scopeProperties(ScopeRef ref) throws SQLException {
+        if (ref.kind() != ScopeKind.CATALOG) {
+            return super.scopeProperties(ref);
+        }
+        return loadScopeProperties(ref, SQL_DATABASE_PROPERTIES, List.of(ref.scope().catalog()));
+    }
+
+    private static final String SQL_PRIMARY_KEYS = """
+            SELECT tc.relname AS table_name, a.attname AS column_name, con.conname AS name
+            FROM pg_constraint con
+            JOIN pg_class tc ON tc.oid = con.conrelid
+            JOIN pg_namespace n ON n.oid = tc.relnamespace
+            JOIN LATERAL unnest(con.conkey) WITH ORDINALITY k(attnum, ord) ON true
+            JOIN pg_attribute a ON a.attrelid = tc.oid AND a.attnum = k.attnum
+            WHERE con.contype = 'p' AND n.nspname = ? AND tc.relname IN (__IN__)
+            ORDER BY tc.relname, con.conname, k.ord
+            """;
+
+    private static final String SQL_FOREIGN_KEYS = """
+            SELECT tc.relname AS table_name, a.attname AS column_name, con.conname AS name,
+                   ns.nspname AS referenced_schema, rc.relname AS referenced_table, ra.attname AS referenced_column
+            FROM pg_constraint con
+            JOIN pg_class tc ON tc.oid = con.conrelid
+            JOIN pg_namespace n ON n.oid = tc.relnamespace
+            JOIN LATERAL unnest(con.conkey) WITH ORDINALITY k(attnum, ord) ON true
+            JOIN pg_attribute a ON a.attrelid = tc.oid AND a.attnum = k.attnum
+            JOIN LATERAL unnest(con.confkey) WITH ORDINALITY rk(attnum, ord) ON rk.ord = k.ord
+            JOIN pg_class rc ON rc.oid = con.confrelid
+            JOIN pg_namespace ns ON ns.oid = rc.relnamespace
+            JOIN pg_attribute ra ON ra.attrelid = rc.oid AND ra.attnum = rk.attnum
+            WHERE con.contype = 'f' AND n.nspname = ? AND tc.relname IN (__IN__)
+            ORDER BY tc.relname, con.conname, k.ord
+            """;
+
+    private static final String SQL_CONSTRAINTS = """
+            SELECT tc.relname AS table_name, con.conname AS name,
+                   CASE con.contype WHEN 'p' THEN 'PRIMARY KEY' WHEN 'f' THEN 'FOREIGN KEY'
+                        WHEN 'u' THEN 'UNIQUE' WHEN 'c' THEN 'CHECK' END AS constraint_type,
+                   a.attname AS column_name, rn.nspname AS referenced_schema,
+                   rc.relname AS referenced_table, ra.attname AS referenced_column,
+                   pg_get_constraintdef(con.oid, true) AS definition
+            FROM pg_constraint con
+            JOIN pg_class tc ON tc.oid = con.conrelid
+            JOIN pg_namespace n ON n.oid = tc.relnamespace
+            LEFT JOIN LATERAL unnest(con.conkey) WITH ORDINALITY k(attnum, ord) ON true
+            LEFT JOIN pg_attribute a ON a.attrelid = tc.oid AND a.attnum = k.attnum
+            LEFT JOIN LATERAL unnest(con.confkey) WITH ORDINALITY rk(attnum, ord) ON rk.ord = k.ord
+            LEFT JOIN pg_class rc ON rc.oid = con.confrelid
+            LEFT JOIN pg_namespace rn ON rn.oid = rc.relnamespace
+            LEFT JOIN pg_attribute ra ON ra.attrelid = rc.oid AND ra.attnum = rk.attnum
+            WHERE con.contype IN ('p', 'f', 'u', 'c')
+              AND n.nspname = ? AND tc.relname IN (__IN__)
+            ORDER BY tc.relname, con.conname, k.ord
+            """;
+
+    @Override
+    public List<PrimaryKeyMetadata> listPrimaryKeys(List<ObjectRef> relations) throws SQLException {
+        var first = relations.get(0);
+        return groupPrimaryKeys(queryKeys(SQL_PRIMARY_KEYS, relations, first.schema()),
+                new RelationScope(first.catalog(), first.schema()));
+    }
+
+    @Override
+    public List<ForeignKeyMetadata> listForeignKeys(List<ObjectRef> relations) throws SQLException {
+        var first = relations.get(0);
+        return groupForeignKeys(queryKeys(SQL_FOREIGN_KEYS, relations, first.schema()),
+                new RelationScope(first.catalog(), first.schema()));
+    }
+
+    @Override
+    public List<ConstraintMetadata> listConstraints(List<ObjectRef> relations) throws SQLException {
+        if (relations.isEmpty()) {
+            return List.of();
+        }
+        var first = relations.get(0);
+        return groupConstraints(queryKeys(SQL_CONSTRAINTS, relations, first.schema()),
+                new RelationScope(first.catalog(), first.schema()));
+    }
+}

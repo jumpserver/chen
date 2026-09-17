@@ -1,0 +1,12 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "node-terminal",
+      "name": "Docker: Chen Backend",
+      "request": "launch",
+      "command": "docker compose up --build",
+      "cwd": "${workspaceFolder}"
+    }
+  ]
+}

@@ -106,7 +106,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         faceMonitorToken_ = s;
@@ -122,7 +122,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getFaceMonitorTokenBytes() {
       java.lang.Object ref = faceMonitorToken_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         faceMonitorToken_ = b;
@@ -145,7 +145,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         sessionId_ = s;
@@ -161,7 +161,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getSessionIdBytes() {
       java.lang.Object ref = sessionId_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         sessionId_ = b;
@@ -514,7 +514,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getFaceMonitorTokenBytes() {
         java.lang.Object ref = faceMonitorToken_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           faceMonitorToken_ = b;
@@ -586,7 +586,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getSessionIdBytes() {
         java.lang.Object ref = sessionId_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           sessionId_ = b;
@@ -1190,7 +1190,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.Status status = 1;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder> 
+          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder>
           internalGetStatusFieldBuilder() {
         if (statusBuilder_ == null) {
           statusBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -1386,7 +1386,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         token_ = s;
@@ -1402,7 +1402,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getTokenBytes() {
       java.lang.Object ref = token_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         token_ = b;
@@ -1436,7 +1436,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         errorMessage_ = s;
@@ -1452,7 +1452,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getErrorMessageBytes() {
       java.lang.Object ref = errorMessage_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         errorMessage_ = b;
@@ -1486,7 +1486,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         action_ = s;
@@ -1502,7 +1502,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getActionBytes() {
       java.lang.Object ref = action_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         action_ = b;
@@ -2003,7 +2003,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getTokenBytes() {
         java.lang.Object ref = token_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           token_ = b;
@@ -2107,7 +2107,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getErrorMessageBytes() {
         java.lang.Object ref = errorMessage_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           errorMessage_ = b;
@@ -2211,7 +2211,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getActionBytes() {
         java.lang.Object ref = action_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           action_ = b;
@@ -2926,7 +2926,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.Status status = 1;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder> 
+          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder>
           internalGetStatusFieldBuilder() {
         if (statusBuilder_ == null) {
           statusBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -3089,7 +3089,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         token_ = s;
@@ -3105,7 +3105,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getTokenBytes() {
       java.lang.Object ref = token_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         token_ = b;
@@ -3139,7 +3139,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         errorMessage_ = s;
@@ -3155,7 +3155,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getErrorMessageBytes() {
       java.lang.Object ref = errorMessage_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         errorMessage_ = b;
@@ -3178,7 +3178,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         faceCode_ = s;
@@ -3194,7 +3194,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getFaceCodeBytes() {
       java.lang.Object ref = faceCode_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         faceCode_ = b;
@@ -3595,7 +3595,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getTokenBytes() {
         java.lang.Object ref = token_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           token_ = b;
@@ -3699,7 +3699,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getErrorMessageBytes() {
         java.lang.Object ref = errorMessage_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           errorMessage_ = b;
@@ -3771,7 +3771,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getFaceCodeBytes() {
         java.lang.Object ref = faceCode_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           faceCode_ = b;
@@ -4375,7 +4375,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.Status status = 1;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder> 
+          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder>
           internalGetStatusFieldBuilder() {
         if (statusBuilder_ == null) {
           statusBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -4532,7 +4532,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         userId_ = s;
@@ -4548,7 +4548,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getUserIdBytes() {
       java.lang.Object ref = userId_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         userId_ = b;
@@ -4571,7 +4571,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         assetId_ = s;
@@ -4587,7 +4587,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getAssetIdBytes() {
       java.lang.Object ref = assetId_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         assetId_ = b;
@@ -4610,7 +4610,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         accountUsername_ = s;
@@ -4626,7 +4626,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getAccountUsernameBytes() {
       java.lang.Object ref = accountUsername_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         accountUsername_ = b;
@@ -5003,7 +5003,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getUserIdBytes() {
         java.lang.Object ref = userId_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           userId_ = b;
@@ -5075,7 +5075,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getAssetIdBytes() {
         java.lang.Object ref = assetId_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           assetId_ = b;
@@ -5147,7 +5147,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getAccountUsernameBytes() {
         java.lang.Object ref = accountUsername_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           accountUsername_ = b;
@@ -5412,7 +5412,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         ticketId_ = s;
@@ -5428,7 +5428,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getTicketIdBytes() {
       java.lang.Object ref = ticketId_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         ticketId_ = b;
@@ -5947,7 +5947,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.Status status = 1;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder> 
+          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder>
           internalGetStatusFieldBuilder() {
         if (statusBuilder_ == null) {
           statusBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -6068,7 +6068,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.TicketInfo ticket_info = 2;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.ServiceOuterClass.TicketInfo, org.jumpserver.wisp.ServiceOuterClass.TicketInfo.Builder, org.jumpserver.wisp.ServiceOuterClass.TicketInfoOrBuilder> 
+          org.jumpserver.wisp.ServiceOuterClass.TicketInfo, org.jumpserver.wisp.ServiceOuterClass.TicketInfo.Builder, org.jumpserver.wisp.ServiceOuterClass.TicketInfoOrBuilder>
           internalGetTicketInfoFieldBuilder() {
         if (ticketInfoBuilder_ == null) {
           ticketInfoBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -6138,7 +6138,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getTicketIdBytes() {
         java.lang.Object ref = ticketId_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           ticketId_ = b;
@@ -6320,7 +6320,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         err_ = s;
@@ -6336,7 +6336,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getErrBytes() {
       java.lang.Object ref = err_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         err_ = b;
@@ -6721,7 +6721,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getErrBytes() {
         java.lang.Object ref = err_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           err_ = b;
@@ -6886,7 +6886,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         token_ = s;
@@ -6902,7 +6902,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getTokenBytes() {
       java.lang.Object ref = token_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         token_ = b;
@@ -7231,7 +7231,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getTokenBytes() {
         java.lang.Object ref = token_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           token_ = b;
@@ -7914,7 +7914,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.Status status = 1;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder> 
+          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder>
           internalGetStatusFieldBuilder() {
         if (statusBuilder_ == null) {
           statusBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -8035,7 +8035,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.TokenAuthInfo data = 2;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.Common.TokenAuthInfo, org.jumpserver.wisp.Common.TokenAuthInfo.Builder, org.jumpserver.wisp.Common.TokenAuthInfoOrBuilder> 
+          org.jumpserver.wisp.Common.TokenAuthInfo, org.jumpserver.wisp.Common.TokenAuthInfo.Builder, org.jumpserver.wisp.Common.TokenAuthInfoOrBuilder>
           internalGetDataFieldBuilder() {
         if (dataBuilder_ == null) {
           dataBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -8605,7 +8605,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.Session data = 1;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.Common.Session, org.jumpserver.wisp.Common.Session.Builder, org.jumpserver.wisp.Common.SessionOrBuilder> 
+          org.jumpserver.wisp.Common.Session, org.jumpserver.wisp.Common.Session.Builder, org.jumpserver.wisp.Common.SessionOrBuilder>
           internalGetDataFieldBuilder() {
         if (dataBuilder_ == null) {
           dataBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -9254,7 +9254,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.Status status = 1;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder> 
+          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder>
           internalGetStatusFieldBuilder() {
         if (statusBuilder_ == null) {
           statusBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -9375,7 +9375,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.Session data = 2;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.Common.Session, org.jumpserver.wisp.Common.Session.Builder, org.jumpserver.wisp.Common.SessionOrBuilder> 
+          org.jumpserver.wisp.Common.Session, org.jumpserver.wisp.Common.Session.Builder, org.jumpserver.wisp.Common.SessionOrBuilder>
           internalGetDataFieldBuilder() {
         if (dataBuilder_ == null) {
           dataBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -9531,7 +9531,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         id_ = s;
@@ -9547,7 +9547,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getIdBytes() {
       java.lang.Object ref = id_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         id_ = b;
@@ -9592,7 +9592,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         err_ = s;
@@ -9608,7 +9608,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getErrBytes() {
       java.lang.Object ref = err_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         err_ = b;
@@ -10009,7 +10009,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getIdBytes() {
         java.lang.Object ref = id_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           id_ = b;
@@ -10145,7 +10145,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getErrBytes() {
         java.lang.Object ref = err_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           err_ = b;
@@ -10749,7 +10749,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.Status status = 1;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder> 
+          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder>
           internalGetStatusFieldBuilder() {
         if (statusBuilder_ == null) {
           statusBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -10893,7 +10893,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         sessionId_ = s;
@@ -10909,7 +10909,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getSessionIdBytes() {
       java.lang.Object ref = sessionId_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         sessionId_ = b;
@@ -10932,7 +10932,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         replayFilePath_ = s;
@@ -10948,7 +10948,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getReplayFilePathBytes() {
       java.lang.Object ref = replayFilePath_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         replayFilePath_ = b;
@@ -11301,7 +11301,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getSessionIdBytes() {
         java.lang.Object ref = sessionId_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           sessionId_ = b;
@@ -11373,7 +11373,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getReplayFilePathBytes() {
         java.lang.Object ref = replayFilePath_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           replayFilePath_ = b;
@@ -11977,7 +11977,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.Status status = 1;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder> 
+          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder>
           internalGetStatusFieldBuilder() {
         if (statusBuilder_ == null) {
           statusBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -12230,7 +12230,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         sid_ = s;
@@ -12246,7 +12246,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getSidBytes() {
       java.lang.Object ref = sid_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         sid_ = b;
@@ -12269,7 +12269,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         orgId_ = s;
@@ -12285,7 +12285,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getOrgIdBytes() {
       java.lang.Object ref = orgId_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         orgId_ = b;
@@ -12308,7 +12308,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         input_ = s;
@@ -12324,7 +12324,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getInputBytes() {
       java.lang.Object ref = input_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         input_ = b;
@@ -12347,7 +12347,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         output_ = s;
@@ -12363,7 +12363,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getOutputBytes() {
       java.lang.Object ref = output_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         output_ = b;
@@ -12386,7 +12386,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         user_ = s;
@@ -12402,7 +12402,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getUserBytes() {
       java.lang.Object ref = user_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         user_ = b;
@@ -12425,7 +12425,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         asset_ = s;
@@ -12441,7 +12441,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getAssetBytes() {
       java.lang.Object ref = asset_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         asset_ = b;
@@ -12464,7 +12464,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         account_ = s;
@@ -12480,7 +12480,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getAccountBytes() {
       java.lang.Object ref = account_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         account_ = b;
@@ -12532,7 +12532,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         cmdAclId_ = s;
@@ -12548,7 +12548,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getCmdAclIdBytes() {
       java.lang.Object ref = cmdAclId_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         cmdAclId_ = b;
@@ -12571,7 +12571,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         cmdGroupId_ = s;
@@ -12587,7 +12587,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getCmdGroupIdBytes() {
       java.lang.Object ref = cmdGroupId_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         cmdGroupId_ = b;
@@ -13154,7 +13154,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getSidBytes() {
         java.lang.Object ref = sid_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           sid_ = b;
@@ -13226,7 +13226,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getOrgIdBytes() {
         java.lang.Object ref = orgId_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           orgId_ = b;
@@ -13298,7 +13298,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getInputBytes() {
         java.lang.Object ref = input_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           input_ = b;
@@ -13370,7 +13370,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getOutputBytes() {
         java.lang.Object ref = output_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           output_ = b;
@@ -13442,7 +13442,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getUserBytes() {
         java.lang.Object ref = user_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           user_ = b;
@@ -13514,7 +13514,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getAssetBytes() {
         java.lang.Object ref = asset_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           asset_ = b;
@@ -13586,7 +13586,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getAccountBytes() {
         java.lang.Object ref = account_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           account_ = b;
@@ -13741,7 +13741,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getCmdAclIdBytes() {
         java.lang.Object ref = cmdAclId_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           cmdAclId_ = b;
@@ -13813,7 +13813,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getCmdGroupIdBytes() {
         java.lang.Object ref = cmdGroupId_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           cmdGroupId_ = b;
@@ -14417,7 +14417,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.Status status = 1;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder> 
+          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder>
           internalGetStatusFieldBuilder() {
         if (statusBuilder_ == null) {
           statusBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -14548,7 +14548,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         taskId_ = s;
@@ -14564,7 +14564,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getTaskIdBytes() {
       java.lang.Object ref = taskId_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         taskId_ = b;
@@ -14893,7 +14893,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getTaskIdBytes() {
         java.lang.Object ref = taskId_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           taskId_ = b;
@@ -15497,7 +15497,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.TerminalTask task = 1;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.Common.TerminalTask, org.jumpserver.wisp.Common.TerminalTask.Builder, org.jumpserver.wisp.Common.TerminalTaskOrBuilder> 
+          org.jumpserver.wisp.Common.TerminalTask, org.jumpserver.wisp.Common.TerminalTask.Builder, org.jumpserver.wisp.Common.TerminalTaskOrBuilder>
           internalGetTaskFieldBuilder() {
         if (taskBuilder_ == null) {
           taskBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -15628,7 +15628,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         replayDir_ = s;
@@ -15644,7 +15644,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getReplayDirBytes() {
       java.lang.Object ref = replayDir_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         replayDir_ = b;
@@ -15973,7 +15973,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getReplayDirBytes() {
         java.lang.Object ref = replayDir_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           replayDir_ = b;
@@ -16886,7 +16886,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.Status status = 1;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder> 
+          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder>
           internalGetStatusFieldBuilder() {
         if (statusBuilder_ == null) {
           statusBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -17789,7 +17789,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.Status status = 1;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder> 
+          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder>
           internalGetStatusFieldBuilder() {
         if (statusBuilder_ == null) {
           statusBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -17946,7 +17946,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         sessionId_ = s;
@@ -17962,7 +17962,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getSessionIdBytes() {
       java.lang.Object ref = sessionId_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         sessionId_ = b;
@@ -17985,7 +17985,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         cmdAclId_ = s;
@@ -18001,7 +18001,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getCmdAclIdBytes() {
       java.lang.Object ref = cmdAclId_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         cmdAclId_ = b;
@@ -18024,7 +18024,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         cmd_ = s;
@@ -18040,7 +18040,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getCmdBytes() {
       java.lang.Object ref = cmd_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         cmd_ = b;
@@ -18417,7 +18417,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getSessionIdBytes() {
         java.lang.Object ref = sessionId_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           sessionId_ = b;
@@ -18489,7 +18489,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getCmdAclIdBytes() {
         java.lang.Object ref = cmdAclId_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           cmdAclId_ = b;
@@ -18561,7 +18561,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getCmdBytes() {
         java.lang.Object ref = cmd_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           cmd_ = b;
@@ -18739,7 +18739,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         method_ = s;
@@ -18755,7 +18755,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getMethodBytes() {
       java.lang.Object ref = method_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         method_ = b;
@@ -18778,7 +18778,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         url_ = s;
@@ -18794,7 +18794,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getUrlBytes() {
       java.lang.Object ref = url_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         url_ = b;
@@ -19147,7 +19147,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getMethodBytes() {
         java.lang.Object ref = method_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           method_ = b;
@@ -19219,7 +19219,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getUrlBytes() {
         java.lang.Object ref = url_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           url_ = b;
@@ -19902,7 +19902,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.Status status = 1;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder> 
+          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder>
           internalGetStatusFieldBuilder() {
         if (statusBuilder_ == null) {
           statusBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -20023,7 +20023,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.TicketInfo info = 2;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.ServiceOuterClass.TicketInfo, org.jumpserver.wisp.ServiceOuterClass.TicketInfo.Builder, org.jumpserver.wisp.ServiceOuterClass.TicketInfoOrBuilder> 
+          org.jumpserver.wisp.ServiceOuterClass.TicketInfo, org.jumpserver.wisp.ServiceOuterClass.TicketInfo.Builder, org.jumpserver.wisp.ServiceOuterClass.TicketInfoOrBuilder>
           internalGetInfoFieldBuilder() {
         if (infoBuilder_ == null) {
           infoBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -20264,7 +20264,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         ticketDetailUrl_ = s;
@@ -20280,7 +20280,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getTicketDetailUrlBytes() {
       java.lang.Object ref = ticketDetailUrl_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         ticketDetailUrl_ = b;
@@ -20851,7 +20851,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.ReqInfo check_req = 1;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.ServiceOuterClass.ReqInfo, org.jumpserver.wisp.ServiceOuterClass.ReqInfo.Builder, org.jumpserver.wisp.ServiceOuterClass.ReqInfoOrBuilder> 
+          org.jumpserver.wisp.ServiceOuterClass.ReqInfo, org.jumpserver.wisp.ServiceOuterClass.ReqInfo.Builder, org.jumpserver.wisp.ServiceOuterClass.ReqInfoOrBuilder>
           internalGetCheckReqFieldBuilder() {
         if (checkReqBuilder_ == null) {
           checkReqBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -20972,7 +20972,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.ReqInfo cancel_req = 2;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.ServiceOuterClass.ReqInfo, org.jumpserver.wisp.ServiceOuterClass.ReqInfo.Builder, org.jumpserver.wisp.ServiceOuterClass.ReqInfoOrBuilder> 
+          org.jumpserver.wisp.ServiceOuterClass.ReqInfo, org.jumpserver.wisp.ServiceOuterClass.ReqInfo.Builder, org.jumpserver.wisp.ServiceOuterClass.ReqInfoOrBuilder>
           internalGetCancelReqFieldBuilder() {
         if (cancelReqBuilder_ == null) {
           cancelReqBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -21010,7 +21010,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getTicketDetailUrlBytes() {
         java.lang.Object ref = ticketDetailUrl_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           ticketDetailUrl_ = b;
@@ -21725,7 +21725,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.ReqInfo req = 1;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.ServiceOuterClass.ReqInfo, org.jumpserver.wisp.ServiceOuterClass.ReqInfo.Builder, org.jumpserver.wisp.ServiceOuterClass.ReqInfoOrBuilder> 
+          org.jumpserver.wisp.ServiceOuterClass.ReqInfo, org.jumpserver.wisp.ServiceOuterClass.ReqInfo.Builder, org.jumpserver.wisp.ServiceOuterClass.ReqInfoOrBuilder>
           internalGetReqFieldBuilder() {
         if (reqBuilder_ == null) {
           reqBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -22374,7 +22374,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.TicketState Data = 1;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.ServiceOuterClass.TicketState, org.jumpserver.wisp.ServiceOuterClass.TicketState.Builder, org.jumpserver.wisp.ServiceOuterClass.TicketStateOrBuilder> 
+          org.jumpserver.wisp.ServiceOuterClass.TicketState, org.jumpserver.wisp.ServiceOuterClass.TicketState.Builder, org.jumpserver.wisp.ServiceOuterClass.TicketStateOrBuilder>
           internalGetDataFieldBuilder() {
         if (dataBuilder_ == null) {
           dataBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -22495,7 +22495,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.Status status = 2;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder> 
+          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder>
           internalGetStatusFieldBuilder() {
         if (statusBuilder_ == null) {
           statusBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -22791,7 +22791,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         processor_ = s;
@@ -22807,7 +22807,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getProcessorBytes() {
       java.lang.Object ref = processor_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         processor_ = b;
@@ -23209,7 +23209,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getProcessorBytes() {
         java.lang.Object ref = processor_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           processor_ = b;
@@ -23332,7 +23332,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
     /**
      * <code>repeated .message.Gateway gateways = 3;</code>
      */
-    java.util.List<org.jumpserver.wisp.Common.Gateway> 
+    java.util.List<org.jumpserver.wisp.Common.Gateway>
         getGatewaysList();
     /**
      * <code>repeated .message.Gateway gateways = 3;</code>
@@ -23345,7 +23345,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
     /**
      * <code>repeated .message.Gateway gateways = 3;</code>
      */
-    java.util.List<? extends org.jumpserver.wisp.Common.GatewayOrBuilder> 
+    java.util.List<? extends org.jumpserver.wisp.Common.GatewayOrBuilder>
         getGatewaysOrBuilderList();
     /**
      * <code>repeated .message.Gateway gateways = 3;</code>
@@ -23405,7 +23405,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         host_ = s;
@@ -23421,7 +23421,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getHostBytes() {
       java.lang.Object ref = host_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         host_ = b;
@@ -23456,7 +23456,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
      * <code>repeated .message.Gateway gateways = 3;</code>
      */
     @java.lang.Override
-    public java.util.List<? extends org.jumpserver.wisp.Common.GatewayOrBuilder> 
+    public java.util.List<? extends org.jumpserver.wisp.Common.GatewayOrBuilder>
         getGatewaysOrBuilderList() {
       return gateways_;
     }
@@ -23798,7 +23798,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
               gatewaysBuilder_ = null;
               gateways_ = other.gateways_;
               bitField0_ = (bitField0_ & ~0x00000004);
-              gatewaysBuilder_ = 
+              gatewaysBuilder_ =
                 com.google.protobuf.GeneratedMessage.alwaysUseFieldBuilders ?
                    internalGetGatewaysFieldBuilder() : null;
             } else {
@@ -23897,7 +23897,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getHostBytes() {
         java.lang.Object ref = host_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           host_ = b;
@@ -24171,7 +24171,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       /**
        * <code>repeated .message.Gateway gateways = 3;</code>
        */
-      public java.util.List<? extends org.jumpserver.wisp.Common.GatewayOrBuilder> 
+      public java.util.List<? extends org.jumpserver.wisp.Common.GatewayOrBuilder>
            getGatewaysOrBuilderList() {
         if (gatewaysBuilder_ != null) {
           return gatewaysBuilder_.getMessageOrBuilderList();
@@ -24197,12 +24197,12 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       /**
        * <code>repeated .message.Gateway gateways = 3;</code>
        */
-      public java.util.List<org.jumpserver.wisp.Common.Gateway.Builder> 
+      public java.util.List<org.jumpserver.wisp.Common.Gateway.Builder>
            getGatewaysBuilderList() {
         return internalGetGatewaysFieldBuilder().getBuilderList();
       }
       private com.google.protobuf.RepeatedFieldBuilder<
-          org.jumpserver.wisp.Common.Gateway, org.jumpserver.wisp.Common.Gateway.Builder, org.jumpserver.wisp.Common.GatewayOrBuilder> 
+          org.jumpserver.wisp.Common.Gateway, org.jumpserver.wisp.Common.Gateway.Builder, org.jumpserver.wisp.Common.GatewayOrBuilder>
           internalGetGatewaysFieldBuilder() {
         if (gatewaysBuilder_ == null) {
           gatewaysBuilder_ = new com.google.protobuf.RepeatedFieldBuilder<
@@ -24334,7 +24334,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         id_ = s;
@@ -24350,7 +24350,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getIdBytes() {
       java.lang.Object ref = id_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         id_ = b;
@@ -24679,7 +24679,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getIdBytes() {
         java.lang.Object ref = id_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           id_ = b;
@@ -24905,7 +24905,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         id_ = s;
@@ -24921,7 +24921,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getIdBytes() {
       java.lang.Object ref = id_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         id_ = b;
@@ -24944,7 +24944,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         host_ = s;
@@ -24960,7 +24960,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getHostBytes() {
       java.lang.Object ref = host_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         host_ = b;
@@ -25475,7 +25475,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.Status status = 1;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder> 
+          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder>
           internalGetStatusFieldBuilder() {
         if (statusBuilder_ == null) {
           statusBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -25513,7 +25513,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getIdBytes() {
         java.lang.Object ref = id_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           id_ = b;
@@ -25585,7 +25585,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getHostBytes() {
         java.lang.Object ref = host_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           host_ = b;
@@ -26300,7 +26300,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.Status status = 1;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder> 
+          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder>
           internalGetStatusFieldBuilder() {
         if (statusBuilder_ == null) {
           statusBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -26421,7 +26421,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.PublicSetting data = 2;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.Common.PublicSetting, org.jumpserver.wisp.Common.PublicSetting.Builder, org.jumpserver.wisp.Common.PublicSettingOrBuilder> 
+          org.jumpserver.wisp.Common.PublicSetting, org.jumpserver.wisp.Common.PublicSetting.Builder, org.jumpserver.wisp.Common.PublicSettingOrBuilder>
           internalGetDataFieldBuilder() {
         if (dataBuilder_ == null) {
           dataBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -27454,7 +27454,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.Status status = 1;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder> 
+          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder>
           internalGetStatusFieldBuilder() {
         if (statusBuilder_ == null) {
           statusBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -28621,7 +28621,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.Status status = 1;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder> 
+          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder>
           internalGetStatusFieldBuilder() {
         if (statusBuilder_ == null) {
           statusBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -28742,7 +28742,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.PortInfo data = 2;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.ServiceOuterClass.PortInfo, org.jumpserver.wisp.ServiceOuterClass.PortInfo.Builder, org.jumpserver.wisp.ServiceOuterClass.PortInfoOrBuilder> 
+          org.jumpserver.wisp.ServiceOuterClass.PortInfo, org.jumpserver.wisp.ServiceOuterClass.PortInfo.Builder, org.jumpserver.wisp.ServiceOuterClass.PortInfoOrBuilder>
           internalGetDataFieldBuilder() {
         if (dataBuilder_ == null) {
           dataBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -28828,7 +28828,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
     /**
      * <code>repeated .message.Gateway gateways = 2;</code>
      */
-    java.util.List<org.jumpserver.wisp.Common.Gateway> 
+    java.util.List<org.jumpserver.wisp.Common.Gateway>
         getGatewaysList();
     /**
      * <code>repeated .message.Gateway gateways = 2;</code>
@@ -28841,7 +28841,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
     /**
      * <code>repeated .message.Gateway gateways = 2;</code>
      */
-    java.util.List<? extends org.jumpserver.wisp.Common.GatewayOrBuilder> 
+    java.util.List<? extends org.jumpserver.wisp.Common.GatewayOrBuilder>
         getGatewaysOrBuilderList();
     /**
      * <code>repeated .message.Gateway gateways = 2;</code>
@@ -28928,7 +28928,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
      * <code>repeated .message.Gateway gateways = 2;</code>
      */
     @java.lang.Override
-    public java.util.List<? extends org.jumpserver.wisp.Common.GatewayOrBuilder> 
+    public java.util.List<? extends org.jumpserver.wisp.Common.GatewayOrBuilder>
         getGatewaysOrBuilderList() {
       return gateways_;
     }
@@ -29272,7 +29272,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
               gatewaysBuilder_ = null;
               gateways_ = other.gateways_;
               bitField0_ = (bitField0_ & ~0x00000002);
-              gatewaysBuilder_ = 
+              gatewaysBuilder_ =
                 com.google.protobuf.GeneratedMessage.alwaysUseFieldBuilders ?
                    internalGetGatewaysFieldBuilder() : null;
             } else {
@@ -29451,7 +29451,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.Asset asset = 1;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.Common.Asset, org.jumpserver.wisp.Common.Asset.Builder, org.jumpserver.wisp.Common.AssetOrBuilder> 
+          org.jumpserver.wisp.Common.Asset, org.jumpserver.wisp.Common.Asset.Builder, org.jumpserver.wisp.Common.AssetOrBuilder>
           internalGetAssetFieldBuilder() {
         if (assetBuilder_ == null) {
           assetBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -29659,7 +29659,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       /**
        * <code>repeated .message.Gateway gateways = 2;</code>
        */
-      public java.util.List<? extends org.jumpserver.wisp.Common.GatewayOrBuilder> 
+      public java.util.List<? extends org.jumpserver.wisp.Common.GatewayOrBuilder>
            getGatewaysOrBuilderList() {
         if (gatewaysBuilder_ != null) {
           return gatewaysBuilder_.getMessageOrBuilderList();
@@ -29685,12 +29685,12 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       /**
        * <code>repeated .message.Gateway gateways = 2;</code>
        */
-      public java.util.List<org.jumpserver.wisp.Common.Gateway.Builder> 
+      public java.util.List<org.jumpserver.wisp.Common.Gateway.Builder>
            getGatewaysBuilderList() {
         return internalGetGatewaysFieldBuilder().getBuilderList();
       }
       private com.google.protobuf.RepeatedFieldBuilder<
-          org.jumpserver.wisp.Common.Gateway, org.jumpserver.wisp.Common.Gateway.Builder, org.jumpserver.wisp.Common.GatewayOrBuilder> 
+          org.jumpserver.wisp.Common.Gateway, org.jumpserver.wisp.Common.Gateway.Builder, org.jumpserver.wisp.Common.GatewayOrBuilder>
           internalGetGatewaysFieldBuilder() {
         if (gatewaysBuilder_ == null) {
           gatewaysBuilder_ = new com.google.protobuf.RepeatedFieldBuilder<
@@ -29839,7 +29839,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         reason_ = s;
@@ -29855,7 +29855,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getReasonBytes() {
       java.lang.Object ref = reason_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         reason_ = b;
@@ -30239,7 +30239,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getReasonBytes() {
         java.lang.Object ref = reason_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           reason_ = b;
@@ -30344,7 +30344,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
     /**
      * <code>repeated .message.PortFailure data = 1;</code>
      */
-    java.util.List<org.jumpserver.wisp.ServiceOuterClass.PortFailure> 
+    java.util.List<org.jumpserver.wisp.ServiceOuterClass.PortFailure>
         getDataList();
     /**
      * <code>repeated .message.PortFailure data = 1;</code>
@@ -30357,7 +30357,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
     /**
      * <code>repeated .message.PortFailure data = 1;</code>
      */
-    java.util.List<? extends org.jumpserver.wisp.ServiceOuterClass.PortFailureOrBuilder> 
+    java.util.List<? extends org.jumpserver.wisp.ServiceOuterClass.PortFailureOrBuilder>
         getDataOrBuilderList();
     /**
      * <code>repeated .message.PortFailure data = 1;</code>
@@ -30417,7 +30417,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
      * <code>repeated .message.PortFailure data = 1;</code>
      */
     @java.lang.Override
-    public java.util.List<? extends org.jumpserver.wisp.ServiceOuterClass.PortFailureOrBuilder> 
+    public java.util.List<? extends org.jumpserver.wisp.ServiceOuterClass.PortFailureOrBuilder>
         getDataOrBuilderList() {
       return data_;
     }
@@ -30722,7 +30722,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
               dataBuilder_ = null;
               data_ = other.data_;
               bitField0_ = (bitField0_ & ~0x00000001);
-              dataBuilder_ = 
+              dataBuilder_ =
                 com.google.protobuf.GeneratedMessage.alwaysUseFieldBuilders ?
                    internalGetDataFieldBuilder() : null;
             } else {
@@ -30981,7 +30981,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       /**
        * <code>repeated .message.PortFailure data = 1;</code>
        */
-      public java.util.List<? extends org.jumpserver.wisp.ServiceOuterClass.PortFailureOrBuilder> 
+      public java.util.List<? extends org.jumpserver.wisp.ServiceOuterClass.PortFailureOrBuilder>
            getDataOrBuilderList() {
         if (dataBuilder_ != null) {
           return dataBuilder_.getMessageOrBuilderList();
@@ -31007,12 +31007,12 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       /**
        * <code>repeated .message.PortFailure data = 1;</code>
        */
-      public java.util.List<org.jumpserver.wisp.ServiceOuterClass.PortFailure.Builder> 
+      public java.util.List<org.jumpserver.wisp.ServiceOuterClass.PortFailure.Builder>
            getDataBuilderList() {
         return internalGetDataFieldBuilder().getBuilderList();
       }
       private com.google.protobuf.RepeatedFieldBuilder<
-          org.jumpserver.wisp.ServiceOuterClass.PortFailure, org.jumpserver.wisp.ServiceOuterClass.PortFailure.Builder, org.jumpserver.wisp.ServiceOuterClass.PortFailureOrBuilder> 
+          org.jumpserver.wisp.ServiceOuterClass.PortFailure, org.jumpserver.wisp.ServiceOuterClass.PortFailure.Builder, org.jumpserver.wisp.ServiceOuterClass.PortFailureOrBuilder>
           internalGetDataFieldBuilder() {
         if (dataBuilder_ == null) {
           dataBuilder_ = new com.google.protobuf.RepeatedFieldBuilder<
@@ -31084,7 +31084,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
     /**
      * <code>repeated .message.Cookie cookies = 1;</code>
      */
-    java.util.List<org.jumpserver.wisp.Common.Cookie> 
+    java.util.List<org.jumpserver.wisp.Common.Cookie>
         getCookiesList();
     /**
      * <code>repeated .message.Cookie cookies = 1;</code>
@@ -31097,7 +31097,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
     /**
      * <code>repeated .message.Cookie cookies = 1;</code>
      */
-    java.util.List<? extends org.jumpserver.wisp.Common.CookieOrBuilder> 
+    java.util.List<? extends org.jumpserver.wisp.Common.CookieOrBuilder>
         getCookiesOrBuilderList();
     /**
      * <code>repeated .message.Cookie cookies = 1;</code>
@@ -31157,7 +31157,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
      * <code>repeated .message.Cookie cookies = 1;</code>
      */
     @java.lang.Override
-    public java.util.List<? extends org.jumpserver.wisp.Common.CookieOrBuilder> 
+    public java.util.List<? extends org.jumpserver.wisp.Common.CookieOrBuilder>
         getCookiesOrBuilderList() {
       return cookies_;
     }
@@ -31462,7 +31462,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
               cookiesBuilder_ = null;
               cookies_ = other.cookies_;
               bitField0_ = (bitField0_ & ~0x00000001);
-              cookiesBuilder_ = 
+              cookiesBuilder_ =
                 com.google.protobuf.GeneratedMessage.alwaysUseFieldBuilders ?
                    internalGetCookiesFieldBuilder() : null;
             } else {
@@ -31721,7 +31721,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       /**
        * <code>repeated .message.Cookie cookies = 1;</code>
        */
-      public java.util.List<? extends org.jumpserver.wisp.Common.CookieOrBuilder> 
+      public java.util.List<? extends org.jumpserver.wisp.Common.CookieOrBuilder>
            getCookiesOrBuilderList() {
         if (cookiesBuilder_ != null) {
           return cookiesBuilder_.getMessageOrBuilderList();
@@ -31747,12 +31747,12 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       /**
        * <code>repeated .message.Cookie cookies = 1;</code>
        */
-      public java.util.List<org.jumpserver.wisp.Common.Cookie.Builder> 
+      public java.util.List<org.jumpserver.wisp.Common.Cookie.Builder>
            getCookiesBuilderList() {
         return internalGetCookiesFieldBuilder().getBuilderList();
       }
       private com.google.protobuf.RepeatedFieldBuilder<
-          org.jumpserver.wisp.Common.Cookie, org.jumpserver.wisp.Common.Cookie.Builder, org.jumpserver.wisp.Common.CookieOrBuilder> 
+          org.jumpserver.wisp.Common.Cookie, org.jumpserver.wisp.Common.Cookie.Builder, org.jumpserver.wisp.Common.CookieOrBuilder>
           internalGetCookiesFieldBuilder() {
         if (cookiesBuilder_ == null) {
           cookiesBuilder_ = new com.google.protobuf.RepeatedFieldBuilder<
@@ -32402,7 +32402,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.Status status = 1;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder> 
+          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder>
           internalGetStatusFieldBuilder() {
         if (statusBuilder_ == null) {
           statusBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -32523,7 +32523,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.User data = 2;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.Common.User, org.jumpserver.wisp.Common.User.Builder, org.jumpserver.wisp.Common.UserOrBuilder> 
+          org.jumpserver.wisp.Common.User, org.jumpserver.wisp.Common.User.Builder, org.jumpserver.wisp.Common.UserOrBuilder>
           internalGetDataFieldBuilder() {
         if (dataBuilder_ == null) {
           dataBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -32908,7 +32908,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         sessionId_ = s;
@@ -32924,7 +32924,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getSessionIdBytes() {
       java.lang.Object ref = sessionId_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         sessionId_ = b;
@@ -32965,7 +32965,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         reason_ = s;
@@ -32981,7 +32981,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getReasonBytes() {
       java.lang.Object ref = reason_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         reason_ = b;
@@ -33004,7 +33004,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         user_ = s;
@@ -33020,7 +33020,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
         getUserBytes() {
       java.lang.Object ref = user_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         user_ = b;
@@ -33419,7 +33419,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getSessionIdBytes() {
         java.lang.Object ref = sessionId_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           sessionId_ = b;
@@ -33542,7 +33542,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getReasonBytes() {
         java.lang.Object ref = reason_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           reason_ = b;
@@ -33614,7 +33614,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
           getUserBytes() {
         java.lang.Object ref = user_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           user_ = b;
@@ -34297,7 +34297,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.message.Status status = 1;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder> 
+          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder>
           internalGetStatusFieldBuilder() {
         if (statusBuilder_ == null) {
           statusBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -34418,7 +34418,7 @@ public final class ServiceOuterClass extends com.google.protobuf.GeneratedFile {
        * <code>.google.protobuf.Struct payload = 2;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          com.google.protobuf.Struct, com.google.protobuf.Struct.Builder, com.google.protobuf.StructOrBuilder> 
+          com.google.protobuf.Struct, com.google.protobuf.Struct.Builder, com.google.protobuf.StructOrBuilder>
           internalGetPayloadFieldBuilder() {
         if (payloadBuilder_ == null) {
           payloadBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -34651,7 +34651,7 @@ java.lang.String defaultValue);
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         method_ = s;
@@ -34667,7 +34667,7 @@ java.lang.String defaultValue);
         getMethodBytes() {
       java.lang.Object ref = method_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         method_ = b;
@@ -34690,7 +34690,7 @@ java.lang.String defaultValue);
       if (ref instanceof java.lang.String) {
         return (java.lang.String) ref;
       } else {
-        com.google.protobuf.ByteString bs = 
+        com.google.protobuf.ByteString bs =
             (com.google.protobuf.ByteString) ref;
         java.lang.String s = bs.toStringUtf8();
         path_ = s;
@@ -34706,7 +34706,7 @@ java.lang.String defaultValue);
         getPathBytes() {
       java.lang.Object ref = path_;
       if (ref instanceof java.lang.String) {
-        com.google.protobuf.ByteString b = 
+        com.google.protobuf.ByteString b =
             com.google.protobuf.ByteString.copyFromUtf8(
                 (java.lang.String) ref);
         path_ = b;
@@ -34722,7 +34722,7 @@ java.lang.String defaultValue);
           java.lang.String, java.lang.String> defaultEntry =
               com.google.protobuf.MapEntry
               .<java.lang.String, java.lang.String>newDefaultInstance(
-                  org.jumpserver.wisp.ServiceOuterClass.internal_static_message_HTTPRequest_QueryEntry_descriptor, 
+                  org.jumpserver.wisp.ServiceOuterClass.internal_static_message_HTTPRequest_QueryEntry_descriptor,
                   com.google.protobuf.WireFormat.FieldType.STRING,
                   "",
                   com.google.protobuf.WireFormat.FieldType.STRING,
@@ -34801,7 +34801,7 @@ java.lang.String defaultValue) {
           java.lang.String, java.lang.String> defaultEntry =
               com.google.protobuf.MapEntry
               .<java.lang.String, java.lang.String>newDefaultInstance(
-                  org.jumpserver.wisp.ServiceOuterClass.internal_static_message_HTTPRequest_HeaderEntry_descriptor, 
+                  org.jumpserver.wisp.ServiceOuterClass.internal_static_message_HTTPRequest_HeaderEntry_descriptor,
                   com.google.protobuf.WireFormat.FieldType.STRING,
                   "",
                   com.google.protobuf.WireFormat.FieldType.STRING,
@@ -35355,7 +35355,7 @@ java.lang.String defaultValue) {
           getMethodBytes() {
         java.lang.Object ref = method_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           method_ = b;
@@ -35427,7 +35427,7 @@ java.lang.String defaultValue) {
           getPathBytes() {
         java.lang.Object ref = path_;
         if (ref instanceof String) {
-          com.google.protobuf.ByteString b = 
+          com.google.protobuf.ByteString b =
               com.google.protobuf.ByteString.copyFromUtf8(
                   (java.lang.String) ref);
           path_ = b;
@@ -36358,7 +36358,7 @@ java.lang.String defaultValue) {
        * <code>.message.Status status = 1;</code>
        */
       private com.google.protobuf.SingleFieldBuilder<
-          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder> 
+          org.jumpserver.wisp.ServiceOuterClass.Status, org.jumpserver.wisp.ServiceOuterClass.Status.Builder, org.jumpserver.wisp.ServiceOuterClass.StatusOrBuilder>
           internalGetStatusFieldBuilder() {
         if (statusBuilder_ == null) {
           statusBuilder_ = new com.google.protobuf.SingleFieldBuilder<
@@ -36456,252 +36456,252 @@ java.lang.String defaultValue) {
 
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_JoinFaceMonitorRequest_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_JoinFaceMonitorRequest_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_JoinFaceMonitorResponse_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_JoinFaceMonitorResponse_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_FaceMonitorCallbackRequest_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_FaceMonitorCallbackRequest_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_FaceMonitorCallbackResponse_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_FaceMonitorCallbackResponse_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_FaceRecognitionCallbackRequest_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_FaceRecognitionCallbackRequest_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_FaceRecognitionCallbackResponse_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_FaceRecognitionCallbackResponse_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_AssetLoginTicketRequest_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_AssetLoginTicketRequest_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_AssetLoginTicketResponse_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_AssetLoginTicketResponse_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_Status_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_Status_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_TokenRequest_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_TokenRequest_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_TokenResponse_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_TokenResponse_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_SessionCreateRequest_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_SessionCreateRequest_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_SessionCreateResponse_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_SessionCreateResponse_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_SessionFinishRequest_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_SessionFinishRequest_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_SessionFinishResp_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_SessionFinishResp_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_ReplayRequest_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_ReplayRequest_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_ReplayResponse_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_ReplayResponse_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_CommandRequest_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_CommandRequest_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_CommandResponse_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_CommandResponse_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_FinishedTaskRequest_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_FinishedTaskRequest_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_TaskResponse_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_TaskResponse_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_RemainReplayRequest_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_RemainReplayRequest_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_RemainReplayResponse_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_RemainReplayResponse_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_StatusResponse_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_StatusResponse_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_CommandConfirmRequest_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_CommandConfirmRequest_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_ReqInfo_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_ReqInfo_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_CommandConfirmResponse_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_CommandConfirmResponse_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_TicketInfo_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_TicketInfo_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_TicketRequest_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_TicketRequest_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_TicketStateResponse_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_TicketStateResponse_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_TicketState_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_TicketState_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_ForwardRequest_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_ForwardRequest_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_ForwardDeleteRequest_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_ForwardDeleteRequest_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_ForwardResponse_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_ForwardResponse_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_PublicSettingResponse_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_PublicSettingResponse_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_Empty_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_Empty_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_ListenPortResponse_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_ListenPortResponse_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_PortInfoRequest_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_PortInfoRequest_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_PortInfoResponse_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_PortInfoResponse_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_PortInfo_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_PortInfo_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_PortFailure_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_PortFailure_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_PortFailureRequest_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_PortFailureRequest_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_CookiesRequest_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_CookiesRequest_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_UserResponse_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_UserResponse_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_SessionLifecycleLogRequest_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_SessionLifecycleLogRequest_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_AccountDetailResponse_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_AccountDetailResponse_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_HTTPRequest_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_HTTPRequest_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_HTTPRequest_QueryEntry_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_HTTPRequest_QueryEntry_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_HTTPRequest_HeaderEntry_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_HTTPRequest_HeaderEntry_fieldAccessorTable;
   private static final com.google.protobuf.Descriptors.Descriptor
     internal_static_message_HTTPResponse_descriptor;
-  private static final 
+  private static final
     com.google.protobuf.GeneratedMessage.FieldAccessorTable
       internal_static_message_HTTPResponse_fieldAccessorTable;
 

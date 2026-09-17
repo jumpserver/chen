@@ -1,6 +1,7 @@
 package org.jumpserver.chen.web.config;
 
 import lombok.extern.slf4j.Slf4j;
+import org.jumpserver.chen.web.ai.AgentWebSocketHandler;
 import org.jumpserver.chen.framework.session.SessionManager;
 import org.jumpserver.chen.framework.ws.ConsoleWebSocketHandler;
 import org.jumpserver.chen.framework.ws.DBConsoleWebsocketHandler;
@@ -38,9 +39,9 @@ public class WebSocketConfig {
 
 
     @Bean
-    public WebSocketHandlerMapping chenWebSocketHandlerMapping() {
+    public WebSocketHandlerMapping chenWebSocketHandlerMapping(AgentWebSocketHandler agentWebSocketHandler) {
         var handlers = new LinkedHashMap<String, Object>();
-        handlers.put("/ws/session", createRequestHandler(new SessionWebSocketHandler()));
+        handlers.put("/ws/session", createRequestHandler(new SessionWebSocketHandler(agentWebSocketHandler)));
         handlers.put("/ws/console", createRequestHandler(new ConsoleWebSocketHandler()));
         handlers.put("/ws/db-console", createRequestHandler(new DBConsoleWebsocketHandler()));
 

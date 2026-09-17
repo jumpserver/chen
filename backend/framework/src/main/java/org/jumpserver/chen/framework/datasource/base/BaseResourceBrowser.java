@@ -2,21 +2,25 @@ package org.jumpserver.chen.framework.datasource.base;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.jumpserver.chen.framework.datasource.ConnectionManager;
 import org.jumpserver.chen.framework.datasource.ResourceBrowser;
-import org.jumpserver.chen.framework.datasource.hints.SQLHintsHandler;
-import org.jumpserver.chen.framework.datasource.sql.SQL;
 import org.jumpserver.chen.framework.datasource.entity.resource.*;
-import org.jumpserver.chen.framework.datasource.sql.SQLActuator;
+import org.jumpserver.chen.framework.datasource.metadata.MetadataCatalog;
+import org.jumpserver.chen.framework.datasource.metadata.RelationKind;
+import org.jumpserver.chen.framework.datasource.metadata.RelationScope;
 import org.jumpserver.chen.framework.session.SessionManager;
+import org.jumpserver.chen.framework.utils.SqlIdentifierUtils;
 import org.jumpserver.chen.framework.utils.TreeUtils;
 
 import java.lang.reflect.InvocationTargetException;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 
 @Slf4j
@@ -26,17 +30,10 @@ public abstract class BaseResourceBrowser implements ResourceBrowser {
     @Getter
     private final ConnectionManager connectionManager;
 
-    private final SQLHintsHandler sqlHintsHandler;
+    private final ConcurrentHashMap<String, ResourceNodeSnapshot> nodeIndex = new ConcurrentHashMap<>();
 
-
-    @Override
-    public SQLHintsHandler getSQLHintsHandler() {
-        return this.sqlHintsHandler;
-    }
-
-    public BaseResourceBrowser(ConnectionManager connectionManager, SQLHintsHandler sqlHintsHandler) {
+    public BaseResourceBrowser(ConnectionManager connectionManager) {
         this.connectionManager = connectionManager;
-        this.sqlHintsHandler = sqlHintsHandler;
     }
 
     @Override
@@ -44,7 +41,7 @@ public abstract class BaseResourceBrowser implements ResourceBrowser {
         var root = new Root();
 
         root.setName(SessionManager.getCurrentSession().getDatasourceName());
-        this.root = root.toResourceNode(null);
+        this.resetNodeIndex(root.toResourceNode(null));
 
         var parents = List.of(this.root);
         while (!parents.isEmpty()) {
@@ -77,6 +74,16 @@ public abstract class BaseResourceBrowser implements ResourceBrowser {
 
     @Override
     public List<TreeNode> getChildren(TreeNode node, boolean fromCache) throws SQLException {
+        return this.getChildren(node, fromCache, null);
+    }
+
+    /**
+     * Reloads {@code node} from the source. Previously loaded descendants (children != null)
+     * are fetched again so a schema/database refresh keeps expanded tables/views populated.
+     * Never-loaded descendants stay {@code children == null} and are fetched on the next expand.
+     */
+    private List<TreeNode> getChildren(TreeNode node, boolean fromCache, Set<String> loadedDescendantKeys)
+            throws SQLException {
         if (node == null) {
             return List.of(this.root);
         }
@@ -86,11 +93,46 @@ public abstract class BaseResourceBrowser implements ResourceBrowser {
                 return n.getChildren();
             }
         }
+        var cachedNode = TreeUtils.getNode(this.root, node.getKey());
+        var loadedKeys = loadedDescendantKeys != null
+                ? loadedDescendantKeys
+                : this.collectLoadedDescendantKeys(cachedNode);
         var children = this.getChildNodes(node);
-        if (!children.isEmpty()) {
-            this.saveTreeNode(node, children);
+        this.saveTreeNode(node, children);
+        if (!fromCache) {
+            this.reloadLoadedChildren(children, loadedKeys);
         }
         return children;
+    }
+
+    private Set<String> collectLoadedDescendantKeys(TreeNode node) {
+        var keys = new HashSet<String>();
+        this.collectLoadedDescendantKeys(node, keys);
+        return keys;
+    }
+
+    private void collectLoadedDescendantKeys(TreeNode node, Set<String> keys) {
+        if (node == null || node.getChildren() == null) {
+            return;
+        }
+        for (var child : node.getChildren()) {
+            if (child.getChildren() != null) {
+                keys.add(child.getKey());
+            }
+            this.collectLoadedDescendantKeys(child, keys);
+        }
+    }
+
+    private void reloadLoadedChildren(List<TreeNode> children, Set<String> loadedKeys) throws SQLException {
+        if (children == null || children.isEmpty() || loadedKeys.isEmpty()) {
+            return;
+        }
+        for (var child : children) {
+            if (!loadedKeys.contains(child.getKey())) {
+                continue;
+            }
+            child.setChildren(this.getChildren(child, false, loadedKeys));
+        }
     }
 
     public List<TreeNode> getChildNodes(TreeNode node) throws SQLException {
@@ -113,9 +155,12 @@ public abstract class BaseResourceBrowser implements ResourceBrowser {
     }
 
     public List<TreeNode> getDatasourceChildNodes(TreeNode parent) throws SQLException {
-        return this.getSchemas()
-                .stream()
-                .map(schema -> schema.toResourceNode(parent))
+        return this.metadataCatalog().listSchemas(null).stream()
+                .map(schema -> {
+                    var entity = new Schema();
+                    entity.setName(schema.name());
+                    return entity.toResourceNode(parent);
+                })
                 .toList();
     }
 
@@ -129,72 +174,150 @@ public abstract class BaseResourceBrowser implements ResourceBrowser {
     public List<TreeNode> getFolderChildNodes(TreeNode parent) throws SQLException {
         String folder = TreeUtils.getValue(parent.getKey(), "folder");
         String schema = TreeUtils.getValue(parent.getKey(), "schema");
+        String database = TreeUtils.getValue(parent.getKey(), "database");
+        var scope = new RelationScope(database.isEmpty() ? null : database, schema);
         return switch (Objects.requireNonNull(folder)) {
-            case "tables" -> this.getTables(schema)
+            case "tables" -> this.metadataCatalog().listRelations(scope, Set.of(RelationKind.TABLE))
                     .stream()
-                    .map(table -> table.toResourceNode(parent))
+                    .map(relation -> {
+                        var table = new Table();
+                        table.setName(relation.ref().name());
+                        table.setSchema(relation.ref().schema());
+                        return table.toResourceNode(parent);
+                    })
                     .toList();
-            case "views" -> this.getViews(schema)
+            case "views" -> this.metadataCatalog().listRelations(
+                            scope, Set.of(RelationKind.VIEW, RelationKind.MATERIALIZED_VIEW))
                     .stream()
-                    .map(view -> view.toResourceNode(parent))
+                    .map(relation -> {
+                        var view = new View();
+                        view.setName(relation.ref().name());
+                        view.setSchema(relation.ref().schema());
+                        view.setRelationKind(relation.ref().kind());
+                        return view.toResourceNode(parent);
+                    })
                     .toList();
             default -> List.of();
         };
     }
 
-    public void saveTreeNode(TreeNode node, List<TreeNode> children) {
+    public synchronized void saveTreeNode(TreeNode node, List<TreeNode> children) {
         var n = TreeUtils.getNode(this.root, node.getKey());
         if (n != null) {
             n.setChildren(children);
+            this.removeIndexedDescendants(n.getKey());
+            var parent = this.nodeIndex.get(n.getKey());
+            for (var child : children) {
+                this.registerNode(child, parent);
+            }
         }
     }
 
-    public abstract List<Schema> getSchemas() throws SQLException;
+    protected synchronized void resetNodeIndex(TreeNode root) {
+        this.root = root;
+        this.nodeIndex.clear();
+        this.registerNode(root, null);
+    }
 
     @Override
-    public List<Schema> getSchemas(SQL sql) throws SQLException {
-        var currentSchema = "";
-        List<Schema> schemas = new ArrayList<>();
-        schemas.addAll(this.getSQLActuator().getObjects(sql.getSql(), Schema.class, Map.of("name", 1)));
-        schemas.sort((o1, o2) -> {
-            if (o1.getName().equalsIgnoreCase(currentSchema)) {
-                return -1;
-            } else if (o2.getName().equalsIgnoreCase(currentSchema)) {
-                return 1;
-            } else {
-                return 0;
+    public synchronized ResourceNodeSnapshot getIndexedNode(String key) {
+        return key == null ? null : this.nodeIndex.get(key);
+    }
+
+    private void registerNode(TreeNode node, ResourceNodeSnapshot parent) {
+        String database = parent == null ? null : parent.database();
+        String schema = parent == null ? null : parent.schema();
+        String table = parent == null ? null : parent.table();
+
+        switch (node.getType()) {
+            case "database" -> {
+                database = node.getLabel();
+                schema = null;
+                table = null;
             }
-        });
-        return schemas;
+            case "schema" -> {
+                schema = node.getLabel();
+                if (this.connectionManager != null &&
+                        Objects.equals(this.connectionManager.getDatabaseContextKey(), "schema")) {
+                    database = node.getLabel();
+                }
+                table = null;
+            }
+            case "table", "view" -> table = node.getLabel();
+            default -> {
+            }
+        }
+
+        this.nodeIndex.put(node.getKey(), new ResourceNodeSnapshot(
+                node.getKey(),
+                node.getType(),
+                database,
+                schema,
+                table,
+                node.getLabel(),
+                relationKindForNode(node)
+        ));
+        if (node.getChildren() != null) {
+            var snapshot = this.nodeIndex.get(node.getKey());
+            for (var child : node.getChildren()) {
+                this.registerNode(child, snapshot);
+            }
+        }
     }
 
-    public abstract List<Table> getTables(String schema) throws SQLException;
+    private RelationKind relationKindForNode(TreeNode node) {
+        if (StringUtils.isNotBlank(node.getRelationKind())) {
+            return RelationKind.fromCode(node.getRelationKind());
+        }
+        return switch (node.getType()) {
+            case "table" -> RelationKind.TABLE;
+            case "view" -> RelationKind.VIEW;
+            default -> null;
+        };
+    }
+
+    private void removeIndexedDescendants(String parentKey) {
+        String prefix = parentKey + ",";
+        this.nodeIndex.keySet().removeIf(key -> key.startsWith(prefix));
+    }
+
 
     @Override
-    public List<Table> getTables(SQL sql) throws SQLException {
-        return new ArrayList<>(this.getSQLActuator().getObjects(sql.getSql(), Table.class, Map.of("name", 1)));
+    public RelationScope resolveScope(ResourceNodeSnapshot node, String context) throws SQLException {
+        if (node == null) {
+            throw new IllegalArgumentException("Invalid metadata context");
+        }
+        var contextKey = this.connectionManager.getContextKey();
+        var databaseContextKey = this.connectionManager.getDatabaseContextKey();
+        var currentContext = StringUtils.defaultString(context).trim();
+        var catalog = node.database();
+        if (StringUtils.equals(contextKey, databaseContextKey) && StringUtils.isNotBlank(currentContext)) {
+            var allowedContexts = this.connectionManager.getSqlActuator().getSchemas();
+            if (!allowedContexts.contains(currentContext)) {
+                throw new IllegalArgumentException("Unknown database metadata context");
+            }
+            catalog = currentContext;
+        }
+        if (StringUtils.equals(databaseContextKey, "schema")) {
+            var schema = StringUtils.defaultIfBlank(currentContext, node.schema());
+            SqlIdentifierUtils.validateDatabaseName(schema);
+            return new RelationScope(null, schema);
+        }
+        SqlIdentifierUtils.validateDatabaseName(catalog);
+        String schema = null;
+        if (StringUtils.equals(contextKey, "schema")) {
+            schema = StringUtils.defaultIfBlank(currentContext, node.schema());
+            if (StringUtils.isNotBlank(catalog) && schema.startsWith(catalog + ".")) {
+                schema = schema.substring(catalog.length() + 1);
+            }
+        } else if (StringUtils.equals(node.database(), catalog)) {
+            schema = node.schema();
+        }
+        return new RelationScope(catalog, schema);
     }
 
-    public abstract List<View> getViews(String schema) throws SQLException;
-
-    @Override
-    public List<View> getViews(SQL sql) throws SQLException {
-        return new ArrayList<>(this.getSQLActuator().getObjects(sql.getSql(), View.class, Map.of("name", 1)));
-    }
-
-    public abstract List<Field> getFields(String schema, String table) throws SQLException;
-
-    @Override
-    public List<Field> getFields(SQL sql) throws SQLException {
-        Map<String, Integer> fieldMapping = Map.of(
-                "name", 1,
-                "type", 2,
-                "nullable", 3);
-        return new ArrayList<>(this.getSQLActuator().getObjects(sql.getSql(), Field.class, fieldMapping));
-    }
-
-    public SQLActuator getSQLActuator() {
-        return this.connectionManager.getSqlActuator();
+    protected MetadataCatalog metadataCatalog() {
+        return this.connectionManager.getDatasource().getMetadataCatalog();
     }
 
 }

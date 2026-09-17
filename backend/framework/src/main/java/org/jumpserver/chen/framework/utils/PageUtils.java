@@ -15,6 +15,7 @@ import com.alibaba.druid.sql.dialect.oracle.ast.stmt.OracleSelectQueryBlock;
 import com.alibaba.druid.sql.dialect.oracle.visitor.OracleASTVisitorAdapter;
 import com.alibaba.druid.sql.dialect.postgresql.ast.stmt.PGSelectQueryBlock;
 import com.alibaba.druid.sql.dialect.sqlserver.ast.SQLServerSelectQueryBlock;
+import com.alibaba.druid.sql.visitor.SQLASTVisitor;
 import com.alibaba.druid.util.JdbcUtils;
 
 import java.util.Iterator;
@@ -37,6 +38,36 @@ public class PageUtils {
                 return count(selectStmt.getSelect(), dbType);
             }
         }
+    }
+
+    public static String filter(String sql, DbType dbType, String conditionSql) {
+        if (conditionSql == null || conditionSql.isBlank()) {
+            return sql;
+        }
+
+        SQLStatement sourceStatement = SQLUtils.parseSingleStatement(sql, dbType);
+        if (!(sourceStatement instanceof SQLSelectStatement sourceSelect) ||
+                !(sourceSelect.getSelect().getQuery() instanceof SQLSelectQueryBlock sourceQuery)) {
+            throw new IllegalArgumentException("Data view filter requires a simple SELECT query");
+        }
+
+        List<SQLStatement> filterStatements = SQLUtils.parseStatements(
+                "SELECT * FROM CHEN_FILTER_SOURCE WHERE " + conditionSql,
+                dbType
+        );
+        if (filterStatements.size() != 1 || !(filterStatements.get(0) instanceof SQLSelectStatement filterSelect) ||
+                !(filterSelect.getSelect().getQuery() instanceof SQLSelectQueryBlock filterQuery) ||
+                filterQuery.getWhere() == null || filterQuery.getGroupBy() != null ||
+                filterQuery.getOrderBy() != null || filterQuery.getLimit() != null) {
+            throw new IllegalArgumentException("Invalid data view WHERE condition");
+        }
+
+        SQLExpr condition = filterQuery.getWhere().clone();
+        SQLExpr current = sourceQuery.getWhere();
+        sourceQuery.setWhere(current == null
+                ? condition
+                : new SQLBinaryOpExpr(current, SQLBinaryOperator.BooleanAnd, condition, dbType));
+        return SQLUtils.toSQLString(sourceStatement, dbType);
     }
 
     public static String limit(String sql, DbType dbType, int offset, int count) {
@@ -258,13 +289,12 @@ public class PageUtils {
         SQLBinaryOpExpr pageCondition = new SQLBinaryOpExpr(gt, SQLBinaryOperator.BooleanAnd, lteq, DbType.sqlserver);
         SQLServerSelectQueryBlock queryBlock;
         SQLAggregateExpr aggregateExpr;
-        SQLOrderBy orderBy;
         SQLServerSelectQueryBlock countQueryBlock;
         if (query instanceof SQLSelectQueryBlock) {
             queryBlock = (SQLServerSelectQueryBlock) query;
             if (offset <= 0) {
                 SQLTop top = queryBlock.getTop();
-                if (check && top != null && !top.isPercent() && top.getExpr() instanceof SQLNumericLiteralExpr) {
+                if (top != null && !top.isPercent() && top.getExpr() instanceof SQLNumericLiteralExpr) {
                     int rowCount = ((SQLNumericLiteralExpr) top.getExpr()).getNumber().intValue();
                     if (rowCount <= count) {
                         return false;
@@ -273,23 +303,8 @@ public class PageUtils {
                 queryBlock.setTop(new SQLTop(new SQLNumberExpr(count)));
                 return true;
             } else {
-                // 创建 SELECT NULL 的子查询
-                SQLSelectQueryBlock selectQueryBlock = new SQLSelectQueryBlock();
-                selectQueryBlock.addSelectItem(new SQLSelectItem(new SQLNullExpr()));
-
-                SQLSelect selectNull = new SQLSelect();
-                selectNull.setQuery(selectQueryBlock);
-
-                SQLQueryExpr selectNullExpr = new SQLQueryExpr(selectNull);
-
-                // 使用 SELECT NULL 的子查询作为 ORDER BY 的一部分
-                SQLSelectOrderByItem orderByItem = new SQLSelectOrderByItem(selectNullExpr);
-                SQLOrderBy orderByNull = new SQLOrderBy();
-                orderByNull.addItem(orderByItem);
-
                 aggregateExpr = new SQLAggregateExpr("ROW_NUMBER");
-                aggregateExpr.setOver(new SQLOver(orderByNull));
-
+                aggregateExpr.setOver(new SQLOver(sqlServerRowNumberOrderBy(select, queryBlock)));
                 queryBlock.getSelectList().add(new SQLSelectItem(aggregateExpr, "ROWNUM"));
 
                 countQueryBlock = new SQLServerSelectQueryBlock();
@@ -306,22 +321,8 @@ public class PageUtils {
                 select.setQuery(queryBlock);
                 return true;
             } else {
-                // 重复上述逻辑，因为需要处理非 SQLSelectQueryBlock 的情况
-                SQLSelectQueryBlock selectQueryBlockForNonBlock = new SQLSelectQueryBlock();
-                selectQueryBlockForNonBlock.addSelectItem(new SQLSelectItem(new SQLNullExpr()));
-
-                SQLSelect selectNullForNonBlock = new SQLSelect();
-                selectNullForNonBlock.setQuery(selectQueryBlockForNonBlock);
-
-                SQLQueryExpr selectNullExprForNonBlock = new SQLQueryExpr(selectNullForNonBlock);
-
-                SQLSelectOrderByItem orderByItemForNonBlock = new SQLSelectOrderByItem(selectNullExprForNonBlock);
-                SQLOrderBy orderByNullForNonBlock = new SQLOrderBy();
-                orderByNullForNonBlock.addItem(orderByItemForNonBlock);
-
                 aggregateExpr = new SQLAggregateExpr("ROW_NUMBER");
-                aggregateExpr.setOver(new SQLOver(orderByNullForNonBlock));
-
+                aggregateExpr.setOver(new SQLOver(sqlServerRowNumberOrderBy(select, null)));
                 queryBlock.getSelectList().add(new SQLSelectItem(aggregateExpr, "ROWNUM"));
 
                 countQueryBlock = new SQLServerSelectQueryBlock();
@@ -332,6 +333,35 @@ public class PageUtils {
                 return true;
             }
         }
+    }
+
+    private static SQLOrderBy sqlServerRowNumberOrderBy(SQLSelect select, SQLSelectQueryBlock queryBlock) {
+        SQLOrderBy orderBy = select.getOrderBy();
+        if (orderBy != null) {
+            select.setOrderBy(null);
+        } else if (queryBlock != null && queryBlock.getOrderBy() != null) {
+            orderBy = queryBlock.getOrderBy();
+            queryBlock.setOrderBy(null);
+        }
+        if (orderBy == null || orderBy.getItems().isEmpty()) {
+            return sqlServerDummyOrderBy();
+        }
+        return orderBy;
+    }
+
+    private static SQLOrderBy sqlServerDummyOrderBy() {
+        SQLSelectQueryBlock selectQueryBlock = new SQLSelectQueryBlock();
+        selectQueryBlock.addSelectItem(new SQLSelectItem(new SQLNullExpr()));
+
+        SQLSelect selectNull = new SQLSelect();
+        selectNull.setQuery(selectQueryBlock);
+
+        SQLQueryExpr selectNullExpr = new SQLQueryExpr(selectNull);
+        selectNullExpr.setParenthesized(true);
+
+        SQLOrderBy orderByNull = new SQLOrderBy();
+        orderByNull.addItem(new SQLSelectOrderByItem(selectNullExpr));
+        return orderByNull;
     }
 
 
@@ -450,6 +480,12 @@ public class PageUtils {
                 return createCountUseSubQuery(select, dbType);
             }
 
+            // PostgreSQL functions in the SELECT list may be set-returning functions.
+            // Keep the projection so COUNT observes the rows expanded by the function.
+            if (dbType == DbType.postgresql && containsMethodInvoke(selectList)) {
+                return createCountUseSubQuery(select, dbType);
+            }
+
             // 情况 2: DISTINCT 情况下，Oracle 特别处理
             if (distinctOption == SQLSetQuantifier.DISTINCT) {
                 if (dbType == DbType.oracle && (
@@ -482,6 +518,18 @@ public class PageUtils {
         } else {
             throw new IllegalStateException("不支持的 SQL 查询类型: " + query.getClass().getName());
         }
+    }
+
+    private static boolean containsMethodInvoke(List<SQLSelectItem> selectList) {
+        boolean[] found = {false};
+        SQLASTVisitor visitor = SQLASTVisitor.ofMethodInvoke(expr -> found[0] = true);
+        for (SQLSelectItem item : selectList) {
+            item.getExpr().accept(visitor);
+            if (found[0]) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static String createCountUseSubQuery(SQLSelect select, DbType dbType) {
@@ -598,6 +646,21 @@ public class PageUtils {
                     if (query instanceof OdpsSelectQueryBlock) {
                         limit = ((OdpsSelectQueryBlock) query).getLimit();
                         rowCountExpr = limit != null ? limit.getRowCount() : null;
+                        if (rowCountExpr instanceof SQLNumericLiteralExpr) {
+                            rowCount = ((SQLNumericLiteralExpr) rowCountExpr).getNumber().intValue();
+                            return rowCount;
+                        }
+
+                        return Integer.MAX_VALUE;
+                    }
+
+                    if (query instanceof SQLServerSelectQueryBlock) {
+                        SQLTop top = ((SQLServerSelectQueryBlock) query).getTop();
+                        if (top == null || top.isPercent()) {
+                            return -1;
+                        }
+
+                        rowCountExpr = top.getExpr();
                         if (rowCountExpr instanceof SQLNumericLiteralExpr) {
                             rowCount = ((SQLNumericLiteralExpr) rowCountExpr).getNumber().intValue();
                             return rowCount;

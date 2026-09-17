@@ -1,0 +1,9 @@
+.git
+.github
+.idea
+.vscode
+**/.DS_Store
+**/*.iml
+**/target
+data
+backend/web/src/main/resources/static

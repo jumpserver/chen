@@ -6,10 +6,12 @@ import org.jumpserver.chen.framework.jms.entity.CommandRecord;
 import org.jumpserver.wisp.Common;
 import org.jumpserver.wisp.ServiceGrpc;
 import org.jumpserver.wisp.ServiceOuterClass;
-import org.springframework.scheduling.annotation.Async;
+
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 public class CommandHandlerImpl implements CommandHandler {
+    private static final long COMMAND_UPLOAD_TIMEOUT_SECONDS = 30;
     private final Common.Session session;
     private final ServiceGrpc.ServiceBlockingStub serviceBlockingStub;
 
@@ -20,7 +22,6 @@ public class CommandHandlerImpl implements CommandHandler {
     }
 
     @Override
-    @Async
     public void recordCommand(CommandRecord commandRecord) {
 
         var reqBuilder = ServiceOuterClass.CommandRequest
@@ -33,14 +34,29 @@ public class CommandHandlerImpl implements CommandHandler {
                 .setTimestamp(System.currentTimeMillis() / 1000)
                 .setInput(commandRecord.getInput())
                 .setOutput(commandRecord.getOutput())
-                .setRiskLevel(commandRecord.getRiskLevel());
+                .setRiskLevel(commandRecord.getRiskLevel() != null
+                        ? commandRecord.getRiskLevel()
+                        : Common.RiskLevel.Normal);
 
-        if (commandRecord.getCmdAclId() != null && commandRecord.getCmdGroupId() != null) {
+        if (commandRecord.getCmdAclId() != null && !commandRecord.getCmdAclId().isBlank()) {
             reqBuilder.setCmdAclId(commandRecord.getCmdAclId());
+        }
+        if (commandRecord.getCmdGroupId() != null && !commandRecord.getCmdGroupId().isBlank()) {
             reqBuilder.setCmdGroupId(commandRecord.getCmdGroupId());
         }
 
-        var resp = this.serviceBlockingStub.uploadCommand(reqBuilder.build());
+        log.info(
+                "upload command sessionId={} command={} riskLevel={} cmdAclId={} cmdGroupId={}",
+                this.session.getId(),
+                commandRecord.getInput(),
+                commandRecord.getRiskLevel(),
+                commandRecord.getCmdAclId(),
+                commandRecord.getCmdGroupId()
+        );
+
+        var resp = this.serviceBlockingStub
+                .withDeadlineAfter(COMMAND_UPLOAD_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                .uploadCommand(reqBuilder.build());
         if (!resp.getStatus().getOk()) {
             throw new RuntimeException("upload command failed: " + resp.getStatus().getErr());
         }

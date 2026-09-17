@@ -1,15 +1,14 @@
-FROM jumpserver/chen-base:20260811_065334 AS stage-build
+FROM jumpserver/chen-base:20260821_111128 AS stage-build
 ENV LANG=en_US.UTF-8
 
 WORKDIR /opt/chen/
 COPY . .
 
-RUN cd frontend \
-    && npm run build
 
 RUN mvn clean package -Dmaven.test.skip=true
 
 FROM debian:trixie-slim
+ARG TARGETARCH
 
 ARG DEPENDENCIES="                    \
         ca-certificates               \
@@ -17,8 +16,12 @@ ARG DEPENDENCIES="                    \
 
 ARG APT_MIRROR=http://deb.debian.org
 
-RUN set -ex \
+# Dockerfile-ee uses the same per-architecture cache IDs for its extra packages.
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked,id=chen-apt-cache-${TARGETARCH} \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked,id=chen-apt-lib-${TARGETARCH} \
+    set -ex \
     && sed -i "s@http://.*.debian.org@${APT_MIRROR}@g" /etc/apt/sources.list.d/debian.sources \
+    && rm -f /etc/apt/apt.conf.d/docker-clean \
     && ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
     && apt-get update \
     && apt-get install -y --no-install-recommends ${DEPENDENCIES} \

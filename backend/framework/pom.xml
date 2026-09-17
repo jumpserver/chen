@@ -13,6 +13,11 @@
 
     <dependencies>
         <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>com.github.freva</groupId>
             <artifactId>ascii-table</artifactId>
             <version>1.8.0</version>
@@ -21,7 +26,7 @@
         <dependency>
             <groupId>com.jumpserver</groupId>
             <artifactId>druid</artifactId>
-            <version>1.2.28-jms-chen.1</version>
+            <version>${druid.version}</version>
         </dependency>
 
         <dependency>

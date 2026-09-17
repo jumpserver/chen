@@ -13,6 +13,8 @@ import org.apache.commons.lang3.StringUtils;
 import org.jumpserver.chen.framework.datasource.ConnectionManager;
 import org.jumpserver.chen.framework.datasource.entity.resource.Field;
 import org.jumpserver.chen.framework.datasource.sql.*;
+import org.jumpserver.chen.framework.datasource.edit.pk.JdbcPrimaryKeyResolver;
+import org.jumpserver.chen.framework.datasource.edit.analyzer.QueryResultEditabilityAnalyzer;
 import org.jumpserver.chen.framework.jms.exception.CommandRejectException;
 import org.jumpserver.chen.framework.session.SessionManager;
 import org.jumpserver.chen.framework.utils.HexUtils;
@@ -38,9 +40,12 @@ import java.time.format.DateTimeFormatterBuilder;
 import java.time.temporal.ChronoField;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.StringJoiner;
+import java.util.UUID;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
@@ -51,6 +56,7 @@ public abstract class BaseSQLActuator implements SQLActuator {
     private final DbType druidDbType;
     // Keep large JDBC text values bounded so one cell cannot fail or stall the whole result view.
     private static final int MAX_TEXT_DISPLAY_LENGTH = 1024 * 1024;
+    private static final int RAW_RESULT_ROW_LIMIT = 1000;
     private static final String TRUNCATED_SUFFIX = "...[truncated]";
     private static final DateTimeFormatter LOCAL_DATE_TIME_DISPLAY_FORMATTER = new DateTimeFormatterBuilder()
             .appendPattern("uuuu-MM-dd HH:mm:ss")
@@ -119,7 +125,7 @@ public abstract class BaseSQLActuator implements SQLActuator {
 
     @Override
     public List<String> parseSQL(SQL sql) {
-        return SQLUtils.parseStatements(sql.getSql(), this.druidDbType).stream()
+        return SqlValidator.parse(this.druidDbType, sql.getSql()).stream()
                 .map(stmt -> SQLUtils.toSQLString(stmt, this.druidDbType))
                 .toList();
     }
@@ -148,6 +154,33 @@ public abstract class BaseSQLActuator implements SQLActuator {
     }
 
     @Override
+    public List<Map<String, Object>> queryRows(String sql, List<?> parameters) throws SQLException {
+        var rows = new ArrayList<Map<String, Object>>();
+        try (Connection conn = this.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            for (int index = 0; index < parameters.size(); index++) {
+                stmt.setObject(index + 1, parameters.get(index));
+            }
+            try (ResultSet rs = stmt.executeQuery()) {
+                var metadata = rs.getMetaData();
+                while (rs.next()) {
+                    var row = new LinkedHashMap<String, Object>();
+                    for (int index = 1; index <= metadata.getColumnCount(); index++) {
+                        row.put(
+                                metadata.getColumnLabel(index).toLowerCase(Locale.ROOT),
+                                this.normalizeJdbcValue(rs, index)
+                        );
+                    }
+                    rows.add(row);
+                }
+            }
+        } catch (SQLException e) {
+            throw new SQLException("run metadata sql error, %s".formatted(e.getMessage()), e);
+        }
+        return rows;
+    }
+
+    @Override
     public SQLQueryResult execute(SQL sql) throws SQLException {
         var plan = this.createPlan(sql);
         return plan.execute();
@@ -156,12 +189,32 @@ public abstract class BaseSQLActuator implements SQLActuator {
 
     @Override
     public SQLQueryResult execute(SQLExecutePlan plan) throws SQLException {
+        return this.execute(plan, true);
+    }
+
+    @Override
+    public SQLQueryResult executeRaw(SQLExecutePlan plan) throws SQLException {
+        SQLQueryResult executionResult = new SQLQueryResult(plan.getTargetSQL());
+        executionResult.setAclResult(plan.getAclResult());
+        executionResult.setHasResultSet(false);
+        try {
+            Statement statement = plan.createStatement();
+            this.executeRawStatement(plan, statement, executionResult);
+        } finally {
+            if (plan.getConnection() instanceof DruidPooledConnection) {
+                plan.getConnection().close();
+            }
+        }
+        return executionResult;
+    }
+
+    private SQLQueryResult execute(SQLExecutePlan plan, boolean enrichResult) throws SQLException {
         String sql = plan.getTargetSQL();
         SQLQueryResult result = new SQLQueryResult(sql);
         result.setAclResult(plan.getAclResult());
         try {
             Statement statement = plan.createStatement();
-            this.executeStatement(plan, statement, result);
+            this.executeStatement(plan, statement, result, enrichResult);
         } finally {
             if (plan.getConnection() instanceof DruidPooledConnection) {
                 plan.getConnection().close();
@@ -170,7 +223,12 @@ public abstract class BaseSQLActuator implements SQLActuator {
         return result;
     }
 
-    private void executeStatement(SQLExecutePlan plan, Statement statement, SQLQueryResult result) throws SQLException {
+    private void executeStatement(
+            SQLExecutePlan plan,
+            Statement statement,
+            SQLQueryResult result,
+            boolean enrichResult
+    ) throws SQLException {
         try (statement) {
             result.setStartTime(new Time(System.currentTimeMillis()));
 
@@ -180,57 +238,250 @@ public abstract class BaseSQLActuator implements SQLActuator {
             result.setQueryFinishedTime(new Time(System.currentTimeMillis()));
 
             if (hasResult) {
-                var resultSet = statement.getResultSet();
-                var metaData = resultSet.getMetaData();
-                var columnCount = metaData.getColumnCount();
-
-                for (int i = 1; i <= columnCount; i++) {
-                    Field field = new Field();
-
-                    var fieldName = StringUtils.isNotEmpty(metaData.getColumnLabel(i)) ?
-                            metaData.getColumnLabel(i) : metaData.getColumnName(i);
-                    field.setName(fieldName);
-                    field.setColumnName(metaData.getColumnName(i));
-                    field.setLabel(metaData.getColumnLabel(i));
-                    result.getFields().add(field);
+                try (ResultSet resultSet = statement.getResultSet()) {
+                    this.readResultSet(resultSet, result, Integer.MAX_VALUE);
                 }
-
-                while (resultSet.next()) {
-                    List<Object> fs = new ArrayList<>();
-                    for (int i = 1; i <= columnCount; i++) {
-                        try {
-                            fs.add(this.normalizeJdbcValue(resultSet, i));
-                        } catch (NoClassDefFoundError e) {
-                            log.error(e.getMessage());
-                        }
-                    }
-                    result.getData().add(fs);
-                }
-                resultSet.close();
                 result.setFetchFinishedTime(new Time(System.currentTimeMillis()));
-
-                // 数据脱敏
-                this.handleDataMasking(result);
-
-                var total = this.count(plan);
-                if (total < 0) {
-                    result.setTotal(result.getData().size());
-                } else {
-                    result.setPaged(true);
-                    result.setTotal(total);
+                if (enrichResult) {
+                    markGeneratedColumns(plan.getConnection(), this.getDruidDbType(), result.getFields());
+                    this.analyzeResultEditability(plan, result);
                 }
-
+                this.handleDataMasking(result);
+                if (enrichResult) {
+                    var total = this.count(plan);
+                    if (total < 0) {
+                        result.setTotal(result.getData().size());
+                    } else {
+                        result.setPaged(true);
+                        result.setTotal(total);
+                    }
+                } else {
+                    result.setTotal(result.getData().size());
+                }
             } else {
                 result.setUpdateCount(statement.getUpdateCount());
             }
             result.setEndTime(new Time(System.currentTimeMillis()));
+        } catch (SQLException e) {
+            throw e;
         } catch (Exception e) {
-            throw new SQLException(e.getMessage());
+            throw new SQLException(e.getMessage(), e);
         }
+    }
+
+    private void executeRawStatement(
+            SQLExecutePlan plan,
+            Statement statement,
+            SQLQueryResult executionResult
+    ) throws SQLException {
+        long executionStartedAt = System.currentTimeMillis();
+        executionResult.setStartTime(new Time(executionStartedAt));
+
+        try (statement) {
+            try {
+                // Ask the driver for one sentinel row so truncation can be detected without rewriting SQL.
+                statement.setMaxRows(RAW_RESULT_ROW_LIMIT + 1);
+            } catch (SQLException e) {
+                log.debug("JDBC driver does not support Statement.setMaxRows", e);
+            }
+
+            long resultStartedAt = executionStartedAt;
+            boolean hasResultSet = statement.execute(plan.getTargetSQL());
+            while (true) {
+                long queryFinishedAt = System.currentTimeMillis();
+                if (hasResultSet) {
+                    SQLQueryResult result = newRawResult(plan, resultStartedAt, queryFinishedAt, true);
+                    try (ResultSet resultSet = statement.getResultSet()) {
+                        result.setTruncated(this.readResultSet(resultSet, result, RAW_RESULT_ROW_LIMIT));
+                    }
+                    result.setRowLimit(RAW_RESULT_ROW_LIMIT);
+                    result.setTotal(result.getData().size());
+                    result.setFetchFinishedTime(new Time(System.currentTimeMillis()));
+                    result.setEndTime(result.getFetchFinishedTime());
+                    this.handleDataMasking(result);
+                    executionResult.getResults().add(result);
+                } else {
+                    int updateCount = statement.getUpdateCount();
+                    if (updateCount == -1) {
+                        break;
+                    }
+                    SQLQueryResult result = newRawResult(plan, resultStartedAt, queryFinishedAt, false);
+                    result.setUpdateCount(updateCount);
+                    result.setEndTime(new Time(System.currentTimeMillis()));
+                    executionResult.getResults().add(result);
+                }
+
+                resultStartedAt = System.currentTimeMillis();
+                hasResultSet = statement.getMoreResults(Statement.CLOSE_CURRENT_RESULT);
+            }
+
+            Time finishedAt = new Time(System.currentTimeMillis());
+            executionResult.setQueryFinishedTime(finishedAt);
+            executionResult.setFetchFinishedTime(finishedAt);
+            executionResult.setEndTime(finishedAt);
+        } catch (SQLException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new SQLException(e.getMessage(), e);
+        }
+    }
+
+    private SQLQueryResult newRawResult(
+            SQLExecutePlan plan,
+            long startedAt,
+            long queryFinishedAt,
+            boolean hasResultSet
+    ) {
+        SQLQueryResult result = new SQLQueryResult(plan.getTargetSQL());
+        result.setAclResult(plan.getAclResult());
+        result.setHasResultSet(hasResultSet);
+        result.setStartTime(new Time(startedAt));
+        result.setQueryFinishedTime(new Time(queryFinishedAt));
+        return result;
+    }
+
+    private boolean readResultSet(ResultSet resultSet, SQLQueryResult result, int rowLimit) throws SQLException {
+        var metaData = resultSet.getMetaData();
+        var columnCount = metaData.getColumnCount();
+        for (int index = 1; index <= columnCount; index++) {
+            result.getFields().add(buildField(metaData, index, this.getDruidDbType()));
+        }
+        while (resultSet.next()) {
+            if (result.getData().size() >= rowLimit) {
+                return true;
+            }
+            List<Object> row = new ArrayList<>();
+            for (int index = 1; index <= columnCount; index++) {
+                try {
+                    row.add(this.normalizeJdbcValue(resultSet, index));
+                } catch (NoClassDefFoundError e) {
+                    log.error(e.getMessage());
+                }
+            }
+            result.getData().add(row);
+        }
+        return false;
+    }
+
+    private void analyzeResultEditability(SQLExecutePlan plan, SQLQueryResult result) {
+        var analyzer = new QueryResultEditabilityAnalyzer(
+                this.getDruidDbType(),
+                new JdbcPrimaryKeyResolver(plan.getConnection(), this.getDruidDbType())
+        );
+        analyzer.analyze(plan.getSourceSQL(), result.getFields());
+    }
+
+    static Field buildField(ResultSetMetaData metaData, int columnIndex) throws SQLException {
+        return buildField(metaData, columnIndex, null);
+    }
+
+    private static Field buildField(ResultSetMetaData metaData, int columnIndex, DbType dbType) throws SQLException {
+        Field field = new Field();
+
+        String columnLabel = metaData.getColumnLabel(columnIndex);
+        String columnName = metaData.getColumnName(columnIndex);
+        String fieldName = StringUtils.isNotEmpty(columnLabel) ? columnLabel : columnName;
+        if (StringUtils.isEmpty(fieldName)) {
+            fieldName = "column_" + columnIndex;
+        }
+        field.setName(fieldName);
+        field.setColumnName(columnName);
+        field.setLabel(columnLabel);
+        fillOptionalFieldMetadata(field, metaData, columnIndex, dbType);
+        return field;
+    }
+
+    private static void fillOptionalFieldMetadata(
+            Field field,
+            ResultSetMetaData metaData,
+            int columnIndex,
+            DbType dbType
+    ) {
+        //后续还要靠 SQL AST 和主键解析再判断
+        String schema = getNullableMetadataValue(() -> metaData.getSchemaName(columnIndex), "schema", columnIndex);
+        if (StringUtils.isBlank(schema) && (dbType == DbType.mysql || dbType == DbType.mariadb)) {
+            // Connector/J exposes the MySQL database through catalog metadata by default.
+            schema = getNullableMetadataValue(() -> metaData.getCatalogName(columnIndex), "catalog", columnIndex);
+        }
+        field.setSchema(schema);
+        field.setTable(getNullableMetadataValue(() -> metaData.getTableName(columnIndex), "table", columnIndex));
+        field.setType(getNullableMetadataValue(() -> metaData.getColumnTypeName(columnIndex), "type", columnIndex));
+        try {
+            field.setJdbcType(metaData.getColumnType(columnIndex));
+        } catch (SQLException e) {
+            log.debug("read result set jdbc type metadata failed for column {}", columnIndex, e);
+        }
+
+        try {
+            // Field.nullable is boolean, so failed/unknown nullable metadata remains false.
+            field.setNullable(metaData.isNullable(columnIndex) == ResultSetMetaData.columnNullable);
+        } catch (SQLException e) {
+            log.debug("read result set nullable metadata failed for column {}", columnIndex, e);
+        }
+        try {
+            field.setAutoIncrement(metaData.isAutoIncrement(columnIndex));
+        } catch (Exception e) {
+            log.debug("read result set auto increment metadata failed for column {}", columnIndex, e);
+        }
+        // ResultSetMetaData.isReadOnly/isWritable describe whether this ResultSet cursor can be
+        // updated through ResultSet.updateXXX(). Chen does not update that cursor: it resolves a
+        // base table and primary key, then issues a separate prepared UPDATE statement. In
+        // particular, the default Statement created by JDBC has CONCUR_READ_ONLY concurrency, so
+        // cursor writability must not be copied to Field.readOnly.
+    }
+
+    private static String getNullableMetadataValue(MetadataValueReader reader, String name, int columnIndex) {
+        try {
+            String value = reader.read();
+            return StringUtils.isNotBlank(value) ? value : null;
+        } catch (SQLException e) {
+            log.debug("read result set {} metadata failed for column {}", name, columnIndex, e);
+            return null;
+        }
+    }
+
+    @FunctionalInterface
+    private interface MetadataValueReader {
+        String read() throws SQLException;
     }
 
     // Normalize JDBC driver objects before Gson sees them in update_data_view packets.
     protected Object normalizeJdbcValue(ResultSet resultSet, int columnIndex) throws SQLException {
+        int jdbcType = Types.OTHER;
+        String typeName = null;
+        try {
+            ResultSetMetaData metaData = resultSet.getMetaData();
+            try {
+                jdbcType = metaData.getColumnType(columnIndex);
+            } catch (SQLException e) {
+                log.debug("read result set jdbc type failed for column {}", columnIndex, e);
+            }
+            try {
+                typeName = metaData.getColumnTypeName(columnIndex);
+            } catch (SQLException e) {
+                log.debug("read result set type name failed for column {}", columnIndex, e);
+            }
+        } catch (SQLException e) {
+            log.debug("read result set metadata failed for column {}", columnIndex, e);
+        }
+
+        if (JdbcDisplayValue.isDecimalType(jdbcType, typeName)) {
+            try {
+                BigDecimal decimal = resultSet.getBigDecimal(columnIndex);
+                return decimal == null ? null : decimal.toPlainString();
+            } catch (SQLException | AbstractMethodError e) {
+                log.debug("read decimal value failed for column {}", columnIndex, e);
+            }
+        }
+
+        if (JdbcDisplayValue.isGeometryType(jdbcType, typeName)) {
+            return this.normalizeGeometryValue(resultSet, columnIndex);
+        }
+
+        if (JdbcDisplayValue.isBlobType(jdbcType, typeName)) {
+            return this.normalizeBlobValue(resultSet, columnIndex);
+        }
+
         return this.normalizeJdbcValue(resultSet.getObject(columnIndex));
     }
 
@@ -273,7 +524,7 @@ public abstract class BaseSQLActuator implements SQLActuator {
         }
 
         if (value instanceof Blob blob) {
-            return HexUtils.bytesToHex(blob.getBytes(1, (int) blob.length()));
+            return this.summarizeBlob(blob);
         }
 
         if (value.getClass().getSimpleName().equalsIgnoreCase("pgobject")) {
@@ -285,6 +536,78 @@ public abstract class BaseSQLActuator implements SQLActuator {
         }
 
         return value;
+    }
+
+    private Object normalizeGeometryValue(ResultSet resultSet, int columnIndex) throws SQLException {
+        Object value;
+        boolean objectReadFailed = false;
+        try {
+            value = resultSet.getObject(columnIndex);
+        } catch (SQLException | AbstractMethodError e) {
+            log.debug("read geometry object failed for column {}", columnIndex, e);
+            value = null;
+            objectReadFailed = true;
+        }
+        if (!objectReadFailed && value == null) {
+            return null;
+        }
+        String display = JdbcDisplayValue.toGeometryDisplay(value, this.getDruidDbType());
+        if (display != null && JdbcDisplayValue.looksLikeWkt(display)) {
+            return display;
+        }
+        try {
+            String text = resultSet.getString(columnIndex);
+            if (JdbcDisplayValue.looksLikeWkt(text)) {
+                return text.trim();
+            }
+        } catch (SQLException | AbstractMethodError e) {
+            log.debug("read geometry as string failed for column {}", columnIndex, e);
+        }
+        if (display != null) {
+            return display;
+        }
+        return JdbcDisplayValue.geometrySummary(null);
+    }
+
+    private Object normalizeBlobValue(ResultSet resultSet, int columnIndex) throws SQLException {
+        try {
+            Blob blob = resultSet.getBlob(columnIndex);
+            if (blob != null) {
+                return this.summarizeBlob(blob);
+            }
+            if (resultSet.wasNull()) {
+                return null;
+            }
+        } catch (SQLException | AbstractMethodError e) {
+            log.debug("read blob locator failed for column {}", columnIndex, e);
+        }
+
+        Object value = resultSet.getObject(columnIndex);
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Blob blob) {
+            return this.summarizeBlob(blob);
+        }
+        if (value instanceof byte[] bytes) {
+            return JdbcDisplayValue.blobSummary(bytes.length);
+        }
+        return this.normalizeJdbcValue(value);
+    }
+
+    private String summarizeBlob(Blob blob) throws SQLException {
+        try {
+            return JdbcDisplayValue.blobSummary(blob.length());
+        } catch (SQLException e) {
+            log.debug("read blob length failed", e);
+            return JdbcDisplayValue.blobSummary();
+        } finally {
+            try {
+                blob.free();
+            } catch (SQLException e) {
+                log.debug("free blob failed", e);
+            }
+        }
     }
 
     private String normalizeOracleTimestampWithTimeZone(Object value) throws SQLException {
@@ -336,6 +659,164 @@ public abstract class BaseSQLActuator implements SQLActuator {
             return instant.toString();
         }
         return null;
+    }
+
+    static void markGeneratedColumns(Connection connection, DbType dbType, List<Field> fields) {
+        if (connection == null || fields == null || fields.isEmpty()) {
+            return;
+        }
+        boolean postgresql = dbType == DbType.postgresql;
+        boolean mysqlFamily = dbType == DbType.mysql || dbType == DbType.mariadb;
+        if (!postgresql && !mysqlFamily) {
+            markGeneratedColumnsFromJdbcMetadata(connection, fields);
+            return;
+        }
+        String sql = postgresql
+                ? """
+                    SELECT is_generated, generation_expression
+                    FROM information_schema.columns
+                    WHERE table_schema = ?
+                      AND table_name = ?
+                      AND column_name = ?
+                    """
+                : """
+                    SELECT extra, generation_expression
+                    FROM information_schema.columns
+                    WHERE table_schema = ?
+                      AND table_name = ?
+                      AND column_name = ?
+                    """;
+        for (Field field : fields) {
+            if (field == null ||
+                    StringUtils.isBlank(field.getSchema()) ||
+                    StringUtils.isBlank(field.getTable()) ||
+                    StringUtils.isBlank(field.getColumnName())) {
+                continue;
+            }
+            try (PreparedStatement statement = connection.prepareStatement(sql)) {
+                statement.setString(1, field.getSchema());
+                statement.setString(2, field.getTable());
+                statement.setString(3, field.getColumnName());
+                try (ResultSet resultSet = statement.executeQuery()) {
+                    if (!resultSet.next()) {
+                        continue;
+                    }
+                    String generationExpression = resultSet.getString("generation_expression");
+                    boolean generated;
+                    if (postgresql) {
+                        generated = "ALWAYS".equalsIgnoreCase(resultSet.getString("is_generated")) ||
+                                StringUtils.isNotBlank(generationExpression);
+                    } else {
+                        String extra = resultSet.getString("extra");
+                        generated = StringUtils.isNotBlank(generationExpression) ||
+                                StringUtils.containsIgnoreCase(extra, "STORED GENERATED") ||
+                                StringUtils.containsIgnoreCase(extra, "VIRTUAL GENERATED");
+                    }
+                    if (generated) {
+                        field.setGenerated(true);
+                        field.setReadOnly(true);
+                    }
+                }
+            } catch (SQLException e) {
+                log.debug("read {} generated column metadata failed for {}.{}.{}",
+                        dbType,
+                        field.getSchema(),
+                        field.getTable(),
+                        field.getColumnName(),
+                        e);
+            }
+        }
+    }
+
+    private static void markGeneratedColumnsFromJdbcMetadata(
+            Connection connection,
+            List<Field> fields
+    ) {
+        DatabaseMetaData metadata;
+        try {
+            metadata = connection.getMetaData();
+        } catch (SQLException e) {
+            log.debug("read database metadata for generated columns failed", e);
+            return;
+        }
+        if (metadata == null) {
+            return;
+        }
+
+        Map<ColumnMetadataTable, List<Field>> fieldsByTable = new LinkedHashMap<>();
+        for (Field field : fields) {
+            if (field == null ||
+                    StringUtils.isBlank(field.getSchema()) ||
+                    StringUtils.isBlank(field.getTable()) ||
+                    StringUtils.isBlank(field.getColumnName())) {
+                continue;
+            }
+            fieldsByTable.computeIfAbsent(
+                    new ColumnMetadataTable(field.getSchema(), field.getTable()),
+                    ignored -> new ArrayList<>()
+            ).add(field);
+        }
+
+        for (Map.Entry<ColumnMetadataTable, List<Field>> entry : fieldsByTable.entrySet()) {
+            ColumnMetadataTable table = entry.getKey();
+            try (ResultSet resultSet = metadata.getColumns(
+                    null,
+                    table.schema(),
+                    table.table(),
+                    "%"
+            )) {
+                while (resultSet.next()) {
+                    String metadataTable = getMetadataValue(resultSet, "TABLE_NAME");
+                    String metadataColumn = getMetadataValue(resultSet, "COLUMN_NAME");
+                    if (!metadataIdentifierEquals(table.table(), metadataTable)) {
+                        continue;
+                    }
+                    for (Field field : entry.getValue()) {
+                        if (!metadataIdentifierEquals(field.getColumnName(), metadataColumn)) {
+                            continue;
+                        }
+                        if (isYesMetadataValue(resultSet, "IS_AUTOINCREMENT")) {
+                            field.setAutoIncrement(true);
+                        }
+                        if (isYesMetadataValue(resultSet, "IS_GENERATEDCOLUMN")) {
+                            field.setGenerated(true);
+                            field.setReadOnly(true);
+                        }
+                        break;
+                    }
+                }
+            } catch (SQLException e) {
+                log.debug("read JDBC generated column metadata failed for {}.{}",
+                        table.schema(),
+                        table.table(),
+                        e);
+            }
+        }
+    }
+
+    private static String getMetadataValue(ResultSet resultSet, String columnLabel) {
+        try {
+            return StringUtils.trimToNull(resultSet.getString(columnLabel));
+        } catch (SQLException e) {
+            log.debug("read JDBC column metadata attribute {} failed", columnLabel, e);
+            return null;
+        }
+    }
+
+    private static boolean metadataIdentifierEquals(String expected, String actual) {
+        return StringUtils.equalsIgnoreCase(StringUtils.trim(expected), StringUtils.trim(actual));
+    }
+
+    private static boolean isYesMetadataValue(ResultSet resultSet, String columnLabel) {
+        try {
+            return StringUtils.equalsIgnoreCase("YES", resultSet.getString(columnLabel));
+        } catch (SQLException e) {
+            log.debug("read JDBC column metadata attribute {} failed", columnLabel, e);
+            return false;
+        }
+    }
+
+    private record ColumnMetadataTable(String schema, String table) {
     }
 
     private String toDisplayArray(java.sql.Array jdbcArray) throws SQLException {
@@ -457,22 +938,27 @@ public abstract class BaseSQLActuator implements SQLActuator {
         var maskIndexes = new ArrayList<>();
         var maskRules = new HashMap<Integer, Common.DataMaskingRule>();
         for (var i = 0; i < result.getFields().size(); i++) {
+            var field = result.getFields().get(i);
             for (Common.DataMaskingRule rule : rules) {
-                if (this.matchField(result.getFields().get(i), rule.getFieldsPattern())) {
+                if (this.matchField(field, rule.getFieldsPattern())) {
+                    field.setMasked(true);
                     maskIndexes.add(i);
                     maskRules.put(i, rule);
                 }
             }
         }
 
+        this.captureUnmaskedPrimaryKeyValues(result, maskIndexes);
+
         for (var i = 0; i < result.getData().size(); i++) {
             for (var j = 0; j < result.getData().get(i).size(); j++) {
                 if (maskIndexes.contains(j)) {
                     var rule = maskRules.get(j);
                     var val = result.getData().get(i).get(j);
-                    if (val instanceof String) {
-                        var rep = this.replaceColumnVal(rule, (String) val);
-                        result.getData().get(i).set(j, rep);
+                    if (val instanceof String text) {
+                        result.getData().get(i).set(j, this.replaceColumnVal(rule, text));
+                    } else if (isValueBasedMaskingMethod(rule.getMaskingMethod()) && isScalarMaskingValue(val)) {
+                        result.getData().get(i).set(j, this.replaceColumnVal(rule, val.toString()));
                     } else {
                         result.getData().get(i).set(j, rule.getMaskPattern());
                     }
@@ -481,11 +967,49 @@ public abstract class BaseSQLActuator implements SQLActuator {
         }
     }
 
+    private boolean isValueBasedMaskingMethod(String method) {
+        return switch (method) {
+            case "hide_middle", "keep_prefix", "keep_suffix" -> true;
+            default -> false;
+        };
+    }
+
+    private boolean isScalarMaskingValue(Object value) {
+        return value instanceof Number
+                || value instanceof Boolean
+                || value instanceof Character
+                || value instanceof CharSequence
+                || value instanceof UUID
+                || value instanceof Enum<?>;
+    }
+
+    private void captureUnmaskedPrimaryKeyValues(SQLQueryResult result, java.util.List<?> maskIndexes) {
+        int pkIndex = -1;
+        for (int i = 0; i < result.getFields().size(); i++) {
+            if (result.getFields().get(i).isPrimaryKey()) {
+                pkIndex = i;
+                break;
+            }
+        }
+        if (pkIndex < 0 || !maskIndexes.contains(pkIndex)) {
+            result.setUnmaskedPrimaryKeyValues(null);
+            return;
+        }
+        java.util.List<Object> values = new java.util.ArrayList<>(result.getData().size());
+        for (java.util.List<Object> row : result.getData()) {
+            values.add(pkIndex < row.size() ? row.get(pkIndex) : null);
+        }
+        result.setUnmaskedPrimaryKeyValues(values);
+    }
+
     private boolean matchField(Field field, String pattern) {
-        List<String> names = List.of(field.getColumnName(), field.getLabel());
+        String[] names = {field.getColumnName(), field.getLabel()};
         String[] ps = pattern.split(",");
 
         for (String name : names) {
+            if (name == null) {
+                continue;
+            }
             for (String p : ps) {
                 p = p.trim();
                 if (p.isEmpty()) continue;
@@ -535,12 +1059,18 @@ public abstract class BaseSQLActuator implements SQLActuator {
 
             case "hide_middle":
                 // 隐藏中间
-                if (val == null || val.length() < 3) {
+                if (val == null) {
                     return pattern.isEmpty() ? "####" : pattern;
                 }
-                return val.charAt(0)
-                        + "*".repeat(val.length() - 2)
-                        + val.substring(val.length() - 1);
+                int codePointCount = val.codePointCount(0, val.length());
+                if (codePointCount < 3) {
+                    return pattern.isEmpty() ? "####" : pattern;
+                }
+                int firstCodePointEnd = val.offsetByCodePoints(0, 1);
+                int lastCodePointStart = val.offsetByCodePoints(0, codePointCount - 1);
+                return val.substring(0, firstCodePointEnd)
+                        + "*".repeat(codePointCount - 2)
+                        + val.substring(lastCodePointStart);
 
             case "keep_prefix":
                 // 保留前缀
@@ -576,7 +1106,17 @@ public abstract class BaseSQLActuator implements SQLActuator {
     public SQLQueryResult executeWithAudit(SQLExecutePlan plan) throws SQLException {
         var sess = SessionManager.getCurrentSession();
         try {
-            return sess.withAudit(plan.getTargetSQL(), () -> this.execute(plan));
+            return sess.withAudit(plan.getTargetSQL(), plan.getAclResult(), () -> this.execute(plan));
+        } catch (CommandRejectException e) {
+            throw new SQLException(e.getMessage());
+        }
+    }
+
+    @Override
+    public SQLQueryResult executeRawWithAudit(SQLExecutePlan plan) throws SQLException {
+        var sess = SessionManager.getCurrentSession();
+        try {
+            return sess.withAudit(plan.getTargetSQL(), plan.getAclResult(), () -> this.executeRaw(plan));
         } catch (CommandRejectException e) {
             throw new SQLException(e.getMessage());
         }
