@@ -12,6 +12,7 @@ import org.jumpserver.chen.framework.datasource.metadata.MetadataQueryAuditConte
 import org.jumpserver.chen.framework.datasource.metadata.ObjectRef;
 import org.jumpserver.chen.framework.datasource.metadata.PrimaryKeyMetadata;
 import org.jumpserver.chen.framework.datasource.metadata.RelationKind;
+import org.jumpserver.chen.framework.datasource.metadata.RelationScope;
 import org.jumpserver.chen.framework.i18n.MessageUtils;
 import org.jumpserver.chen.framework.session.SessionManager;
 import org.jumpserver.chen.web.entity.TableMetadata;
@@ -29,7 +30,7 @@ import java.util.Set;
 public class TableMetadataService {
     private static final Set<String> DEFAULT_SECTIONS = Set.of("columns", "primaryKey");
     private static final Set<String> AUDITED_PROPERTY_SECTIONS = Set.of(
-            "foreignKeys", "indexes", "constraints", "ddl"
+            "foreignKeys", "indexes", "constraints", "statistics", "ddl"
     );
 
     public TableMetadata getTableMetadata(TableMetadataRequest request) {
@@ -60,7 +61,11 @@ public class TableMetadataService {
     TableMetadata load(MetadataCatalog catalog, ObjectRef ref, Set<String> sections, boolean force)
             throws SQLException {
         if (force) {
-            catalog.invalidate(ref);
+            if (sections.contains("statistics")) {
+                catalog.invalidate(new RelationScope(ref.catalog(), ref.schema()));
+            } else {
+                catalog.invalidate(ref);
+            }
         }
         return load(catalog, ref, sections);
     }
@@ -88,12 +93,19 @@ public class TableMetadataService {
         var constraints = sections.contains("constraints")
                 ? catalog.listConstraints(List.of(ref)).stream().map(this::toConstraint).toList()
                 : List.<TableMetadata.Constraint>of();
+        var statistics = sections.contains("statistics")
+                ? catalog.listStatistics(new RelationScope(ref.catalog(), ref.schema())).stream()
+                        .filter(item -> ref.equals(item.ref()))
+                        .findFirst()
+                        .map(item -> new TableMetadata.Statistics(item.estimatedRows(), item.totalSizeBytes()))
+                        .orElse(null)
+                : null;
         var ddl = sections.contains("ddl") ? catalog.getTableDefinition(ref) : null;
 
         return new TableMetadata(
                 ref.catalog(), ref.schema(), ref.name(), ref.kind().code(),
                 toCapabilities(catalog.capabilities()), sections,
-                columns, primaryKey, foreignKeys, indexes, constraints, ddl
+                columns, primaryKey, foreignKeys, indexes, constraints, statistics, ddl
         );
     }
 
@@ -136,7 +148,8 @@ public class TableMetadataService {
     private TableMetadata.Capabilities toCapabilities(MetadataCapabilities capabilities) {
         return new TableMetadata.Capabilities(
                 capabilities.columns(), capabilities.primaryKeys(), capabilities.foreignKeys(),
-                capabilities.indexes(), capabilities.constraints(), capabilities.tableDefinitions()
+                capabilities.indexes(), capabilities.constraints(), capabilities.statistics(),
+                capabilities.tableRows(), capabilities.tableSize(), capabilities.tableDefinitions()
         );
     }
 
@@ -154,6 +167,7 @@ public class TableMetadataService {
                 case "foreignkeys", "foreignkey", "fk" -> "foreignKeys";
                 case "indexes", "indices" -> "indexes";
                 case "constraints" -> "constraints";
+                case "statistics", "stats" -> "statistics";
                 case "ddl" -> "ddl";
                 default -> throw new IllegalArgumentException(MessageUtils.getOrDefault(
                         "UnknownTableMetadataSection", "Unknown table metadata section: %s", section));
