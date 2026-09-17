@@ -1,5 +1,6 @@
 package org.jumpserver.chen.modules.clickhouse;
 
+import org.apache.commons.lang3.StringUtils;
 import org.jumpserver.chen.framework.datasource.Datasource;
 import org.jumpserver.chen.framework.datasource.base.BaseConnectionManager;
 import org.jumpserver.chen.framework.datasource.entity.DBConnectInfo;
@@ -48,9 +49,17 @@ public class ClickhouseConnectionManager extends BaseConnectionManager {
         return this.getConnectInfo().toDisplayJDBCUrl(jdbcUrlTemplate);
     }
 
+    @Override
+    public String getDatabaseContextKey() {
+        // ClickHouse exposes databases through schema nodes, like MySQL/MariaDB.
+        return "schema";
+    }
 
     @Override
     public String getJDBCUrl(String database) {
-        return this.jdbcUrl;
+        if (StringUtils.isBlank(database)) {
+            return this.jdbcUrl;
+        }
+        return this.getConnectInfo().toJDBCUrl(jdbcUrlTemplate, database);
     }
 }
