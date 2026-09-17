@@ -14,6 +14,7 @@ public class SaveChangesResult {
     private boolean databaseCommitted;
     private boolean auditSucceeded;
     private boolean connectionInvalidated;
+    private transient boolean connectionResetRequired;
     private String reason;
     private String message;
     private Integer failedChangeIndex;

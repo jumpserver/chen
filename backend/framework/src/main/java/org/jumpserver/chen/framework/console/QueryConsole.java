@@ -555,7 +555,7 @@ public class QueryConsole extends AbstractConsole {
                     executionContext,
                     SessionManager.getCurrentSession()
             );
-            if (result.isConnectionInvalidated()) {
+            if (result.isConnectionInvalidated() || result.isConnectionResetRequired()) {
                 this.invalidateConnection(result.getReason());
             }
             return result;
