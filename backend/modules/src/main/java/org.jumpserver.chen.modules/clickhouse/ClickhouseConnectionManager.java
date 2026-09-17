@@ -9,7 +9,9 @@ import java.sql.SQLException;
 
 public class ClickhouseConnectionManager extends BaseConnectionManager {
 
-    private static final String jdbcUrlTemplate = "jdbc:clickhouse://${host}:${port}/${db}";
+    // The bundled slim JDBC driver does not include an LZ4 implementation.
+    // Disable HTTP response compression until Chen ships the shaded driver.
+    private static final String jdbcUrlTemplate = "jdbc:clickhouse://${host}:${port}/${db}?compress=0";
     private String jdbcUrl;
 
     public ClickhouseConnectionManager(DBConnectInfo connectInfo, Datasource datasource) {
