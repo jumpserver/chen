@@ -28,7 +28,7 @@ public class ClickhouseActuator extends BaseSQLActuator {
 
     @Override
     public List<String> getSchemas() throws SQLException {
-        var result = this.execute(SQL.of("show databases"));
+        var result = this.execute(SQL.of("SELECT name FROM system.databases ORDER BY name"));
         return result.getData().stream().map(row -> (String) row.get(0)).toList();
     }
 

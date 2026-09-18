@@ -381,6 +381,9 @@ public abstract class BaseSQLActuator implements SQLActuator {
         String columnLabel = metaData.getColumnLabel(columnIndex);
         String columnName = metaData.getColumnName(columnIndex);
         String fieldName = StringUtils.isNotEmpty(columnLabel) ? columnLabel : columnName;
+        if (StringUtils.isEmpty(fieldName)) {
+            fieldName = "column_" + columnIndex;
+        }
         field.setName(fieldName);
         field.setColumnName(columnName);
         field.setLabel(columnLabel);
@@ -420,18 +423,11 @@ public abstract class BaseSQLActuator implements SQLActuator {
         } catch (Exception e) {
             log.debug("read result set auto increment metadata failed for column {}", columnIndex, e);
         }
-        try {
-            field.setReadOnly(metaData.isReadOnly(columnIndex));
-        } catch (Exception e) {
-            log.debug("read result set read only metadata failed for column {}", columnIndex, e);
-        }
-        try {
-            if (!metaData.isWritable(columnIndex)) {
-                field.setReadOnly(true);
-            }
-        } catch (Exception e) {
-            log.debug("read result set writable metadata failed for column {}", columnIndex, e);
-        }
+        // ResultSetMetaData.isReadOnly/isWritable describe whether this ResultSet cursor can be
+        // updated through ResultSet.updateXXX(). Chen does not update that cursor: it resolves a
+        // base table and primary key, then issues a separate prepared UPDATE statement. In
+        // particular, the default Statement created by JDBC has CONCUR_READ_ONLY concurrency, so
+        // cursor writability must not be copied to Field.readOnly.
     }
 
     private static String getNullableMetadataValue(MetadataValueReader reader, String name, int columnIndex) {
@@ -451,6 +447,41 @@ public abstract class BaseSQLActuator implements SQLActuator {
 
     // Normalize JDBC driver objects before Gson sees them in update_data_view packets.
     protected Object normalizeJdbcValue(ResultSet resultSet, int columnIndex) throws SQLException {
+        int jdbcType = Types.OTHER;
+        String typeName = null;
+        try {
+            ResultSetMetaData metaData = resultSet.getMetaData();
+            try {
+                jdbcType = metaData.getColumnType(columnIndex);
+            } catch (SQLException e) {
+                log.debug("read result set jdbc type failed for column {}", columnIndex, e);
+            }
+            try {
+                typeName = metaData.getColumnTypeName(columnIndex);
+            } catch (SQLException e) {
+                log.debug("read result set type name failed for column {}", columnIndex, e);
+            }
+        } catch (SQLException e) {
+            log.debug("read result set metadata failed for column {}", columnIndex, e);
+        }
+
+        if (JdbcDisplayValue.isDecimalType(jdbcType, typeName)) {
+            try {
+                BigDecimal decimal = resultSet.getBigDecimal(columnIndex);
+                return decimal == null ? null : decimal.toPlainString();
+            } catch (SQLException | AbstractMethodError e) {
+                log.debug("read decimal value failed for column {}", columnIndex, e);
+            }
+        }
+
+        if (JdbcDisplayValue.isGeometryType(jdbcType, typeName)) {
+            return this.normalizeGeometryValue(resultSet, columnIndex);
+        }
+
+        if (JdbcDisplayValue.isBlobType(jdbcType, typeName)) {
+            return this.normalizeBlobValue(resultSet, columnIndex);
+        }
+
         return this.normalizeJdbcValue(resultSet.getObject(columnIndex));
     }
 
@@ -493,7 +524,7 @@ public abstract class BaseSQLActuator implements SQLActuator {
         }
 
         if (value instanceof Blob blob) {
-            return HexUtils.bytesToHex(blob.getBytes(1, (int) blob.length()));
+            return this.summarizeBlob(blob);
         }
 
         if (value.getClass().getSimpleName().equalsIgnoreCase("pgobject")) {
@@ -505,6 +536,78 @@ public abstract class BaseSQLActuator implements SQLActuator {
         }
 
         return value;
+    }
+
+    private Object normalizeGeometryValue(ResultSet resultSet, int columnIndex) throws SQLException {
+        Object value;
+        boolean objectReadFailed = false;
+        try {
+            value = resultSet.getObject(columnIndex);
+        } catch (SQLException | AbstractMethodError e) {
+            log.debug("read geometry object failed for column {}", columnIndex, e);
+            value = null;
+            objectReadFailed = true;
+        }
+        if (!objectReadFailed && value == null) {
+            return null;
+        }
+        String display = JdbcDisplayValue.toGeometryDisplay(value, this.getDruidDbType());
+        if (display != null && JdbcDisplayValue.looksLikeWkt(display)) {
+            return display;
+        }
+        try {
+            String text = resultSet.getString(columnIndex);
+            if (JdbcDisplayValue.looksLikeWkt(text)) {
+                return text.trim();
+            }
+        } catch (SQLException | AbstractMethodError e) {
+            log.debug("read geometry as string failed for column {}", columnIndex, e);
+        }
+        if (display != null) {
+            return display;
+        }
+        return JdbcDisplayValue.geometrySummary(null);
+    }
+
+    private Object normalizeBlobValue(ResultSet resultSet, int columnIndex) throws SQLException {
+        try {
+            Blob blob = resultSet.getBlob(columnIndex);
+            if (blob != null) {
+                return this.summarizeBlob(blob);
+            }
+            if (resultSet.wasNull()) {
+                return null;
+            }
+        } catch (SQLException | AbstractMethodError e) {
+            log.debug("read blob locator failed for column {}", columnIndex, e);
+        }
+
+        Object value = resultSet.getObject(columnIndex);
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Blob blob) {
+            return this.summarizeBlob(blob);
+        }
+        if (value instanceof byte[] bytes) {
+            return JdbcDisplayValue.blobSummary(bytes.length);
+        }
+        return this.normalizeJdbcValue(value);
+    }
+
+    private String summarizeBlob(Blob blob) throws SQLException {
+        try {
+            return JdbcDisplayValue.blobSummary(blob.length());
+        } catch (SQLException e) {
+            log.debug("read blob length failed", e);
+            return JdbcDisplayValue.blobSummary();
+        } finally {
+            try {
+                blob.free();
+            } catch (SQLException e) {
+                log.debug("free blob failed", e);
+            }
+        }
     }
 
     private String normalizeOracleTimestampWithTimeZone(Object value) throws SQLException {
@@ -565,6 +668,7 @@ public abstract class BaseSQLActuator implements SQLActuator {
         boolean postgresql = dbType == DbType.postgresql;
         boolean mysqlFamily = dbType == DbType.mysql || dbType == DbType.mariadb;
         if (!postgresql && !mysqlFamily) {
+            markGeneratedColumnsFromJdbcMetadata(connection, fields);
             return;
         }
         String sql = postgresql
@@ -622,6 +726,97 @@ public abstract class BaseSQLActuator implements SQLActuator {
                         e);
             }
         }
+    }
+
+    private static void markGeneratedColumnsFromJdbcMetadata(
+            Connection connection,
+            List<Field> fields
+    ) {
+        DatabaseMetaData metadata;
+        try {
+            metadata = connection.getMetaData();
+        } catch (SQLException e) {
+            log.debug("read database metadata for generated columns failed", e);
+            return;
+        }
+        if (metadata == null) {
+            return;
+        }
+
+        Map<ColumnMetadataTable, List<Field>> fieldsByTable = new LinkedHashMap<>();
+        for (Field field : fields) {
+            if (field == null ||
+                    StringUtils.isBlank(field.getSchema()) ||
+                    StringUtils.isBlank(field.getTable()) ||
+                    StringUtils.isBlank(field.getColumnName())) {
+                continue;
+            }
+            fieldsByTable.computeIfAbsent(
+                    new ColumnMetadataTable(field.getSchema(), field.getTable()),
+                    ignored -> new ArrayList<>()
+            ).add(field);
+        }
+
+        for (Map.Entry<ColumnMetadataTable, List<Field>> entry : fieldsByTable.entrySet()) {
+            ColumnMetadataTable table = entry.getKey();
+            try (ResultSet resultSet = metadata.getColumns(
+                    null,
+                    table.schema(),
+                    table.table(),
+                    "%"
+            )) {
+                while (resultSet.next()) {
+                    String metadataTable = getMetadataValue(resultSet, "TABLE_NAME");
+                    String metadataColumn = getMetadataValue(resultSet, "COLUMN_NAME");
+                    if (!metadataIdentifierEquals(table.table(), metadataTable)) {
+                        continue;
+                    }
+                    for (Field field : entry.getValue()) {
+                        if (!metadataIdentifierEquals(field.getColumnName(), metadataColumn)) {
+                            continue;
+                        }
+                        if (isYesMetadataValue(resultSet, "IS_AUTOINCREMENT")) {
+                            field.setAutoIncrement(true);
+                        }
+                        if (isYesMetadataValue(resultSet, "IS_GENERATEDCOLUMN")) {
+                            field.setGenerated(true);
+                            field.setReadOnly(true);
+                        }
+                        break;
+                    }
+                }
+            } catch (SQLException e) {
+                log.debug("read JDBC generated column metadata failed for {}.{}",
+                        table.schema(),
+                        table.table(),
+                        e);
+            }
+        }
+    }
+
+    private static String getMetadataValue(ResultSet resultSet, String columnLabel) {
+        try {
+            return StringUtils.trimToNull(resultSet.getString(columnLabel));
+        } catch (SQLException e) {
+            log.debug("read JDBC column metadata attribute {} failed", columnLabel, e);
+            return null;
+        }
+    }
+
+    private static boolean metadataIdentifierEquals(String expected, String actual) {
+        return StringUtils.equalsIgnoreCase(StringUtils.trim(expected), StringUtils.trim(actual));
+    }
+
+    private static boolean isYesMetadataValue(ResultSet resultSet, String columnLabel) {
+        try {
+            return StringUtils.equalsIgnoreCase("YES", resultSet.getString(columnLabel));
+        } catch (SQLException e) {
+            log.debug("read JDBC column metadata attribute {} failed", columnLabel, e);
+            return false;
+        }
+    }
+
+    private record ColumnMetadataTable(String schema, String table) {
     }
 
     private String toDisplayArray(java.sql.Array jdbcArray) throws SQLException {
@@ -911,7 +1106,7 @@ public abstract class BaseSQLActuator implements SQLActuator {
     public SQLQueryResult executeWithAudit(SQLExecutePlan plan) throws SQLException {
         var sess = SessionManager.getCurrentSession();
         try {
-            return sess.withAudit(plan.getTargetSQL(), () -> this.execute(plan));
+            return sess.withAudit(plan.getTargetSQL(), plan.getAclResult(), () -> this.execute(plan));
         } catch (CommandRejectException e) {
             throw new SQLException(e.getMessage());
         }
@@ -921,7 +1116,7 @@ public abstract class BaseSQLActuator implements SQLActuator {
     public SQLQueryResult executeRawWithAudit(SQLExecutePlan plan) throws SQLException {
         var sess = SessionManager.getCurrentSession();
         try {
-            return sess.withAudit(plan.getTargetSQL(), () -> this.executeRaw(plan));
+            return sess.withAudit(plan.getTargetSQL(), plan.getAclResult(), () -> this.executeRaw(plan));
         } catch (CommandRejectException e) {
             throw new SQLException(e.getMessage());
         }

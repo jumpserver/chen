@@ -34,12 +34,25 @@ public class CommandHandlerImpl implements CommandHandler {
                 .setTimestamp(System.currentTimeMillis() / 1000)
                 .setInput(commandRecord.getInput())
                 .setOutput(commandRecord.getOutput())
-                .setRiskLevel(commandRecord.getRiskLevel());
+                .setRiskLevel(commandRecord.getRiskLevel() != null
+                        ? commandRecord.getRiskLevel()
+                        : Common.RiskLevel.Normal);
 
-        if (commandRecord.getCmdAclId() != null && commandRecord.getCmdGroupId() != null) {
+        if (commandRecord.getCmdAclId() != null && !commandRecord.getCmdAclId().isBlank()) {
             reqBuilder.setCmdAclId(commandRecord.getCmdAclId());
+        }
+        if (commandRecord.getCmdGroupId() != null && !commandRecord.getCmdGroupId().isBlank()) {
             reqBuilder.setCmdGroupId(commandRecord.getCmdGroupId());
         }
+
+        log.info(
+                "upload command sessionId={} command={} riskLevel={} cmdAclId={} cmdGroupId={}",
+                this.session.getId(),
+                commandRecord.getInput(),
+                commandRecord.getRiskLevel(),
+                commandRecord.getCmdAclId(),
+                commandRecord.getCmdGroupId()
+        );
 
         var resp = this.serviceBlockingStub
                 .withDeadlineAfter(COMMAND_UPLOAD_TIMEOUT_SECONDS, TimeUnit.SECONDS)

@@ -252,7 +252,7 @@ public class QueryConsole extends AbstractConsole {
                         .changeSchema(currentContext);
             }
             QueryTransactionStateInspector candidateInspector = QueryTransactionStateInspector.create(
-                    this.getDatasource().getDruidDbType(),
+                    this.getDatasource().getDatabaseType(),
                     candidate
             );
 
@@ -1237,7 +1237,7 @@ public class QueryConsole extends AbstractConsole {
             this.getConsoleLogger().error("%s", rejectMessage);
             this.sendSQLError("acl", rejectMessage, StringUtils.defaultString(sql), sql, null);
             CommandRecord commandRecord = new CommandRecord(sql);
-            commandRecord.setRiskLevel(aclResult.getRiskLevel());
+            commandRecord.applyAcl(aclResult);
             session.recordCommand(commandRecord);
             return false;
         }

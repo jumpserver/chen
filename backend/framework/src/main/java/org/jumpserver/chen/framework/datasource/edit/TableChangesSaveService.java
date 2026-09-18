@@ -237,6 +237,7 @@ public class TableChangesSaveService {
         try {
             session.withAudit(
                     plan.getAuditSql(),
+                    finalAclResult,
                     () -> {
                         TransactionOutcome<SQLQueryResult> outcome = executeTransaction(
                                 connection,
@@ -319,9 +320,7 @@ public class TableChangesSaveService {
 
     private void recordRejectedCommand(Session session, TableChangesPlan plan, ACLResult aclResult) {
         CommandRecord commandRecord = new CommandRecord(plan.getAuditSql());
-        commandRecord.setRiskLevel(aclResult.getRiskLevel());
-        commandRecord.setCmdAclId(aclResult.getCmdAclId());
-        commandRecord.setCmdGroupId(aclResult.getCmdGroupId());
+        commandRecord.applyAcl(aclResult);
         commandRecord.setError(ACL_REJECTED);
         try {
             session.recordCommand(commandRecord);

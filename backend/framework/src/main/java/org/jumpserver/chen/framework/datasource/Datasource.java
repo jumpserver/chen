@@ -10,6 +10,7 @@ import org.jumpserver.chen.framework.datasource.entity.action.Action;
 import org.jumpserver.chen.framework.datasource.entity.form.FormData;
 import org.jumpserver.chen.framework.datasource.metadata.MetadataCatalog;
 import org.jumpserver.chen.framework.datasource.plan.ExecutionPlanDialect;
+import org.jumpserver.chen.framework.datasource.plan.PlanDatabase;
 import org.jumpserver.chen.framework.datasource.plan.UnsupportedExecutionPlanDialect;
 
 
@@ -42,6 +43,17 @@ public interface Datasource {
 
     default ExecutionPlanDialect getExecutionPlanDialect() {
         return UnsupportedExecutionPlanDialect.getInstance();
+    }
+
+    /**
+     * The actual database product, independent of the Druid SQL dialect returned by
+     * {@link #getDruidDbType()}. A datasource may intentionally reuse another product's
+     * parser dialect (for example MariaDB uses Druid's MySQL dialect) while still requiring
+     * product-specific runtime behavior.
+     */
+    default PlanDatabase getDatabaseType() {
+        ExecutionPlanDialect dialect = this.getExecutionPlanDialect();
+        return dialect == null ? null : dialect.database();
     }
 
     void close();

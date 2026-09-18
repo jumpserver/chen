@@ -344,6 +344,12 @@ public class JMSSession extends BaseSession {
 
     @Override
     public SQLQueryResult withAudit(String command, QueryAuditFunction queryAuditFunction) throws SQLException, CommandRejectException {
+        return withAudit(command, null, queryAuditFunction);
+    }
+
+    @Override
+    public SQLQueryResult withAudit(String command, ACLResult aclResult, QueryAuditFunction queryAuditFunction)
+            throws SQLException, CommandRejectException {
         synchronized (this) {
             this.refreshLastActiveTime();
         }
@@ -352,6 +358,7 @@ public class JMSSession extends BaseSession {
         }
 
         CommandRecord commandRecord = new CommandRecord(command);
+        commandRecord.applyAcl(aclResult);
         Throwable primaryFailure = null;
 
         try {
@@ -359,10 +366,7 @@ public class JMSSession extends BaseSession {
 
             var result = queryAuditFunction.run();
             commandRecord.setOutput(result);
-
-            commandRecord.setCmdAclId(result.getAclResult().getCmdAclId());
-            commandRecord.setCmdGroupId(result.getAclResult().getCmdGroupId());
-            commandRecord.setRiskLevel(result.getAclResult().getRiskLevel());
+            commandRecord.applyAcl(result.getAclResult());
 
             this.replayHandler.writeOutput(result.getOutput());
             return result;

@@ -15,6 +15,9 @@ import org.jumpserver.chen.framework.datasource.metadata.RelationKind;
 import org.jumpserver.chen.framework.datasource.metadata.RelationMetadata;
 import org.jumpserver.chen.framework.datasource.metadata.RelationScope;
 import org.jumpserver.chen.framework.datasource.metadata.SchemaMetadata;
+import org.jumpserver.chen.framework.datasource.metadata.ScopeKind;
+import org.jumpserver.chen.framework.datasource.metadata.ScopeProperties;
+import org.jumpserver.chen.framework.datasource.metadata.ScopeRef;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -223,9 +226,23 @@ public class OracleMetadataProvider extends BaseDatabaseMetadataProvider {
             WHERE OWNER = ? AND TABLE_NAME = ? AND TABLESPACE_NAME IS NOT NULL
             """;
 
+    private static final String SQL_SCHEMA_PROPERTIES = """
+            SELECT USERNAME, USER_ID, CREATED
+            FROM ALL_USERS
+            WHERE USERNAME = ?
+            """;
+
     @Override
     public ObjectProperties objectProperties(ObjectRef ref) throws SQLException {
         return loadObjectProperties(ref, SQL_TABLE_PROPERTIES);
+    }
+
+    @Override
+    public ScopeProperties scopeProperties(ScopeRef ref) throws SQLException {
+        if (ref.kind() != ScopeKind.SCHEMA) {
+            return super.scopeProperties(ref);
+        }
+        return loadScopeProperties(ref, SQL_SCHEMA_PROPERTIES, List.of(ref.scope().schema()));
     }
 
     private static final String SQL_PRIMARY_KEYS = """

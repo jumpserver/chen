@@ -35,7 +35,7 @@ public class DB2MetadataProvider extends BaseDatabaseMetadataProvider {
             true, true, false, true, false, true, true, true, false
     );
 
-    private static final String SQL_SCHEMAS = "SELECT SCHEMANAME AS name FROM syscat.schemata";
+    private static final String SQL_SCHEMAS = "SELECT RTRIM(SCHEMANAME) AS name FROM syscat.schemata";
 
     private static final String SQL_TABLES = """
             SELECT RTRIM(t.tabname) AS name,

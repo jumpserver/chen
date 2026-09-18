@@ -36,9 +36,6 @@ public class DmMetadataProvider extends BaseDatabaseMetadataProvider {
 
     private static final String SQL_TABLES = """
             SELECT t.table_name AS name,
-                   NULL AS engine,
-                   NULL AS character_set,
-                   NULL AS collation,
                    c.comments AS object_comment
             FROM all_tables t
             LEFT JOIN all_tab_comments c
@@ -57,7 +54,7 @@ public class DmMetadataProvider extends BaseDatabaseMetadataProvider {
             """;
 
     private static final String SQL_VIEWS = """
-            SELECT v.view_name AS name, 'VIEW' AS type, c.comments AS object_comment
+            SELECT v.view_name AS name, c.comments AS object_comment
             FROM all_views v
             LEFT JOIN all_tab_comments c
               ON c.owner = v.owner AND c.table_name = v.view_name AND c.table_type = 'VIEW'
