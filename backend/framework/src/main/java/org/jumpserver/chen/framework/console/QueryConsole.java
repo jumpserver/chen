@@ -145,7 +145,7 @@ public class QueryConsole extends AbstractConsole {
         this.consoleMode = consoleMode;
         this.titleSequence = generateConsoleName(consoleMode);
         this.setTitle(String.format(
-                MessageUtils.get(consoleMode ? "Console" : "Query") + "-%d",
+                (consoleMode ? "Console" : MessageUtils.get("Query")) + "-%d",
                 this.titleSequence
         ));
         this.datasource = datasource;
@@ -1009,15 +1009,15 @@ public class QueryConsole extends AbstractConsole {
             return;
         }
         if (!Files.exists(filePath, LinkOption.NOFOLLOW_LINKS)) {
-            this.getConsoleLogger().error("%s: %s", MessageUtils.get("msg.error.file_not_found"), filename);
+            this.getConsoleLogger().error("%s: %s", MessageUtils.get("FileNotFoundError"), filename);
             return;
         }
         if (!Files.isRegularFile(filePath, LinkOption.NOFOLLOW_LINKS)) {
-            this.getConsoleLogger().error("%s: %s", MessageUtils.get("msg.error.file_not_file"), filename);
+            this.getConsoleLogger().error("%s: %s", MessageUtils.get("FileNotRegularError"), filename);
             return;
         }
         if (!Files.isReadable(filePath)) {
-            this.getConsoleLogger().error("%s: %s", MessageUtils.get("msg.error.file_not_readable"), filename);
+            this.getConsoleLogger().error("%s: %s", MessageUtils.get("FileNotReadableError"), filename);
             return;
         }
 
@@ -1031,7 +1031,7 @@ public class QueryConsole extends AbstractConsole {
                     sql = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
                 }
             } catch (IOException | SecurityException e) {
-                this.getConsoleLogger().error("%s: %s", MessageUtils.get("msg.error.file_read_error"), e.getMessage());
+                this.getConsoleLogger().error("%s: %s", MessageUtils.get("FileReadError"), e.getMessage());
                 return;
             }
             this.onSQL(sql);
