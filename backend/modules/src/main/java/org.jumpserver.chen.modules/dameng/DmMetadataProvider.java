@@ -243,6 +243,9 @@ public class DmMetadataProvider extends BaseDatabaseMetadataProvider {
 
     @Override
     public List<PrimaryKeyMetadata> listPrimaryKeys(List<ObjectRef> relations) throws SQLException {
+        if (relations.isEmpty()) {
+            return List.of();
+        }
         var first = relations.get(0);
         return groupPrimaryKeys(queryKeys(SQL_PRIMARY_KEYS, relations, first.schema()),
                 new RelationScope(first.catalog(), first.schema()));
@@ -250,6 +253,9 @@ public class DmMetadataProvider extends BaseDatabaseMetadataProvider {
 
     @Override
     public List<ForeignKeyMetadata> listForeignKeys(List<ObjectRef> relations) throws SQLException {
+        if (relations.isEmpty()) {
+            return List.of();
+        }
         var first = relations.get(0);
         return groupForeignKeys(queryKeys(SQL_FOREIGN_KEYS, relations, first.schema()),
                 new RelationScope(first.catalog(), first.schema()));
