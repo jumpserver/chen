@@ -86,6 +86,15 @@ public class DmMetadataProviderRelationTest {
         }
     }
 
+    @Test
+    public void emptyRelationMetadataRequestsDoNotAccessTheFirstElement() throws Exception {
+        var provider = new DmMetadataProvider(connectionManager(new AtomicReference<>()));
+
+        assertTrue(provider.listPrimaryKeys(List.of()).isEmpty());
+        assertTrue(provider.listForeignKeys(List.of()).isEmpty());
+        assertTrue(provider.listConstraints(List.of()).isEmpty());
+    }
+
     private static void assertRelationProjection(String sql, String source, String nameExpression) {
         var normalized = normalized(sql);
         assertTrue(sql, normalized.contains("select " + nameExpression + " as name, c.comments as object_comment"));
