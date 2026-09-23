@@ -141,6 +141,7 @@ class DataExportCSV implements DataExportInterface {
                 } else if (obj instanceof Date) {
                     SimpleDateFormat fmt = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
                     writeString(writer, fmt.format(obj));
+                    writer.write(",");
                 } else {
                     writeString(writer, row.get(field.getName()));
                     writer.write(",");
@@ -155,11 +156,6 @@ class DataExportCSV implements DataExportInterface {
     }
 
     private static void writeString(BufferedWriter writer, Object object) throws IOException {
-        var str = object.toString();
-
-        if (str.contains(",")) {
-            str = "\"" + str + "\"";
-        }
-        writer.write(str);
+        writer.write(object instanceof Number ? object.toString() : CodeUtils.escapeCsvValue(object.toString()));
     }
 }
