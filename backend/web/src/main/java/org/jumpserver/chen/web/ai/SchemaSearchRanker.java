@@ -17,9 +17,11 @@ import java.util.Set;
 /** In-memory, metadata-only lexical ranking for the active schema. */
 final class SchemaSearchRanker {
     private static final int MAX_QUERY_TERMS = 32;
-    private static final int MAX_MATCH_REASONS = 6;
     private static final int CONTEXT_TABLE_BOOST = 5;
     private static final int COVERAGE_BONUS = 6;
+    private static final List<String> MATCH_SOURCES = List.of(
+            "table_name", "table_comment", "column_name", "column_comment"
+    );
 
     private SchemaSearchRanker() {
     }
@@ -73,12 +75,11 @@ final class SchemaSearchRanker {
             for (String term : terms) {
                 int nameScore = fieldScore(term, column.name(), 9, 7, 5);
                 if (nameScore > 0) {
-                    candidate.match(term, nameScore, "column: " + preview(column.name(), 96));
+                    candidate.match(term, nameScore, "column_name");
                 }
                 int commentScore = fieldScore(term, column.comment(), 7, 6, 4);
                 if (commentScore > 0) {
-                    candidate.match(term, commentScore, "column: " + preview(column.name(), 96)
-                            + " / " + preview(column.comment(), 128));
+                    candidate.match(term, commentScore, "column_comment");
                 }
             }
         }
@@ -112,18 +113,18 @@ final class SchemaSearchRanker {
         String table = candidate.relation.ref().name();
         String comment = candidate.relation.comment();
         if (normalize(table).equals(exactQuery)) {
-            candidate.exactMatch(12, "table_name: exact " + preview(table, 128));
+            candidate.exactMatch(12, "table_name");
         } else if (comment != null && normalize(comment).equals(exactQuery)) {
-            candidate.exactMatch(6, "table_comment: exact " + preview(comment, 160));
+            candidate.exactMatch(6, "table_comment");
         }
         for (String term : terms) {
             int nameScore = fieldScore(term, table, 18, 12, 8);
             if (nameScore > 0) {
-                candidate.match(term, nameScore, "table_name: " + preview(table, 128));
+                candidate.match(term, nameScore, "table_name");
             }
             int commentScore = fieldScore(term, comment, 12, 10, 7);
             if (commentScore > 0) {
-                candidate.match(term, commentScore, "table_comment: " + preview(comment, 160));
+                candidate.match(term, commentScore, "table_comment");
             }
         }
     }
@@ -212,74 +213,48 @@ final class SchemaSearchRanker {
         return currentTable != null && currentTable.equals(relation.ref().name());
     }
 
-    private static String preview(String value, int maximum) {
-        if (value == null) {
-            return "";
-        }
-        return value.length() <= maximum ? value : value.substring(0, maximum) + "…";
-    }
-
     record RankedResults(List<Map<String, Object>> candidates, boolean truncated) {
     }
 
     private record ScoredRelation(RelationMetadata relation, int score) {
     }
 
-    private record Match(int weight, String reason) {
-    }
-
     private static final class Candidate {
         private final RelationMetadata relation;
         private final boolean currentTable;
-        private final Map<String, Match> matches = new LinkedHashMap<>();
+        private final Map<String, Integer> matches = new LinkedHashMap<>();
+        private final Set<String> matchedSources = new LinkedHashSet<>();
         private int exactQueryBonus;
-        private String exactQueryReason;
 
         private Candidate(RelationMetadata relation, boolean currentTable) {
             this.relation = relation;
             this.currentTable = currentTable;
         }
 
-        private void match(String term, int weight, String reason) {
-            Match previous = matches.get(term);
-            if (previous == null || weight > previous.weight()) {
-                matches.put(term, new Match(weight, reason));
-            }
+        private void match(String term, int weight, String source) {
+            matchedSources.add(source);
+            matches.merge(term, weight, Math::max);
         }
 
-        private void exactMatch(int weight, String reason) {
+        private void exactMatch(int weight, String source) {
             exactQueryBonus = weight;
-            exactQueryReason = reason;
+            matchedSources.add(source);
         }
 
         private int score() {
-            return matches.values().stream().mapToInt(Match::weight).sum()
+            return matches.values().stream().mapToInt(Integer::intValue).sum()
                     + Math.max(0, matches.size() - 1) * COVERAGE_BONUS
                     + exactQueryBonus
                     + (currentTable ? CONTEXT_TABLE_BOOST : 0);
         }
 
         private Map<String, Object> serialize() {
-            Set<String> reasons = new LinkedHashSet<>();
-            if (currentTable) {
-                reasons.add("context_table: current table");
-            }
-            if (exactQueryReason != null) {
-                reasons.add(exactQueryReason);
-            }
-            for (Match match : matches.values()) {
-                reasons.add(match.reason());
-                if (reasons.size() >= MAX_MATCH_REASONS) {
-                    break;
-                }
-            }
             Map<String, Object> result = new LinkedHashMap<>();
             result.put("table", relation.ref().name());
-            result.put("comment", preview(relation.comment(), 256));
             result.put("score", score());
             result.put("matchedKeywords", matches.size());
             result.put("currentTable", currentTable);
-            result.put("matches", List.copyOf(reasons));
+            result.put("matchedOn", MATCH_SOURCES.stream().filter(matchedSources::contains).toList());
             return result;
         }
     }

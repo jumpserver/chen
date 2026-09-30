@@ -461,14 +461,8 @@ public class SqlAgentToolService {
         );
 
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("query", request.query());
-        result.put("requestedScope", metadataScopeMap(context.database(), request.schema()));
-        result.put("resolvedScope", metadataScopeMap(scope.catalog(), scope.schema()));
         result.put("candidates", ranked.candidates());
         result.put("truncated", ranked.truncated());
-        result.put("availableRelationCount", available.size());
-        result.put("searchedRelationCount", columnCandidates.size());
-        result.put("columnSearchAvailable", catalog.capabilities().columns());
         result.put("columnSearchLimited", columnCandidates.size() < available.size());
         assertRequestContextCurrent(session, context);
         return result;

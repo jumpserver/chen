@@ -409,7 +409,8 @@ public class AgentWebSocketHandler extends TextWebSocketHandler {
                 "Find related tables",
                 "Rank table candidates from a business question or keywords using table and column names/comments "
                         + "inside the verified active schema. The current table is kept as an anchor. "
-                        + "Returns brief reasons; inspect_schema can then inspect exact table names. "
+                        + "Returns table names, scores and match categories without column or comment text; "
+                        + "inspect_schema can then inspect exact table names. "
                         + "Column matching is limited to a bounded set of likely tables. This never reads business rows.",
                 "{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"query\"],"
                         + "\"properties\":{"
