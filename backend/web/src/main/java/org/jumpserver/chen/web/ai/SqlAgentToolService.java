@@ -48,6 +48,10 @@ public class SqlAgentToolService {
     static final int MAX_INSPECT_TABLES = 8;
     static final int MAX_DISCOVER_TABLES = 100;
     static final String DISCOVER_TABLES_QUERY = "*";
+    static final int DEFAULT_SEARCH_RESULTS = 8;
+    static final int MAX_SEARCH_RESULTS = 10;
+    static final int MAX_SEARCH_COLUMN_TABLES = 64;
+    private static final int MAX_SEARCH_QUERY_LENGTH = 256;
     private static final int MAX_INSPECT_COLUMNS = 96;
     private static final int MAX_INSPECT_RELATIONS = 48;
     static final List<String> INSPECT_SCHEMA_DATA_CATEGORIES = List.of(
@@ -57,7 +61,7 @@ public class SqlAgentToolService {
     private static final Set<String> CONTEXT_NODE_TYPES =
             Set.of("datasource", "database", "schema", "table", "view");
     private static final Set<String> TOOL_NAMES =
-            Set.of("read_sql_context", "inspect_schema", "validate_sql", "propose_sql");
+            Set.of("read_sql_context", "search_schema", "inspect_schema", "validate_sql", "propose_sql");
     private static final Set<RelationKind> INSPECT_KINDS =
             Set.of(RelationKind.TABLE, RelationKind.VIEW, RelationKind.MATERIALIZED_VIEW);
     private static final Set<String> WORKSPACE_TAB_KINDS =
@@ -230,6 +234,10 @@ public class SqlAgentToolService {
                     "kind", "schema",
                     "schema", inspectSchema(datasource, context, arguments)
             );
+            case "search_schema" -> Map.of(
+                    "kind", "schema_search",
+                    "search", searchSchema(session, datasource, context, arguments)
+            );
             case "validate_sql" -> Map.of(
                     "kind", "validation",
                     "analysis", SqlValidator.validate(
@@ -327,6 +335,62 @@ public class SqlAgentToolService {
             throw new IllegalArgumentException("Table discovery cannot include explicit tables");
         }
 
+        MetadataScope boundary = resolveMetadataBoundary(context, arguments);
+        String activeSchema = boundary.schema();
+        List<String> tables = new ArrayList<>(requestedTables.size());
+        for (String requestedTable : requestedTables) {
+            List<String> parts = qualifiedIdentifierParts(requestedTable);
+            validateTableQualifier(parts, context.database(), activeSchema);
+            tables.add(parts.get(parts.size() - 1));
+        }
+        return new MetadataApprovalScope(
+                StringUtils.defaultString(context.database()),
+                StringUtils.defaultString(activeSchema),
+                context.nodeKey(),
+                List.copyOf(tables),
+                query,
+                discovery
+        );
+    }
+
+    SchemaSearchRequest resolveSchemaSearchRequest(AgentRequestContext context, String argumentsJson) {
+        if (context == null) {
+            throw new IllegalArgumentException("Invalid SQL editor context");
+        }
+        return resolveSchemaSearchRequest(context, parseToolArguments(argumentsJson));
+    }
+
+    private SchemaSearchRequest resolveSchemaSearchRequest(AgentRequestContext context, JsonObject arguments) {
+        if (arguments.has("tables")) {
+            throw new IllegalArgumentException("Schema search does not accept explicit tables");
+        }
+        String query = boundedString(arguments, "query", MAX_SEARCH_QUERY_LENGTH, true).trim();
+        if (query.isBlank() || DISCOVER_TABLES_QUERY.equals(query)
+                || !SchemaSearchRanker.hasSearchTerms(query)) {
+            throw new IllegalArgumentException("Schema search requires a business term or question");
+        }
+        int limit = searchResultLimit(arguments);
+        MetadataScope boundary = resolveMetadataBoundary(context, arguments);
+        return new SchemaSearchRequest(boundary.schema(), query, limit);
+    }
+
+    private static int searchResultLimit(JsonObject arguments) {
+        JsonElement value = arguments.get("limit");
+        if (value == null || value.isJsonNull()) {
+            return DEFAULT_SEARCH_RESULTS;
+        }
+        try {
+            int limit = value.getAsInt();
+            if (limit >= 1 && limit <= MAX_SEARCH_RESULTS && value.getAsString().equals(Integer.toString(limit))) {
+                return limit;
+            }
+        } catch (RuntimeException ignored) {
+            // Invalid values receive the same bounded-argument error.
+        }
+        throw new IllegalArgumentException("Invalid search result limit");
+    }
+
+    private static MetadataScope resolveMetadataBoundary(AgentRequestContext context, JsonObject arguments) {
         String activeSchema = normalizeMetadataSchema(context.database(), context.schema());
         if (isBlockedSystemScope(context.dialect(), context.database(), activeSchema)) {
             throw new IllegalArgumentException(blockedSystemScopeMessage(
@@ -347,20 +411,7 @@ public class SqlAgentToolService {
             throw new IllegalArgumentException("Schema inspection must stay in the active schema");
         }
 
-        List<String> tables = new ArrayList<>(requestedTables.size());
-        for (String requestedTable : requestedTables) {
-            List<String> parts = qualifiedIdentifierParts(requestedTable);
-            validateTableQualifier(parts, context.database(), activeSchema);
-            tables.add(parts.get(parts.size() - 1));
-        }
-        return new MetadataApprovalScope(
-                StringUtils.defaultString(context.database()),
-                StringUtils.defaultString(activeSchema),
-                context.nodeKey(),
-                List.copyOf(tables),
-                query,
-                discovery
-        );
+        return new MetadataScope(StringUtils.defaultString(context.database()), activeSchema);
     }
 
     private static JsonObject parseToolArguments(String argumentsJson) {
@@ -376,6 +427,51 @@ public class SqlAgentToolService {
 
     static Map<String, Object> validateSQL(DbType dbType, String sql) {
         return SqlValidator.validate(dbType, sql).toAnalysisMap();
+    }
+
+    private Map<String, Object> searchSchema(
+            Session session, Datasource datasource, AgentRequestContext context, JsonObject arguments
+    ) throws SQLException {
+        SchemaSearchRequest request = resolveSchemaSearchRequest(context, arguments);
+        MetadataCatalog catalog = datasource.getMetadataCatalog();
+        if (catalog == null) {
+            throw new IllegalStateException("Database metadata catalog is not available");
+        }
+        RelationScope scope = relationScope(context, request.schema());
+        List<RelationMetadata> available = catalog.listRelations(scope, INSPECT_KINDS).stream()
+                .filter(relation -> isRelationWithinScope(relation.ref(), scope, context.dialect()))
+                .toList();
+        assertRequestContextCurrent(session, context);
+
+        // Rank cheap relation headers first. Column metadata is fetched once for at most
+        // MAX_SEARCH_COLUMN_TABLES relations, including the current table when present.
+        List<RelationMetadata> columnCandidates = SchemaSearchRanker.selectColumnCandidates(
+                available, request.query(), context.table(), MAX_SEARCH_COLUMN_TABLES
+        );
+        Set<ObjectRef> columnCandidateRefs = columnCandidates.stream()
+                .map(RelationMetadata::ref)
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
+        List<ColumnMetadata> columns = catalog.listColumns(
+                columnCandidates.stream().map(RelationMetadata::ref).toList()
+        ).stream().filter(column -> column.owner() != null
+                && columnCandidateRefs.contains(column.owner())
+                && isRelationWithinScope(column.owner(), scope, context.dialect())).toList();
+        SchemaSearchRanker.RankedResults ranked = SchemaSearchRanker.rank(
+                available, columns, request.query(), context.table(), request.limit()
+        );
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("query", request.query());
+        result.put("requestedScope", metadataScopeMap(context.database(), request.schema()));
+        result.put("resolvedScope", metadataScopeMap(scope.catalog(), scope.schema()));
+        result.put("candidates", ranked.candidates());
+        result.put("truncated", ranked.truncated());
+        result.put("availableRelationCount", available.size());
+        result.put("searchedRelationCount", columnCandidates.size());
+        result.put("columnSearchAvailable", catalog.capabilities().columns());
+        result.put("columnSearchLimited", columnCandidates.size() < available.size());
+        assertRequestContextCurrent(session, context);
+        return result;
     }
 
     private Map<String, Object> inspectSchema(
@@ -706,6 +802,7 @@ public class SqlAgentToolService {
         schema = normalizeMetadataSchema(database, schema);
         if (!StringUtils.equals(database, expected.database())
                 || !StringUtils.equalsIgnoreCase(schema, expected.schema())
+                || !StringUtils.equals(node.table(), expected.table())
                 || !StringUtils.equals(currentContext, expected.currentContext())) {
             throw new IllegalStateException("The database workspace context has changed");
         }
@@ -1028,6 +1125,9 @@ public class SqlAgentToolService {
                     .map(value -> value.toLowerCase(Locale.ROOT))
                     .allMatch(allowedTables::contains);
         }
+    }
+
+    record SchemaSearchRequest(String schema, String query, int limit) {
     }
 
     private record MetadataScope(String catalog, String schema) {
