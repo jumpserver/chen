@@ -23,6 +23,7 @@ import org.jumpserver.chen.framework.session.SessionManager;
 import org.jumpserver.chen.framework.session.controller.dialog.Button;
 import org.jumpserver.chen.framework.session.controller.dialog.Dialog;
 import org.jumpserver.chen.framework.utils.TreeUtils;
+import org.jumpserver.chen.framework.utils.SessionFiles;
 import org.jumpserver.chen.framework.ws.io.Packet;
 import org.jumpserver.wisp.Common;
 import org.springframework.web.socket.WebSocketSession;
@@ -306,7 +307,13 @@ public class QueryConsole extends AbstractConsole {
 
 
     public void onSQLFile(String filename) {
-        var filePath = SessionManager.getCurrentSession().getTempPath().resolve(filename);
+        java.nio.file.Path filePath;
+        try {
+            filePath = SessionFiles.uploadedFile(SessionManager.getCurrentSession().getTempPath(), filename);
+        } catch (IOException e) {
+            this.getConsoleLogger().error("%s: %s", MessageUtils.get("msg.error.file_not_readable"), filename);
+            return;
+        }
         var file = filePath.toFile();
 
         if (!file.exists()) {
