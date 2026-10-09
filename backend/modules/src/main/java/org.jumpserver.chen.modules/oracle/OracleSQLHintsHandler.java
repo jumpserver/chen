@@ -20,21 +20,21 @@ public class OracleSQLHintsHandler extends BaseSQLHintsHandler {
     }
 
 
-    private static final String SQL_GET_ALL_TABLES = "SELECT TABLE_NAME,OWNER FROM ALL_TABLES  WHERE OWNER= '?'";
+    private static final String SQL_GET_ALL_TABLES = "SELECT TABLE_NAME,OWNER FROM ALL_TABLES  WHERE OWNER= ?";
 
     public List<Table> getALlTables(String schema) throws SQLException {
         return this.connectionManager.getSqlActuator()
-                .getObjects(SQL.of(SQL_GET_ALL_TABLES, schema)
-                        .getSql(), Table.class, Map.of("name", 1, "schema", 2));
+                .getObjects(SQL.bound(SQL_GET_ALL_TABLES, schema)
+                        , Table.class, Map.of("name", 1, "schema", 2));
     }
 
-    private static final String SQL_GET_ALL_FIELDS = "SELECT COLUMN_NAME,OWNER,TABLE_NAME FROM ALL_TAB_COLUMNS WHERE OWNER = '?'";
+    private static final String SQL_GET_ALL_FIELDS = "SELECT COLUMN_NAME,OWNER,TABLE_NAME FROM ALL_TAB_COLUMNS WHERE OWNER = ?";
 
 
     public List<Field> getAllFields(String schema) throws SQLException {
         return this.connectionManager
                 .getSqlActuator()
-                .getObjects(SQL.of(SQL_GET_ALL_FIELDS, schema).getSql(), Field.class, Map.of("name", 1, "schema", 2, "table", 3));
+                .getObjects(SQL.bound(SQL_GET_ALL_FIELDS, schema), Field.class, Map.of("name", 1, "schema", 2, "table", 3));
 
     }
 

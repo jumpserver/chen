@@ -46,41 +46,41 @@ public class PostgresqlResourceBrowser extends BaseResourceBrowser {
     private static final String SQL_GET_DATABASES = "SELECT DATNAME AS NAME FROM PG_DATABASE WHERE DATISTEMPLATE = FALSE";
 
     public List<Database> getDatabases() throws SQLException {
-        return this.getDatabases(SQL.of(SQL_GET_DATABASES));
+        return this.getDatabases(SQL.bound(SQL_GET_DATABASES));
     }
 
     public List<Database> getDatabases(SQL sql) throws SQLException {
         return this.getConnectionManager()
                 .getSqlActuator()
-                .getObjects(sql.getSql(), Database.class, Map.of("name", 1));
+                .getObjects(sql, Database.class, Map.of("name", 1));
     }
 
     private static final String SQL_GET_SCHEMAS = "SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA";
 
     @Override
     public List<Schema> getSchemas() throws SQLException {
-        return this.getSchemas(SQL.of(SQL_GET_SCHEMAS));
+        return this.getSchemas(SQL.bound(SQL_GET_SCHEMAS));
     }
 
-    private static final String SQL_GET_TABLES = " SELECT TABLE_NAME AS NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = '?' AND TABLE_TYPE = 'BASE TABLE'";
+    private static final String SQL_GET_TABLES = " SELECT TABLE_NAME AS NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_TYPE = 'BASE TABLE'";
 
     @Override
     public List<Table> getTables(String schema) throws SQLException {
-        return this.getTables(SQL.of(SQL_GET_TABLES, schema));
+        return this.getTables(SQL.bound(SQL_GET_TABLES, schema));
     }
 
-    private static final String SQL_GET_VIEWS = "SELECT TABLE_NAME AS NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = '?' AND TABLE_TYPE = 'VIEW'";
+    private static final String SQL_GET_VIEWS = "SELECT TABLE_NAME AS NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_TYPE = 'VIEW'";
 
     @Override
     public List<View> getViews(String schema) throws SQLException {
-        return this.getViews(SQL.of(SQL_GET_VIEWS, schema));
+        return this.getViews(SQL.bound(SQL_GET_VIEWS, schema));
     }
 
-    private static final String SQL_GET_FIELDS = "SELECT COLUMN_NAME AS NAME, COLUMN_TYPE AS TYPE, COLUMN_KEY AS `KEY`, IS_NULLABLE AS `NULLABLE`, COLUMN_DEFAULT AS `DEFAULT`, EXTRA AS EXTRA, COLUMN_COMMENT AS COMMENT FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '?' AND TABLE_NAME = '?'";
+    private static final String SQL_GET_FIELDS = "SELECT COLUMN_NAME AS NAME, COLUMN_TYPE AS TYPE, COLUMN_KEY AS `KEY`, IS_NULLABLE AS `NULLABLE`, COLUMN_DEFAULT AS `DEFAULT`, EXTRA AS EXTRA, COLUMN_COMMENT AS COMMENT FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?";
 
     @Override
     public List<Field> getFields(String schema, String table) throws SQLException {
-        return this.getFields(SQL.of(SQL_GET_FIELDS, schema, table));
+        return this.getFields(SQL.bound(SQL_GET_FIELDS, schema, table));
     }
 
 

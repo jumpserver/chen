@@ -17,20 +17,20 @@ public class DB2SQLHintsHandler extends BaseSQLHintsHandler {
         this.connectionManager = connectionManager;
     }
 
-    private static final String SQL_GET_SCHEMA_ALL_FIELDS = "select COLNAME, TABSCHEMA, TABNAME from syscat.COLUMNS where TABSCHEMA = '?'";
+    private static final String SQL_GET_SCHEMA_ALL_FIELDS = "select COLNAME, TABSCHEMA, TABNAME from syscat.COLUMNS where TABSCHEMA = ?";
 
     public List<Field> getAllFields(String schema) throws SQLException {
         return this.connectionManager
                 .getSqlActuator()
-                .getObjects(SQL.of(SQL_GET_SCHEMA_ALL_FIELDS, schema).getSql(), Field.class, Map.of("name", 1, "schema", 2, "table", 3));
+                .getObjects(SQL.bound(SQL_GET_SCHEMA_ALL_FIELDS, schema), Field.class, Map.of("name", 1, "schema", 2, "table", 3));
 
     }
 
-    private static final String SQL_GET_ALL_TABLES = "select TABNAME, TABSCHEMA from syscat.TABLES where TABSCHEMA = '?'";
+    private static final String SQL_GET_ALL_TABLES = "select TABNAME, TABSCHEMA from syscat.TABLES where TABSCHEMA = ?";
 
     public List<Table> getALlTables(String context) throws SQLException {
         return this.connectionManager.getSqlActuator()
-                .getObjects(SQL.of(SQL_GET_ALL_TABLES, context)
-                        .getSql(), Table.class, Map.of("name", 1, "schema", 2));
+                .getObjects(SQL.bound(SQL_GET_ALL_TABLES, context)
+                        , Table.class, Map.of("name", 1, "schema", 2));
     }
 }

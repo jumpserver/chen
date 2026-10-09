@@ -14,6 +14,13 @@ public class SQL {
 
 
     private String sql;
+    private List<Object> parameters = new ArrayList<>();
+
+    public static SQL bound(String sql, Object... parameters) {
+        SQL query = new SQL(sql);
+        query.parameters = java.util.Arrays.asList(parameters.clone());
+        return query;
+    }
 
     public SQL(String sql) {
         this.sql = sql;

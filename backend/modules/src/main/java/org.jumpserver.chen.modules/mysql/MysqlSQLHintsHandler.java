@@ -17,20 +17,20 @@ public class MysqlSQLHintsHandler extends BaseSQLHintsHandler {
         this.connectionManager = connectionManager;
     }
 
-    private static final String SQL_GET_SCHEMA_ALL_FIELDS = "SELECT COLUMN_NAME AS NAME, TABLE_SCHEMA,TABLE_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '?'";
+    private static final String SQL_GET_SCHEMA_ALL_FIELDS = "SELECT COLUMN_NAME AS NAME, TABLE_SCHEMA,TABLE_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ?";
 
     public List<Field> getAllFields(String schema) throws SQLException {
         return this.connectionManager
                 .getSqlActuator()
-                .getObjects(SQL.of(SQL_GET_SCHEMA_ALL_FIELDS, schema).getSql(), Field.class, Map.of("name", 1, "schema", 2, "table", 3));
+                .getObjects(SQL.bound(SQL_GET_SCHEMA_ALL_FIELDS, schema), Field.class, Map.of("name", 1, "schema", 2, "table", 3));
 
     }
 
-    private static final String SQL_GET_ALL_TABLES = "SELECT TABLE_NAME AS NAME, TABLE_SCHEMA  FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA='?' ";
+    private static final String SQL_GET_ALL_TABLES = "SELECT TABLE_NAME AS NAME, TABLE_SCHEMA  FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA=? ";
 
     public List<Table> getALlTables(String context) throws SQLException {
         return this.connectionManager.getSqlActuator()
-                .getObjects(SQL.of(SQL_GET_ALL_TABLES, context)
-                        .getSql(), Table.class, Map.of("name", 1, "schema", 2));
+                .getObjects(SQL.bound(SQL_GET_ALL_TABLES, context)
+                        , Table.class, Map.of("name", 1, "schema", 2));
     }
 }

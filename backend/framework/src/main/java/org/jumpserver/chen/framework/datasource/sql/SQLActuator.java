@@ -16,6 +16,7 @@ public interface SQLActuator {
     List<String> parseSQL(SQL sql);
 
     <T> List<T> getObjects(String sql, Class<T> clazz, Map<String, Integer> fieldMapping) throws SQLException;
+    <T> List<T> getObjects(SQL sql, Class<T> clazz, Map<String, Integer> fieldMapping) throws SQLException;
 
     int count(SQL sql) throws SQLException;
 

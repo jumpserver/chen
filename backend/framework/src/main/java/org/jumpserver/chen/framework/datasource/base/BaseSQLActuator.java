@@ -93,10 +93,18 @@ public abstract class BaseSQLActuator implements SQLActuator {
 
     @Override
     public <T> List<T> getObjects(String sql, Class<T> clazz, Map<String, Integer> fieldMapping) throws SQLException {
+        return getObjects(SQL.bound(sql), clazz, fieldMapping);
+    }
+
+    @Override
+    public <T> List<T> getObjects(SQL sql, Class<T> clazz, Map<String, Integer> fieldMapping) throws SQLException {
         List<T> objects = new ArrayList<>();
         try (Connection conn = this.getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
+             PreparedStatement stmt = conn.prepareStatement(sql.getSql())) {
+            for (int i = 0; i < sql.getParameters().size(); i++) {
+                stmt.setObject(i + 1, sql.getParameters().get(i));
+            }
+            try (ResultSet rs = stmt.executeQuery()) {
             while (rs.next()) {
                 T object = clazz.getDeclaredConstructor().newInstance();
                 for (Map.Entry<String, Integer> entry : fieldMapping.entrySet()) {
@@ -106,6 +114,7 @@ public abstract class BaseSQLActuator implements SQLActuator {
                     ReflectUtils.setFieldValue(object, entry.getKey(), rs.getObject(entry.getValue()));
                 }
                 objects.add(object);
+            }
             }
         } catch (Exception e) {
             var msg = "run sql %s error, %s".formatted(sql, e.getMessage());

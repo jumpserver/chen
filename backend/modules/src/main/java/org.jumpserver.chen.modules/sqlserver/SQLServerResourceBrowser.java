@@ -47,13 +47,13 @@ public class SQLServerResourceBrowser extends BaseResourceBrowser {
     private static final String SQL_GET_DATABASES = "SELECT name FROM sys.databases;";
 
     public List<Database> getDatabases() throws SQLException {
-        return this.getDatabases(SQL.of(SQL_GET_DATABASES));
+        return this.getDatabases(SQL.bound(SQL_GET_DATABASES));
     }
 
     public List<Database> getDatabases(SQL sql) throws SQLException {
         return this.getConnectionManager()
                 .getSqlActuator()
-                .getObjects(sql.getSql(), Database.class, Map.of("name", 1));
+                .getObjects(sql, Database.class, Map.of("name", 1));
     }
 
     // 查询当前数据库下所有的schema
@@ -61,28 +61,28 @@ public class SQLServerResourceBrowser extends BaseResourceBrowser {
 
     @Override
     public List<Schema> getSchemas() throws SQLException {
-        return this.getSchemas(SQL.of(SQL_GET_SCHEMAS));
+        return this.getSchemas(SQL.bound(SQL_GET_SCHEMAS));
     }
 
-    private static final String SQL_GET_TABLES = " SELECT table_name AS name FROM INFORMATION_SCHEMA.TABLES WHERE table_schema = '?'";
+    private static final String SQL_GET_TABLES = " SELECT table_name AS name FROM INFORMATION_SCHEMA.TABLES WHERE table_schema = ?";
 
     @Override
     public List<Table> getTables(String schema) throws SQLException {
-        return this.getTables(SQL.of(SQL_GET_TABLES, schema));
+        return this.getTables(SQL.bound(SQL_GET_TABLES, schema));
     }
 
-    private static final String SQL_GET_VIEWS = "SELECT table_name AS name FROM INFORMATION_SCHEMA.TABLES WHERE table_schema = '?' AND table_type = 'VIEW'";
+    private static final String SQL_GET_VIEWS = "SELECT table_name AS name FROM INFORMATION_SCHEMA.TABLES WHERE table_schema = ? AND table_type = 'VIEW'";
 
     @Override
     public List<View> getViews(String schema) throws SQLException {
-        return this.getViews(SQL.of(SQL_GET_VIEWS, schema));
+        return this.getViews(SQL.bound(SQL_GET_VIEWS, schema));
     }
 
-    private static final String SQL_GET_FIELDS = "SELECT column_name AS name, column_type AS type, column_key AS `key`, is_nullable AS `nullable`, column_default AS `default`, extra AS extra, column_comment AS comment FROM information_schema.columns WHERE table_schema = '?' AND table_name = '?'";
+    private static final String SQL_GET_FIELDS = "SELECT column_name AS name, column_type AS type, column_key AS `key`, is_nullable AS `nullable`, column_default AS `default`, extra AS extra, column_comment AS comment FROM information_schema.columns WHERE table_schema = ? AND table_name = ?";
 
     @Override
     public List<Field> getFields(String schema, String table) throws SQLException {
-        return this.getFields(SQL.of(SQL_GET_FIELDS, schema, table));
+        return this.getFields(SQL.bound(SQL_GET_FIELDS, schema, table));
     }
 
 

@@ -155,7 +155,7 @@ public abstract class BaseResourceBrowser implements ResourceBrowser {
     public List<Schema> getSchemas(SQL sql) throws SQLException {
         var currentSchema = "";
         List<Schema> schemas = new ArrayList<>();
-        schemas.addAll(this.getSQLActuator().getObjects(sql.getSql(), Schema.class, Map.of("name", 1)));
+        schemas.addAll(this.getSQLActuator().getObjects(sql, Schema.class, Map.of("name", 1)));
         schemas.sort((o1, o2) -> {
             if (o1.getName().equalsIgnoreCase(currentSchema)) {
                 return -1;
@@ -172,14 +172,14 @@ public abstract class BaseResourceBrowser implements ResourceBrowser {
 
     @Override
     public List<Table> getTables(SQL sql) throws SQLException {
-        return new ArrayList<>(this.getSQLActuator().getObjects(sql.getSql(), Table.class, Map.of("name", 1)));
+        return new ArrayList<>(this.getSQLActuator().getObjects(sql, Table.class, Map.of("name", 1)));
     }
 
     public abstract List<View> getViews(String schema) throws SQLException;
 
     @Override
     public List<View> getViews(SQL sql) throws SQLException {
-        return new ArrayList<>(this.getSQLActuator().getObjects(sql.getSql(), View.class, Map.of("name", 1)));
+        return new ArrayList<>(this.getSQLActuator().getObjects(sql, View.class, Map.of("name", 1)));
     }
 
     public abstract List<Field> getFields(String schema, String table) throws SQLException;
@@ -190,7 +190,7 @@ public abstract class BaseResourceBrowser implements ResourceBrowser {
                 "name", 1,
                 "type", 2,
                 "nullable", 3);
-        return new ArrayList<>(this.getSQLActuator().getObjects(sql.getSql(), Field.class, fieldMapping));
+        return new ArrayList<>(this.getSQLActuator().getObjects(sql, Field.class, fieldMapping));
     }
 
     public SQLActuator getSQLActuator() {
