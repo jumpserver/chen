@@ -23,7 +23,7 @@ public class SessionManager {
 
     public static void unregisterSession(String token) {
         instance.store.remove(token);
-        log.info("session {} unregistered, current session count {}", token, instance.getCurrentSessionCount());
+        log.info("session unregistered, current session count {}", instance.getCurrentSessionCount());
     }
 
     public int getCurrentSessionCount() {
