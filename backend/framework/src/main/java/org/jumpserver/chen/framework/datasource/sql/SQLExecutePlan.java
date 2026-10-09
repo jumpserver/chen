@@ -13,8 +13,11 @@ import org.jumpserver.chen.framework.jms.acl.ACLResult;
 import org.jumpserver.chen.framework.utils.PageUtils;
 
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
 
 
 @Setter
@@ -29,6 +32,7 @@ public class SQLExecutePlan {
     private Statement statement;
     private Connection connection;
     private ACLResult aclResult;
+    private List<Object> parameters = new ArrayList<>();
 
 
     private boolean counted;
@@ -87,9 +91,29 @@ public class SQLExecutePlan {
 
     public Statement createStatement() throws SQLException {
         if (this.statement == null || this.statement.isClosed()) {
-            this.statement = this.connection.createStatement();
+            this.statement = this.parameters.isEmpty()
+                    ? this.connection.createStatement()
+                    : this.prepareStatement(this.targetSQL);
         }
         return this.statement;
+    }
+
+    // Count queries have different SQL and must not reuse the target statement.
+    public PreparedStatement prepareStatement(String sql) throws SQLException {
+        var prepared = this.connection.prepareStatement(sql);
+        try {
+            for (int i = 0; i < this.parameters.size(); i++) {
+                prepared.setObject(i + 1, this.parameters.get(i));
+            }
+            return prepared;
+        } catch (SQLException | RuntimeException e) {
+            try {
+                prepared.close();
+            } catch (SQLException closeError) {
+                e.addSuppressed(closeError);
+            }
+            throw e;
+        }
     }
 
     public SQLStatement getTargetSQLStatement() {

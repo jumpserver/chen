@@ -162,7 +162,7 @@ public abstract class BaseActionHandler implements ActionHandler {
     public EventEmitter onShowObjectProperties(String type, String sql, TreeNode node) throws SQLException {
         var sqlActuator = this.getDatasource().getConnectionManager().getSqlActuator();
         var objName = TreeUtils.getValue(node.getKey(), type);
-        var result = sqlActuator.execute(SQL.of(sql, objName));
+        var result = sqlActuator.execute(SQL.bound(sql, objName));
 
         var detailDialog = new DetailDialog(node.getKey(), type + MessageUtils.get("Properties"));
         detailDialog.setWidth("50%");

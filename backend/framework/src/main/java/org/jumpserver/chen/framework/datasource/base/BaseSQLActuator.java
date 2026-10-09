@@ -150,7 +150,9 @@ public abstract class BaseSQLActuator implements SQLActuator {
         try (statement) {
             result.setStartTime(new Time(System.currentTimeMillis()));
 
-            var hasResult = statement.execute(plan.getTargetSQL());
+            var hasResult = statement instanceof PreparedStatement prepared
+                    ? prepared.execute()
+                    : statement.execute(plan.getTargetSQL());
             result.setHasResultSet(hasResult);
 
             result.setQueryFinishedTime(new Time(System.currentTimeMillis()));
@@ -357,8 +359,10 @@ public abstract class BaseSQLActuator implements SQLActuator {
                 return -1;
             }
             var countSQL = PageUtils.count(plan.getSourceSQL(), plan.getDruidDbType());
-            try (Statement stmt = plan.createStatement()) {
-                var resultSet = stmt.executeQuery(countSQL);
+            try (Statement stmt = plan.getParameters().isEmpty()
+                    ? plan.createStatement() : plan.prepareStatement(countSQL);
+                 ResultSet resultSet = stmt instanceof PreparedStatement prepared
+                    ? prepared.executeQuery() : stmt.executeQuery(countSQL)) {
                 if (resultSet.next()) {
                     return resultSet.getInt(1);
                 }
@@ -383,6 +387,7 @@ public abstract class BaseSQLActuator implements SQLActuator {
     @Override
     public SQLExecutePlan createPlan(SQL sql) throws SQLException {
         SQLExecutePlan plan = new SQLExecutePlan(sql.getSql(), this.getDruidDbType());
+        plan.setParameters(new ArrayList<>(sql.getParameters()));
         this.createPlan(plan);
         return plan;
     }
@@ -390,6 +395,7 @@ public abstract class BaseSQLActuator implements SQLActuator {
     @Override
     public SQLExecutePlan createPlan(SQL sql, SQLQueryParams queryParams) throws SQLException {
         SQLExecutePlan plan = new SQLExecutePlan(sql.getSql(), this.getDruidDbType());
+        plan.setParameters(new ArrayList<>(sql.getParameters()));
         plan.setSqlQueryParams(queryParams);
         this.createPlan(plan);
         plan.generateTargetSQL();

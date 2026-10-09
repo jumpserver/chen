@@ -58,13 +58,13 @@ public class MysqlActionHandler extends BaseActionHandler {
         );
     }
 
-    private static final String SQL_SELECT_SCHEMA_DETAIL = "select * from information_schema.SCHEMATA where SCHEMA_NAME = '?'";
+    private static final String SQL_SELECT_SCHEMA_DETAIL = "select * from information_schema.SCHEMATA where SCHEMA_NAME = ?";
 
     public EventEmitter onSchemaProperties(TreeNode node) throws SQLException {
         return this.onShowObjectProperties("schema", SQL_SELECT_SCHEMA_DETAIL, node);
     }
 
-    private static final String SQL_SELECT_TABLE_DETAIL = "select TABLE_NAME,TABLE_SCHEMA,TABLE_TYPE,ENGINE,AVG_ROW_LENGTH,DATA_LENGTH,MAX_DATA_LENGTH,CREATE_TIME,TABLE_COLLATION from information_schema.TABLES WHERE TABLE_NAME = '?'";
+    private static final String SQL_SELECT_TABLE_DETAIL = "select TABLE_NAME,TABLE_SCHEMA,TABLE_TYPE,ENGINE,AVG_ROW_LENGTH,DATA_LENGTH,MAX_DATA_LENGTH,CREATE_TIME,TABLE_COLLATION from information_schema.TABLES WHERE TABLE_NAME = ?";
 
     public EventEmitter onTableProperties(TreeNode node) throws SQLException {
         return this.onShowObjectProperties("table", SQL_SELECT_TABLE_DETAIL, node);
