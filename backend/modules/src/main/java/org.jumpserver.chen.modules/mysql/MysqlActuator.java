@@ -31,13 +31,13 @@ public class MysqlActuator extends BaseSQLActuator {
 
     @Override
     public void changeSchema(String schema) throws SQLException {
-        this.execute(SQL.of("use `?`", schema));
+        this.execute(SQL.of("use " + SQLIdentifier.mysql(schema)));
     }
 
 
     @Override
     public SQLExecutePlan createPlan(String schema, String table, SQLQueryParams sqlQueryParams) throws SQLException {
-        var sql = SQL.of("select * from `?`.`?`", schema, table);
+        var sql = SQL.of("select * from " + SQLIdentifier.mysql(schema) + "." + SQLIdentifier.mysql(table));
         return this.createPlan(sql, sqlQueryParams);
     }
 }
