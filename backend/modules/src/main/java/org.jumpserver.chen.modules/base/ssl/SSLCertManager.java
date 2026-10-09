@@ -73,7 +73,7 @@ public class SSLCertManager {
 
     // 辅助方法：创建临时文件并写入内容
     private File createTempFile(String prefix, byte[] content) throws IOException {
-        File tempFile = File.createTempFile(prefix, ".der");
+        File tempFile = Files.createTempFile(prefix, ".der").toFile();
         Files.write(tempFile.toPath(), content);  // 直接写入二进制数据
         tempFile.deleteOnExit(); // JVM 退出时自动删除
         return tempFile;
@@ -81,7 +81,7 @@ public class SSLCertManager {
 
     // 辅助方法：创建临时文件并写入内容（用于普通字符串内容）
     private File createTempFile(String prefix, String content) throws IOException {
-        File tempFile = File.createTempFile(prefix, ".pem");
+        File tempFile = Files.createTempFile(prefix, ".pem").toFile();
         try (FileWriter writer = new FileWriter(tempFile)) {
             writer.write(content);
         }
