@@ -19,6 +19,7 @@ import org.jumpserver.chen.framework.datasource.metadata.SchemaMetadata;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 
 public class DmMetadataProvider extends BaseDatabaseMetadataProvider {
@@ -174,10 +175,53 @@ public class DmMetadataProvider extends BaseDatabaseMetadataProvider {
 
     @Override
     public String getTableDefinition(ObjectRef relation) throws SQLException {
-        var objectType = relation.kind() == RelationKind.TABLE ? "TABLE" : "VIEW";
-        var rows = query("SELECT DBMS_METADATA.GET_DDL(?, ?, ?) AS definition FROM dual",
-                List.of(objectType, relation.name(), relation.schema()));
-        return rows.isEmpty() ? null : stringValue(rows.get(0), "definition");
+        var table = relation.kind() == RelationKind.TABLE;
+        try {
+            // TABLEDEF is native to DM and does not require access to the optional
+            // DBMS_METADATA package. Object permissions still apply.
+            var rows = table
+                    ? query("SELECT TABLEDEF(?, ?) AS definition FROM dual",
+                            List.of(relation.schema(), relation.name()))
+                    : query("SELECT DBMS_METADATA.GET_DDL(?, ?, ?) AS definition FROM dual",
+                            List.of("VIEW", relation.name(), relation.schema()));
+            var definition = new StringBuilder();
+            for (var row : rows) {
+                var part = stringValue(row, "definition");
+                if (part != null) {
+                    definition.append(part);
+                }
+            }
+            return definition.isEmpty() ? null : definition.toString();
+        } catch (SQLException e) {
+            if (!isDefinitionPermissionDenied(e)) {
+                throw e;
+            }
+            var object = quoteIdentifier(relation.schema()) + "." + quoteIdentifier(relation.name());
+            var permissions = table ? "permissions to read this table's definition"
+                    : "permissions to read this view's definition and EXECUTE access to DBMS_METADATA";
+            throw new SQLException("Cannot load Dameng DDL for %s: check the database account's %s with the database administrator, or connect as the object owner. Original error: %s"
+                    .formatted(object, permissions, e.getMessage()), e.getSQLState(), e.getErrorCode(), e);
+        }
+    }
+
+    private static boolean isDefinitionPermissionDenied(SQLException error) {
+        for (var cause = (Throwable) error; cause != null; cause = cause.getCause()) {
+            if (!(cause instanceof SQLException sqlError)) {
+                continue;
+            }
+            for (var candidate = sqlError; candidate != null; candidate = candidate.getNextException()) {
+                var message = candidate.getMessage();
+                var normalized = message == null ? "" : message.toLowerCase(Locale.ROOT);
+                if ("42501".equals(candidate.getSQLState())
+                        || normalized.contains("insufficient privilege")
+                        || normalized.contains("permission denied")
+                        || normalized.contains("权限不足")
+                        || normalized.contains("没有权限")) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     @Override
