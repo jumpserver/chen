@@ -174,10 +174,21 @@ public class DmMetadataProvider extends BaseDatabaseMetadataProvider {
 
     @Override
     public String getTableDefinition(ObjectRef relation) throws SQLException {
-        var objectType = relation.kind() == RelationKind.TABLE ? "TABLE" : "VIEW";
-        var rows = query("SELECT DBMS_METADATA.GET_DDL(?, ?, ?) AS definition FROM dual",
-                List.of(objectType, relation.name(), relation.schema()));
-        return rows.isEmpty() ? null : stringValue(rows.get(0), "definition");
+        // TABLEDEF is native to DM and does not require access to the optional
+        // DBMS_METADATA package. Object permissions still apply.
+        var rows = relation.kind() == RelationKind.TABLE
+                ? query("SELECT TABLEDEF(?, ?) AS definition FROM dual",
+                        List.of(relation.schema(), relation.name()))
+                : query("SELECT DBMS_METADATA.GET_DDL(?, ?, ?) AS definition FROM dual",
+                        List.of("VIEW", relation.name(), relation.schema()));
+        var definition = new StringBuilder();
+        for (var row : rows) {
+            var part = stringValue(row, "definition");
+            if (part != null) {
+                definition.append(part);
+            }
+        }
+        return definition.isEmpty() ? null : definition.toString();
     }
 
     @Override
