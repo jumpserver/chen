@@ -407,6 +407,24 @@ public abstract class BaseSQLActuator implements SQLActuator {
         plan.setConnection(this.getConnection());
     }
 
+    protected void changeConnectionSchema(String schema) throws SQLException {
+        if (this.connection != null) {
+            // The console owns its persistent connection.
+            setDriverSchema(this.connection, schema);
+        } else {
+            try (Connection conn = this.connectionManager.getConnection()) {
+                setDriverSchema(conn, schema);
+            }
+        }
+    }
+
+    private static void setDriverSchema(Connection conn, String schema) throws SQLException {
+        // Druid 1.2.18's wrapper rejects setSchema for PostgreSQL. Keep the
+        // wrapper's ownership/close behavior and use the driver's safe API.
+        Connection driver = conn instanceof DruidPooledConnection pooled ? pooled.getConnection() : conn;
+        driver.setSchema(schema);
+    }
+
     private Connection getConnection() throws SQLException {
         return this.connection != null ? this.connection : this.connectionManager.getConnection();
     }
