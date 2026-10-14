@@ -124,10 +124,12 @@ public class JmsSessionService implements SessionService {
 
         dbConnectInfo.setHost(address);
         dbConnectInfo.setPort(tokenResp.getData().getAsset().getProtocols(0).getPort());
-        dbConnectInfo.setDbType(tokenResp.getData().getAsset().getProtocols(0).getName().toLowerCase());
+        var platformType = tokenResp.getData().getPlatform().getType().toLowerCase();
+        dbConnectInfo.setDbType("oceanbase".equals(platformType) ? "oceanbase" :
+                tokenResp.getData().getAsset().getProtocols(0).getName().toLowerCase());
         dbConnectInfo.setUser(tokenResp.getData().getAccount().getUsername());
         dbConnectInfo.setPassword(tokenResp.getData().getAccount().getSecret());
-        dbConnectInfo.setDb(tokenResp.getData().getAsset().getSpecific().getDbName());
+        dbConnectInfo.setDb(StringUtils.defaultString(tokenResp.getData().getAsset().getSpecific().getDbName()));
 
         var platformSettings = tokenResp.getData().getPlatform().getProtocols(0).getSettingsMap();
         applyPlatformSettings(dbConnectInfo, platformSettings);
@@ -154,6 +156,13 @@ public class JmsSessionService implements SessionService {
     }
 
     static void applyPlatformSettings(DBConnectInfo dbConnectInfo, Map<String, String> platformSettings) {
+        if ("oceanbase".equals(dbConnectInfo.getDbType())) {
+            var tenantMode = platformSettings.get("tenant_mode");
+            if (!"mysql".equals(tenantMode) && !"oracle".equals(tenantMode)) {
+                throw new IllegalArgumentException("OceanBase tenant mode must be mysql or oracle");
+            }
+            dbConnectInfo.setTenantMode(tenantMode);
+        }
         if (platformSettings.containsKey("version")) {
             dbConnectInfo.getOptions().put("version", platformSettings.get("version"));
         }

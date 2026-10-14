@@ -21,6 +21,7 @@ public class DatasourceFactory {
         DATASOURCE_CLASS_NAMES.put("oracle", "org.jumpserver.chen.modules.oracle.OracleDatasource");
         DATASOURCE_CLASS_NAMES.put("dameng", "org.jumpserver.chen.modules.dameng.DMDatasource");
         DATASOURCE_CLASS_NAMES.put("mysql", "org.jumpserver.chen.modules.mysql.MysqlDatasource");
+        DATASOURCE_CLASS_NAMES.put("oceanbase", "org.jumpserver.chen.modules.oceanbase.OceanBaseDatasource");
         DATASOURCE_CLASS_NAMES.put("sqlserver", "org.jumpserver.chen.modules.sqlserver.SQLServerDatasource");
         DATASOURCE_CLASS_NAMES.put("db2", "org.jumpserver.chen.modules.db2.DB2Datasource");
     }

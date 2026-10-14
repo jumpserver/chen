@@ -7,4 +7,5 @@ replay
 backend/web/src/main/resources/static
 backend/web/src/main/resources/static/**
 data
+drivers/oceanbase/*.jar
 config/application-dev.yml

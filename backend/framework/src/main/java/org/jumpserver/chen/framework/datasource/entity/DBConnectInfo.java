@@ -8,6 +8,7 @@ import java.util.Map;
 @Data
 public class DBConnectInfo {
     private String dbType;
+    private String tenantMode;
     private String host;
     private Integer port;
     private String user;
