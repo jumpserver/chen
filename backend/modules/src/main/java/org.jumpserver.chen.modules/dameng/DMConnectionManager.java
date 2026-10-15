@@ -10,6 +10,7 @@ import java.sql.SQLException;
 public class DMConnectionManager extends BaseConnectionManager {
 
     private static final String jdbcUrlTemplate = "jdbc:dm://${host}:${port}/${db}";
+    private static final String SQL_GET_VERSION = "SELECT BANNER FROM V$VERSION";
     private String jdbcUrl;
 
     public DMConnectionManager(DBConnectInfo connectInfo, Datasource datasource) {
@@ -32,8 +33,11 @@ public class DMConnectionManager extends BaseConnectionManager {
 
     @Override
     public String getVersion() throws SQLException {
-        var result = this.sqlActuator.execute(SQL.of("SELECT * from V$VERSION"));
-        return (String) result.getData().get(0).get(0);
+        var result = this.sqlActuator.execute(SQL.of(SQL_GET_VERSION));
+        if (result.getData() == null || result.getData().isEmpty() || result.getData().get(0).isEmpty()) {
+            throw new SQLException("DM V$VERSION returned no rows");
+        }
+        return String.valueOf(result.getData().get(0).get(0));
     }
 
 

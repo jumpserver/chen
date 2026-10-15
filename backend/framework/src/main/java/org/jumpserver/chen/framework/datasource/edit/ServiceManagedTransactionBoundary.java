@@ -4,19 +4,21 @@ import lombok.extern.slf4j.Slf4j;
 import org.jumpserver.chen.framework.datasource.edit.exception.CommitOutcomeUnknownException;
 import org.jumpserver.chen.framework.datasource.edit.exception.RollbackFailedException;
 import org.jumpserver.chen.framework.datasource.edit.exception.RolledBackConnectionUnavailableException;
+import org.jumpserver.chen.framework.datasource.edit.exception.SqlFailureConnectionUnavailableException;
 
 import java.sql.Connection;
+import java.sql.SQLNonTransientConnectionException;
+import java.sql.SQLRecoverableException;
 import java.sql.SQLException;
+import java.sql.SQLTransientConnectionException;
 
 /**
  * Runs a DataView save batch on a connection the service owns (autoCommit=true at entry).
  *
  * A commit failure is treated as an unknown outcome: the database may have committed despite
- * the client never receiving the acknowledgement. Rolling back would either mask a real commit
- * or fail meaninglessly, so the connection is discarded and the caller reports the uncertainty
- * rather than pretending the batch was rolled back. Failures that occur before commit (a
- * statement error, a runtime bug in binding, etc.) have committed nothing and are rolled back
- * normally.
+ * the client never receiving the acknowledgement, so that connection is discarded. Statement
+ * failures are rolled back; when no statement completed, a cleanup failure does not make an
+ * explicit database rejection uncertain.
  */
 @Slf4j
 final class ServiceManagedTransactionBoundary implements TransactionBoundary {
@@ -35,20 +37,17 @@ final class ServiceManagedTransactionBoundary implements TransactionBoundary {
         T result;
         try {
             result = work.execute();
-        } catch (SQLException | RuntimeException e) {
-            try {
-                this.rollback(connection, plan, e);
-            } catch (RollbackFailedException rollbackFailure) {
-                throw rollbackFailure;
-            }
-            try {
-                this.restoreAutoCommit(connection, plan, originalAutoCommit);
-            } catch (SQLException restoreFailure) {
-                RolledBackConnectionUnavailableException failure =
-                        new RolledBackConnectionUnavailableException(restoreFailure, e);
-                this.discardConnection(connection, failure);
-                throw failure;
-            }
+        } catch (SQLException e) {
+            this.handleStatementFailure(
+                    connection,
+                    plan,
+                    originalAutoCommit,
+                    work.successfulStatementCount(),
+                    e
+            );
+            throw e;
+        } catch (RuntimeException e) {
+            this.rollbackAndRestore(connection, plan, originalAutoCommit, e);
             throw e;
         }
 
@@ -88,6 +87,85 @@ final class ServiceManagedTransactionBoundary implements TransactionBoundary {
             );
             throw new CommitOutcomeUnknownException(e);
         }
+    }
+
+    private void rollbackAndRestore(
+            Connection connection,
+            TableChangesPlan plan,
+            boolean originalAutoCommit,
+            Throwable primaryException
+    ) throws SQLException {
+        try {
+            this.rollback(connection, plan, primaryException);
+        } catch (RollbackFailedException rollbackFailure) {
+            throw rollbackFailure;
+        }
+        try {
+            this.restoreAutoCommit(connection, plan, originalAutoCommit);
+        } catch (SQLException restoreFailure) {
+            RolledBackConnectionUnavailableException failure =
+                    new RolledBackConnectionUnavailableException(restoreFailure, primaryException);
+            this.discardConnection(connection, failure);
+            throw failure;
+        }
+    }
+
+    private void handleStatementFailure(
+            Connection connection,
+            TableChangesPlan plan,
+            boolean originalAutoCommit,
+            int successfulStatementCount,
+            SQLException statementFailure
+    ) throws SQLException {
+        try {
+            this.rollback(connection, plan, statementFailure);
+        } catch (RollbackFailedException rollbackFailure) {
+            if (successfulStatementCount == 0 && !isConnectionFailure(statementFailure)) {
+                throw knownSqlFailureWithUnavailableConnection(statementFailure, rollbackFailure);
+            }
+            throw rollbackFailure;
+        }
+
+        try {
+            this.restoreAutoCommit(connection, plan, originalAutoCommit);
+        } catch (SQLException restoreFailure) {
+            SqlFailureConnectionUnavailableException failure =
+                    new SqlFailureConnectionUnavailableException(statementFailure, restoreFailure);
+            this.discardConnection(connection, failure);
+            throw failure;
+        }
+    }
+
+    private static SqlFailureConnectionUnavailableException knownSqlFailureWithUnavailableConnection(
+            SQLException statementFailure,
+            RollbackFailedException rollbackFailure
+    ) {
+        Throwable rollbackCause = rollbackFailure.getCause();
+        SQLException cleanupFailure = rollbackCause instanceof SQLException sqlException
+                ? sqlException
+                : rollbackFailure;
+        return new SqlFailureConnectionUnavailableException(statementFailure, cleanupFailure);
+    }
+
+    private static boolean isConnectionFailure(SQLException failure) {
+        for (Throwable current : failure) {
+            if (current instanceof SQLException sqlException) {
+                if (sqlException instanceof SQLRecoverableException ||
+                        sqlException instanceof SQLTransientConnectionException ||
+                        sqlException instanceof SQLNonTransientConnectionException) {
+                    return true;
+                }
+                String sqlState = sqlException.getSQLState();
+                if (sqlState != null &&
+                        (sqlState.startsWith("08") ||
+                                "57P01".equals(sqlState) ||
+                                "57P02".equals(sqlState) ||
+                                "57P03".equals(sqlState))) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private void rollback(Connection connection, TableChangesPlan plan, Throwable primaryException)

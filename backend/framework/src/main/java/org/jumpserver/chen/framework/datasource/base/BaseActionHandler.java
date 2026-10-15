@@ -235,7 +235,7 @@ public abstract class BaseActionHandler implements ActionHandler {
 
 
     public EventEmitter onDatasourceProperties(TreeNode node) {
-        var dialog = new DetailDialog(node.getKey(), MessageUtils.get("DatasourceProperties"));
+        var dialog = new DetailDialog(node.getKey(), MessageUtils.get("DatabaseProperties"));
         dialog.setWidth("50%");
         var info = SessionManager.getCurrentSession().getDatasource().getInfo();
         dialog.addItem(DetailItem.builder()

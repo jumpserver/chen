@@ -637,8 +637,8 @@ public class SqlAgentToolService {
                 StringUtils.defaultIfBlank(requestedSchema, context.schema())
         ));
         String dialect = StringUtils.defaultString(context.dialect()).toLowerCase(Locale.ROOT);
-        if ("mysql".equals(dialect) || "mariadb".equals(dialect)) {
-            // MySQL/MariaDB providers query INFORMATION_SCHEMA by scope.schema(),
+        if ("mysql".equals(dialect) || "mariadb".equals(dialect) || "clickhouse".equals(dialect)) {
+            // MySQL/MariaDB/ClickHouse providers query metadata by scope.schema(),
             // matching ResourceBrowser.resolveScope(catalog=null, schema=database).
             return new RelationScope(null, schema != null ? schema : database);
         }

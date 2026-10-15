@@ -104,3 +104,7 @@ follow both service logs, and `make dev-down` to stop the environment. Run
 The build and runtime limits can be adjusted with `WISP_BUILD_PROCS`,
 `WISP_BUILD_MEMORY`, `WISP_CPUS`, `WISP_MEMORY_LIMIT`, `CHEN_CPUS`, and
 `CHEN_MEMORY_LIMIT`.
+
+## License
+
+This project is licensed under the GNU General Public License version 3 (GPLv3), consistent with the [JumpServer main repository](https://github.com/jumpserver/jumpserver). See [LICENSE](LICENSE) for the full license text.

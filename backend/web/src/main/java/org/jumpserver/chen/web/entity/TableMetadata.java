@@ -15,6 +15,7 @@ public record TableMetadata(
         List<ForeignKey> foreignKeys,
         List<Index> indexes,
         List<Constraint> constraints,
+        Statistics statistics,
         String ddl
 ) {
     public record Capabilities(
@@ -23,6 +24,9 @@ public record TableMetadata(
             boolean foreignKeys,
             boolean indexes,
             boolean constraints,
+            boolean statistics,
+            boolean estimatedRows,
+            boolean totalSizeBytes,
             boolean ddl
     ) {
     }
@@ -41,6 +45,9 @@ public record TableMetadata(
     }
 
     public record PrimaryKey(String name, List<String> columns) {
+    }
+
+    public record Statistics(Long estimatedRows, Long totalSizeBytes) {
     }
 
     public record ForeignKey(

@@ -11,6 +11,7 @@ import org.jumpserver.chen.framework.datasource.edit.exception.RollbackFailedExc
 import org.jumpserver.chen.framework.datasource.edit.exception.RolledBackConnectionUnavailableException;
 import org.jumpserver.chen.framework.datasource.edit.exception.RowNotFoundOrNotUniqueException;
 import org.jumpserver.chen.framework.datasource.edit.exception.SavepointRollbackFailedException;
+import org.jumpserver.chen.framework.datasource.edit.exception.SqlFailureConnectionUnavailableException;
 import org.jumpserver.chen.framework.datasource.edit.exception.UnexpectedAffectedRowsException;
 import org.jumpserver.chen.framework.datasource.sql.SQLQueryResult;
 import org.jumpserver.chen.framework.jms.acl.ACLCommandContext;
@@ -124,6 +125,22 @@ public class TableChangesSaveService {
             );
             return reject(result, ROW_NOT_FOUND_OR_NOT_UNIQUE, e.getChangeIndex(),
                     command != null ? command.getChange() : null, clientFailedOperation(command));
+        } catch (SqlFailureConnectionUnavailableException e) {
+            SQLException sqlFailure = e.getSqlFailure();
+            String sqlMessage = sqlExceptionMessage(sqlFailure);
+            log.warn(
+                    "save changes SQL outcome is known but connection was invalidated during cleanup, dataView={}, table={}.{}, sqlState={}, vendorCode={}, message={}",
+                    plan.getDataView(),
+                    plan.getSchema(),
+                    plan.getTable(),
+                    sqlFailure.getSQLState(),
+                    sqlFailure.getErrorCode(),
+                    sqlMessage
+            );
+            SaveChangesResult rejected = reject(result, SAVE_CHANGES_EXECUTE_FAILED, null, null);
+            rejected.setMessage(sqlMessage);
+            rejected.setConnectionResetRequired(true);
+            return rejected;
         } catch (RollbackFailedException e) {
             log.error(
                     "save changes rollback failed and connection was invalidated, dataView={}, table={}.{}",
@@ -352,11 +369,24 @@ public class TableChangesSaveService {
             ACLResult aclResult,
             TransactionBoundary transactionBoundary
     ) throws SQLException {
-        return transactionBoundary.execute(connection, plan, () -> {
-            for (int i = 0; i < plan.getCommands().size(); i++) {
-                executeCommand(connection, plan, plan.getCommands().get(i), i);
+        return transactionBoundary.execute(connection, plan, new TransactionWork<>() {
+            private int successfulStatementCount;
+
+            @Override
+            public SQLQueryResult execute() throws SQLException {
+                for (int i = 0; i < plan.getCommands().size(); i++) {
+                    PreparedTableChangeCommand command = plan.getCommands().get(i);
+                    int affectedRows = executeCommand(connection, plan, command, i);
+                    this.successfulStatementCount++;
+                    handleAffectedRows(connection, plan, command, i, affectedRows);
+                }
+                return successQueryResult(plan, aclResult);
             }
-            return successQueryResult(plan, aclResult);
+
+            @Override
+            public int successfulStatementCount() {
+                return this.successfulStatementCount;
+            }
         });
     }
 
@@ -368,7 +398,7 @@ public class TableChangesSaveService {
         return reject(result, reason, null, null);
     }
 
-    private void executeCommand(
+    private int executeCommand(
             Connection connection,
             TableChangesPlan plan,
             PreparedTableChangeCommand command,
@@ -396,8 +426,7 @@ public class TableChangesSaveService {
                 );
                 throw e;
             }
-
-            handleAffectedRows(connection, plan, command, changeIndex, affectedRows);
+            return affectedRows;
         }
     }
 

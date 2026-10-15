@@ -16,6 +16,9 @@ final class SQLChunkTransferManager implements AutoCloseable {
 
     static final int MAX_CHUNK_SIZE = 4096;
     static final int MAX_CHUNKS = 1024;
+    // Luna's current chunk protocol has no requestId. A manager belongs to one QueryConsole,
+    // whose packets are processed serially, so one reserved key safely represents that transfer.
+    private static final TransferKey LEGACY_TRANSFER_KEY = new TransferKey(null);
     private static final int MAX_ACTIVE_TRANSFERS = 2;
     private static final int MAX_TRACKED_TRANSFERS = 64;
     private static final int MAX_REQUEST_ID_LENGTH = 128;
@@ -23,7 +26,7 @@ final class SQLChunkTransferManager implements AutoCloseable {
     private static final ScheduledThreadPoolExecutor TIMEOUT_EXECUTOR = createTimeoutExecutor();
 
     private final Object lock = new Object();
-    private final Map<String, ChunkTransfer> transfers = new HashMap<>();
+    private final Map<TransferKey, ChunkTransfer> transfers = new HashMap<>();
     private final ScheduledExecutorService scheduler;
     private final Duration timeout;
     private boolean closed;
@@ -42,7 +45,7 @@ final class SQLChunkTransferManager implements AutoCloseable {
 
     Optional<String> receiveChunk(Object rawData) {
         Map<?, ?> data = requireMap(rawData);
-        String requestId = requireRequestId(data);
+        TransferKey transferKey = requireTransferKey(data);
         int total;
         int index;
         String chunk;
@@ -54,19 +57,23 @@ final class SQLChunkTransferManager implements AutoCloseable {
             }
             chunk = requireChunk(data);
         } catch (IllegalArgumentException e) {
-            reject(requestId);
+            reject(transferKey);
             throw e;
         }
 
         synchronized (lock) {
             ensureOpen();
-            ChunkTransfer transfer = getOrCreate(requestId, total);
+            ChunkTransfer transfer = getOrCreate(transferKey, total);
             if (transfer.terminal) {
                 return Optional.empty();
             }
             if (transfer.total != total) {
                 rejectLocked(transfer);
                 throw new IllegalArgumentException("total does not match the existing transfer");
+            }
+            if (transferKey.isLegacy() && index != transfer.receivedChunks) {
+                rejectLocked(transfer);
+                throw new IllegalArgumentException("legacy chunks must arrive in order");
             }
 
             String existing = transfer.chunks[index];
@@ -80,34 +87,41 @@ final class SQLChunkTransferManager implements AutoCloseable {
 
             transfer.chunks[index] = chunk;
             transfer.receivedChunks += 1;
-            return assembleIfReady(transfer);
+            return assembleIfReady(transferKey, transfer);
         }
     }
 
     Optional<String> receiveComplete(Object rawData) {
         Map<?, ?> data = requireMap(rawData);
-        String requestId = requireRequestId(data);
+        TransferKey transferKey = requireTransferKey(data);
         int total;
         try {
             total = requireTotal(data);
         } catch (IllegalArgumentException e) {
-            reject(requestId);
+            rejectAndForgetLegacy(transferKey);
             throw e;
         }
 
         synchronized (lock) {
             ensureOpen();
-            ChunkTransfer transfer = getOrCreate(requestId, total);
+            ChunkTransfer transfer = getOrCreate(transferKey, total);
             if (transfer.terminal) {
+                forgetLegacyTransferLocked(transferKey, transfer);
                 return Optional.empty();
             }
             if (transfer.total != total) {
                 rejectLocked(transfer);
+                forgetLegacyTransferLocked(transferKey, transfer);
                 throw new IllegalArgumentException("total does not match the existing transfer");
+            }
+            if (transferKey.isLegacy() && transfer.receivedChunks != transfer.total) {
+                rejectLocked(transfer);
+                forgetLegacyTransferLocked(transferKey, transfer);
+                throw new IllegalArgumentException("legacy transfer completed before all chunks arrived");
             }
 
             transfer.completeReceived = true;
-            return assembleIfReady(transfer);
+            return assembleIfReady(transferKey, transfer);
         }
     }
 
@@ -128,8 +142,8 @@ final class SQLChunkTransferManager implements AutoCloseable {
         }
     }
 
-    private ChunkTransfer getOrCreate(String requestId, int total) {
-        ChunkTransfer existing = transfers.get(requestId);
+    private ChunkTransfer getOrCreate(TransferKey transferKey, int total) {
+        ChunkTransfer existing = transfers.get(transferKey);
         if (existing != null) {
             return existing;
         }
@@ -144,21 +158,21 @@ final class SQLChunkTransferManager implements AutoCloseable {
         }
 
         ChunkTransfer transfer = new ChunkTransfer(total);
-        transfers.put(requestId, transfer);
+        transfers.put(transferKey, transfer);
         try {
             transfer.timeoutFuture = scheduler.schedule(
-                    () -> expire(requestId, transfer),
+                    () -> expire(transferKey, transfer),
                     timeout.toMillis(),
                     TimeUnit.MILLISECONDS
             );
         } catch (RuntimeException e) {
-            transfers.remove(requestId, transfer);
+            transfers.remove(transferKey, transfer);
             throw e;
         }
         return transfer;
     }
 
-    private Optional<String> assembleIfReady(ChunkTransfer transfer) {
+    private Optional<String> assembleIfReady(TransferKey transferKey, ChunkTransfer transfer) {
         if (!transfer.completeReceived || transfer.receivedChunks != transfer.total) {
             return Optional.empty();
         }
@@ -169,14 +183,25 @@ final class SQLChunkTransferManager implements AutoCloseable {
         }
         String assembled = sql.toString();
         rejectLocked(transfer);
+        forgetLegacyTransferLocked(transferKey, transfer);
         return Optional.of(assembled);
     }
 
-    private void reject(String requestId) {
+    private void reject(TransferKey transferKey) {
         synchronized (lock) {
-            ChunkTransfer transfer = transfers.get(requestId);
+            ChunkTransfer transfer = transfers.get(transferKey);
             if (transfer != null) {
                 rejectLocked(transfer);
+            }
+        }
+    }
+
+    private void rejectAndForgetLegacy(TransferKey transferKey) {
+        synchronized (lock) {
+            ChunkTransfer transfer = transfers.get(transferKey);
+            if (transfer != null) {
+                rejectLocked(transfer);
+                forgetLegacyTransferLocked(transferKey, transfer);
             }
         }
     }
@@ -191,11 +216,20 @@ final class SQLChunkTransferManager implements AutoCloseable {
         Arrays.fill(transfer.chunks, null);
     }
 
-    private void expire(String requestId, ChunkTransfer expectedTransfer) {
+    private void expire(TransferKey transferKey, ChunkTransfer expectedTransfer) {
         synchronized (lock) {
-            if (transfers.remove(requestId, expectedTransfer)) {
+            if (transfers.remove(transferKey, expectedTransfer)) {
                 rejectLocked(expectedTransfer);
             }
+        }
+    }
+
+    private void forgetLegacyTransferLocked(TransferKey transferKey, ChunkTransfer transfer) {
+        if (!transferKey.isLegacy() || !transfers.remove(transferKey, transfer)) {
+            return;
+        }
+        if (transfer.timeoutFuture != null) {
+            transfer.timeoutFuture.cancel(false);
         }
     }
 
@@ -222,14 +256,17 @@ final class SQLChunkTransferManager implements AutoCloseable {
         return map;
     }
 
-    private static String requireRequestId(Map<?, ?> data) {
+    private static TransferKey requireTransferKey(Map<?, ?> data) {
         Object value = data.get("requestId");
+        if (value == null) {
+            return LEGACY_TRANSFER_KEY;
+        }
         if (!(value instanceof String requestId)
                 || requestId.isBlank()
                 || requestId.length() > MAX_REQUEST_ID_LENGTH) {
             throw new IllegalArgumentException("requestId is invalid");
         }
-        return requestId;
+        return new TransferKey(requestId);
     }
 
     private static int requireTotal(Map<?, ?> data) {
@@ -284,6 +321,12 @@ final class SQLChunkTransferManager implements AutoCloseable {
         private ChunkTransfer(int total) {
             this.total = total;
             this.chunks = new String[total];
+        }
+    }
+
+    private record TransferKey(String requestId) {
+        private boolean isLegacy() {
+            return requestId == null;
         }
     }
 }
