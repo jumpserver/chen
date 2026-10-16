@@ -208,6 +208,8 @@ public class SqlMetadataService {
         return switch (dbType.toLowerCase(Locale.ROOT)) {
             case "postgresql" -> IdentifierCaseRule.LOWER;
             case "oracle", "db2", "dm", "dameng" -> IdentifierCaseRule.UPPER;
+            case "oceanbase" -> "oracle".equals(connectInfo.getTenantMode()) ?
+                    IdentifierCaseRule.UPPER : IdentifierCaseRule.INSENSITIVE;
             case "mysql", "mariadb", "sqlserver" -> IdentifierCaseRule.INSENSITIVE;
             default -> IdentifierCaseRule.EXACT;
         };

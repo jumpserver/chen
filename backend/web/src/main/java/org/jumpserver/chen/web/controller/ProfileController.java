@@ -16,7 +16,9 @@ public class ProfileController {
         Datasource ds = SessionManager.getCurrentSession().getDatasource();
         var connectionInfo = ds.getConnectInfo();
         Profile profile = new Profile();
-        profile.setDbType(connectionInfo.getDbType());
+        profile.setDbType("oceanbase".equals(connectionInfo.getDbType()) ?
+                connectionInfo.getTenantMode() : connectionInfo.getDbType());
+        profile.setDatabaseProduct(connectionInfo.getDbType());
         profile.setCanCopy(SessionManager.getCurrentSession().canCopy());
         profile.setCanPaste(SessionManager.getCurrentSession().canPaste());
         return profile;

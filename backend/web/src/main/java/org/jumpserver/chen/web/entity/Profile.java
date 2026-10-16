@@ -6,6 +6,7 @@ import lombok.Data;
 @Data
 public class Profile {
     private String dbType;
+    private String databaseProduct;
     private String Username;
     private String AssetName;
     private boolean canCopy = false;
