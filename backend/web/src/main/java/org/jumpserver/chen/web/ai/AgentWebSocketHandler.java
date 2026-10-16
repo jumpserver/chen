@@ -405,6 +405,24 @@ public class AgentWebSocketHandler extends TextWebSocketHandler {
                 false
         ));
         tools.add(tool(
+                "search_schema",
+                "Find related tables",
+                "Rank table candidates from a business question or keywords using table and column names/comments "
+                        + "inside the verified active schema. The current table is kept as an anchor. "
+                        + "Returns table names, scores and match categories without column or comment text; "
+                        + "inspect_schema can then inspect exact table names. "
+                        + "Column matching is limited to a bounded set of likely tables. This never reads business rows.",
+                "{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"query\"],"
+                        + "\"properties\":{"
+                        + "\"query\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":256,"
+                        + "\"description\":\"Business terms or natural-language question; * is not supported\"},"
+                        + "\"schema\":{\"type\":\"string\",\"maxLength\":1024,"
+                        + "\"description\":\"Optional schema within the verified editor scope\"},"
+                        + "\"limit\":{\"type\":\"integer\",\"minimum\":1,\"maximum\":10,"
+                        + "\"description\":\"Maximum candidates to return; defaults to 8\"}}}",
+                false
+        ));
+        tools.add(tool(
                 "inspect_schema",
                 "Inspect database schema",
                 "Inspect bounded table, column, key, index and comment metadata in the active schema. "
