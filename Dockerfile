@@ -48,6 +48,7 @@ ARG DEPENDENCIES="                    \
         wget"
 
 ARG APT_MIRROR=http://mirrors.ustc.edu.cn
+# CVE-2026-91403: distrust affected roots; docker-openjdk also refreshes Java trust.
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked,id=chen \
     sed -i "s@http://.*.debian.org@${APT_MIRROR}@g" /etc/apt/sources.list \
     && sed -i "s@jdk.tls.disabledAlgorithms=SSLv3, TLSv1, TLSv1.1@jdk.tls.disabledAlgorithms=SSLv3@" /opt/java/openjdk/conf/security/java.security \
@@ -56,6 +57,11 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked,id=chen \
     && ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
     && apt-get update \
     && apt-get install -y --no-install-recommends ${DEPENDENCIES} \
+    && sed -i \
+        -e 's|^mozilla/emSign_ECC_Root_CA_-_G3.crt$|!&|' \
+        -e 's|^mozilla/Comodo_AAA_Services_root.crt$|!&|' \
+        /etc/ca-certificates.conf \
+    && update-ca-certificates \
     && echo "no" | dpkg-reconfigure dash \
     && echo "zh_CN.UTF-8" | dpkg-reconfigure locales \
     && apt-get clean all \
