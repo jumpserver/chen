@@ -19,13 +19,17 @@ index.interceptors.request.use((config) => {
 
 index.interceptors.response.use((resp) => {
   return resp
-}, (error) => {
-  const reader = new FileReader()
-  reader.onload = function(event) {
-    const text = event.target.result
-    Message.error(text)
+}, async(error) => {
+  let data = error.response && error.response.data
+  if (data instanceof Blob) {
+    try {
+      data = await data.text()
+    } catch (_) {
+      data = ''
+    }
   }
-  reader.readAsText(error.response.data)
+  const message = typeof data === 'string' ? data : data && (data.message || data.detail)
+  Message.error(message || error.message || '请求失败，请稍后重试')
   return Promise.reject(error)
 })
 
