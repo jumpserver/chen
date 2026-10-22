@@ -17,11 +17,15 @@ ARG DEPENDENCIES="                    \
 
 ARG APT_MIRROR=http://deb.debian.org
 
+# DSA-6572-1: require the CA fix and refresh Java trust to remove stale roots.
 RUN set -ex \
     && sed -i "s@http://.*.debian.org@${APT_MIRROR}@g" /etc/apt/sources.list.d/debian.sources \
     && ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
     && apt-get update \
     && apt-get install -y --no-install-recommends ${DEPENDENCIES} \
+    && dpkg --compare-versions "$(dpkg-query -W -f='${Version}' ca-certificates)" ge 20250419+deb13u1 \
+    && dpkg-trigger --no-await update-ca-certificates-java-fresh \
+    && dpkg --triggers-only --pending \
     && echo "no" | dpkg-reconfigure dash \
     && sed -i "s@jdk.tls.disabledAlgorithms=SSLv3, TLSv1, TLSv1.1@jdk.tls.disabledAlgorithms=SSLv3@" /etc/java-21-openjdk/security/java.security
 
