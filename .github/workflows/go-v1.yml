@@ -1,0 +1,25 @@
+name: Chen Go V1
+on:
+  pull_request:
+    paths: ['go.mod', 'go.sum', 'cmd/**', 'internal/**', 'conf/**', 'Dockerfile-go', '.github/workflows/go-v1.yml']
+  push:
+    branches: [dev]
+    paths: ['go.mod', 'go.sum', 'cmd/**', 'internal/**', 'conf/**', 'Dockerfile-go', '.github/workflows/go-v1.yml']
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: go test -race ./...
+      - run: go vet ./...
+      - run: docker pull mysql:8.4 && docker pull postgres:16-alpine
+      - run: go test -race -count=1 -v ./internal/engine -run 'TestIntegration(DatabaseHTTP|SingleMode)'
+        env:
+          CHEN_INTEGRATION: '1'

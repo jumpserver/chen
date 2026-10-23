@@ -108,3 +108,9 @@ The build and runtime limits can be adjusted with `WISP_BUILD_PROCS`,
 ## License
 
 This project is licensed under the GNU General Public License version 3 (GPLv3), consistent with the [JumpServer main repository](https://github.com/jumpserver/jumpserver). See [LICENSE](LICENSE) for the full license text.
+
+## Go V1 migration
+
+Go backend and Luna Monaco integration: [implementation, API and validation](docs/go-v1.md). The read-query workspace covers the legacy database families; see the [database compatibility and real-instance validation matrix](docs/database-compatibility.md) for driver requirements and explicit limits.
+
+Run directly from a database YAML file without Core/Wisp: [single mode and URL selectors](docs/single.md).

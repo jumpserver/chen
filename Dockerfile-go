@@ -1,0 +1,25 @@
+# libpg_query requires CGO. Build on the target architecture (not a pure-Go cross build).
+FROM golang:1.26.3-bookworm AS build
+WORKDIR /src
+COPY go.mod go.sum ./
+# Fixed IBM Go driver source patch is required by the module replacement, even
+# when the optional IBM CLI build tag is not selected.
+COPY third_party/ ./third_party/
+RUN go mod download
+COPY cmd/ ./cmd/
+COPY internal/ ./internal/
+RUN --mount=type=cache,target=/root/.cache/go-build GOMAXPROCS=2 GOMEMLIMIT=1GiB CGO_ENABLED=1 go build -p=2 -trimpath -o /out/chen-go ./cmd/chen-go
+
+FROM debian:bookworm-slim
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd --gid 10001 chen && useradd --uid 10001 --gid chen --create-home chen \
+    && mkdir -p /var/lib/chen/state && chown -R chen:chen /var/lib/chen
+COPY --from=build /out/chen-go /usr/local/bin/chen-go
+USER 10001:10001
+WORKDIR /var/lib/chen
+ENV CHEN_HTTP_ADDR=0.0.0.0:8083 CHEN_STATE_DIR=/var/lib/chen/state
+VOLUME /var/lib/chen/state
+EXPOSE 8083
+STOPSIGNAL SIGTERM
+ENTRYPOINT ["chen-go"]

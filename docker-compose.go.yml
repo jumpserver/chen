@@ -1,0 +1,23 @@
+# Add to the existing Wisp development stack. Keep Java for the other protocols.
+# docker compose -f docker-compose.yml -f docker-compose.wisp-dev.yml -f docker-compose.go.yml up --build
+services:
+  chen-go:
+    build:
+      context: .
+      dockerfile: Dockerfile-go
+    command: ["--wisp-insecure"]
+    environment:
+      CHEN_WISP_ADDRESS: wisp:9090
+      CHEN_HTTP_ADDR: 0.0.0.0:8083
+      CHEN_STATE_DIR: /var/lib/chen/state
+    volumes:
+      - chen-go-state:/var/lib/chen/state
+    ports:
+      - "127.0.0.1:8083:8083"
+    depends_on:
+      wisp:
+        condition: service_started
+    restart: unless-stopped
+    stop_grace_period: 40s
+volumes:
+  chen-go-state:
