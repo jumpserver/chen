@@ -5,6 +5,7 @@ ARG TARGETARCH
 ARG TARGETOS
 ARG WISP_VERSION=v0.2.15
 COPY scripts/build-wisp.sh /opt/chen-build/scripts/build-wisp.sh
+COPY scripts/wisp/ /opt/chen-build/scripts/wisp/
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build,id=chen-base-go-${TARGETARCH} \
     GOOS=${TARGETOS} GOARCH=${TARGETARCH} WISP_BIN=/out/wisp WISP_VERSION=${WISP_VERSION} /opt/chen-build/scripts/build-wisp.sh

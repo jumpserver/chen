@@ -9,7 +9,7 @@ on:
       tag:
         description: Immutable base image tag (Db2 adds -db2)
         required: true
-        default: go1.26.3-wisp0.2.15
+        default: go1.26.3-wisp0.2.15-chen1
 permissions:
   contents: read
 jobs:

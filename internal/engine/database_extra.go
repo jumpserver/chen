@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	_ "gitee.com/chunanyong/dm"
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/jumpserver/chen/internal/jumpserver"
 	mssql "github.com/microsoft/go-mssqldb"
@@ -83,8 +82,8 @@ func extraDatabase(c jumpserver.ConnectionConfig, t *tls.Config) (*sql.DB, error
 		if strings.Contains(c.User, ":") {
 			return nil, errors.New("Dameng usernames containing colon are unsupported by the driver")
 		}
-		dsn := "dm://" + c.User + ":" + c.Password + "@" + net.JoinHostPort(c.Host, strconv.Itoa(c.Port)) + "?connectTimeout=10000&socketTimeout=120&doSwitch=0&logLevel=off&lobMode=1"
-		return sql.Open("dm", dsn)
+		dsn := "dm://" + c.User + ":" + c.Password + "@" + net.JoinHostPort(c.Host, strconv.Itoa(c.Port)) + "?connectTimeout=10000&socketTimeout=120&doSwitch=0&logLevel=off&lobMode=1&dialName=" + damengDialName
+		return openDameng(dsn)
 
 	case "db2":
 		return openDB2(c, t)

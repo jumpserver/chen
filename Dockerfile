@@ -1,4 +1,4 @@
-ARG CHEN_BASE_IMAGE=jumpserver/chen-base:go1.26.3-wisp0.2.15
+ARG CHEN_BASE_IMAGE=jumpserver/chen-base:go1.26.3-wisp0.2.15-chen1
 FROM ${CHEN_BASE_IMAGE} AS stage-build
 ARG TARGETARCH
 ARG VERSION=dev

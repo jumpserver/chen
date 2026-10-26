@@ -28,6 +28,7 @@ type reviewWireWisp struct {
 	states                  []protobuf.TicketState_State
 	checkFails, cancelFails bool
 	createGate              <-chan struct{}
+	checkGate               <-chan struct{}
 	createStarted           chan struct{}
 	onCheck                 func()
 }
@@ -58,7 +59,7 @@ func (w *reviewWireWisp) CreateCommandTicket(ctx context.Context, request *proto
 	return &protobuf.CommandConfirmResponse{Status: &protobuf.Status{Ok: true}, Info: reviewInfo()}, nil
 }
 
-func (w *reviewWireWisp) CheckTicketState(_ context.Context, request *protobuf.TicketRequest) (*protobuf.TicketStateResponse, error) {
+func (w *reviewWireWisp) CheckTicketState(ctx context.Context, request *protobuf.TicketRequest) (*protobuf.TicketStateResponse, error) {
 	w.mu.Lock()
 	w.checks = append(w.checks, proto.Clone(request).(*protobuf.TicketRequest))
 	fails := w.checkFails
@@ -72,6 +73,13 @@ func (w *reviewWireWisp) CheckTicketState(_ context.Context, request *protobuf.T
 	w.mu.Unlock()
 	if w.onCheck != nil {
 		w.onCheck()
+	}
+	if w.checkGate != nil {
+		select {
+		case <-w.checkGate:
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
 	}
 	return &protobuf.TicketStateResponse{Status: &protobuf.Status{Ok: !fails}, Data: &protobuf.TicketState{State: state, Processor: "Reviewer"}}, nil
 }
@@ -255,6 +263,59 @@ func TestReviewTimeoutAndConcurrentSessionLock(t *testing.T) {
 			t.Fatalf("approved ticket bypassed concurrent lock: %v", err)
 		}
 	})
+}
+
+func TestReviewDeadlineBoundaryBeforeContextTimerRuns(t *testing.T) {
+	deadline := time.Now().Add(time.Hour)
+	ctx, cancel := context.WithDeadline(context.Background(), deadline)
+	defer cancel()
+	for _, tc := range []struct {
+		name string
+		now  time.Time
+		want error
+	}{
+		{"before", deadline.Add(-time.Nanosecond), nil},
+		{"at", deadline, context.DeadlineExceeded},
+		{"after", deadline.Add(time.Nanosecond), context.DeadlineExceeded},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if ctx.Err() != nil {
+				t.Fatal("test must keep the context timer pending")
+			}
+			if err := reviewContextError(ctx, tc.now); !errors.Is(err, tc.want) {
+				t.Fatalf("deadline boundary error = %v, want %v", err, tc.want)
+			}
+		})
+	}
+	cancel()
+	if err := reviewContextError(ctx, deadline); !errors.Is(err, context.Canceled) {
+		t.Fatal("explicit cancellation lost precedence")
+	}
+}
+
+func TestReviewEarlyRPCTimeoutDoesNotExpireWholeReview(t *testing.T) {
+	w := &reviewWireWisp{checkGate: make(chan struct{}), states: []protobuf.TicketState_State{protobuf.TicketState_Approved}}
+	p, g := reviewGRPCProvider(t, w)
+	p.options.ReviewTimeout = time.Minute
+	var latest ReviewStatus
+	decision, err := p.AuthorizeCommand(context.Background(), g, AuthorizationRequest{SQL: "SELECT 1", SubmitReview: true, OnReview: func(s ReviewStatus) {
+		latest = s
+		if s.State == "pending" {
+			// Creation has finished; only the check RPC gets this short deadline.
+			p.options.RequestTimeout = 5 * time.Millisecond
+		}
+	}})
+	var policy *PolicyError
+	if !errors.As(err, &policy) || policy.Code != "command_review_failed" || latest.State != "failed" || decision.RiskLevel != int32(protobuf.RiskLevel_ReviewReject) {
+		t.Fatalf("early RPC failure misclassified as review expiry/approval: %+v %v", latest, err)
+	}
+	p.options.RequestTimeout = time.Second
+	p.flush(context.Background())
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if len(w.checks) != 1 || len(w.cancels) != 1 {
+		t.Fatal("timed out check did not persist and deliver ticket cancellation")
+	}
 }
 
 func TestReviewLateCreateAfterCancelCompensates(t *testing.T) {

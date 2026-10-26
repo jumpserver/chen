@@ -18,7 +18,7 @@ make image-ee VERSION=dev PLATFORM=linux/arm64
 make image-ee VERSION=dev PLATFORM=linux/amd64
 ```
 
-The default base name is `jumpserver/chen-base:go1.26.3-wisp0.2.15`. `make image`
+The default base name is `jumpserver/chen-base:go1.26.3-wisp0.2.15-chen1`. `make image`
 builds it locally before using it, so an unpublished base does not prevent local
 builds. Registry CI must publish the base first, then build the main image with
 that exact reference (or a digest) using `CHEN_BASE_IMAGE`. Changing a dependency
@@ -33,7 +33,7 @@ Go build pipeline. Use the primary Dockerfile for source builds.
 make image-ee VERSION=dev WITH_DB2=1 PLATFORM=linux/amd64
 ```
 
-This produces `jumpserver/chen-base:go1.26.3-wisp0.2.15-db2` and
+This produces `jumpserver/chen-base:go1.26.3-wisp0.2.15-chen1-db2` and
 `jumpserver/chen:dev-db2-ce` / `dev-db2-ee`. Both base and application stages must
 receive `WITH_DB2=1`. A mismatched base fails while checking the CLI headers.
 The runtime includes the entire `clidriver` directory under
@@ -73,10 +73,15 @@ Wisp. Compose allows 55 seconds. If either process exits unexpectedly, the other
 is stopped and the container fails. Wisp v0.2.15's own subprocess supervisor uses
 SIGKILL; it is deliberately not used to own the Go process.
 
-The Wisp build applies one local diagnostic-only change: removal of the startup
-`fmt.Printf` of Config, which includes BootstrapToken. The original module cache
-and any local Wisp source checkout remain unchanged. The pinned protocol and
-service implementation are otherwise unchanged.
+The Wisp build applies the reviewed Chen patch to a private copy of v0.2.15 and
+records `v0.2.15+chen.1` in `wisp.version`. It removes the startup Config print,
+which includes BootstrapToken, and acknowledges command uploads only after the
+configured audit storage has saved them. An upload failure leaves Chen's durable
+outbox available for retry; stopping Wisp must not discard an acknowledged
+in-memory command queue. Delivery remains at least once: if persistence succeeds
+but its acknowledgement is lost, a retry can produce a duplicate audit record.
+The original module cache and local Wisp source checkout remain unchanged.
+The `-chen1` base tag distinguishes this contract from unpatched Wisp images.
 
 `chen-go --version` prints the build version, OS/architecture and Wisp module
 version. `chen-go healthcheck` checks its own `/healthy` listener without ambient

@@ -19,9 +19,11 @@ jobs:
           go-version-file: go.mod
           cache: true
       - run: go test -race ./...
+      - run: cd third_party/dm && go test -race ./...
       - run: go vet ./...
       - run: bash -n start.sh entrypoint.sh scripts/*.sh
       - run: ./scripts/test-entrypoint.sh
+      - run: WISP_TEST_ONLY=1 ./scripts/build-wisp.sh
       - run: docker compose config --quiet
       - run: docker compose -f docker-compose.yml -f docker-compose.wisp-dev.yml config --quiet
       - run: docker pull mysql:8.4 && docker pull postgres:16-alpine

@@ -44,7 +44,7 @@ Db2 另通过 DBCLOB 中文/emoji、ASCII BLOB、精确 DECIMAL、CLI 原生超�
 | MySQL、MariaDB、PostgreSQL、ClickHouse native、OceanBase MySQL | 真实HTTP取消，确认服务器查询终止、审计记录、原物理连接可继续查询 |
 | SQL Server | 驱动层WAITFOR取消55ms并复用原连接；直接QueryContext/ExecContext的attention确认可判定取消，Rows.Err的context错误不足以确认 |
 | ClickHouse超时、会话关闭 | 精确query_id从服务器消失且审计落盘；原请求失去响应，终态保守为unknown |
-| Dameng | 取消后仍等待满4秒，连接随后失效；运行中取消能力关闭 |
+| Dameng | 取消后等待当前驱动调用安全返回再丢弃连接，运行中主动取消能力关闭；超时和管理员关闭保持 unknown，不假定服务器写入被回滚 |
 | Db2 | 主动取消不支持；既有CLI原生超时独立验证 |
 | Oracle | 测试账号无DBMS_LOCK.SLEEP权限，未验证运行中取消；没有用高负载业务查询代替 |
 
@@ -58,6 +58,8 @@ Oracle与Dameng新增原生空BLOB/CLOB、NULL LOB、非空二进制、中文emo
 - Oracle改为`LOB FETCH=post`并修复go-ora空LOB转换，区别空BLOB/CLOB与NULL。固定版本源代码和许可证位于`third_party/go-ora`，仅一处转换逻辑补丁，说明见`CHEN_PATCH.md`。
 - SQL Server 连接配置使用驱动完整默认值，修复初始化 panic。
 - Dameng 按其实际 DSN 解析规则处理密码，修复错误的 URL 编码。
+- Dameng 的取消 watcher 会与语句/事务状态并发修改，已在统一 connector 边界屏蔽驱动内部异步关闭，覆盖目录、预编译、事务、Ping 与结果集。调用前检查取消，调用中取消后等待安全返回并丢弃连接；这不是服务器主动取消。固定 dial 10 秒、每次读取 120 秒、每次写入 15 秒，不能把每次 I/O 上限当成整个查询的硬上限。驱动自身 `socketTimeout` 在该版本仅影响默认 TCP 拨号，因此由独立 socket 包装实际设置 deadline；通讯失败按结果未知处理，不自动重试 SQL。
+- Dameng 固定版本源码另修复全局错误模板、过滤器配置读取及 DH 固定参数初始化的跨连接竞态，参见 `third_party/dm/CHEN_PATCH.md`。真实实例回归覆盖三连接并发读取超时、预编译 deadline、取消后的结果集清理，以及持有行锁时的超时和管理员会话关闭；后两者验证服务器最终仍可完成写入，而 API 与持久审计保持 unknown。
 - Oracle 改用有针对性的目录查询，保持 3 秒目录超时，并隐藏 Oracle 维护的系统模式。
 - IBM Go 驱动的 CGO 缓冲、空字符串、DBCLOB Unicode、精确小数读取已做固定版本源代码补丁；保留许可证和上游 SHA，详见 `third_party/go_ibm_db/CHEN_PATCH.md`。未关闭 CGO 检查，也未分发 IBM CLI 二进制到源码仓库。
 - 补全修复 SQL Server TOP CTE、Oracle MINUS、NQ 与多字节 q 引号边界；引用名称保持正确的大小写与转义。

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/url"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/jumpserver/wisp/protobuf-go/protobuf"
@@ -84,16 +85,16 @@ func (p *WispProvider) waitCommandReview(parent context.Context, g *Grant, decis
 		}
 		return decision, decision.policyError(code)
 	}
-	contextFailure := func() (AuthorizationDecision, error) {
-		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+	contextFailure := func(err error) (AuthorizationDecision, error) {
+		if errors.Is(err, context.DeadlineExceeded) {
 			return finish("timed_out", "command_review_timed_out", protobuf.RiskLevel_ReviewCancel)
 		}
 		return finish("canceled", "command_review_canceled", protobuf.RiskLevel_ReviewCancel)
 	}
 	info, err := p.createReviewTicket(ctx, &protobuf.CommandConfirmRequest{SessionId: g.ID, CmdAclId: decision.ACLID, Cmd: batch})
 	if err != nil {
-		if ctx.Err() != nil {
-			return contextFailure()
+		if contextErr := reviewContextError(ctx, time.Now()); contextErr != nil {
+			return contextFailure(contextErr)
 		}
 		return finish("failed", "command_review_failed", protobuf.RiskLevel_ReviewReject)
 	}
@@ -109,8 +110,8 @@ func (p *WispProvider) waitCommandReview(parent context.Context, g *Grant, decis
 	status.Reviewers = append([]string(nil), info.Reviewers...)
 	notify()
 	for {
-		if ctx.Err() != nil {
-			return contextFailure()
+		if err := reviewContextError(ctx, time.Now()); err != nil {
+			return contextFailure(err)
 		}
 		if err := g.Check(); err != nil {
 			return finish("canceled", err.Error(), protobuf.RiskLevel_ReviewCancel)
@@ -118,8 +119,8 @@ func (p *WispProvider) waitCommandReview(parent context.Context, g *Grant, decis
 		requestCtx, requestCancel := p.rpcContext(ctx)
 		response, err := p.client.CheckTicketState(requestCtx, &protobuf.TicketRequest{Req: info.CheckReq})
 		requestCancel()
-		if ctx.Err() != nil {
-			return contextFailure()
+		if err := reviewContextError(ctx, time.Now()); err != nil {
+			return contextFailure(err)
 		}
 		if err != nil || response == nil || !statusOK(response.Status) || response.Data == nil {
 			return finish("failed", "command_review_failed", protobuf.RiskLevel_ReviewReject)
@@ -128,7 +129,7 @@ func (p *WispProvider) waitCommandReview(parent context.Context, g *Grant, decis
 		switch response.Data.State {
 		case protobuf.TicketState_Open:
 			if !waitContext(ctx, p.options.ReviewPollInterval) {
-				return contextFailure()
+				return contextFailure(reviewContextError(ctx, time.Now()))
 			}
 		case protobuf.TicketState_Approved:
 			terminal = true
@@ -136,6 +137,9 @@ func (p *WispProvider) waitCommandReview(parent context.Context, g *Grant, decis
 			// not permission to execute. The engine checks again before sending SQL.
 			if err := g.Check(); err != nil {
 				return finish("canceled", err.Error(), protobuf.RiskLevel_ReviewCancel)
+			}
+			if err := reviewContextError(ctx, time.Now()); err != nil {
+				return contextFailure(err)
 			}
 			return finish("approved", "", protobuf.RiskLevel_ReviewAccept)
 		case protobuf.TicketState_Rejected:
@@ -148,6 +152,19 @@ func (p *WispProvider) waitCommandReview(parent context.Context, g *Grant, decis
 			return finish("failed", "command_review_failed", protobuf.RiskLevel_ReviewReject)
 		}
 	}
+}
+
+// A child RPC can observe the shared deadline before the parent's timer callback
+// updates Err. Check the actual review deadline as well; an earlier RPC timeout
+// alone must not be mistaken for expiry of the whole review.
+func reviewContextError(ctx context.Context, now time.Time) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if deadline, ok := ctx.Deadline(); ok && !now.Before(deadline) {
+		return context.DeadlineExceeded
+	}
+	return nil
 }
 
 type reviewTicketResult struct {

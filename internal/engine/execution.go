@@ -578,6 +578,9 @@ func isServerError(err error) bool {
 
 // A transport failure after dispatch cannot prove whether a write committed.
 func isTransportError(err error) bool {
+	if isDamengTransportError(err) {
+		return true
+	}
 	var me *mysql.MySQLError
 	var pe *pgconn.PgError
 	if errors.As(err, &me) || errors.As(err, &pe) || extraDatabaseError(err) != nil {

@@ -103,3 +103,6 @@ require (
 replace github.com/ibmdb/go_ibm_db => ./third_party/go_ibm_db
 
 replace github.com/sijms/go-ora/v2 => ./third_party/go-ora
+
+// v1.8.23 with immutable shared error templates for concurrent connections.
+replace gitee.com/chunanyong/dm => ./third_party/dm

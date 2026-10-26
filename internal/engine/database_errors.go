@@ -26,6 +26,9 @@ func extraDatabaseError(err error) *APIError {
 	}
 	var dameng *dm.DmError
 	if errors.As(err, &dameng) {
+		if isDamengTransportError(err) {
+			return nil
+		}
 		return &APIError{fmt.Sprintf("DM_%d", dameng.ErrCode), dameng.ErrText}
 	}
 	var ch *clickhouse.Exception

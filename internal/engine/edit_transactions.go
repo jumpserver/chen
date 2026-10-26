@@ -57,6 +57,9 @@ func editTransactionState(ctx context.Context, c *console, dialect string) (edit
 		}
 	}
 	err := c.conn.Raw(func(raw any) error {
+		if wrapped, ok := raw.(*damengConn); ok {
+			raw = wrapped.damengContextConn
+		}
 		if pg, ok := raw.(*stdlib.Conn); ok {
 			switch pg.Conn().PgConn().TxStatus() {
 			case 'I':

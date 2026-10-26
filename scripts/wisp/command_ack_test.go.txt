@@ -1,0 +1,103 @@
+package impl
+
+import (
+	"context"
+	"net/http"
+	"net/http/httptest"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	"github.com/jumpserver-dev/sdk-go/model"
+	"github.com/jumpserver-dev/sdk-go/service"
+	"github.com/jumpserver/wisp/cmd/common"
+	pb "github.com/jumpserver/wisp/protobuf-go/protobuf"
+)
+
+func chenCommandServer(t *testing.T, handler http.HandlerFunc) *JMServer {
+	t.Helper()
+	core := httptest.NewServer(handler)
+	t.Cleanup(core.Close)
+	api, err := service.NewAuthJMService(service.JMSCoreHost(core.URL))
+	if err != nil {
+		t.Fatal(err)
+	}
+	uploader := common.NewUploader(api, &model.TerminalConfig{})
+	uploader.Start()
+	t.Cleanup(uploader.Stop)
+	return NewJMServer(api, uploader, nil)
+}
+
+func TestChenCommandACKWaitsForStorage(t *testing.T) {
+	entered, release := make(chan struct{}), make(chan struct{})
+	server := chenCommandServer(t, func(w http.ResponseWriter, r *http.Request) {
+		close(entered)
+		<-release
+		w.WriteHeader(http.StatusCreated)
+	})
+	ack := make(chan *pb.CommandResponse, 1)
+	go func() {
+		res, _ := server.UploadCommand(context.Background(), &pb.CommandRequest{Sid: "owned-test", Input: "SELECT 1"})
+		ack <- res
+	}()
+	<-entered
+	select {
+	case <-ack:
+		close(release)
+		t.Fatal("acknowledged before command storage completed")
+	case <-time.After(30 * time.Millisecond):
+	}
+	close(release)
+	select {
+	case res := <-ack:
+		if res == nil || res.Status == nil || !res.Status.Ok {
+			t.Fatal("successful storage was not acknowledged")
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("synchronous command did not finish")
+	}
+}
+
+func TestChenCommandStorageFailureRetainsRetry(t *testing.T) {
+	var calls atomic.Int32
+	server := chenCommandServer(t, func(w http.ResponseWriter, r *http.Request) {
+		if calls.Add(1) == 1 {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+		w.WriteHeader(http.StatusCreated)
+	})
+	request := &pb.CommandRequest{Sid: "owned-test", Input: "SELECT 1"}
+	failed, err := server.UploadCommand(context.Background(), request)
+	if err != nil || failed.Status.Ok || failed.Status.Err != "command_persistence_or_notification_failed" {
+		t.Fatal("failed persistence must return a negative ACK")
+	}
+	retried, err := server.UploadCommand(context.Background(), request)
+	if err != nil || !retried.Status.Ok || calls.Load() != 2 {
+		t.Fatal("retry after storage recovery did not persist before ACK")
+	}
+}
+
+func TestChenCommandNotificationFailureRetainsRetry(t *testing.T) {
+	var commands, notifications atomic.Int32
+	server := chenCommandServer(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == service.NotificationCommandURL {
+			if notifications.Add(1) == 1 {
+				w.WriteHeader(http.StatusServiceUnavailable)
+				return
+			}
+		} else {
+			commands.Add(1)
+		}
+		w.WriteHeader(http.StatusCreated)
+	})
+	request := &pb.CommandRequest{Sid: "owned-test", Input: "SELECT 1", RiskLevel: pb.RiskLevel_Warning}
+	failed, _ := server.UploadCommand(context.Background(), request)
+	if failed.Status.Ok {
+		t.Fatal("failed warning notification was silently discarded")
+	}
+	retried, _ := server.UploadCommand(context.Background(), request)
+	if !retried.Status.Ok || commands.Load() != 2 || notifications.Load() != 2 {
+		t.Fatal("notification retry must retain at-least-once persistence")
+	}
+}
