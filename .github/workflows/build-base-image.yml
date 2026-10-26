@@ -1,46 +1,123 @@
-name: Build and Push Go Base Image
+name: Build and Push Base Image
 on:
+  pull_request:
+    branches: [dev, 'v*']
+    types: [opened, synchronize, reopened]
+    paths:
+      - Dockerfile-base
+      - go.mod
+      - go.sum
+      - scripts/build-wisp.sh
+      - scripts/wisp/**
+      - scripts/update-base-image.py
+      - scripts/test-update-base-image.py
+      - .github/workflows/build-base-image.yml
   workflow_dispatch:
     inputs:
       branch:
-        description: Source branch
+        description: Source branch to build and update
         required: true
+        type: string
         default: dev
-      tag:
-        description: Immutable base image tag (Db2 adds -db2)
-        required: true
-        default: go1.26.3-wisp0.2.15-chen1
 permissions:
   contents: read
+# Serialize timestamp publication, including reruns; never cancel an active push.
+concurrency:
+  group: chen-base-publication
+  cancel-in-progress: false
 jobs:
   build-and-push:
     runs-on: ubuntu-24.04
-    strategy:
-      matrix:
-        include:
-          - platforms: linux/amd64,linux/arm64
-            db2: '0'
-            suffix: ''
-          - platforms: linux/amd64
-            db2: '1'
-            suffix: '-db2'
+    env:
+      SOURCE_BRANCH: ${{ github.event.pull_request.head.ref || inputs.branch }}
+      PUBLISH: ${{ github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout source branch
+        uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.branch }}
-      - uses: docker/setup-qemu-action@v3
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
+          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          ref: ${{ github.event.pull_request.head.sha || inputs.branch }}
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Resolve source and timestamp
+        id: source
+        run: |
+          git check-ref-format "refs/heads/$SOURCE_BRANCH"
+          source_sha=$(git rev-parse HEAD)
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
+            remote_sha=$(git ls-remote --exit-code origin "refs/heads/$SOURCE_BRANCH" | cut -f1)
+            test "$source_sha" = "$remote_sha"
+          fi
+          echo "sha=$source_sha" >> "$GITHUB_OUTPUT"
+          echo "tag=$(date -u +'%Y%m%d_%H%M%S')" >> "$GITHUB_OUTPUT"
+          build=true
+          if [ "$GITHUB_EVENT_NAME" = pull_request ] && [ "$(python3 scripts/update-base-image.py --is-writeback)" = true ]; then
+            build=false
+            echo 'Base defaults were just updated; application CI will validate them.'
+          fi
+          echo "build=$build" >> "$GITHUB_OUTPUT"
+      - name: Test base reference update
+        run: python3 scripts/test-update-base-image.py
+      - name: Check publication credentials
+        if: env.PUBLISH == 'true' && steps.source.outputs.build == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.PRIVATE_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo 'PRIVATE_TOKEN is required for writeback and subsequent application CI; no images were published.' >&2
+            exit 1
+          fi
+      - name: Set up QEMU
+        if: steps.source.outputs.build == 'true'
+        uses: docker/setup-qemu-action@v3
+      - name: Set up Docker Buildx
+        if: steps.source.outputs.build == 'true'
+        uses: docker/setup-buildx-action@v3
+      - name: Reject an existing timestamp tag
+        if: env.PUBLISH == 'true' && steps.source.outputs.build == 'true'
+        env:
+          IMAGE_TAG: ${{ steps.source.outputs.tag }}
+        run: |
+          for suffix in '' '-db2'; do
+            status=$(curl --silent --show-error --retry 3 --max-time 30 --output /dev/null --write-out '%{http_code}' \
+              "https://hub.docker.com/v2/repositories/jumpserver/chen-base/tags/${IMAGE_TAG}${suffix}")
+            if [ "$status" != 404 ]; then
+              echo "Refusing to publish ${IMAGE_TAG}${suffix}: tag lookup returned HTTP $status" >&2
+              exit 1
+            fi
+          done
+      - name: Login to DockerHub
+        if: env.PUBLISH == 'true' && steps.source.outputs.build == 'true'
+        uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - uses: docker/build-push-action@v6
+      - name: Build standard amd64 and arm64 base
+        if: steps.source.outputs.build == 'true'
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: Dockerfile-base
-          platforms: ${{ matrix.platforms }}
-          build-args: WITH_DB2=${{ matrix.db2 }}
-          push: true
-          tags: jumpserver/chen-base:${{ inputs.tag }}${{ matrix.suffix }}
-# Update CHEN_BASE_IMAGE deliberately in review after publishing a new base.
-# This workflow does not rewrite source or push a commit back to the branch.
+          platforms: linux/amd64,linux/arm64
+          build-args: WITH_DB2=0
+          push: ${{ env.PUBLISH == 'true' }}
+          tags: jumpserver/chen-base:${{ steps.source.outputs.tag }}
+      - name: Build Db2 amd64 base
+        if: steps.source.outputs.build == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile-base
+          platforms: linux/amd64
+          build-args: WITH_DB2=1
+          push: ${{ env.PUBLISH == 'true' }}
+          tags: jumpserver/chen-base:${{ steps.source.outputs.tag }}-db2
+      - name: Update source branch after both variants are published
+        if: env.PUBLISH == 'true' && steps.source.outputs.build == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.PRIVATE_TOKEN }}
+          IMAGE_TAG: ${{ steps.source.outputs.tag }}
+          SOURCE_SHA: ${{ steps.source.outputs.sha }}
+        run: |
+          python3 scripts/update-base-image.py "$IMAGE_TAG" \
+            --source-branch "$SOURCE_BRANCH" --source-sha "$SOURCE_SHA"
