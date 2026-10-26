@@ -6,7 +6,7 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        CHEN_BASE_IMAGE: ${CHEN_BASE_IMAGE:-jumpserver/chen-base:go1.26.3-wisp0.2.15-chen1}
+        CHEN_BASE_IMAGE: ${CHEN_BASE_IMAGE:-jumpserver/chen-base:20261026_105501}
         VERSION: ${VERSION:-dev}
         WITH_DB2: ${WITH_DB2:-0}
     environment:
