@@ -9,3 +9,7 @@ backend/web/src/main/resources/static/**
 data
 drivers/oceanbase/*.jar
 config/application-dev.yml
+
+# Go release artifacts and local Python helpers
+/build/
+/scripts/__pycache__/

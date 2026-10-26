@@ -1,0 +1,3 @@
+# Compatibility overlay: the default service is now Go. No Java sidecar exists.
+services:
+  chen: {}

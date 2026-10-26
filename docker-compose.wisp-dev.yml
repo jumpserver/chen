@@ -1,40 +1,35 @@
+# Optional separate Wisp process for debugging. Uses the same pinned build.
+# docker compose -f docker-compose.yml -f docker-compose.wisp-dev.yml up
 services:
-  chen-backend:
-    # Development runs Wisp as a sibling service. Start Java directly so the
-    # released Wisp binary bundled in the Chen image is not used.
-    command:
-      - java
-      - -Dfile.encoding=utf-8
-      - -XX:+ExitOnOutOfMemoryError
-      - -jar
-      - /opt/chen/chen.jar
-      - --spring.config.additional-location=optional:file:/opt/chen/config/
-      - --spring.profiles.active=dev
+  chen:
+    command: ["backend", "--wisp-insecure"]
     environment:
-      EXECUTE_PROGRAM: ""
-      GRPC_CLIENT_WISP_ADDRESS: static://wisp:9090
+      CHEN_WISP_ADDRESS: wisp:9090
     depends_on:
       wisp:
-        # Arbitrary Wisp images do not necessarily provide a healthcheck.
-        condition: service_started
-    cpus: ${CHEN_CPUS:-2.0}
-    mem_limit: ${CHEN_MEMORY_LIMIT:-2g}
-
+        condition: service_healthy
   wisp:
-    image: ${WISP_IMAGE:-ghcr.io/jumpserver/wisp:latest}
-    pull_policy: ${WISP_PULL_POLICY:-missing}
-    container_name: chen-wisp-dev
+    image: ${CHEN_IMAGE:-jumpserver/chen:dev-ce}
+    command: ["wisp-only"]
     environment:
       COMPONENT_NAME: chen
       CORE_HOST: ${CORE_HOST:-http://host.docker.internal:8080}
-      BOOTSTRAP_TOKEN: ${BOOTSTRAP_TOKEN:-PleaseChangeMe}
-      LOG_LEVEL: ${LOG_LEVEL:-INFO}
-      WORK_DIR: /opt/wisp
+      BOOTSTRAP_TOKEN: ${BOOTSTRAP_TOKEN:-}
+      BIND_HOST: 0.0.0.0
+      BIND_PORT: "9090"
+      WORK_DIR: /opt/chen
       EXECUTE_PROGRAM: ""
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    expose: ["9090"]
     volumes:
-      - ./data:/opt/wisp/data
-    expose:
-      - "9090"
+      - chen-data:/opt/chen/data
+    healthcheck:
+      test: ["CMD", "bash", "-c", "echo >/dev/tcp/127.0.0.1/9090"]
+      interval: 5s
+      timeout: 2s
+      start_period: 30s
+      retries: 12
     restart: unless-stopped
-    cpus: ${WISP_CPUS:-1.0}
-    mem_limit: ${WISP_MEMORY_LIMIT:-512m}
+    stop_grace_period: 15s

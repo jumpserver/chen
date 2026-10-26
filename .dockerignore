@@ -5,5 +5,13 @@
 **/.DS_Store
 **/*.iml
 **/target
+**/node_modules
 data
-backend/web/src/main/resources/static
+build
+output
+frontend
+backend
+drivers
+config
+*.log
+*.tar.gz
