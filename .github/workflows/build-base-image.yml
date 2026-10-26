@@ -1,71 +1,46 @@
-name: Build and Push Base Image
-
+name: Build and Push Go Base Image
 on:
-  push:
-    branches:
-      - 'pr*'
-    paths:
-      - 'pom.xml'
-      - 'Dockerfile-base'
-      - 'package.json'
-      - 'yarn.lock'
   workflow_dispatch:
     inputs:
       branch:
-        description: '构建基础镜像所用的分支'
+        description: Source branch
         required: true
-        type: string
-        default: 'dev'
-
+        default: dev
+      tag:
+        description: Immutable base image tag (Db2 adds -db2)
+        required: true
+        default: go1.26.3-wisp0.2.15
+permissions:
+  contents: read
 jobs:
   build-and-push:
-    runs-on: ubuntu-latest
-
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        include:
+          - platforms: linux/amd64,linux/arm64
+            db2: '0'
+            suffix: ''
+          - platforms: linux/amd64
+            db2: '1'
+            suffix: '-db2'
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.branch || github.ref }}
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to DockerHub
-        uses: docker/login-action@v2
+          ref: ${{ inputs.branch }}
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Extract date
-        id: vars
-        run: echo "IMAGE_TAG=$(date +'%Y%m%d_%H%M%S')" >> $GITHUB_ENV
-
-      - name: Extract repository name
-        id: repo
-        run: echo "REPO=$(basename ${{ github.repository }})" >> $GITHUB_ENV
-
-      - name: Build and push multi-arch image
-        uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v6
         with:
-          platforms: linux/amd64,linux/arm64
-          push: true
-          file: Dockerfile-base
-          tags: jumpserver/${{ env.REPO }}-base:${{ env.IMAGE_TAG }}
           context: .
-
-      - name: Update Dockerfile
-        run: |
-          sed -i 's|-base:.* AS stage-build|-base:${{ env.IMAGE_TAG }} AS stage-build|' Dockerfile
-
-      - name: Commit changes
-        run: |
-          git config --global user.name 'github-actions[bot]'
-          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git add Dockerfile
-          git commit -m "perf: Update Dockerfile with new base image tag"
-          git push
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          file: Dockerfile-base
+          platforms: ${{ matrix.platforms }}
+          build-args: WITH_DB2=${{ matrix.db2 }}
+          push: true
+          tags: jumpserver/chen-base:${{ inputs.tag }}${{ matrix.suffix }}
+# Update CHEN_BASE_IMAGE deliberately in review after publishing a new base.
+# This workflow does not rewrite source or push a commit back to the branch.

@@ -1,24 +1,27 @@
+# Managed JumpServer component. Core is external to this project.
 services:
-  chen-backend:
+  chen:
+    image: ${CHEN_IMAGE:-jumpserver/chen:dev-ce}
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: chen-backend-dev
-    volumes:
-      - ./config:/opt/chen/config
-      - ./data:/opt/chen/data
-    ports:
-      - "8082:8082"
+      args:
+        CHEN_BASE_IMAGE: ${CHEN_BASE_IMAGE:-jumpserver/chen-base:go1.26.3-wisp0.2.15}
+        VERSION: ${VERSION:-dev}
+        WITH_DB2: ${WITH_DB2:-0}
     environment:
-      LOG_LEVEL: INFO
       CORE_HOST: ${CORE_HOST:-http://host.docker.internal:8080}
-      BOOTSTRAP_TOKEN: ${BOOTSTRAP_TOKEN:-PleaseChangeMe}
-      EXECUTE_PROGRAM: >-
-        java -Dfile.encoding=utf-8 -XX:+ExitOnOutOfMemoryError
-        -jar /opt/chen/chen.jar
-        --spring.config.additional-location=optional:file:/opt/chen/config/
-        --spring.profiles.active=dev
+      BOOTSTRAP_TOKEN: ${BOOTSTRAP_TOKEN:-}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      CHEN_HTTP_ADDR: 0.0.0.0:8082
+      CHEN_STATE_DIR: /opt/chen/data/go
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    ports:
+      - "127.0.0.1:${CHEN_PORT:-8082}:8082"
+    volumes:
+      - chen-data:/opt/chen/data
     restart: unless-stopped
-
+    stop_grace_period: 55s
 volumes:
   chen-data:

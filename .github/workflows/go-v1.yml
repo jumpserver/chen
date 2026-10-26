@@ -1,0 +1,67 @@
+name: Chen Go
+on:
+  pull_request:
+    paths: ['go.mod', 'go.sum', 'cmd/**', 'internal/**', 'third_party/**', 'conf/**', 'Dockerfile*', 'docker-compose*.yml', 'Makefile', 'entrypoint.sh', 'start.sh', 'scripts/**', '.github/workflows/**']
+  push:
+    branches: [dev]
+    paths: ['go.mod', 'go.sum', 'cmd/**', 'internal/**', 'third_party/**', 'conf/**', 'Dockerfile*', 'docker-compose*.yml', 'Makefile', 'entrypoint.sh', 'start.sh', 'scripts/**', '.github/workflows/**']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: go test -race ./...
+      - run: go vet ./...
+      - run: bash -n start.sh entrypoint.sh scripts/*.sh
+      - run: ./scripts/test-entrypoint.sh
+      - run: docker compose config --quiet
+      - run: docker compose -f docker-compose.yml -f docker-compose.wisp-dev.yml config --quiet
+      - run: docker pull mysql:8.4 && docker pull postgres:16-alpine
+      - run: go test -race -count=1 -v ./internal/sqlservice -run TestIntegrationPostgresInspectionColumnPermissions
+        env:
+          CHEN_INTEGRATION: '1'
+      - run: go test -race -count=1 -v ./internal/engine -run 'TestIntegration(DatabaseHTTP|SingleMode)'
+        env:
+          CHEN_INTEGRATION: '1'
+  image:
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            platform: linux/amd64
+            db2: '0'
+          - runner: ubuntu-24.04-arm
+            platform: linux/arm64
+            db2: '0'
+          - runner: ubuntu-24.04
+            platform: linux/amd64
+            db2: '1'
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    env:
+      PLATFORM: ${{ matrix.platform }}
+      WITH_DB2: ${{ matrix.db2 }}
+      VERSION: ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Build formal base, CE and EE chain
+        run: make image-ee
+      - name: Run the resulting CE and EE images against disposable PostgreSQL
+        run: |
+          suffix=''
+          if [ "$WITH_DB2" = 1 ]; then suffix='-db2'; fi
+          ./scripts/smoke-image.sh "jumpserver/chen:ci${suffix}-ce" "$PLATFORM" "$WITH_DB2"
+          ./scripts/smoke-image.sh "jumpserver/chen:ci${suffix}-ee" "$PLATFORM" "$WITH_DB2"

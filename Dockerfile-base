@@ -1,59 +1,38 @@
-FROM node:20-trixie
+# CGO builds run on the target architecture. Do not force BUILDPLATFORM here.
+ARG GO_IMAGE=golang:1.26.3-bookworm@sha256:386d475a660466863d9f8c766fec64d7fdad3edac2c6a05020c09534d71edb4b
+FROM --platform=$BUILDPLATFORM ${GO_IMAGE} AS wisp-build
 ARG TARGETARCH
-
-# Install linux dependencies
-ARG DEPENDENCIES="                    \
-        ca-certificates              \
-        openjdk-21-jdk-headless       \
-        curl                          \
-        wget"
-
-ARG APT_MIRROR=http://deb.debian.org
-
-RUN set -ex \
-    && sed -i "s@http://.*.debian.org@${APT_MIRROR}@g" /etc/apt/sources.list.d/debian.sources \
-    && apt-get update \
-    && apt-get -y install --no-install-recommends ${DEPENDENCIES} \
-    && echo "no" | dpkg-reconfigure dash \
-    && apt-get clean all \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install tools and dependencies
-RUN set -ex \
-    && wget https://github.com/jumpserver-dev/healthcheck/releases/latest/download/check_linux_${TARGETARCH}.deb \
-    && dpkg -i check_linux_${TARGETARCH}.deb \
-    && rm -f check_linux_${TARGETARCH}.deb
-
+ARG TARGETOS
 ARG WISP_VERSION=v0.2.15
-RUN set -ex \
-    && wget https://github.com/jumpserver/wisp/releases/download/${WISP_VERSION}/wisp_linux_${TARGETARCH}.deb \
-    && dpkg -i wisp_linux_${TARGETARCH}.deb \
-    && rm -f wisp_linux_${TARGETARCH}.deb
+COPY scripts/build-wisp.sh /opt/chen-build/scripts/build-wisp.sh
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build,id=chen-base-go-${TARGETARCH} \
+    GOOS=${TARGETOS} GOARCH=${TARGETARCH} WISP_BIN=/out/wisp WISP_VERSION=${WISP_VERSION} /opt/chen-build/scripts/build-wisp.sh
 
-# Install Maven dependencies
-ARG MAVEN_VERSION=3.9.16
-ARG USER_HOME_DIR="/root"
-ARG BASE_URL=https://downloads.apache.org/maven/maven-3/${MAVEN_VERSION}/binaries
-ARG MAVEN_MIRROR=https://repo.maven.apache.org/maven2
-ENV MAVEN_HOME=/usr/share/maven
-ENV MAVEN_CONFIG="$USER_HOME_DIR/.m2"
-
+FROM ${GO_IMAGE}
+ARG TARGETARCH
+ARG WITH_DB2=0
+ARG DB2_CLI_VERSION=12.1.2
+ARG DB2_CLI_URL
+ARG DB2_CLI_SHA256=2c10efc71a638cd6b07a5b977b6dbe8aa0408e1dca825bea0d2b63318c9bba2f
+ARG APT_MIRROR=https://deb.debian.org
+RUN sed -i "s@http://.*.debian.org@${APT_MIRROR}@g" /etc/apt/sources.list.d/debian.sources \
+    && apt-get -o Acquire::Retries=3 update && apt-get install -y --no-install-recommends ca-certificates curl \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=wisp-build /out/wisp /out/wisp.version /usr/local/bin/
+# Optional IBM CLI is isolated in the base. No customer Db2 Connect licenses
+# are embedded. IBM currently distributes Linux x64, not Linux ARM64, CLI.
+RUN mkdir -p /opt/chen-deps && \
+    case "$WITH_DB2" in \
+      0) ;; \
+      1) test "$TARGETARCH" = amd64 && test -n "$DB2_CLI_SHA256" \
+         && for attempt in 1 2 3 4 5; do \
+              curl --fail --location --silent --show-error --connect-timeout 20 --max-time 200 --continue-at - \
+                "${DB2_CLI_URL:-https://public.dhe.ibm.com/ibmdl/export/pub/software/data/db2/drivers/odbc_cli/v${DB2_CLI_VERSION}/linuxx64_odbc_cli.tar.gz}" -o /tmp/ibm-cli.tar.gz && break; \
+            done \
+         && echo "$DB2_CLI_SHA256  /tmp/ibm-cli.tar.gz" | sha256sum --check --strict \
+         && tar -xzf /tmp/ibm-cli.tar.gz -C /opt/chen-deps \
+         && rm /tmp/ibm-cli.tar.gz ;; \
+      *) echo 'WITH_DB2 must be 0 or 1' >&2; exit 1 ;; \
+    esac
 WORKDIR /opt/chen
-
-COPY settings.xml pom.xml ./
-COPY backend/pom.xml backend/
-COPY backend/framework/pom.xml  backend/framework/
-COPY backend/web/pom.xml  backend/web/
-COPY backend/wisp/pom.xml  backend/wisp/
-COPY backend/modules/pom.xml  backend/modules/
-
-RUN set -ex \
-    && mkdir -p /usr/share/maven /usr/share/maven/ref \
-    && curl -fsSL -o /tmp/apache-maven.tar.gz ${BASE_URL}/apache-maven-${MAVEN_VERSION}-bin.tar.gz \
-    && tar -xzf /tmp/apache-maven.tar.gz -C /usr/share/maven --strip-components=1 \
-    && rm -f /tmp/apache-maven.tar.gz \
-    && ln -s /usr/share/maven/bin/mvn /usr/bin/mvn \
-    && mkdir -p /root/.m2 \
-    && sed -i "s@https://repo.maven.apache.org/maven2@${MAVEN_MIRROR}@g" settings.xml \
-    && cp -f settings.xml /root/.m2/ \
-    && mvn clean install

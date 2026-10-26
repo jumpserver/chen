@@ -1,73 +1,46 @@
+name: Create Go Release Assets
 on:
   push:
-    # Sequence of patterns matched against refs/tags
-    tags:
-      - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
-
-name: Create Release And Upload assets
-
+    tags: ['v*']
+permissions:
+  contents: write
 jobs:
-  create-realese:
-    name: Create Release
-    runs-on: ubuntu-latest
+  package:
     strategy:
+      fail-fast: false
       matrix:
-        java_version: [ '21' ]
-    outputs:
-      upload_url: ${{ steps.create_release.outputs.upload_url }}
+        include:
+          - runner: ubuntu-24.04
+            platform: linux/amd64
+            db2: '0'
+          - runner: ubuntu-24.04-arm
+            platform: linux/arm64
+            db2: '0'
+          - runner: ubuntu-24.04
+            platform: linux/amd64
+            db2: '1'
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/cache@v4
+      - uses: actions/setup-go@v5
         with:
-          path: |
-            ~/.m2
-            ~/.cache
-          key: ${{ runner.os }}-build-${{ github.sha }}
-          restore-keys: ${{ runner.os }}-build-
-
-      - name: Get version
-        id: get_version
-        run: |
-          TAG=$(basename ${GITHUB_REF})
-          echo "TAG=$TAG" >> $GITHUB_OUTPUT
-
-      - name: Create Release
-        id: create_release
-        uses: release-drafter/release-drafter@v6
+          go-version-file: go.mod
+      - name: Build and accept the exact release image
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          config-name: release-config.yml
-          version: ${{ steps.get_version.outputs.TAG }}
-          tag: ${{ steps.get_version.outputs.TAG }}
-
-      - uses: actions/setup-java@v4
-        with:
-          distribution: 'oracle'
-          java-version: ${{ matrix.java_version }}
-
-      - name: Build chen
+          VERSION: ${{ github.ref_name }}
+          PLATFORM: ${{ matrix.platform }}
+          WITH_DB2: ${{ matrix.db2 }}
         run: |
-          mvn clean package -DskipTests
-          mkdir -p build chen-${{ steps.get_version.outputs.TAG }}
-          rm -f config/application-dev.yml
-          mv README.md chen-${{ steps.get_version.outputs.TAG }}/README.md
-          mv LICENSE chen-${{ steps.get_version.outputs.TAG }}/LICENSE
-          mv entrypoint.sh chen-${{ steps.get_version.outputs.TAG }}/entrypoint.sh
-          mv backend/web/target/web-*.jar chen-${{ steps.get_version.outputs.TAG }}/chen.jar
-          mv drivers chen-${{ steps.get_version.outputs.TAG }}/drivers
-          mv config chen-${{ steps.get_version.outputs.TAG }}/config
-          tar -zcvf chen-${{ steps.get_version.outputs.TAG }}.tar.gz chen-${{ steps.get_version.outputs.TAG }}
-          echo $(md5sum chen-${{ steps.get_version.outputs.TAG }}.tar.gz | awk '{print $1}') > build/chen-${{ steps.get_version.outputs.TAG }}.tar.gz.md5
-          mv chen-${{ steps.get_version.outputs.TAG }}.tar.gz build/
-
-      - name: Release Upload Assets
-        uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
+          make test vet image
+          suffix=''
+          if [ "$WITH_DB2" = 1 ]; then suffix='-db2'; fi
+          image="jumpserver/chen:${VERSION}${suffix}-ce"
+          ./scripts/smoke-image.sh "$image" "$PLATFORM" "$WITH_DB2"
+          make package CHEN_IMAGE="$image"
+      - uses: softprops/action-gh-release@v2
         with:
           draft: true
           files: |
-            build/*.gz
-            build/*.md5
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            build/*.tar.gz
+            build/*.sha256

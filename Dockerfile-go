@@ -1,0 +1,4 @@
+# The Go implementation is now the default Dockerfile.
+# Use: docker build -f Dockerfile --build-arg CHEN_BASE_IMAGE=... .
+ARG CHEN_IMAGE=jumpserver/chen:dev-ce
+FROM ${CHEN_IMAGE}
