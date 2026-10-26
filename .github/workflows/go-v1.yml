@@ -23,6 +23,7 @@ jobs:
       - run: go vet ./...
       - run: bash -n start.sh entrypoint.sh scripts/*.sh
       - run: ./scripts/test-entrypoint.sh
+      - run: python3 scripts/test-update-base-image.py
       - run: WISP_TEST_ONLY=1 ./scripts/build-wisp.sh
       - run: docker compose config --quiet
       - run: docker compose -f docker-compose.yml -f docker-compose.wisp-dev.yml config --quiet

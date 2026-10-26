@@ -18,11 +18,39 @@ make image-ee VERSION=dev PLATFORM=linux/arm64
 make image-ee VERSION=dev PLATFORM=linux/amd64
 ```
 
-The default base name is `jumpserver/chen-base:go1.26.3-wisp0.2.15-chen1`. `make image`
-builds it locally before using it, so an unpublished base does not prevent local
-builds. Registry CI must publish the base first, then build the main image with
-that exact reference (or a digest) using `CHEN_BASE_IMAGE`. Changing a dependency
-pin is a reviewed source change, not an automatic CI commit to the branch.
+The default base is pinned consistently in `Dockerfile`, `Makefile` and
+`docker-compose.yml`. `make image` builds it locally before using it. Set
+`CHEN_BASE_IMAGE` to use another exact reference or digest.
+
+Like Magnus, the Build and Push Base Image workflow runs on base-related changes
+in PRs targeting `dev` or `v*`, or manually with an existing source branch. One job
+publishes `jumpserver/chen-base:<UTC YYYYMMDD_HHMMSS>` for amd64/arm64, then
+`<timestamp>-db2` for amd64. An existing tag is rejected. Only after both builds
+and pushes succeed does it commit the three default references back to the source
+PR/branch. The workflow recognizes that exact generated three-file delta and
+skips its own rebuild (PR path filters include the whole PR diff). Application CI
+still validates the updated defaults.
+
+Manual builds of `dev`, version branches or other protected branches create a
+`pr@<source>@build_chen_base_<timestamp>` branch and PR instead of pushing directly
+to the protected branch. A source branch that advances during the build is not
+overwritten; rebuild its latest revision. Fork PRs only build both variants, with
+no registry login, publication or writeback. Like Magnus, publication requires
+`PRIVATE_TOKEN` with repository push/PR permissions so the existing generic PR
+handler and subsequent CI can run. A missing token fails before either image is
+published. There is no `GITHUB_TOKEN` fallback: bot-token pushes would not trigger
+the application checks on the updated commit.
+
+The writeback helper can preview its exact three-file diff without mutation:
+
+```sh
+GITHUB_REPOSITORY=jumpserver/chen python3 scripts/update-base-image.py 20261026_120000 \
+  --source-branch dev --source-sha "$(git rev-parse HEAD)" --dry-run
+```
+
+The helper requires a clean checkout at the built SHA and uses read-only GitHub
+branch metadata even in dry-run mode. It never stages unrelated files or forces
+a branch update.
 
 `Dockerfile-go` is a compatibility image alias; it no longer maintains a second
 Go build pipeline. Use the primary Dockerfile for source builds.
@@ -33,7 +61,7 @@ Go build pipeline. Use the primary Dockerfile for source builds.
 make image-ee VERSION=dev WITH_DB2=1 PLATFORM=linux/amd64
 ```
 
-This produces `jumpserver/chen-base:go1.26.3-wisp0.2.15-chen1-db2` and
+This produces `jumpserver/chen-base:<BASE_VERSION>-db2` and
 `jumpserver/chen:dev-db2-ce` / `dev-db2-ee`. Both base and application stages must
 receive `WITH_DB2=1`. A mismatched base fails while checking the CLI headers.
 The runtime includes the entire `clidriver` directory under
@@ -81,7 +109,8 @@ outbox available for retry; stopping Wisp must not discard an acknowledged
 in-memory command queue. Delivery remains at least once: if persistence succeeds
 but its acknowledgement is lost, a retry can produce a duplicate audit record.
 The original module cache and local Wisp source checkout remain unchanged.
-The `-chen1` base tag distinguishes this contract from unpatched Wisp images.
+The initial `-chen1` base tag and subsequent timestamp releases contain this
+patch; `wisp.version` records the contract independently of the image tag.
 
 `chen-go --version` prints the build version, OS/architecture and Wisp module
 version. `chen-go healthcheck` checks its own `/healthy` listener without ambient
