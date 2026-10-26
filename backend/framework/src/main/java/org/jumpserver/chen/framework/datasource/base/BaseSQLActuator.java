@@ -23,6 +23,9 @@ import java.io.IOException;
 import java.io.Reader;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
+import java.nio.charset.StandardCharsets;
 import java.sql.*;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -36,6 +39,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.time.temporal.ChronoField;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.StringJoiner;
@@ -223,7 +227,17 @@ public abstract class BaseSQLActuator implements SQLActuator {
     }
 
     protected Object normalizeJdbcValue(ResultSet resultSet, int columnIndex) throws SQLException {
-        return this.normalizeJdbcValue(resultSet.getObject(columnIndex));
+        var value = resultSet.getObject(columnIndex);
+        if (value instanceof byte[] bytes) {
+            var metadata = resultSet.getMetaData();
+            var typeName = metadata.getColumnTypeName(columnIndex);
+            if (metadata.getColumnType(columnIndex) == Types.BLOB
+                    || "BLOB".equalsIgnoreCase(typeName) || "TINYBLOB".equalsIgnoreCase(typeName)
+                    || "MEDIUMBLOB".equalsIgnoreCase(typeName) || "LONGBLOB".equalsIgnoreCase(typeName)) {
+                return this.formatBlob(bytes);
+            }
+        }
+        return this.normalizeJdbcValue(value);
     }
 
     protected Object normalizeJdbcValue(Object value) throws SQLException {
@@ -265,7 +279,7 @@ public abstract class BaseSQLActuator implements SQLActuator {
         }
 
         if (value instanceof Blob blob) {
-            return HexUtils.bytesToHex(blob.getBytes(1, (int) blob.length()));
+            return this.readBlob(blob);
         }
 
         if (value.getClass().getSimpleName().equalsIgnoreCase("pgobject")) {
@@ -344,6 +358,45 @@ public abstract class BaseSQLActuator implements SQLActuator {
                 log.debug("free jdbc array failed", e);
             }
         }
+    }
+
+    private String readBlob(Blob blob) throws SQLException {
+        try {
+            // Oracle EMPTY_BLOB() has no readable locator until it is stored.
+            if (blob.length() == 0) {
+                return "";
+            }
+            try (var stream = blob.getBinaryStream()) {
+                return this.formatBlob(stream.readNBytes(MAX_TEXT_DISPLAY_LENGTH + 1));
+            }
+        } catch (IOException e) {
+            throw new SQLException("read blob failed", e);
+        } finally {
+            try {
+                blob.free();
+            } catch (SQLException e) {
+                log.debug("free blob failed", e);
+            }
+        }
+    }
+
+    private String formatBlob(byte[] bytes) {
+        boolean truncated = bytes.length > MAX_TEXT_DISPLAY_LENGTH;
+        int length = Math.min(bytes.length, MAX_TEXT_DISPLAY_LENGTH);
+        String suffix = truncated ? TRUNCATED_SUFFIX : "";
+        var text = CharBuffer.allocate(length);
+        // An incomplete UTF-8 character at the preview boundary is omitted, not replaced.
+        var decoded = StandardCharsets.UTF_8.newDecoder()
+                .decode(ByteBuffer.wrap(bytes, 0, length), text, !truncated);
+        if (!decoded.isError()) {
+            text.flip();
+            var value = text.toString();
+            if (value.codePoints().noneMatch(c -> Character.isISOControl(c) && c != '\n' && c != '\r' && c != '\t')) {
+                return value + suffix;
+            }
+        }
+        // Preserve non-text bytes losslessly instead of introducing replacement characters.
+        return HexUtils.bytesToHex(truncated ? Arrays.copyOf(bytes, length) : bytes) + suffix;
     }
 
     private String readClob(Clob clob) throws SQLException {

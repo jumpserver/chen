@@ -4,8 +4,11 @@ import org.jumpserver.chen.framework.datasource.ConnectionManager;
 import org.jumpserver.chen.framework.datasource.base.BaseSQLActuator;
 import org.jumpserver.chen.framework.datasource.sql.*;
 
+import java.math.BigInteger;
 import java.sql.Connection;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Types;
 import java.util.List;
 
 public class MysqlActuator extends BaseSQLActuator {
@@ -15,6 +18,20 @@ public class MysqlActuator extends BaseSQLActuator {
 
     public MysqlActuator(MysqlActuator sqlActuator, Connection connection) {
         super(sqlActuator, connection);
+    }
+
+    @Override
+    protected Object normalizeJdbcValue(ResultSet resultSet, int columnIndex) throws SQLException {
+        var metadata = resultSet.getMetaData();
+        if (metadata.getColumnType(columnIndex) == Types.BIT && metadata.getPrecision(columnIndex) > 1) {
+            var bytes = resultSet.getBytes(columnIndex);
+            if (bytes == null) {
+                return null;
+            }
+            var bits = new BigInteger(1, bytes).toString(2);
+            return "0".repeat(Math.max(0, metadata.getPrecision(columnIndex) - bits.length())) + bits;
+        }
+        return super.normalizeJdbcValue(resultSet, columnIndex);
     }
 
     @Override

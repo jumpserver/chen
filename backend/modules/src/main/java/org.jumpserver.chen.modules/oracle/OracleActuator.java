@@ -9,16 +9,34 @@ import org.jumpserver.chen.framework.datasource.sql.SQLExecutePlan;
 import org.jumpserver.chen.framework.datasource.sql.SQLQueryParams;
 
 import java.sql.Connection;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Types;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 public class OracleActuator extends BaseSQLActuator {
+    private static final int ORACLE_TIMESTAMP_WITH_TIME_ZONE = -101;
+    private static final int ORACLE_TIMESTAMP_WITH_LOCAL_TIME_ZONE = -102;
+
     public OracleActuator(ConnectionManager connectionManager) {
         super(connectionManager);
     }
 
     public OracleActuator(OracleActuator sqlActuator, Connection connection) {
         super(sqlActuator, connection);
+    }
+
+    @Override
+    protected Object normalizeJdbcValue(ResultSet resultSet, int columnIndex) throws SQLException {
+        // Let the driver resolve Oracle temporal values using the result set's session.
+        return switch (resultSet.getMetaData().getColumnType(columnIndex)) {
+            case Types.TIMESTAMP_WITH_TIMEZONE, ORACLE_TIMESTAMP_WITH_TIME_ZONE ->
+                    super.normalizeJdbcValue(resultSet.getObject(columnIndex, OffsetDateTime.class));
+            case Types.TIMESTAMP, ORACLE_TIMESTAMP_WITH_LOCAL_TIME_ZONE ->
+                    super.normalizeJdbcValue(resultSet.getTimestamp(columnIndex));
+            default -> super.normalizeJdbcValue(resultSet, columnIndex);
+        };
     }
 
     @Override
