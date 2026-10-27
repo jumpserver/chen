@@ -277,16 +277,19 @@ public class JMSSession extends BaseSession {
     }
 
     private void closeJmsSessionResources() {
-        if (this.getController() != null) {
-            this.getController().cancelAllDialogs();
-        }
-        this.closeConsoles();
         try {
-            this.replayHandler.release();
-            this.finishedJmsSession();
-            this.closeGateway();
+            this.cancelSessionDialogs();
+            this.runCloseAction("close consoles", this::closeConsoles);
+            this.runCloseAction("release replay", () -> {
+                if (this.replayHandler != null) {
+                    this.replayHandler.release();
+                }
+            });
+            this.runCloseAction("finish JumpServer session", this::finishedJmsSession);
+            this.runCloseAction("close gateway", this::closeGateway);
             if (!this.closed) {
-                this.recordLifecycle(ServiceOuterClass.SessionLifecycleLogRequest.EventType.AssetConnectFinished, "connect_disconnect");
+                this.runCloseAction("record session lifecycle", () ->
+                        this.recordLifecycle(ServiceOuterClass.SessionLifecycleLogRequest.EventType.AssetConnectFinished, "connect_disconnect"));
             }
 
         } finally {
@@ -300,13 +303,16 @@ public class JMSSession extends BaseSession {
         }
         SessionManager.setContext(this.getWebToken());
         try {
-            this.getPacketIO().sendPacket("session_close", sessionClosePacketData(reason, args));
+            this.runCloseAction("notify session close", () -> {
+                this.getPacketIO().sendPacket("session_close", sessionClosePacketData(reason, args));
 
-            var dialog = new Dialog(MessageUtils.get("SessionFinished"));
-            dialog.setBody(MessageUtils.get(message, args));
-            this.getController().showDialog(dialog);
+                var dialog = new Dialog(MessageUtils.get("SessionFinished"));
+                dialog.setBody(MessageUtils.get(message, args));
+                this.getController().showDialog(dialog);
+            });
 
-            this.recordLifecycle(ServiceOuterClass.SessionLifecycleLogRequest.EventType.AssetConnectFinished, reason);
+            this.runCloseAction("record session lifecycle", () ->
+                    this.recordLifecycle(ServiceOuterClass.SessionLifecycleLogRequest.EventType.AssetConnectFinished, reason));
             this.closed = true;
         } finally {
             this.closeJmsSessionResources();

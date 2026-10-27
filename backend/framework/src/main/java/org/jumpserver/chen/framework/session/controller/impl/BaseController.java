@@ -47,25 +47,26 @@ public class BaseController implements Controller {
                 dialog,
                 onCancel
         );
-        ActiveDialog replaced;
+        ActiveDialog replaced = null;
         boolean ownerCancelled;
-        synchronized (this.dialogLock) {
-            ownerCancelled = this.allDialogsCancelled || this.cancelledOwners.contains(activeDialog.owner());
-            if (ownerCancelled) {
-                replaced = null;
-            } else {
-                replaced = this.currentDialog;
-                this.currentDialog = activeDialog;
-                this.packetIO.sendPacket("show_dialog", dialog);
+        try {
+            synchronized (this.dialogLock) {
+                ownerCancelled = this.allDialogsCancelled || this.cancelledOwners.contains(activeDialog.owner());
+                if (!ownerCancelled) {
+                    replaced = this.currentDialog;
+                    this.currentDialog = activeDialog;
+                    this.packetIO.sendPacket("show_dialog", dialog);
+                }
+            }
+        } finally {
+            if (replaced != null) {
+                log.warn("replace unfinished dialog, oldDialogId={}, newDialogId={}", replaced.id(), id);
+                runCancel(replaced);
             }
         }
         if (ownerCancelled) {
             runCancel(activeDialog);
             return DialogHandle.NOOP;
-        }
-        if (replaced != null) {
-            log.warn("replace unfinished dialog, oldDialogId={}, newDialogId={}", replaced.id(), id);
-            runCancel(replaced);
         }
         return new DialogHandle() {
             @Override
@@ -147,9 +148,12 @@ public class BaseController implements Controller {
                 return;
             }
             this.currentDialog = null;
-            this.packetIO.sendPacket("close_dialog", null);
         }
-        runCancel(activeDialog);
+        try {
+            this.packetIO.sendPacket("close_dialog", null);
+        } finally {
+            runCancel(activeDialog);
+        }
     }
 
     @Override
