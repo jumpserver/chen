@@ -16,6 +16,7 @@ mkdir -p "$staging/$name/bin" "$root/build"
 for file in chen-go wisp wisp.version; do docker cp "$container:/usr/local/bin/$file" "$staging/$name/bin/$file"; done
 docker cp "$container:/opt/chen/entrypoint.sh" "$staging/$name/entrypoint.sh"
 docker cp "$container:/opt/chen/conf" "$staging/$name/conf"
+docker cp "$container:/opt/chen/licenses" "$staging/$name/licenses"
 docker cp "$container:/opt/chen-deps" "$staging/$name/native"
 cp "$root/LICENSE" "$root/README.md" "$staging/$name/"
 cp "$root/docs/build.md" "$staging/$name/BUILD.md"

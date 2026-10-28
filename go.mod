@@ -5,6 +5,7 @@ go 1.26.3
 require (
 	gitee.com/chunanyong/dm v1.8.23
 	github.com/ClickHouse/clickhouse-go/v2 v2.49.0
+	github.com/bytebase/omni v0.0.0-20261028061125-c1e38b7dfe51
 	github.com/go-sql-driver/mysql v1.9.3
 	github.com/ibmdb/go_ibm_db v0.5.4
 	github.com/jackc/pgx/v5 v5.9.2
@@ -17,7 +18,7 @@ require (
 	github.com/sijms/go-ora/v2 v2.9.0
 	go.yaml.in/yaml/v3 v3.0.5
 	google.golang.org/grpc v1.79.3
-	google.golang.org/protobuf v1.36.10
+	google.golang.org/protobuf v1.36.11
 )
 
 require (
@@ -106,3 +107,5 @@ replace github.com/sijms/go-ora/v2 => ./third_party/go-ora
 
 // v1.8.23 with immutable shared error templates for concurrent connections.
 replace gitee.com/chunanyong/dm => ./third_party/dm
+
+replace github.com/bytebase/omni => github.com/Zxc4wonder/omni v0.0.0-20261028061125-c1e38b7dfe51
