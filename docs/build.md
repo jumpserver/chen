@@ -52,8 +52,8 @@ The helper requires a clean checkout at the built SHA and uses read-only GitHub
 branch metadata even in dry-run mode. It never stages unrelated files or forces
 a branch update.
 
-`Dockerfile-go` is a compatibility image alias; it no longer maintains a second
-Go build pipeline. Use the primary Dockerfile for source builds.
+Source builds and release packaging use the primary `Dockerfile` and
+`docker-compose.yml` entry points.
 
 ## Db2 variant
 

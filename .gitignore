@@ -4,11 +4,13 @@ target
 *.iml
 .DS_Store
 replay
-backend/web/src/main/resources/static
-backend/web/src/main/resources/static/**
 data
-drivers/oceanbase/*.jar
-config/application-dev.yml
+
+# Retired implementation artifacts and private local configuration
+/backend/
+/drivers/
+/frontend/
+/config/
 
 # Go release artifacts and local Python helpers
 /build/

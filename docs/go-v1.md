@@ -134,4 +134,4 @@ CHEN_INTEGRATION=1 GOTOOLCHAIN=go1.26.3 go test -race -count=1 -v ./internal/eng
 
 初版开发验收：干净模块缓存`go mod verify`通过；Go完整race/实库与Web+Electron类型检查、Nuxt生产构建通过。MySQL和PostgreSQL分别在真实Nuxt工作区的Chromium验收中完成认证、语义补全、精确值查询、本地审计、取消与关闭。报告保存在Luna `output/chen-v1-browser/mysql/`和`postgresql/`，其中明确标注Core/Wisp为测试边界。
 
-最终回归使用单独下载的干净模块缓存，`go mod verify`、全包`go test -race`和`go vet`均通过。实库HTTP整套20.76秒：MySQL8.4普通账号13.59秒，PostgreSQL16普通账号7.17秒；均包含服务器侧取消、超时和关闭验证。`Dockerfile-go`已成功构建Linux arm64镜像`chen-go:v1-local`；真实启动验证健康接口、能力接口、UID10001、审计目录0700及SIGTERM退出码0。临时数据库容器、浏览器fixture、Nuxt测试服务和镜像smoke卷均已清理。
+最终回归使用单独下载的干净模块缓存，`go mod verify`、全包`go test -race`和`go vet`均通过。实库HTTP整套20.76秒：MySQL8.4普通账号13.59秒，PostgreSQL16普通账号7.17秒；均包含服务器侧取消、超时和关闭验证。初版独立 Go 构建已成功生成Linux arm64镜像`chen-go:v1-local`；真实启动验证健康接口、能力接口、UID10001、审计目录0700及SIGTERM退出码0。临时数据库容器、浏览器fixture、Nuxt测试服务和镜像smoke卷均已清理。

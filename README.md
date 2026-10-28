@@ -79,8 +79,8 @@ capable without an official matching CLI distribution. See
 [build, release and integration acceptance](docs/build.md) and
 [database compatibility](docs/database-compatibility.md) for limits and evidence.
 
-The old Java sources remain for migration reference. They are not used by the
-current Makefile, container build, start script or release workflow.
+Database drivers are Go modules. The optional Db2 variant also requires IBM's
+native CLI; its build and runtime requirements are documented above.
 
 ## Development and integration
 
