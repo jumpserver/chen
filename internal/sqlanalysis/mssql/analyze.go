@@ -79,6 +79,16 @@ func (Analyzer) Analyze(in a.Input) (a.Result, error) {
 		if err != nil {
 			return out, err
 		}
+		// Double quotes can mean strings when QUOTED_IDENTIFIER is OFF.
+		// A grammar-only parse cannot prove the live session setting, including
+		// SET statements earlier in this document. Keep these sources read-only.
+		for _, token := range r.within(s.Span) {
+			if strings.HasPrefix(in.SQL[token.Loc:token.End], `"`) {
+				s.SourceCandidate = false
+				s.Diagnostics = append(s.Diagnostics, a.Diagnostic{Code: a.Unsupported, Message: "Double-quoted sources require a verified QUOTED_IDENTIFIER session setting before editing", Span: span(token.Loc, token.End)})
+				break
+			}
+		}
 		out.Statements = append(out.Statements, s)
 		previousEnd, cursor = loc.End, end
 	}
@@ -216,7 +226,12 @@ func (r reader) statement(node ast.Node, loc a.Span) (a.Statement, error) {
 	case *ast.UseStmt, *ast.SetStmt, *ast.SetOptionStmt:
 		s.Kind = a.Session
 		s.MayWrite = false
-	case *ast.CreateTableStmt, *ast.AlterTableStmt, *ast.DropStmt, *ast.CreateIndexStmt, *ast.AlterIndexStmt, *ast.CreateViewStmt, *ast.TruncateStmt, *ast.CreateSequenceStmt, *ast.AlterSequenceStmt, *ast.CreateSynonymStmt, *ast.GrantStmt:
+	case *ast.DropStmt:
+		if n.ObjectType != ast.DropTable && n.ObjectType != ast.DropIndex && n.ObjectType != ast.DropView {
+			return s, problem(a.Unsupported, "Only ordinary TABLE, INDEX and VIEW DDL is supported", loc, nil)
+		}
+		s.Kind = a.DDL
+	case *ast.CreateTableStmt, *ast.AlterTableStmt, *ast.CreateIndexStmt, *ast.AlterIndexStmt, *ast.CreateViewStmt, *ast.TruncateStmt:
 		s.Kind = a.DDL
 	default:
 		return s, problem(a.Unsupported, fmt.Sprintf("SQL Server statement %T is outside the ordinary SQL execution scope", node), loc, nil)

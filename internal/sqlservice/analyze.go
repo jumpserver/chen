@@ -8,6 +8,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/jumpserver/chen/internal/sqlanalysis"
+	mssqlanalysis "github.com/jumpserver/chen/internal/sqlanalysis/mssql"
 	oracleanalysis "github.com/jumpserver/chen/internal/sqlanalysis/oracle"
 
 	pg "github.com/pganalyze/pg_query_go/v6"
@@ -22,7 +23,7 @@ func Analyze(dialect Dialect, document string) (Analysis, error) {
 	return AnalyzeWithOptions(dialect, document, AnalyzeOptions{})
 }
 
-// AnalyzeWithOptions uses native syntax parsers for Oracle/PostgreSQL/MySQL. Other
+// AnalyzeWithOptions uses native syntax parsers for Oracle/SQL Server/PostgreSQL/MySQL. Other
 // dialects use a bounded statement scanner; their server validates SQL
 // grammar at execution. Neither path is an authorization boundary.
 // Statements always refer to original UTF-8 byte spans; no AST serialization is
@@ -39,6 +40,10 @@ func AnalyzeWithOptions(dialect Dialect, document string, options AnalyzeOptions
 	}
 	if dialect == Oracle {
 		facts, err := (oracleanalysis.Analyzer{}).Analyze(sqlanalysis.Input{SQL: document, Profile: sqlanalysis.Profile{Dialect: sqlanalysis.Oracle}})
+		return analysisFromFacts(document, facts, err)
+	}
+	if dialect == SQLServer {
+		facts, err := (mssqlanalysis.Analyzer{}).Analyze(sqlanalysis.Input{SQL: document, Profile: sqlanalysis.Profile{Dialect: sqlanalysis.SQLServer}})
 		return analysisFromFacts(document, facts, err)
 	}
 	if !utf8.ValidString(document) {
