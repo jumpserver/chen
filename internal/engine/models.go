@@ -118,6 +118,7 @@ type execution struct {
 	mu              sync.RWMutex
 	view            ExecutionView
 	sql             string
+	documentVersion int // immutable editor version bound at submission
 	ctx             context.Context
 	cancel          context.CancelFunc
 	cancelDone      chan struct{}
