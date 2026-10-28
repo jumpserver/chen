@@ -201,12 +201,26 @@ public class BaseSession implements Session {
 
     @Override
     public void close() {
-        SessionManager.unregisterSession(this.getWebToken());
-        this.getDatasource().close();
-        this.getPacketIO().close();
-        var path = this.getTempPath();
-        if (path.toFile().exists()) {
-            path.toFile().delete();
+        this.runCloseAction("unregister session", () -> SessionManager.unregisterSession(this.getWebToken()));
+        this.runCloseAction("close datasource", () -> this.getDatasource().close());
+        this.runCloseAction("close WebSocket", () -> {
+            if (this.getPacketIO() != null) {
+                this.getPacketIO().close();
+            }
+        });
+        this.runCloseAction("delete temporary files", () -> {
+            var path = this.getTempPath();
+            if (path.toFile().exists()) {
+                path.toFile().delete();
+            }
+        });
+    }
+
+    protected final void runCloseAction(String action, Runnable callback) {
+        try {
+            callback.run();
+        } catch (RuntimeException e) {
+            log.warn("Session close action failed: {}", action, e);
         }
     }
 
