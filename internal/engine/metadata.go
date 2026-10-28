@@ -4,24 +4,34 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strings"
 	"time"
 	"unicode/utf16"
+	"unicode/utf8"
 
 	"github.com/jumpserver/chen/internal/jumpserver"
+	"github.com/jumpserver/chen/internal/sqlanalysis"
 	"github.com/jumpserver/chen/internal/sqlservice"
 )
 
 type editorStatement struct {
-	From        int    `json:"from"`
-	To          int    `json:"to"`
-	Kind        string `json:"kind"`
-	MayWrite    bool   `json:"may_write"`
-	ReturnsRows bool   `json:"returns_rows"`
+	ByteSpan        sqlanalysis.Span      `json:"byte_span"`
+	Features        []sqlanalysis.Feature `json:"features,omitempty"`
+	SourceCandidate bool                  `json:"source_candidate"`
+	Diagnostics     []editorDiagnostic    `json:"diagnostics,omitempty"`
+	From            int                   `json:"from"`
+	To              int                   `json:"to"`
+	Kind            string                `json:"kind"`
+	MayWrite        bool                  `json:"may_write"`
+	ReturnsRows     bool                  `json:"returns_rows"`
 }
 
 type editorAnalysis struct {
-	Version    int               `json:"document_version"`
-	Statements []editorStatement `json:"statements"`
+	Syntax        sqlanalysis.Status `json:"syntax"`
+	Compatibility sqlanalysis.Status `json:"compatibility"`
+	Diagnostics   []editorDiagnostic `json:"diagnostics,omitempty"`
+	Version       int                `json:"document_version"`
+	Statements    []editorStatement  `json:"statements"`
 }
 
 // Use the same native parsers and live SQL mode as execution. Document text is
@@ -50,22 +60,39 @@ func (v *Server) analyzeDocument(w http.ResponseWriter, r *http.Request) {
 	}
 	analysis, err := sqlservice.AnalyzeWithOptions(sqlservice.Dialect(s.grant.Config.Dialect), req.Document, options)
 	if err != nil {
-		fail(w, 400, "analysis_failed", "Cannot determine statement boundaries; select SQL explicitly or use Run all")
+		var diagnostic *sqlanalysis.Error
+		if errors.As(err, &diagnostic) {
+			writeJSON(w, 400, map[string]any{"document_version": req.Version, "error": APIError{"sql_" + string(diagnostic.Code), diagnostic.Message}, "diagnostics": []editorDiagnostic{editorDiagnosticFor(req.Document, diagnostic.Diagnostic)}})
+		} else {
+			fail(w, 400, "analysis_failed", "SQL analysis failed; check the dialect and syntax before execution")
+		}
 		return
 	}
 	if len(analysis.Statements) > 100 {
 		fail(w, 400, "statement_limit", "A script must contain at most 100 statements")
 		return
 	}
-	response := editorAnalysis{Version: req.Version, Statements: []editorStatement{}}
+	response := editorAnalysis{Version: req.Version, Statements: []editorStatement{}, Syntax: analysis.Syntax, Compatibility: analysis.Compatibility}
+	for _, d := range analysis.Diagnostics {
+		response.Diagnostics = append(response.Diagnostics, editorDiagnosticFor(req.Document, d))
+	}
 	for _, statement := range analysis.Statements {
 		response.Statements = append(response.Statements, editorStatement{
+			ByteSpan:    sqlanalysis.Span{Start: statement.Start, End: statement.End, Known: true},
 			From:        len(utf16.Encode([]rune(req.Document[:statement.Start]))),
 			To:          len(utf16.Encode([]rune(req.Document[:statement.End]))),
 			Kind:        statement.Kind,
 			MayWrite:    statement.MayWrite,
 			ReturnsRows: statement.ReturnsRows,
 		})
+		if statement.Facts != nil {
+			view := &response.Statements[len(response.Statements)-1]
+			view.Features = statement.Facts.Features
+			view.SourceCandidate = statement.Facts.SourceCandidate
+			for _, d := range statement.Facts.Diagnostics {
+				view.Diagnostics = append(view.Diagnostics, editorDiagnosticFor(req.Document, d))
+			}
+		}
 	}
 	writeJSON(w, 200, response)
 }
@@ -189,4 +216,27 @@ func (v *Server) completion(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, 200, response)
+}
+
+// UI positions use UTF-16; all internal facts retain original byte ranges.
+type editorDiagnostic struct {
+	Code     sqlanalysis.Code `json:"code"`
+	Message  string           `json:"message"`
+	ByteSpan sqlanalysis.Span `json:"byte_span"`
+	From     *int             `json:"from,omitempty"`
+	To       *int             `json:"to,omitempty"`
+	Line     *int             `json:"line,omitempty"`
+	Column   *int             `json:"column,omitempty"`
+}
+
+func editorDiagnosticFor(document string, d sqlanalysis.Diagnostic) editorDiagnostic {
+	out := editorDiagnostic{Code: d.Code, Message: d.Message, ByteSpan: d.Span}
+	if d.Span.ValidFor(document) && utf8.ValidString(document[:d.Span.Start]) && utf8.ValidString(document[:d.Span.End]) {
+		prefix := document[:d.Span.Start]
+		from, to := len(utf16.Encode([]rune(prefix))), len(utf16.Encode([]rune(document[:d.Span.End])))
+		line := strings.Count(prefix, "\n") + 1
+		column := len(utf16.Encode([]rune(prefix[strings.LastIndex(prefix, "\n")+1:]))) + 1
+		out.From, out.To, out.Line, out.Column = &from, &to, &line, &column
+	}
+	return out
 }

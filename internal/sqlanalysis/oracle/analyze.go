@@ -198,10 +198,17 @@ func (r reader) statement(node ast.StmtNode, loc a.Span) (a.Statement, error) {
 	case *ast.CommitStmt, *ast.RollbackStmt, *ast.SavepointStmt, *ast.SetTransactionStmt:
 		s.Kind = a.Transaction
 		s.MayWrite = false
-	case *ast.AlterSessionStmt, *ast.SetRoleStmt, *ast.SetConstraintsStmt:
+	case *ast.SetRoleStmt, *ast.SetConstraintsStmt:
 		s.Kind = a.Session
 		s.MayWrite = false
-	case *ast.CreateTableStmt, *ast.AlterTableStmt, *ast.DropStmt, *ast.CreateIndexStmt, *ast.AlterIndexStmt, *ast.CreateViewStmt, *ast.AlterViewStmt, *ast.CreateSequenceStmt, *ast.AlterSequenceStmt, *ast.CreateSynonymStmt, *ast.AlterSynonymStmt, *ast.TruncateStmt, *ast.GrantStmt, *ast.RevokeStmt, *ast.CommentStmt, *ast.RenameStmt, *ast.AlterSystemStmt:
+	case *ast.CallStmt:
+		s.Kind, s.ReturnsRows = a.Call, n.Into == nil
+	case *ast.DropStmt:
+		if n.ObjectType != ast.OBJECT_TABLE && n.ObjectType != ast.OBJECT_INDEX && n.ObjectType != ast.OBJECT_VIEW {
+			return s, problem(a.Unsupported, "Only ordinary TABLE, INDEX and VIEW DDL is supported", loc, nil)
+		}
+		s.Kind = a.DDL
+	case *ast.CreateTableStmt, *ast.AlterTableStmt, *ast.CreateIndexStmt, *ast.AlterIndexStmt, *ast.CreateViewStmt, *ast.AlterViewStmt, *ast.TruncateStmt, *ast.CommentStmt, *ast.RenameStmt:
 		s.Kind = a.DDL
 	default:
 		return s, problem(a.Unsupported, fmt.Sprintf("Oracle statement %T is outside the ordinary SQL execution scope (including PL/SQL blocks)", node), loc, nil)

@@ -6,6 +6,8 @@ package sqlservice
 import (
 	"context"
 	"errors"
+
+	"github.com/jumpserver/chen/internal/sqlanalysis"
 )
 
 type Dialect string
@@ -57,15 +59,20 @@ type Context struct {
 }
 
 type Statement struct {
-	SQL         string `json:"sql"`
-	Start       int    `json:"start"` // UTF-8 byte offset in the original document.
-	End         int    `json:"end"`
-	Kind        string `json:"kind"`
-	ReturnsRows bool   `json:"returns_rows"`
-	MayWrite    bool   `json:"may_write"` // Advisory classification, never a read-only or authorization guarantee.
+	// Facts is immutable, reusable syntax provenance, never an edit permission.
+	Facts       *sqlanalysis.Statement `json:"facts,omitempty"`
+	SQL         string                 `json:"sql"`
+	Start       int                    `json:"start"` // UTF-8 byte offset in the original document.
+	End         int                    `json:"end"`
+	Kind        string                 `json:"kind"`
+	ReturnsRows bool                   `json:"returns_rows"`
+	MayWrite    bool                   `json:"may_write"` // Advisory classification, never a read-only or authorization guarantee.
 }
 type Analysis struct {
-	Statements []Statement `json:"statements"`
+	Syntax        sqlanalysis.Status       `json:"syntax"`
+	Compatibility sqlanalysis.Status       `json:"compatibility"`
+	Diagnostics   []sqlanalysis.Diagnostic `json:"diagnostics,omitempty"`
+	Statements    []Statement              `json:"statements"`
 }
 
 type AnalyzeOptions struct {

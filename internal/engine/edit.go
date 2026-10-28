@@ -150,21 +150,21 @@ func (v *Server) resolveEdit(ctx context.Context, s *session, c *console, r *Res
 	if r.editSourceBound && r.editSourceError != "" {
 		return x, errors.New(r.editSourceError)
 	}
-	source, err := sqlservice.AnalyzeEditableQuery(d, r.sourceSQL, opts)
-	if r.editSource != nil {
-		source = *r.editSource
-		err = nil
-	}
-	if r.browse != nil {
+	var source sqlservice.EditableSource
+	switch {
+	case r.browse != nil:
 		source = sqlservice.EditableSource{Schema: r.browse.Schema, Table: r.browse.Table, Star: true}
-		err = nil
+	case r.editSource != nil:
+		source = *r.editSource
+	case r.sourceAnalysis != nil:
+		source, err = sqlservice.EditableSourceFromFacts(*r.sourceAnalysis)
+	default:
+		source, err = sqlservice.AnalyzeEditableQuery(d, r.sourceSQL, opts)
 	}
 	if err != nil {
-		return x, errors.New("Only direct columns from one base table with a single primary key can be edited")
+		return x, err
 	}
-	if r.browse != nil {
-		source.Schema, source.Table = r.browse.Schema, r.browse.Table
-	}
+
 	scope, err := liveContext(ctx, c, s.grant.Config.Dialect)
 	if err != nil {
 		return x, errors.New("Database context is unavailable")
@@ -220,6 +220,19 @@ func (v *Server) resolveEdit(ctx context.Context, s *session, c *console, r *Res
 		}
 		if field == nil || seen[name] {
 			return x, errors.New("Result columns are ambiguous or no longer match the table")
+		}
+		// The returned labels must agree with the proven projection. In
+		// particular a stale SELECT * must not follow a changed column order.
+		label := name
+		if !source.Star {
+			label = source.Columns[i].Label
+		}
+		labelMatches := r.Columns[i].Name == label
+		if !labelMatches && (d == sqlservice.SQLServer || sqlservice.IsMySQLDialect(d)) {
+			labelMatches = strings.EqualFold(r.Columns[i].Name, label)
+		}
+		if !labelMatches {
+			return x, errors.New("Result column labels no longer match the source; refresh before editing")
 		}
 		seen[name] = true
 		x.columns = append(x.columns, *field)

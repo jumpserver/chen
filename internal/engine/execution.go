@@ -469,16 +469,22 @@ func (v *Server) run(s *session, c *console, e *execution) {
 			failure(err, safeDatabaseError(err))
 			return
 		}
-		checked, err := sqlservice.AnalyzeWithOptions(sqlservice.Dialect(s.grant.Config.Dialect), statement.SQL, current)
-		if err != nil || len(checked.Statements) != 1 {
-			failure(errors.New("sql_context_changed"), &APIError{"sql_context_changed", "Statement boundaries changed with the connection SQL mode; run statements separately"})
-			return
+		// AST facts remain valid while parser options are unchanged. Reuse them
+		// for dispatch and edit provenance instead of reparsing each consumer.
+		if statement.Facts == nil || current != opts {
+			checked, err := sqlservice.AnalyzeWithOptions(sqlservice.Dialect(s.grant.Config.Dialect), statement.SQL, current)
+			if err != nil || len(checked.Statements) != 1 {
+				failure(errors.New("sql_context_changed"), &APIError{"sql_context_changed", "Statement boundaries changed with the connection SQL mode; run statements separately"})
+				return
+			}
+
+			statement = checked.Statements[0]
 		}
+
 		if e.cancelRequested.Load() {
 			failure(context.Canceled, &APIError{"query_canceled", "Query cancellation requested"})
 			return
 		}
-		statement = checked.Statements[0]
 		for _, command := range []string{e.sql, statement.SQL} {
 			if warning, ok := e.policyWarnings[command]; ok {
 				key := warning.ACLID + ":" + warning.GroupID
@@ -492,6 +498,7 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		databaseTouched.Store(true)
 		if statement.ReturnsRows {
 			e.resultSQL = statement.SQL
+			e.resultAnalysis = statement.Facts
 			rows, err := c.conn.QueryContext(executionContext(e.ctx, s.grant.Config.Dialect, e.view.ID), statement.SQL)
 			if err != nil {
 				confirmedCancel = isServerCancellation(err) || driverConfirmedCancellation(s.grant.Config.Dialect, err)
@@ -651,6 +658,7 @@ func (v *Server) collectResults(s *session, e *execution, rows *sql.Rows) error 
 			return err
 		}
 		result.consoleID, result.sourceSQL, result.browse = e.view.ConsoleID, e.resultSQL, e.browse
+		result.sourceAnalysis = e.resultAnalysis
 		collected = append(collected, result)
 		if !rows.NextResultSet() {
 			return rows.Err()
