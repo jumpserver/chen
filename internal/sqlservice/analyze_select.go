@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/jumpserver/chen/internal/sqlanalysis"
+
 	"github.com/pingcap/tidb/pkg/parser/mysql"
 )
 
@@ -51,7 +53,10 @@ func analyzeSelectDocument(d Dialect, document string, options AnalyzeOptions) (
 // scanCommandDocument validates lexical boundaries without rewriting SQL. The
 // callback classifies each whole statement before any SQL reaches a connection.
 func scanCommandDocument(d Dialect, document string, options AnalyzeOptions, classify func([]token) (string, bool, bool, error)) (Analysis, error) {
-	out := Analysis{Statements: []Statement{}}
+	out := Analysis{Statements: []Statement{}, Syntax: sqlanalysis.Unknown, Compatibility: sqlanalysis.Unknown, Diagnostics: []sqlanalysis.Diagnostic{{Code: sqlanalysis.Unsupported, Message: "Only lexical statement boundaries were checked; dialect syntax requires server validation"}}}
+	if d == Dameng || d == OceanBaseOracle {
+		out.Diagnostics = append(out.Diagnostics, sqlanalysis.Diagnostic{Code: sqlanalysis.ProductUnknown, Message: "Product version and Oracle compatibility mode have not been verified"})
+	}
 	mode, err := mysql.GetSQLMode(options.MySQLSQLMode)
 	if err != nil {
 		return out, err

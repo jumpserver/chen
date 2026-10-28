@@ -33,6 +33,7 @@ RUN sed -i "s@http://.*.debian.org@${APT_MIRROR}@g" /etc/apt/sources.list.d/debi
     && groupadd --gid 10001 chen && useradd --uid 10001 --gid chen --create-home chen \
     && mkdir -p /opt/chen/data/go && chown -R chen:chen /opt/chen
 COPY --from=stage-build /out/chen-go /usr/local/bin/chen-go
+COPY third_party/omni/LICENSE /opt/chen/licenses/omni/LICENSE
 COPY --from=stage-build /usr/local/bin/wisp /usr/local/bin/wisp.version /usr/local/bin/
 COPY --from=stage-build /opt/chen-deps/ /opt/chen-deps/
 COPY --chmod=755 entrypoint.sh /opt/chen/entrypoint.sh

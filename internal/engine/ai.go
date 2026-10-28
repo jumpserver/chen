@@ -14,6 +14,7 @@ import (
 	"unicode/utf16"
 
 	"github.com/jumpserver/chen/internal/jumpserver"
+	"github.com/jumpserver/chen/internal/sqlanalysis"
 	"github.com/jumpserver/chen/internal/sqlservice"
 )
 
@@ -291,12 +292,37 @@ func (v *Server) runAITool(ctx context.Context, r *http.Request, s *session, e a
 		if err == nil && (len(analysis.Statements) == 0 || len(analysis.Statements) > 100) {
 			err = errors.New("Invalid statement count")
 		}
-		checked := map[string]any{"valid": err == nil, "statementCount": len(analysis.Statements), "statements": analysis.Statements, "dialect": e.Dialect, "execution": "never"}
+		checked := map[string]any{"syntax": analysis.Syntax, "compatibility": analysis.Compatibility, "diagnostics": analysis.Diagnostics, "valid": err == nil && analysis.Syntax == sqlanalysis.Checked, "statementCount": len(analysis.Statements), "statements": analysis.Statements, "dialect": e.Dialect, "execution": "never"}
+		var messages []string
+		for _, d := range analysis.Diagnostics {
+			messages = append(messages, d.Message)
+		}
 		if err != nil {
-			checked["message"] = "Chen cannot parse this SQL draft in the selected dialect"
+			checked["message"] = err.Error()
+			messages = append(messages, err.Error())
+			var diagnostic *sqlanalysis.Error
+			if errors.As(err, &diagnostic) {
+				checked["diagnostics"] = []sqlanalysis.Diagnostic{diagnostic.Diagnostic}
+			}
+		} else if analysis.Syntax != sqlanalysis.Checked {
+			checked["message"] = "Syntax is unknown; only statement boundaries were checked"
+		}
+		checked["riskReason"] = strings.Join(messages, "; ")
+		if err != nil || analysis.Syntax != sqlanalysis.Checked {
+			checked["errors"] = messages
+		}
+		if len(analysis.Statements) == 1 {
+			checked["statementType"] = analysis.Statements[0].Kind
 		}
 		if name == "validate_sql" {
-			return checked, nil
+			// Keep the flat fields for existing API clients; Luna consumes the
+			// same result through the established kind/analysis envelope.
+			response := make(map[string]any, len(checked)+2)
+			for k, value := range checked {
+				response[k] = value
+			}
+			response["kind"], response["analysis"] = "validation", checked
+			return response, nil
 		}
 		if err != nil {
 			return nil, errors.New("SQL draft cannot be parsed")

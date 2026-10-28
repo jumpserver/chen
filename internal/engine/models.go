@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/jumpserver/chen/internal/jumpserver"
+	"github.com/jumpserver/chen/internal/sqlanalysis"
 	"github.com/jumpserver/chen/internal/sqlservice"
 )
 
@@ -82,6 +83,7 @@ type Column struct {
 }
 type Result struct {
 	consoleID       string
+	sourceAnalysis  *sqlanalysis.Statement
 	sourceSQL       string
 	browse          *editBrowse
 	original        [][]any
@@ -110,6 +112,7 @@ type Event struct {
 type execution struct {
 	edit            *editPlan // immutable plan, consumed under console lock
 	browse          *editBrowse
+	resultAnalysis  *sqlanalysis.Statement
 	resultSQL       string     // worker-owned original SQL for result provenance
 	export          *exportJob // immutable after queue publication
 	mu              sync.RWMutex

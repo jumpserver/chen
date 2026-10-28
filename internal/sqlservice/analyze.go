@@ -7,6 +7,10 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/jumpserver/chen/internal/sqlanalysis"
+	mssqlanalysis "github.com/jumpserver/chen/internal/sqlanalysis/mssql"
+	oracleanalysis "github.com/jumpserver/chen/internal/sqlanalysis/oracle"
+
 	pg "github.com/pganalyze/pg_query_go/v6"
 	"github.com/pingcap/tidb/pkg/parser"
 	"github.com/pingcap/tidb/pkg/parser/ast"
@@ -19,7 +23,7 @@ func Analyze(dialect Dialect, document string) (Analysis, error) {
 	return AnalyzeWithOptions(dialect, document, AnalyzeOptions{})
 }
 
-// AnalyzeWithOptions uses native syntax parsers for PostgreSQL/MySQL. Other
+// AnalyzeWithOptions uses native syntax parsers for Oracle/SQL Server/PostgreSQL/MySQL. Other
 // dialects use a bounded statement scanner; their server validates SQL
 // grammar at execution. Neither path is an authorization boundary.
 // Statements always refer to original UTF-8 byte spans; no AST serialization is
@@ -27,12 +31,20 @@ func Analyze(dialect Dialect, document string) (Analysis, error) {
 // PostgreSQL SQL/plpgsql function bodies require server semantic validation in
 // addition to this syntactic analysis (extensions may install other languages).
 func AnalyzeWithOptions(dialect Dialect, document string, options AnalyzeOptions) (Analysis, error) {
-	result := Analysis{Statements: []Statement{}}
+	result := Analysis{Statements: []Statement{}, Syntax: sqlanalysis.Unknown, Compatibility: sqlanalysis.Unknown}
 	if !supported(dialect) {
 		return result, ErrUnsupportedDialect
 	}
 	if len(document) > MaxDocumentBytes {
 		return result, ErrDocumentTooLarge
+	}
+	if dialect == Oracle {
+		facts, err := (oracleanalysis.Analyzer{}).Analyze(sqlanalysis.Input{SQL: document, Profile: sqlanalysis.Profile{Dialect: sqlanalysis.Oracle}})
+		return analysisFromFacts(document, facts, err)
+	}
+	if dialect == SQLServer {
+		facts, err := (mssqlanalysis.Analyzer{}).Analyze(sqlanalysis.Input{SQL: document, Profile: sqlanalysis.Profile{Dialect: sqlanalysis.SQLServer}})
+		return analysisFromFacts(document, facts, err)
 	}
 	if !utf8.ValidString(document) {
 		return result, fmt.Errorf("SQL document is not valid UTF-8")
@@ -45,7 +57,8 @@ func AnalyzeWithOptions(dialect Dialect, document string, options AnalyzeOptions
 		if err != nil || len(inner.Statements) != 1 {
 			return result, fmt.Errorf("ClickHouse estimated plans require one read query")
 		}
-		return Analysis{Statements: []Statement{{SQL: document, Start: 0, End: len(document), Kind: "explain", ReturnsRows: true}}}, nil
+		inner.Statements = []Statement{{SQL: document, Start: 0, End: len(document), Kind: "explain", ReturnsRows: true}}
+		return inner, nil
 	}
 	if dialect != PostgreSQL && !IsMySQLDialect(dialect) {
 		return analyzeCommandDocument(dialect, document, options)
@@ -80,6 +93,7 @@ func AnalyzeWithOptions(dialect Dialect, document string, options AnalyzeOptions
 			returnsRows, mayWrite := pgStatementCapabilities(node.Stmt)
 			result.Statements = append(result.Statements, Statement{SQL: document[start:end], Start: start, End: end, Kind: strings.ToLower(kind), ReturnsRows: returnsRows, MayWrite: mayWrite})
 		}
+		result.Syntax = sqlanalysis.Checked
 		return result, nil
 	}
 	input, err := mysqlParserInput(document, options)
@@ -122,6 +136,7 @@ func AnalyzeWithOptions(dialect Dialect, document string, options AnalyzeOptions
 		returnsRows, mayWrite := mysqlStatementCapabilities(node)
 		result.Statements = append(result.Statements, Statement{SQL: document[start:end], Start: start, End: end, Kind: kind, ReturnsRows: returnsRows, MayWrite: mayWrite})
 	}
+	result.Syntax = sqlanalysis.Checked
 	return result, nil
 }
 

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/jumpserver/chen/internal/sqlanalysis"
+
 	"github.com/pingcap/tidb/pkg/parser/mysql"
 )
 
@@ -33,7 +35,13 @@ func AnalyzeEditableQuery(d Dialect, document string, opts AnalyzeOptions) (Edit
 		return EditableSource{}, fmt.Errorf("%w: %s", ErrNotEditable, reason)
 	}
 	analysis, err := AnalyzeWithOptions(d, document, opts)
-	if err != nil || len(analysis.Statements) != 1 || !analysis.Statements[0].ReturnsRows || analysis.Statements[0].MayWrite {
+	if err != nil {
+		return EditableSource{}, fmt.Errorf("%w: %w", ErrNotEditable, err)
+	}
+	if len(analysis.Statements) == 1 && analysis.Statements[0].Facts != nil {
+		return EditableSourceFromFacts(*analysis.Statements[0].Facts)
+	}
+	if len(analysis.Statements) != 1 || !analysis.Statements[0].ReturnsRows || analysis.Statements[0].MayWrite {
 		return fail("one SELECT is required")
 	}
 	mode, err := mysql.GetSQLMode(opts.MySQLSQLMode)
@@ -215,4 +223,39 @@ func editOwnerMatches(s string, source EditableSource, d Dialect) bool {
 		owner = source.Table
 	}
 	return editNameKey(s, d) == editNameKey(owner, d)
+}
+
+// EditableSourceFromFacts reuses an already parsed statement. Metadata and
+// actual result-column confirmation remain mandatory for every candidate.
+func EditableSourceFromFacts(f sqlanalysis.Statement) (EditableSource, error) {
+	if !f.SourceCandidate || f.Kind != sqlanalysis.Select || f.MayWrite || !f.ReturnsRows || len(f.Tables) != 1 || len(f.Projections) == 0 {
+		for _, d := range f.Diagnostics {
+			if d.Code == sqlanalysis.Unsupported {
+				return EditableSource{}, fmt.Errorf("%w: %w", ErrNotEditable, &sqlanalysis.Error{Diagnostic: d})
+			}
+		}
+		return EditableSource{}, fmt.Errorf("%w: source identity is not proven", ErrNotEditable)
+	}
+	t := f.Tables[0]
+	if t.Name.Name == "" || t.Database.Name != "" || t.Server.Name != "" {
+		return EditableSource{}, fmt.Errorf("%w: one local base table is required", ErrNotEditable)
+	}
+	out := EditableSource{Schema: t.Schema.Name, Table: t.Name.Name, Alias: t.Alias.Name}
+	for _, p := range f.Projections {
+		if !p.Direct {
+			return EditableSource{}, fmt.Errorf("%w: direct columns are required", ErrNotEditable)
+		}
+		if p.Star {
+			if len(f.Projections) != 1 {
+				return EditableSource{}, fmt.Errorf("%w: mixed wildcard projection", ErrNotEditable)
+			}
+			out.Star = true
+			continue
+		}
+		if p.Column.Name == "" || p.Label.Name == "" {
+			return EditableSource{}, fmt.Errorf("%w: column identity is unknown", ErrNotEditable)
+		}
+		out.Columns = append(out.Columns, EditProjection{Name: p.Column.Name, Label: p.Label.Name})
+	}
+	return out, nil
 }
