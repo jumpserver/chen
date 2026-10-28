@@ -363,8 +363,14 @@ func (v *Server) runAITool(ctx context.Context, r *http.Request, s *session, e a
 		rr := r.Clone(ctx)
 		rr.URL = &url.URL{Path: r.URL.Path, RawQuery: url.Values{"schema": {e.Schema}, "limit": {"100"}}.Encode()}
 		w := &aiCatalogWriter{header: make(http.Header)}
-		req := v.beginCatalog(w, rr, "ai")
+		req := v.beginCatalogAccess(w, rr, "ai", &e)
 		if req == nil {
+			var failure struct {
+				Error APIError `json:"error"`
+			}
+			if json.Unmarshal(w.body.Bytes(), &failure) == nil && failure.Error.Message != "" {
+				return nil, errors.New(failure.Error.Message)
+			}
 			return nil, errors.New("Authorized catalog is unavailable")
 		}
 		defer req.done()
