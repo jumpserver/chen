@@ -262,11 +262,16 @@ public class JMSSession extends BaseSession {
     @Override
     public void close() {
         try {
-            this.replayHandler.release();
-            this.finishedJmsSession();
-            this.closeGateway();
+            this.runCloseAction("release replay", () -> {
+                if (this.replayHandler != null) {
+                    this.replayHandler.release();
+                }
+            });
+            this.runCloseAction("finish JumpServer session", this::finishedJmsSession);
+            this.runCloseAction("close gateway", this::closeGateway);
             if (!this.closed) {
-                this.recordLifecycle(ServiceOuterClass.SessionLifecycleLogRequest.EventType.AssetConnectFinished, "connect_disconnect");
+                this.runCloseAction("record session lifecycle", () ->
+                        this.recordLifecycle(ServiceOuterClass.SessionLifecycleLogRequest.EventType.AssetConnectFinished, "connect_disconnect"));
             }
 
         } finally {
@@ -277,16 +282,21 @@ public class JMSSession extends BaseSession {
     public void close(String message, String reason, Object... args) {
         SessionManager.setContext(this.getWebToken());
 
-        this.getPacketIO().sendPacket("session_close", null);
+        try {
+            this.runCloseAction("notify session close", () -> {
+                this.getPacketIO().sendPacket("session_close", null);
 
-        var dialog = new Dialog(MessageUtils.get("SessionFinished"));
-        dialog.setBody(MessageUtils.get(message, args));
-        this.getController().showDialog(dialog);
+                var dialog = new Dialog(MessageUtils.get("SessionFinished"));
+                dialog.setBody(MessageUtils.get(message, args));
+                this.getController().showDialog(dialog);
+            });
 
-        this.recordLifecycle(ServiceOuterClass.SessionLifecycleLogRequest.EventType.AssetConnectFinished, reason);
-        this.closed = true;
-
-        this.close();
+            this.runCloseAction("record session lifecycle", () ->
+                    this.recordLifecycle(ServiceOuterClass.SessionLifecycleLogRequest.EventType.AssetConnectFinished, reason));
+            this.closed = true;
+        } finally {
+            this.close();
+        }
     }
 
     private void finishedJmsSession() {
