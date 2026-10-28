@@ -10,6 +10,7 @@ data
 build
 output
 frontend
+# Retired implementation artifacts and private local configuration
 backend
 drivers
 config

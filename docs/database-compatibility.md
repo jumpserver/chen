@@ -85,7 +85,7 @@ go test -tags ibmdb ./internal/engine -run '^TestReadonly(DatabaseMatrix|DriverC
 ```
 
 可用 `CHEN_READONLY_SELECTOR` 只验收一个 selector。测试日志只记录检查项和结果，不输出连接凭据或业务记录。
-默认 `Dockerfile-go` 不打包 IBM CLI；Db2 部署需要与运行平台对应的 CLI 和带 `ibmdb` 标签的构建。
+默认 `Dockerfile` 不打包 IBM CLI；Db2 部署需要与运行平台对应的 CLI 和带 `ibmdb` 标签的构建，正式镜像通过 `make image-ee WITH_DB2=1 PLATFORM=linux/amd64` 构建。
 
 ## 解析与传输边界
 
