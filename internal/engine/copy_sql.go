@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -72,13 +73,11 @@ func (v *Server) copyResultSQL(w http.ResponseWriter, req *http.Request) {
 				return
 			}
 		}
-		if (dialect == "mysql" || dialect == "mariadb" || dialect == "oceanbase-mysql") && result.browse == nil && (result.editSource == nil || !result.editSource.Star) {
-			// ponytail: MySQL catalog column grants can hide trailing required
-			// columns. A successful SELECT * plus the common exact count/label
-			// check proves completeness; projected queries need a privilege-aware
-			// completeness contract before INSERT copying can be enabled.
-			fail(w, 409, "copy_sql_unavailable", "MySQL INSERT SQL requires a full-table SELECT * or table browse result to prove complete column metadata")
-			return
+		if sqlservice.IsMySQLDialect(sqlservice.Dialect(dialect)) && result.browse == nil && (result.editSource == nil || !result.editSource.Star) {
+			if err := v.confirmCopyInsertColumns(ctx, s, c, x.table); err != nil {
+				fail(w, 409, "copy_sql_unavailable", err.Error())
+				return
+			}
 		}
 	}
 	// Recheck both historical and current policy. A permission to copy visible
@@ -135,6 +134,39 @@ func (v *Server) copyResultSQL(w http.ResponseWriter, req *http.Request) {
 	}
 	writeJSON(w, 200, output)
 }
+
+// MySQL can hide columns from INFORMATION_SCHEMA under column grants. For a
+// direct projection, confirm the catalog's complete column list using a zero-row
+// result on the same authenticated console. This is verification, not a fallback
+// source/metadata discovery path, and never supplies values to the generated SQL.
+func (v *Server) confirmCopyInsertColumns(ctx context.Context, s *session, c *console, table sqlservice.EditTable) error {
+	query := "SELECT * FROM " + editQualified(table.Schema, table.Table, s.grant.Config.Dialect) + " WHERE 1=0"
+	if err := v.provider.Authorize(ctx, s.grant, query); err != nil {
+		return errors.New("Complete INSERT column metadata cannot be confirmed because the metadata query is not authorized")
+	}
+	rows, err := c.conn.QueryContext(ctx, query)
+	if err != nil {
+		return errors.New("Complete INSERT column metadata is unavailable on this connection")
+	}
+	defer rows.Close()
+	columns, err := rows.Columns()
+	if err != nil || len(columns) != len(table.Columns) {
+		return errors.New("Table column metadata changed or is incomplete; refresh before copying INSERT SQL")
+	}
+	for i, name := range columns {
+		if !strings.EqualFold(name, table.Columns[i].Name) {
+			return errors.New("Table column metadata changed or is incomplete; refresh before copying INSERT SQL")
+		}
+	}
+	if rows.Next() {
+		return errors.New("The INSERT metadata query unexpectedly returned rows")
+	}
+	if rows.Err() != nil {
+		return errors.New("Complete INSERT column metadata is unavailable on this connection")
+	}
+	return nil
+}
+
 func validateCopySelection(req copySQLRequest) error {
 	if req.Operation != "insert" && req.Operation != "update" {
 		return errors.New("Choose INSERT or UPDATE SQL")
