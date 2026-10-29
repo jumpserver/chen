@@ -18,7 +18,7 @@ var copyTypeParameters = regexp.MustCompile(`\([0-9 ,]+\)`)
 // This is a closed set of literal codecs, not the parameterized write-back
 // formatter. Unknown types fail even for NULL, so their semantics stay explicit.
 func copySQLLiteral(dialect, dataType string, value any) (string, error) {
-	t := strings.ToLower(strings.Join(strings.Fields(copyTypeParameters.ReplaceAllString(dataType, "")), " "))
+	t := copyTypeName(dataType)
 	if dialect == "mysql" || dialect == "mariadb" || dialect == "oceanbase-mysql" {
 		t = strings.TrimSuffix(t, " unsigned")
 	}
@@ -71,6 +71,19 @@ func copySQLLiteral(dialect, dataType string, value any) (string, error) {
 		case "binary", "varbinary", "image":
 			kind = "binary"
 		case "date", "time", "datetime", "smalldatetime", "datetime2", "datetimeoffset":
+			kind = "temporal"
+		}
+	case "dameng":
+		switch t {
+		case "tinyint", "smallint", "int", "integer", "bigint", "dec", "decimal", "numeric", "number", "real", "float", "double", "double precision":
+			kind = "number"
+		case "char", "varchar", "varchar2":
+			kind = "text"
+		case "bit":
+			kind = "bool"
+		case "binary", "varbinary", "raw":
+			kind = "binary"
+		case "date", "time", "timestamp", "datetime":
 			kind = "temporal"
 		}
 	case "oracle":
@@ -144,6 +157,11 @@ func copySQLLiteral(dialect, dataType string, value any) (string, error) {
 			return "decode('" + h + "', 'hex')", nil
 		case "sqlserver":
 			return "0x" + h, nil
+		case "dameng":
+			if len(data) == 0 || len(data) > 32767 {
+				return "", errors.New("DM binary SQL copying supports 1 to 32767 bytes")
+			}
+			return "0x" + h, nil
 		case "oracle":
 			if len(data) == 0 || len(data) > 2000 {
 				return "", errors.New("Oracle RAW SQL copying supports 1 to 2000 bytes")
@@ -181,6 +199,10 @@ func copySQLLiteral(dialect, dataType string, value any) (string, error) {
 	}
 	return literal, nil
 }
+func copyTypeName(dataType string) string {
+	return strings.ToLower(strings.Join(strings.Fields(copyTypeParameters.ReplaceAllString(dataType, "")), " "))
+}
+
 func copyTextLiteral(dialect, text string) (string, error) {
 	escaped := strings.ReplaceAll(text, "'", "''")
 	switch dialect {
@@ -192,31 +214,50 @@ func copyTextLiteral(dialect, text string) (string, error) {
 		return "E'" + strings.ReplaceAll(escaped, "\\", "\\\\") + "'", nil
 	case "sqlserver":
 		return "N'" + escaped + "'", nil
+	case "dameng":
+		// DM distinguishes empty strings in its native mode. The HTTP consumer
+		// confirms empty-string and UNISTR behavior on the pinned connection.
+		if text == "" {
+			return "''", nil
+		}
+		encoded := copyUnicodeText(text)
+		if len(encoded) > 32767 {
+			return "", errors.New("DM character literal encoding exceeds the 32767-byte copier limit")
+		}
+		return "UNISTR('" + encoded + "')", nil
 	case "oracle":
 		if text == "" {
 			return "", errors.New("Oracle empty character strings become NULL; this value cannot be copied losslessly")
 		}
 		// UNISTR keeps non-ASCII characters and backslashes independent of
 		// the SQL client's database/national character-set conversion.
-		var encoded strings.Builder
-		for _, unit := range utf16.Encode([]rune(text)) {
-			switch {
-			case unit >= 128 || unit == '\\':
-				fmt.Fprintf(&encoded, "\\%04X", unit)
-			case unit == '\'':
-				encoded.WriteString("''")
-			default:
-				encoded.WriteRune(rune(unit))
-			}
-		}
-		if encoded.Len() > 4000 {
+		encoded := copyUnicodeText(text)
+		if len(encoded) > 4000 {
 			return "", errors.New("Oracle character literal encoding exceeds the 4000-byte copier limit")
 		}
-		return "UNISTR('" + encoded.String() + "')", nil
+		return "UNISTR('" + encoded + "')", nil
 	default:
 		return "", errors.New("SQL copying is not supported for this dialect")
 	}
 }
+
+// Both vendors document UNISTR's four-hex-digit escape. Their type, length and
+// empty-string policies remain separate; DM also verifies the required encoding.
+func copyUnicodeText(text string) string {
+	var encoded strings.Builder
+	for _, unit := range utf16.Encode([]rune(text)) {
+		switch {
+		case unit >= 128 || unit == '\\':
+			fmt.Fprintf(&encoded, "\\%04X", unit)
+		case unit == '\'':
+			encoded.WriteString("''")
+		default:
+			encoded.WriteRune(rune(unit))
+		}
+	}
+	return encoded.String()
+}
+
 func copyTemporalLiteral(dialect, t, text string) (string, error) {
 	// Only complete ISO values are accepted. BC/infinity, zero dates, named zones,
 	// intervals and dialect-specific text require separate codecs.
@@ -245,7 +286,7 @@ func copyTemporalLiteral(dialect, t, text string) (string, error) {
 	if err != nil || !clock && (parsed.Year() < 1 || parsed.Year() > 9999) {
 		return "", errors.New("This temporal value is outside the supported complete ISO formats")
 	}
-	if dialect == "sqlserver" && parsed.Nanosecond()%100 != 0 || (dialect == "mysql" || dialect == "mariadb" || dialect == "oceanbase-mysql") && parsed.Nanosecond()%1000 != 0 {
+	if dialect == "dameng" && clock && parsed.Nanosecond()%1000 != 0 || dialect == "sqlserver" && parsed.Nanosecond()%100 != 0 || (dialect == "mysql" || dialect == "mariadb" || dialect == "oceanbase-mysql") && parsed.Nanosecond()%1000 != 0 {
 		return "", errors.New("Temporal precision exceeds the target dialect codec")
 	}
 	output := parsed.Format("2006-01-02 15:04:05.999999999")
@@ -266,6 +307,15 @@ func copyTemporalLiteral(dialect, t, text string) (string, error) {
 			output = strings.Replace(output, " ", "T", 1)
 		}
 		return "CONVERT(" + t + ", N'" + output + "', 126)", nil
+	case "dameng":
+		target := "TIMESTAMP"
+		if date {
+			target = "DATE"
+		}
+		if clock {
+			target = "TIME"
+		}
+		return target + " '" + output + "'", nil
 	case "oracle":
 		return "TIMESTAMP '" + output + "'", nil
 	default:

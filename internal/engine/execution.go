@@ -702,6 +702,13 @@ func (v *Server) readRows(s *session, rows *sql.Rows) (*Result, error) {
 			if data, ok := raw[i].([]byte); ok && data != nil && !binaryResultType(types[i].DatabaseTypeName()) && !validTextBytes(data) {
 				copyLossy[i] = true
 			}
+			// DM DATE can vary with compatibility mode. Never copy a date-only
+			// display if a driver actually supplied a non-midnight time of day.
+			if s.grant.Config.Dialect == "dameng" && strings.EqualFold(types[i].DatabaseTypeName(), "DATE") {
+				if value, ok := raw[i].(time.Time); ok && (value.Hour() != 0 || value.Minute() != 0 || value.Second() != 0 || value.Nanosecond() != 0) {
+					copyLossy[i] = true
+				}
+			}
 			raw[i], err = materializeValue(raw[i], types[i].DatabaseTypeName(), v.opts.MaxResultBytes)
 			if err != nil {
 				return nil, err
