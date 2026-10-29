@@ -87,6 +87,7 @@ type Result struct {
 	sourceSQL       string
 	browse          *editBrowse
 	original        [][]any
+	copyLossy       [][]bool // driver bytes rendered as hex instead of text
 	masked          [][]bool
 	rowRefs         []string
 	editStale       bool // guarded by session.mu
@@ -118,6 +119,7 @@ type execution struct {
 	mu              sync.RWMutex
 	view            ExecutionView
 	sql             string
+	documentVersion int // immutable editor version bound at submission
 	ctx             context.Context
 	cancel          context.CancelFunc
 	cancelDone      chan struct{}

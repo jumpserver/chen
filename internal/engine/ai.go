@@ -18,6 +18,14 @@ import (
 	"github.com/jumpserver/chen/internal/sqlservice"
 )
 
+type aiExecutionError struct {
+	ExecutionID      string `json:"executionId"`
+	Code             string `json:"code,omitempty"`
+	Message          string `json:"message,omitempty"`
+	SQL              string `json:"sql,omitempty"`
+	MessageTruncated bool   `json:"messageTruncated,omitempty"`
+}
+
 type aiTask struct{ cancel context.CancelFunc }
 type aiRPC struct {
 	JSONRPC string          `json:"jsonrpc"`
@@ -245,9 +253,49 @@ func resolveAIEditor(s *session, raw json.RawMessage) (aiEditorContext, error) {
 	if e.ProposalTarget != "selection" && e.ProposalTarget != "document" && e.ProposalTarget != "new_query" || e.ProposalTarget == "selection" && selected == "" || e.ProposalTarget != "new_query" && e.TabID == "" {
 		return e, errors.New("Invalid SQL proposal target")
 	}
-	e.LastError = nil // Server errors may contain business data; never forward browser text.
+	lastError, err := resolveAIExecutionError(s, e)
+	if err != nil {
+		return e, err
+	}
+	e.LastError = nil
+	if lastError != nil {
+		e.LastError = lastError
+	}
 	return e, nil
 }
+
+// Only an execution reference is accepted from the browser. Its diagnostic and
+// SQL are recovered from this session's completed execution, never client text.
+func resolveAIExecutionError(s *session, editor aiEditorContext) (*aiExecutionError, error) {
+	raw, _ := json.Marshal(editor.LastError)
+	var reference struct {
+		ExecutionID string `json:"executionId"`
+	}
+	if json.Unmarshal(raw, &reference) != nil || reference.ExecutionID == "" {
+		return nil, nil // Older clients have no trusted execution reference.
+	}
+	if len(reference.ExecutionID) > 128 {
+		return nil, errors.New("Invalid SQL execution reference")
+	}
+	s.mu.Lock()
+	execution := s.executions[reference.ExecutionID]
+	s.mu.Unlock()
+	if execution == nil {
+		return nil, errors.New("SQL execution error is unavailable in this session")
+	}
+	view := execution.snapshot()
+	target := editor.DocumentSQL
+	if editor.ProposalTarget == "selection" {
+		target = editor.SelectedSQL
+	}
+	if view.ConsoleID != editor.ConsoleID || view.Status != "failed" || view.Error == nil || execution.edit != nil || execution.export != nil || execution.browse != nil ||
+		execution.documentVersion != editor.Revision || strings.TrimSpace(execution.sql) == "" ||
+		(editor.ProposalTarget == "selection" && target != execution.sql) || !strings.Contains(target, execution.sql) {
+		return nil, errors.New("SQL execution error no longer matches this editor; refresh its execution context before requesting a repair")
+	}
+	return &aiExecutionError{ExecutionID: view.ID, Code: view.Error.Code, Message: view.Error.Message, SQL: execution.sql}, nil
+}
+
 func (v *Server) runAITool(ctx context.Context, r *http.Request, s *session, e aiEditorContext, name string, raw json.RawMessage) (any, error) {
 	var args struct {
 		SQL         string   `json:"sql"`
@@ -279,6 +327,21 @@ func (v *Server) runAITool(ctx context.Context, r *http.Request, s *session, e a
 			if len(m) != 0 {
 				return nil, errors.New("read_sql_context takes no arguments")
 			}
+		}
+		lastError, err := resolveAIExecutionError(s, e)
+		if err != nil {
+			return nil, err
+		}
+		e.LastError = nil
+		if lastError != nil {
+			if _, masked := v.provider.Mask(s.grant, "", "", lastError.Message); masked {
+				lastError.Message = "Database diagnostic details are hidden by the data masking policy"
+			}
+			if len(lastError.Message) > 4096 {
+				lastError.Message = strings.ToValidUTF8(lastError.Message[:4096], "") + "…"
+				lastError.MessageTruncated = true
+			}
+			e.LastError = lastError
 		}
 		if e.SelectedSQL != "" {
 			e.DocumentSQL = ""
@@ -363,8 +426,14 @@ func (v *Server) runAITool(ctx context.Context, r *http.Request, s *session, e a
 		rr := r.Clone(ctx)
 		rr.URL = &url.URL{Path: r.URL.Path, RawQuery: url.Values{"schema": {e.Schema}, "limit": {"100"}}.Encode()}
 		w := &aiCatalogWriter{header: make(http.Header)}
-		req := v.beginCatalog(w, rr, "ai")
+		req := v.beginCatalogAccess(w, rr, "ai", &e)
 		if req == nil {
+			var failure struct {
+				Error APIError `json:"error"`
+			}
+			if json.Unmarshal(w.body.Bytes(), &failure) == nil && failure.Error.Message != "" {
+				return nil, errors.New(failure.Error.Message)
+			}
 			return nil, errors.New("Authorized catalog is unavailable")
 		}
 		defer req.done()

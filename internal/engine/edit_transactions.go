@@ -177,7 +177,9 @@ func (b *editBoundary) finish(ctx context.Context) error {
 	if b.tx != nil {
 		return b.tx.Commit()
 	}
-	if b.dialect == "oracle" || b.dialect == "dameng" || b.dialect == "sqlserver" {
+	// OB Oracle follows the vendor Oracle-mode lifecycle without RELEASE.
+	// The enclosing user transaction retains ownership of its savepoints.
+	if b.dialect == "oracle" || b.dialect == "oceanbase-oracle" || b.dialect == "sqlserver" {
 		return nil
 	}
 	_, err := b.conn.ExecContext(ctx, "RELEASE SAVEPOINT "+b.savepoint)
@@ -188,14 +190,14 @@ func (b *editBoundary) rollback(ctx context.Context) error {
 		return b.tx.Rollback()
 	}
 	q := "ROLLBACK TO SAVEPOINT " + b.savepoint
-	if b.dialect == "oracle" || b.dialect == "dameng" {
+	if b.dialect == "oracle" {
 		q = "ROLLBACK TO " + b.savepoint
 	}
 	if b.dialect == "sqlserver" {
 		q = "ROLLBACK TRANSACTION " + b.savepoint
 	}
 	_, err := b.conn.ExecContext(ctx, q)
-	if err == nil && b.dialect != "oracle" && b.dialect != "dameng" && b.dialect != "sqlserver" {
+	if err == nil && b.dialect != "oracle" && b.dialect != "oceanbase-oracle" && b.dialect != "sqlserver" {
 		_, err = b.conn.ExecContext(ctx, "RELEASE SAVEPOINT "+b.savepoint)
 	}
 	return err

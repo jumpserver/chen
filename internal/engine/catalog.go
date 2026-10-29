@@ -104,6 +104,12 @@ func parseCatalogScope(r *http.Request, operation string) (catalogScope, error) 
 }
 
 func (v *Server) beginCatalog(w http.ResponseWriter, r *http.Request, operation string) *catalogRequest {
+	return v.beginCatalogAccess(w, r, operation, nil)
+}
+
+// AI metadata shares catalog budgets and audit, but must use the editor console
+// connection so database, schema and session permissions cannot drift apart.
+func (v *Server) beginCatalogAccess(w http.ResponseWriter, r *http.Request, operation string, editor *aiEditorContext) *catalogRequest {
 	s := v.auth(w, r, false)
 	if s == nil {
 		return nil
@@ -183,19 +189,42 @@ func (v *Server) beginCatalog(w http.ResponseWriter, r *http.Request, operation 
 		fail(w, 403, "session_unavailable", err.Error())
 		return nil
 	}
-	conn, err := resource.db.Conn(ctx)
-	if err != nil {
-		finish()
-		catalogError(w, r, s, err)
-		return nil
-	}
-	connFinish := finish
-	finish = func() { _ = conn.Close(); connFinish() }
+	var conn *sql.Conn
 	var current sqlservice.Context
-	if s.grant.Config.Dialect == "postgresql" {
-		err = conn.QueryRowContext(ctx, "SELECT pg_catalog.current_database()").Scan(&current.Database)
+	if editor != nil {
+		lookup := r.Clone(ctx)
+		lookup.SetPathValue("cid", editor.ConsoleID)
+		c := v.findConsole(w, lookup, s)
+		if c == nil {
+			finish()
+			return nil
+		}
+		if !c.mu.TryLock() {
+			finish()
+			fail(w, 409, "console_busy", "AI metadata is unavailable while this console is executing")
+			return nil
+		}
+		consoleFinish := finish
+		stopConsole := context.AfterFunc(c.ctx, cancel)
+		finish = func() { stopConsole(); c.mu.Unlock(); consoleFinish() }
+		if c.closed.Load() || c.lost.Load() || c.conn == nil {
+			finish()
+			fail(w, 409, "connection_lost", "Open a new console; the previous connection state cannot be restored")
+			return nil
+		}
+		conn = c.conn
+		current, err = liveContext(ctx, c, s.grant.Config.Dialect)
 	} else {
-		current, err = connectionContext(ctx, conn, s.grant.Config.Dialect, sqlservice.Context{Database: s.grant.Config.Database, Schema: s.grant.Config.Schema})
+		conn, err = resource.db.Conn(ctx)
+		if err == nil {
+			connFinish := finish
+			finish = func() { _ = conn.Close(); connFinish() }
+			if s.grant.Config.Dialect == "postgresql" {
+				err = conn.QueryRowContext(ctx, "SELECT pg_catalog.current_database()").Scan(&current.Database)
+			} else {
+				current, err = connectionContext(ctx, conn, s.grant.Config.Dialect, sqlservice.Context{Database: s.grant.Config.Database, Schema: s.grant.Config.Schema})
+			}
+		}
 	}
 	database := current.Database
 	if err != nil {
@@ -208,18 +237,26 @@ func (v *Server) beginCatalog(w http.ResponseWriter, r *http.Request, operation 
 		fail(w, 409, "catalog_database_required", "Configure a database before browsing its catalog")
 		return nil
 	}
-	// The server selected this database from the trusted connection config.
-	// Preserve its canonical name, including lower_case_table_names behavior.
-	resource.mu.Lock()
-	if resource.database == "" {
-		resource.database = database
-	}
-	sameDatabase := resource.database == database
-	resource.mu.Unlock()
-	if !sameDatabase {
-		finish()
-		fail(w, 409, "catalog_scope_changed", "Catalog database scope changed")
-		return nil
+	if editor != nil {
+		if current.Schema == "" || database != editor.Database || current.Schema != editor.Schema {
+			finish()
+			fail(w, 409, "catalog_scope_changed", "SQL editor scope changed; reopen the query in the current database and schema")
+			return nil
+		}
+	} else {
+		// Only the independent tree connection is bound to the grant database.
+		// AI may use a console opened in another verified database.
+		resource.mu.Lock()
+		if resource.database == "" {
+			resource.database = database
+		}
+		sameDatabase := resource.database == database
+		resource.mu.Unlock()
+		if !sameDatabase {
+			finish()
+			fail(w, 409, "catalog_scope_changed", "Catalog database scope changed")
+			return nil
+		}
 	}
 	request := &catalogRequest{session: s, resource: resource, conn: conn, ctx: ctx, database: database, scope: scope, done: finish}
 	if scope.cursor != "" {
