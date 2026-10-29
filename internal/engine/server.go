@@ -47,7 +47,7 @@ func (v *Server) Handler() http.Handler {
 		if v.opts.SingleMode {
 			mode = "single"
 		}
-		writeJSON(w, 200, map[string]any{"version": 1, "mode": mode, "protocols": supportedProtocols(), "transport": "http+sse", "features": []string{"query", "cancel", "completion", "audit", "grid_edit", "csv_import"}})
+		writeJSON(w, 200, map[string]any{"version": 1, "mode": mode, "protocols": supportedProtocols(), "transport": "http+sse", "features": []string{"query", "cancel", "completion", "audit", "grid_edit", "csv_import", "copy_sql"}})
 	})
 	mux.HandleFunc("POST /chen/api/v1/sessions", v.createSession)
 	mux.HandleFunc("GET /chen/api/v1/sessions/{sid}", v.sessionStatus)
@@ -65,6 +65,7 @@ func (v *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /chen/api/v1/consoles/{cid}/executions", v.submit)
 	mux.HandleFunc("POST /chen/api/v1/consoles/{cid}/browse", v.browseTable)
 	mux.HandleFunc("GET /chen/api/v1/consoles/{cid}/results/{rid}/edit", v.editMetadata)
+	mux.HandleFunc("POST /chen/api/v1/consoles/{cid}/results/{rid}/copy-sql", v.copyResultSQL)
 	mux.HandleFunc("POST /chen/api/v1/consoles/{cid}/results/{rid}/edits/preview", v.previewEdits)
 	mux.HandleFunc("POST /chen/api/v1/consoles/{cid}/edits/{pid}/apply", v.applyEdits)
 	mux.HandleFunc("POST /chen/api/v1/consoles/{cid}/exports", v.submitExport)

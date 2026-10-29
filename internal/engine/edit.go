@@ -133,7 +133,10 @@ func (v *Server) editResult(s *session, c *console, rid string) (*Result, error)
 	}
 	return r, nil
 }
-func (v *Server) resolveEdit(ctx context.Context, s *session, c *console, r *Result) (*editResolved, error) {
+
+// resolveResultSource is shared by editing and SQL copying. It proves provenance
+// and metadata without imposing the write-back path's single-key restriction.
+func (v *Server) resolveResultSource(ctx context.Context, s *session, c *console, r *Result) (*editResolved, error) {
 	mode := "query"
 	if r.browse != nil {
 		mode = "table"
@@ -261,7 +264,15 @@ func (v *Server) resolveEdit(ctx context.Context, s *session, c *console, r *Res
 			x.pk = i
 		}
 	}
-	if len(table.PrimaryKey) != 1 {
+	return x, nil
+}
+
+func (v *Server) resolveEdit(ctx context.Context, s *session, c *console, r *Result) (*editResolved, error) {
+	x, err := v.resolveResultSource(ctx, s, c, r)
+	if err != nil {
+		return x, err
+	}
+	if len(x.table.PrimaryKey) != 1 {
 		return x, errors.New("Editing requires exactly one primary-key column")
 	}
 	if x.pk < 0 || !x.columns[x.pk].Supported {
@@ -551,7 +562,7 @@ func (v *Server) bindResultEditSource(s *session, e *execution, results []*Resul
 			continue
 		}
 		ctx, cancel := context.WithTimeout(e.ctx, 3*time.Second)
-		resolved, err := v.resolveEdit(ctx, s, c, result)
+		resolved, err := v.resolveResultSource(ctx, s, c, result)
 		cancel()
 		if resolved != nil && len(resolved.columns) == len(result.Columns) {
 			v.applyEditSourceMask(s, result, resolved.columns)
@@ -588,6 +599,7 @@ func (v *Server) applyEditSourceMask(s *session, result *Result, columns []sqlse
 		result.Rows = [][]any{}
 		result.original = nil
 		result.masked = nil
+		result.copyLossy = nil
 		result.rowRefs = nil
 		result.TotalRows = 0
 		result.Truncated = true
