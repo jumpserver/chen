@@ -43,7 +43,7 @@ func (v *Server) copyResultSQL(w http.ResponseWriter, req *http.Request) {
 	}
 	dialect := s.grant.Config.Dialect
 	switch dialect {
-	case "postgresql", "mysql", "mariadb", "oceanbase-mysql", "sqlserver", "oracle", "dameng":
+	case "postgresql", "mysql", "mariadb", "oceanbase-mysql", "sqlserver", "oracle", "dameng", "oceanbase-oracle":
 	default:
 		fail(w, 409, "copy_sql_unavailable", "SQL copying is not supported for dialect "+dialect+"; a separate literal codec is required")
 		return
@@ -73,7 +73,7 @@ func (v *Server) copyResultSQL(w http.ResponseWriter, req *http.Request) {
 				return
 			}
 		}
-		if (sqlservice.IsMySQLDialect(sqlservice.Dialect(dialect)) || dialect == "dameng") && result.browse == nil && (result.editSource == nil || !result.editSource.Star) {
+		if (sqlservice.IsMySQLDialect(sqlservice.Dialect(dialect)) || dialect == "dameng" || dialect == "oceanbase-oracle") && result.browse == nil && (result.editSource == nil || !result.editSource.Star) {
 			if err := v.confirmCopyInsertColumns(ctx, s, c, x.table); err != nil {
 				fail(w, 409, "copy_sql_unavailable", err.Error())
 				return
@@ -86,6 +86,9 @@ func (v *Server) copyResultSQL(w http.ResponseWriter, req *http.Request) {
 	check := func(index, row int) error {
 		if index < 0 || index >= len(x.columns) || row < 0 || row >= len(result.Rows) || len(result.original[row]) != len(x.columns) || row >= len(result.masked) || len(result.masked[row]) != len(x.columns) {
 			return errors.New("The selected cached cells are unavailable; refresh first")
+		}
+		if dialect == "oceanbase-oracle" && copyTypeName(x.columns[index].DataType) == "raw" && result.original[row][index] != nil && !binaryResultType(result.Columns[index].DataType) {
+			return fmt.Errorf("Column %s lacks a reliable binary wire type for OB Oracle RAW copying", result.Columns[index].Name)
 		}
 		if row < len(result.copyLossy) && index < len(result.copyLossy[row]) && result.copyLossy[row][index] {
 			return fmt.Errorf("Column %s contains a cached value with encoding or temporal information loss", result.Columns[index].Name)
@@ -124,8 +127,8 @@ func (v *Server) copyResultSQL(w http.ResponseWriter, req *http.Request) {
 		fail(w, 409, "copy_sql_unavailable", err.Error())
 		return
 	}
-	if dialect == "dameng" {
-		if err := v.confirmDMCopyLiterals(ctx, s, c, result, x, input, checked); err != nil {
+	if dialect == "dameng" || dialect == "oceanbase-oracle" {
+		if err := v.confirmCopyCharacterLiterals(ctx, s, c, result, x, input, checked); err != nil {
 			fail(w, 409, "copy_sql_unavailable", err.Error())
 			return
 		}
@@ -142,7 +145,7 @@ func (v *Server) copyResultSQL(w http.ResponseWriter, req *http.Request) {
 }
 
 // MySQL column grants can hide catalog columns. Confirm complete columns for
-// direct MySQL/DM projections using a zero-row result on the pinned console.
+// direct MySQL/DM/OB Oracle projections using a zero-row result on the pinned console.
 // This is verification, not a fallback
 // source/metadata discovery path, and never supplies values to the generated SQL.
 func (v *Server) confirmCopyInsertColumns(ctx context.Context, s *session, c *console, table sqlservice.EditTable) error {
@@ -174,14 +177,22 @@ func (v *Server) confirmCopyInsertColumns(ctx context.Context, s *session, c *co
 }
 
 // Probe only documented, synthetic constants on this console. No user value is
-// sent back to the database. Native/Oracle-compatible empty strings and Unicode
-// conversion are independent DM capabilities, not inferred from Oracle's codec.
-func (v *Server) confirmDMCopyLiterals(ctx context.Context, s *session, c *console, r *Result, x *editResolved, req copySQLRequest, checked map[int]bool) error {
+// sent back to the database. Empty-string and Unicode behavior are confirmed
+// for DM and OB Oracle independently of the native Oracle codec.
+func (v *Server) confirmCopyCharacterLiterals(ctx context.Context, s *session, c *console, r *Result, x *editResolved, req copySQLRequest, checked map[int]bool) error {
+	dialect, product := s.grant.Config.Dialect, "DM"
+	if dialect == "oceanbase-oracle" {
+		product = "OB Oracle"
+	}
 	needed, empty, supplementary := false, false, false
 	for _, row := range req.Rows {
 		for index := range checked {
 			switch copyTypeName(x.columns[index].DataType) {
 			case "char", "varchar", "varchar2":
+			case "nchar", "nvarchar2":
+				if dialect != "oceanbase-oracle" {
+					continue
+				}
 			default:
 				continue
 			}
@@ -203,24 +214,24 @@ func (v *Server) confirmDMCopyLiterals(ctx context.Context, s *session, c *conso
 	if supplementary {
 		sample += "😀"
 	}
-	literal, err := copyTextLiteral("dameng", sample)
+	literal, err := copyTextLiteral(dialect, sample)
 	if err != nil {
 		return err
 	}
 	query := "SELECT " + literal + ", CASE WHEN '' IS NULL THEN 1 ELSE 0 END FROM DUAL"
 	if err := v.provider.Authorize(ctx, s.grant, query); err != nil {
-		return errors.New("DM literal verification is not authorized on this connection")
+		return fmt.Errorf("%s literal verification is not authorized on this connection", product)
 	}
 	var actual string
 	var emptyNull int
 	if err := c.conn.QueryRowContext(ctx, query).Scan(&actual, &emptyNull); err != nil {
-		return errors.New("DM literal behavior cannot be verified on this connection")
+		return fmt.Errorf("%s literal behavior cannot be verified on this connection", product)
 	}
 	if actual != sample || emptyNull < 0 || emptyNull > 1 {
-		return errors.New("DM Unicode literal conversion is not lossless on this connection")
+		return fmt.Errorf("%s Unicode literal conversion is not lossless on this connection", product)
 	}
 	if empty && emptyNull != 0 {
-		return errors.New("This DM compatibility mode converts empty strings to NULL; the cached empty string cannot be copied losslessly")
+		return fmt.Errorf("This %s compatibility mode converts empty strings to NULL; the cached empty string cannot be copied losslessly", product)
 	}
 	return nil
 }

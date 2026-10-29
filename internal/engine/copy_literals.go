@@ -86,6 +86,17 @@ func copySQLLiteral(dialect, dataType string, value any) (string, error) {
 		case "date", "time", "timestamp", "datetime":
 			kind = "temporal"
 		}
+	case "oceanbase-oracle":
+		switch t {
+		case "number", "float", "binary_float", "binary_double":
+			kind = "number"
+		case "char", "varchar", "varchar2", "nchar", "nvarchar2":
+			kind = "text"
+		case "raw":
+			kind = "binary"
+		case "date", "timestamp":
+			kind = "temporal"
+		}
 	case "oracle":
 		switch t {
 		case "number", "float", "binary_float", "binary_double":
@@ -162,6 +173,11 @@ func copySQLLiteral(dialect, dataType string, value any) (string, error) {
 				return "", errors.New("DM binary SQL copying supports 1 to 32767 bytes")
 			}
 			return "0x" + h, nil
+		case "oceanbase-oracle":
+			if len(data) == 0 || len(data) > 2000 {
+				return "", errors.New("OB Oracle RAW SQL copying supports 1 to 2000 bytes")
+			}
+			return "HEXTORAW('" + h + "')", nil
 		case "oracle":
 			if len(data) == 0 || len(data) > 2000 {
 				return "", errors.New("Oracle RAW SQL copying supports 1 to 2000 bytes")
@@ -171,6 +187,9 @@ func copySQLLiteral(dialect, dataType string, value any) (string, error) {
 			return "X'" + h + "'", nil
 		}
 	case "temporal":
+		if dialect == "oceanbase-oracle" {
+			return copyOBOracleTemporalLiteral(t, text)
+		}
 		return copyTemporalLiteral(dialect, t, text)
 	case "uuid":
 		if len(text) != 36 {
@@ -225,6 +244,17 @@ func copyTextLiteral(dialect, text string) (string, error) {
 			return "", errors.New("DM character literal encoding exceeds the 32767-byte copier limit")
 		}
 		return "UNISTR('" + encoded + "')", nil
+	case "oceanbase-oracle":
+		// Its own HTTP capability probe confirms whether an empty string
+		// survives and whether UNISTR preserves the selected character class.
+		if text == "" {
+			return "''", nil
+		}
+		encoded := copyUnicodeText(text)
+		if len(encoded) > 4000 {
+			return "", errors.New("OB Oracle character literal encoding exceeds the 4000-byte copier limit")
+		}
+		return "UNISTR('" + encoded + "')", nil
 	case "oracle":
 		if text == "" {
 			return "", errors.New("Oracle empty character strings become NULL; this value cannot be copied losslessly")
@@ -241,8 +271,8 @@ func copyTextLiteral(dialect, text string) (string, error) {
 	}
 }
 
-// Both vendors document UNISTR's four-hex-digit escape. Their type, length and
-// empty-string policies remain separate; DM also verifies the required encoding.
+// UNISTR uses documented four-hex-digit escapes. Each vendor retains its own
+// type, length and empty-string policies; DM/OB verify the required conversion.
 func copyUnicodeText(text string) string {
 	var encoded strings.Builder
 	for _, unit := range utf16.Encode([]rune(text)) {
@@ -328,4 +358,30 @@ func copyTemporalLiteral(dialect, t, text string) (string, error) {
 		}
 		return "CAST('" + output + "' AS " + target + ")", nil
 	}
+}
+
+// Require all date/time components; DATE output formatted by NLS may already
+// have lost the time of day. Explicit numeric format models avoid NLS defaults.
+func copyOBOracleTemporalLiteral(t, text string) (string, error) {
+	if dot := strings.IndexByte(text, '.'); dot >= 0 && len(text)-dot-1 > 9 {
+		return "", errors.New("OB Oracle temporal precision exceeds nine fractional digits")
+	}
+	var parsed time.Time
+	var err error
+	for _, layout := range []string{"2006-01-02 15:04:05.999999999", "2006-01-02T15:04:05.999999999"} {
+		parsed, err = time.Parse(layout, text)
+		if err == nil {
+			break
+		}
+	}
+	if err != nil || parsed.Year() < 1 || parsed.Year() > 9999 {
+		return "", errors.New("OB Oracle temporal copying requires a complete ISO date and time; NLS text or date-only values cannot prove the original time of day")
+	}
+	if t == "date" {
+		if parsed.Nanosecond() != 0 {
+			return "", errors.New("OB Oracle DATE cannot represent fractional seconds")
+		}
+		return "TO_DATE('" + parsed.Format("2006-01-02 15:04:05") + "', 'YYYY-MM-DD HH24:MI:SS')", nil
+	}
+	return "TO_TIMESTAMP('" + parsed.Format("2006-01-02 15:04:05.000000000") + "', 'YYYY-MM-DD HH24:MI:SS.FF9')", nil
 }

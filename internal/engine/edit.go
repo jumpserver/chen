@@ -177,6 +177,9 @@ func (v *Server) resolveResultSource(ctx context.Context, s *session, c *console
 	}
 	table, err := sqlservice.LoadEditTable(ctx, c.conn, d, scope, source.Schema, source.Table)
 	if err != nil {
+		if errors.Is(err, sqlservice.ErrEditColumnFlagsUnknown) {
+			return x, sqlservice.ErrEditColumnFlagsUnknown
+		}
 		return x, errors.New("This table or its column types do not support safe editing")
 	}
 	x.table = table

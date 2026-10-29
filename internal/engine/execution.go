@@ -709,6 +709,13 @@ func (v *Server) readRows(s *session, rows *sql.Rows) (*Result, error) {
 					copyLossy[i] = true
 				}
 			}
+			// OB Oracle DATE includes time of day. Keep all driver-supplied
+			// components instead of applying the date-only display normalizer.
+			if s.grant.Config.Dialect == "oceanbase-oracle" && strings.EqualFold(types[i].DatabaseTypeName(), "DATE") {
+				if value, ok := raw[i].(time.Time); ok {
+					raw[i] = value.Format("2006-01-02 15:04:05.999999999")
+				}
+			}
 			raw[i], err = materializeValue(raw[i], types[i].DatabaseTypeName(), v.opts.MaxResultBytes)
 			if err != nil {
 				return nil, err
