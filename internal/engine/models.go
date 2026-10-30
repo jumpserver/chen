@@ -63,6 +63,7 @@ type StatementResult struct {
 	RowsAffected string `json:"rows_affected,omitempty"`
 }
 type ExecutionView struct {
+	BrowseCount      *BrowseCount             `json:"browse_count,omitempty"`
 	Plan             *PlanIdentity            `json:"plan,omitempty"`
 	SQL              string                   `json:"sql,omitempty"` // server-generated browse SQL
 	Edit             *EditOutcome             `json:"edit,omitempty"`
@@ -83,6 +84,7 @@ type Column struct {
 	DataType string `json:"data_type"`
 }
 type Result struct {
+	Browse          *BrowsePage `json:"browse,omitempty"`
 	consoleID       string
 	sourceAnalysis  *sqlanalysis.Statement
 	sourceSQL       string

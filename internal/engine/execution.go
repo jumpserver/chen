@@ -83,7 +83,7 @@ func (v *Server) submit(w http.ResponseWriter, r *http.Request) {
 	}
 	if old := c.requests[req.RequestID]; old != nil {
 		s.mu.Unlock()
-		if old.planMode != req.PlanMode || old.sql != req.SQL || old.submitReview != req.SubmitReview || old.confirmWarnings != req.ConfirmWarnings || (old.export != nil) != isExport || (old.export != nil && old.export.format != req.Format) || (old.browse != nil) != (browse != nil) || old.edit != nil {
+		if old.planMode != req.PlanMode || old.sql != req.SQL || old.submitReview != req.SubmitReview || old.confirmWarnings != req.ConfirmWarnings || (old.export != nil) != isExport || (old.export != nil && old.export.format != req.Format) || (old.browse != nil) != (browse != nil) || old.edit != nil || (browse != nil && browse.plan != nil && (old.browse == nil || old.browse.plan == nil || old.browse.plan.fingerprint != browse.plan.fingerprint)) {
 			fail(w, 409, "idempotency_conflict", "Request ID already belongs to different SQL")
 			return
 		}
@@ -419,6 +419,20 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		return
 	}
 	runSQL := e.sql
+	var browseArgs []any
+	if e.browse != nil && e.browse.plan != nil {
+		p := e.browse.plan
+		scope, scopeErr := liveContext(e.ctx, c, s.grant.Config.Dialect)
+		if scopeErr != nil || scope.Database != p.view.Database || (p.view.Where != "" && opts != p.options) {
+			failure(errors.New("browse_context_changed"), &APIError{"browse_context_changed", "Database or SQL mode changed; apply the browse conditions again"})
+			return
+		}
+		if err := validateBrowseWhere(e.ctx, c, s.grant.Config.Dialect, p); err != nil {
+			failure(err, &APIError{"invalid_browse", err.Error()})
+			return
+		}
+		runSQL, browseArgs = p.sql, p.args
+	}
 	if e.planMode != "" {
 		runSQL, err = sqlservice.EstimatedPlanSQL(sqlservice.Dialect(s.grant.Config.Dialect), e.sql, opts)
 		if err != nil {
@@ -499,8 +513,8 @@ func (v *Server) run(s *session, c *console, e *execution) {
 			failure(err, safeDatabaseError(err))
 			return
 		}
-		if e.planMode != "" && current != opts {
-			failure(errors.New("sql_context_changed"), &APIError{"sql_context_changed", "SQL mode changed during plan admission; submit a new plan"})
+		if (e.planMode != "" || e.browse != nil) && current != opts {
+			failure(errors.New("sql_context_changed"), &APIError{"sql_context_changed", "SQL mode changed during admission; submit a new request"})
 			return
 		}
 		// AST facts remain valid while parser options are unchanged. Reuse them
@@ -544,14 +558,30 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		} else if statement.ReturnsRows {
 			e.resultSQL = statement.SQL
 			e.resultAnalysis = statement.Facts
-			rows, err := c.conn.QueryContext(executionContext(e.ctx, s.grant.Config.Dialect, e.view.ID), statement.SQL)
+			rows, err := c.conn.QueryContext(executionContext(e.ctx, s.grant.Config.Dialect, e.view.ID), statement.SQL, browseArgs...)
 			if err != nil {
 				confirmedCancel = isServerCancellation(err) || driverConfirmedCancellation(s.grant.Config.Dialect, err)
 				failure(err, safeDatabaseError(err))
 				return
 			}
 			var collectErr error
-			if e.export != nil {
+			if e.browse != nil && e.browse.plan != nil && e.browse.plan.action == "count" {
+				if !rows.Next() {
+					collectErr = errors.New("Count returned no value")
+				} else {
+					var total string
+					collectErr = rows.Scan(&total)
+					if collectErr == nil {
+						v.update(s, e, func(x *ExecutionView) {
+							x.BrowseCount = &BrowseCount{SourceResultID: e.browse.plan.sourceResultID, Total: total}
+						})
+					}
+				}
+				if collectErr == nil {
+					collectErr = rows.Err()
+				}
+				rows.Close()
+			} else if e.export != nil {
 				collectErr = v.collectExport(s, c, e, rows)
 			} else {
 				collectErr = v.collectResults(s, e, rows)
@@ -703,7 +733,11 @@ func (v *Server) collectResults(s *session, e *execution, rows *sql.Rows) error 
 		}
 	}()
 	for {
-		result, err := v.readRows(s, rows)
+		var browse *browsePlan
+		if e.browse != nil {
+			browse = e.browse.plan
+		}
+		result, err := v.readRows(s, rows, browse)
 		if err != nil {
 			return err
 		}
@@ -715,7 +749,7 @@ func (v *Server) collectResults(s *session, e *execution, rows *sql.Rows) error 
 		}
 	}
 }
-func (v *Server) readRows(s *session, rows *sql.Rows) (*Result, error) {
+func (v *Server) readRows(s *session, rows *sql.Rows, plans ...*browsePlan) (*Result, error) {
 	reserved := 0
 	complete := false
 	defer func() {
@@ -730,10 +764,25 @@ func (v *Server) readRows(s *session, rows *sql.Rows) (*Result, error) {
 		return nil, err
 	}
 	result := &Result{ID: newID("res_"), Columns: []Column{}, Rows: [][]any{}}
+	limit := v.opts.MaxRows
+	if len(plans) > 0 && plans[0] != nil {
+		view := plans[0].view
+		if view.Supported {
+			limit = view.PageSize
+			more := false
+			view.HasMore = &more
+		}
+		result.Browse = &view
+	}
 	for _, column := range types {
 		result.Columns = append(result.Columns, Column{column.Name(), column.DatabaseTypeName()})
 	}
 	for rows.Next() {
+		if result.Browse != nil && result.Browse.Supported && len(result.Rows) >= limit {
+			more := true
+			result.Browse.HasMore = &more
+			break
+		}
 		raw := make([]any, len(types))
 		targets := make([]any, len(types))
 		for i := range raw {
@@ -785,12 +834,15 @@ func (v *Server) readRows(s *session, rows *sql.Rows) (*Result, error) {
 		}
 		s.mu.Lock()
 		space := s.resultBytes+len(encoded)+extra <= v.opts.MaxResultBytes
-		if len(result.Rows) < v.opts.MaxRows && space {
+		if len(result.Rows) < limit && space {
 			s.resultBytes += len(encoded) + extra
 			reserved += len(encoded) + extra
 		}
 		s.mu.Unlock()
-		if len(result.Rows) >= v.opts.MaxRows || !space {
+		if len(result.Rows) >= limit || !space {
+			if result.Browse != nil && result.Browse.Supported {
+				result.Browse.HasMore = nil
+			}
 			result.Truncated = true
 			break
 		}

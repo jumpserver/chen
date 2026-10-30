@@ -3,14 +3,11 @@ package engine
 // Grid editing deliberately uses a separate, server-owned plan. A browser never
 // supplies table identifiers, predicates, original primary keys or executable SQL.
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -26,7 +23,10 @@ type EditOutcome struct {
 	RefreshRequired   bool   `json:"refresh_required"`
 }
 type editBrowseKey struct{}
-type editBrowse struct{ Schema, Table string }
+type editBrowse struct {
+	Schema, Table string
+	plan          *browsePlan
+}
 type editColumnView struct {
 	Index        int    `json:"index"`
 	Name         string `json:"name"`
@@ -318,57 +318,6 @@ func (v *Server) editMetadata(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, 200, x.view)
 }
-func (v *Server) browseTable(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		Schema          string `json:"schema"`
-		Table           string `json:"table"`
-		RequestID       string `json:"request_id,omitempty"`
-		SubmitReview    bool   `json:"submit_review"`
-		ConfirmWarnings bool   `json:"confirm_warnings"`
-	}
-	if !decode(w, r, &req) {
-		return
-	}
-	s, c, ctx, done := v.editConsole(w, r)
-	if s == nil {
-		return
-	}
-	if req.Table == "" {
-		done()
-		fail(w, 400, "invalid_table", "Select a table to browse")
-		return
-	}
-	scope, err := liveContext(ctx, c, s.grant.Config.Dialect)
-	var table sqlservice.EditTable
-	if err == nil {
-		table, err = sqlservice.LoadEditTable(ctx, c.conn, sqlservice.Dialect(s.grant.Config.Dialect), scope, req.Schema, req.Table)
-	}
-	if err == nil {
-		err = v.auditCatalog(ctx, s, c, "table-browse")
-	}
-	done()
-	if err != nil {
-		editFail(w, errors.New("This table is unavailable for editable browsing; open it as a normal query"))
-		return
-	}
-	qualified := editQualified(table.Schema, table.Table, s.grant.Config.Dialect)
-	command := "SELECT * FROM " + qualified
-	switch s.grant.Config.Dialect {
-	case "mysql", "mariadb", "oceanbase-mysql", "postgresql":
-		command += " LIMIT " + strconv.Itoa(v.opts.MaxRows+1)
-	case "sqlserver":
-		command = "SELECT TOP (" + strconv.Itoa(v.opts.MaxRows+1) + ") * FROM " + qualified
-	default:
-		command += " FETCH FIRST " + strconv.Itoa(v.opts.MaxRows+1) + " ROWS ONLY"
-	}
-	if req.RequestID == "" {
-		req.RequestID = newID("browse_")
-	}
-	body, _ := json.Marshal(map[string]any{"sql": command, "request_id": req.RequestID, "submit_review": req.SubmitReview, "confirm_warnings": req.ConfirmWarnings})
-	r = r.Clone(context.WithValue(r.Context(), editBrowseKey{}, &editBrowse{table.Schema, table.Table}))
-	r.Body = io.NopCloser(bytes.NewReader(body))
-	v.submit(w, r)
-}
 func (v *Server) previewEdits(w http.ResponseWriter, r *http.Request) {
 	var req editPreviewRequest
 	if !decode(w, r, &req) {
@@ -606,6 +555,9 @@ func (v *Server) applyEditSourceMask(s *session, result *Result, columns []sqlse
 		result.rowRefs = nil
 		result.TotalRows = 0
 		result.Truncated = true
+		if result.Browse != nil && result.Browse.Supported {
+			result.Browse.HasMore = nil
+		}
 		return
 	}
 	result.memoryBytes = memory
