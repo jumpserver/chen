@@ -31,6 +31,10 @@ type catalogResource struct {
 	cursorKey [32]byte
 }
 type catalogCursor struct {
+	Section      string `json:"section,omitempty"`
+	Sort         string `json:"sort,omitempty"`
+	Limit        int    `json:"limit,omitempty"`
+	AfterTable   string `json:"at,omitempty"`
 	Version      int    `json:"v"`
 	Session      string `json:"s"`
 	Database     string `json:"d"`
@@ -50,6 +54,7 @@ type catalogPage[T any] struct {
 }
 type catalogScope struct {
 	operation, schema, kind, query, table, cursor string
+	section, sort, database                       string
 	limit                                         int
 }
 type catalogRequest struct {
@@ -67,6 +72,10 @@ func parseCatalogScope(r *http.Request, operation string) (catalogScope, error) 
 	s := catalogScope{operation: operation, limit: 100}
 	allowed := map[string]bool{"cursor": true, "limit": true}
 	switch operation {
+	case "overview":
+		for _, key := range []string{"database", "schema", "section", "q", "sort"} {
+			allowed[key] = true
+		}
 	case "objects", "ai":
 		allowed["schema"], allowed["kind"], allowed["q"] = true, true, true
 	case "columns", "inspect", "ddl":
@@ -78,8 +87,28 @@ func parseCatalogScope(r *http.Request, operation string) (catalogScope, error) 
 		}
 	}
 	values := r.URL.Query()
+	s.section, s.sort, s.database = values.Get("section"), values.Get("sort"), values.Get("database")
+	if operation == "overview" {
+		if s.sort == "" {
+			s.sort = "name_asc"
+		}
+		if s.sort != "name_asc" && s.sort != "name_desc" {
+			return s, errors.New("invalid_catalog_request")
+		}
+		switch s.section {
+		case "tables", "views", "indexes", "statistics", "properties":
+		default:
+			return s, errors.New("invalid_catalog_request")
+		}
+		if s.database == "" {
+			return s, errors.New("invalid_catalog_request")
+		}
+		if (s.section == "statistics" || s.section == "properties") && (values.Get("q") != "" || values.Get("cursor") != "") {
+			return s, errors.New("invalid_catalog_request")
+		}
+	}
 	s.schema, s.kind, s.query, s.table, s.cursor = values.Get("schema"), values.Get("kind"), values.Get("q"), values.Get("table"), values.Get("cursor")
-	for _, name := range []string{s.schema, s.query, s.table} {
+	for _, name := range []string{s.schema, s.query, s.table, s.database} {
 		if len(name) > 256 || strings.ContainsRune(name, 0) || !utf8.ValidString(name) {
 			return s, errors.New("invalid_catalog_request")
 		}
@@ -172,7 +201,7 @@ func (v *Server) beginCatalogAccess(w http.ResponseWriter, r *http.Request, oper
 	globalAndLocalFinish := finish
 	finish = func() { <-resource.slots; globalAndLocalFinish() }
 	timeout := 3 * time.Second
-	if operation == "inspect" || operation == "ai" {
+	if operation == "inspect" || operation == "ai" || operation == "overview" {
 		timeout = 12 * time.Second
 	}
 	if operation == "ddl" {
@@ -232,6 +261,11 @@ func (v *Server) beginCatalogAccess(w http.ResponseWriter, r *http.Request, oper
 		catalogError(w, r, s, err)
 		return nil
 	}
+	if operation == "overview" && scope.database != database {
+		finish()
+		fail(w, 403, "catalog_forbidden", "Catalog database does not match authorized session")
+		return nil
+	}
 	if database == "" {
 		finish()
 		fail(w, 409, "catalog_database_required", "Configure a database before browsing its catalog")
@@ -283,7 +317,11 @@ func (v *Server) catalogAudit(req *catalogRequest, outcome string, count int) er
 	// persistence operation completes, even after its query context is canceled.
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(req.ctx), 3*time.Second)
 	defer cancel()
-	return v.provider.Record(ctx, req.session.grant, jumpserver.AuditRecord{ID: newID("meta_"), RiskClassified: true, SQL: "/* Chen catalog " + req.scope.operation + " */", Output: fmt.Sprintf("outcome=%s database=%q schema=%q table=%q kind=%s returned=%d", outcome, req.database, req.scope.schema, req.scope.table, req.scope.kind, count), StartedAt: now, FinishedAt: now})
+	output := fmt.Sprintf("outcome=%s database=%q schema=%q table=%q kind=%s returned=%d", outcome, req.database, req.scope.schema, req.scope.table, req.scope.kind, count)
+	if req.scope.operation == "overview" {
+		output += fmt.Sprintf(" section=%s sort=%s", req.scope.section, req.scope.sort)
+	}
+	return v.provider.Record(ctx, req.session.grant, jumpserver.AuditRecord{ID: newID("meta_"), RiskClassified: true, SQL: "/* Chen catalog " + req.scope.operation + " */", Output: output, StartedAt: now, FinishedAt: now})
 }
 func (v *Server) finishCatalog(w http.ResponseWriter, r *http.Request, req *catalogRequest, count int, err error) bool {
 	if req.ctx.Err() != nil {
@@ -403,8 +441,16 @@ func (v *Server) catalogColumns(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (c *catalogResource) encodeCursor(session, database string, scope catalogScope, afterSchema, afterName string, afterOrdinal int) string {
+func (c *catalogResource) encodeCursor(session, database string, scope catalogScope, afterSchema, afterName string, afterOrdinal int, afterTable ...string) string {
 	value := catalogCursor{Version: 1, Session: session, Database: database, Operation: scope.operation, Schema: scope.schema, Kind: scope.kind, Query: scope.query, Table: scope.table, AfterSchema: afterSchema, AfterName: afterName, AfterOrdinal: afterOrdinal}
+	if scope.operation == "overview" {
+		value.Section = scope.section
+		value.Sort = scope.sort
+		value.Limit = scope.limit
+	}
+	if len(afterTable) > 0 {
+		value.AfterTable = afterTable[0]
+	}
 	data, _ := json.Marshal(value)
 	mac := hmac.New(sha256.New, c.cursorKey[:])
 	_, _ = mac.Write(data)
@@ -429,7 +475,7 @@ func (c *catalogResource) decodeCursor(encoded, session, database string, scope 
 	if !hmac.Equal(signature, mac.Sum(nil)) {
 		return value, errors.New("invalid cursor")
 	}
-	if json.Unmarshal(data, &value) != nil || value.Version != 1 || value.Session != session || value.Database != database || value.Operation != scope.operation || value.Schema != scope.schema || value.Kind != scope.kind || value.Query != scope.query || value.Table != scope.table {
+	if json.Unmarshal(data, &value) != nil || scope.operation == "overview" && (value.Section != scope.section || value.Sort != scope.sort || value.Limit != scope.limit) || value.Version != 1 || value.Session != session || value.Database != database || value.Operation != scope.operation || value.Schema != scope.schema || value.Kind != scope.kind || value.Query != scope.query || value.Table != scope.table {
 		return value, errors.New("cursor scope mismatch")
 	}
 	return value, nil
