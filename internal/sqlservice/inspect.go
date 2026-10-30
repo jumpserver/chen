@@ -21,12 +21,14 @@ type MetadataSection struct {
 	Truncated bool             `json:"truncated,omitempty"`
 }
 type TableInspection struct {
-	Database  string                     `json:"database"`
-	Schema    string                     `json:"schema"`
-	Table     string                     `json:"table"`
-	Columns   []CatalogColumn            `json:"columns"`
-	Sections  map[string]MetadataSection `json:"sections"`
-	Truncated bool                       `json:"truncated"`
+	ColumnOrdinals    map[string]int             `json:"column_ordinals"`
+	ColumnsRestricted bool                       `json:"columns_restricted,omitempty"`
+	Database          string                     `json:"database"`
+	Schema            string                     `json:"schema"`
+	Table             string                     `json:"table"`
+	Columns           []CatalogColumn            `json:"columns"`
+	Sections          map[string]MetadataSection `json:"sections"`
+	Truncated         bool                       `json:"truncated"`
 }
 
 // InspectTable only reads system catalogs visible to the authenticated account.
@@ -51,6 +53,10 @@ func inspectTable(ctx context.Context, conn *sql.Conn, d Dialect, req CatalogCol
 		result.Truncated = true
 	}
 	result.Columns = columns
+	result.ColumnOrdinals = make(map[string]int, len(columns))
+	for _, column := range columns {
+		result.ColumnOrdinals[column.Name] = column.Ordinal
+	}
 	if len(columns) == 0 {
 		return result, ErrCatalogNotFound
 	}
@@ -66,6 +72,7 @@ WHERE n.nspname=$1 AND t.relname=$2`, req.Schema, req.Table).Scan(&fullAccess, &
 			return result, fmt.Errorf("check definition visibility: %w", err)
 		}
 		if !fullAccess {
+			result.ColumnsRestricted = true
 			ddl = MetadataSection{Supported: false, Source: "restricted", Error: "DDL requires table-level column access"}
 		} else if relationKind == "v" || relationKind == "m" {
 			ddl.Source = "native_view_query"
@@ -75,7 +82,7 @@ WHERE n.nspname=$1 AND t.relname=$2`, req.Schema, req.Table).Scan(&fullAccess, &
 	}
 	result.Sections["ddl"] = ddl
 	for _, kind := range []string{"primary_key", "foreign_keys", "indexes", "defaults"} {
-		q, names, ok := inspectionQuery(d, req, kind)
+		q, names, ok := inspectionQuery(d, req, kind, true)
 		if !ok {
 			result.Sections[kind] = MetadataSection{Supported: false}
 			continue
@@ -125,7 +132,7 @@ WHERE n.nspname=$1 AND t.relname=$2`, req.Schema, req.Table).Scan(&fullAccess, &
 	}
 	return result, ctx.Err()
 }
-func inspectionQuery(d Dialect, r CatalogColumnRequest, kind string) (catalogQuery, []string, bool) {
+func inspectionQuery(d Dialect, r CatalogColumnRequest, kind string, keySize ...bool) (catalogQuery, []string, bool) {
 	b := catalogBinder{dialect: d}
 	a, c := b.bind(r.Schema), b.bind(r.Table)
 	if d == PostgreSQL {
@@ -184,23 +191,47 @@ func inspectionQuery(d Dialect, r CatalogColumnRequest, kind string) (catalogQue
 			q = `SELECT name,expr,0,0 FROM system.data_skipping_indices WHERE database=` + a + ` AND table=` + c + ` ORDER BY name`
 		}
 	case "foreign_keys":
-		names = []string{"name", "column", "referenced_schema", "referenced_table", "referenced_column", "ordinal"}
+		names = []string{"name", "column", "referenced_schema", "referenced_table", "referenced_column", "ordinal", "column_count"}
 		switch {
 		case IsMySQLDialect(d):
-			q = `SELECT CONSTRAINT_NAME,COLUMN_NAME,REFERENCED_TABLE_SCHEMA,REFERENCED_TABLE_NAME,REFERENCED_COLUMN_NAME,ORDINAL_POSITION FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA=` + a + ` AND TABLE_NAME=` + c + ` AND REFERENCED_TABLE_NAME IS NOT NULL ORDER BY CONSTRAINT_NAME,ORDINAL_POSITION`
+			q = `SELECT k.CONSTRAINT_NAME,k.COLUMN_NAME,k.REFERENCED_TABLE_SCHEMA,k.REFERENCED_TABLE_NAME,k.REFERENCED_COLUMN_NAME,k.ORDINAL_POSITION,(SELECT COUNT(*) FROM information_schema.KEY_COLUMN_USAGE z WHERE z.TABLE_SCHEMA=k.TABLE_SCHEMA AND z.TABLE_NAME=k.TABLE_NAME AND z.CONSTRAINT_NAME=k.CONSTRAINT_NAME) FROM information_schema.KEY_COLUMN_USAGE k WHERE TABLE_SCHEMA=` + a + ` AND TABLE_NAME=` + c + ` AND REFERENCED_TABLE_NAME IS NOT NULL ORDER BY CONSTRAINT_NAME,ORDINAL_POSITION`
 		case d == PostgreSQL:
-			q = `SELECT k.conname,ac.attname,nr.nspname,tr.relname,ar.attname,u.ord FROM pg_catalog.pg_constraint k JOIN pg_catalog.pg_class t ON t.oid=k.conrelid JOIN pg_catalog.pg_namespace n ON n.oid=t.relnamespace JOIN pg_catalog.pg_class tr ON tr.oid=k.confrelid JOIN pg_catalog.pg_namespace nr ON nr.oid=tr.relnamespace CROSS JOIN LATERAL unnest(k.conkey,k.confkey) WITH ORDINALITY AS u(attnum,refnum,ord) JOIN pg_catalog.pg_attribute ac ON ac.attrelid=t.oid AND ac.attnum=u.attnum JOIN pg_catalog.pg_attribute ar ON ar.attrelid=tr.oid AND ar.attnum=u.refnum WHERE n.nspname=` + a + ` AND t.relname=` + c + ` AND k.contype='f' ORDER BY k.conname,u.ord`
+			q = `SELECT k.conname,ac.attname,nr.nspname,tr.relname,ar.attname,u.ord,cardinality(k.conkey) FROM pg_catalog.pg_constraint k JOIN pg_catalog.pg_class t ON t.oid=k.conrelid JOIN pg_catalog.pg_namespace n ON n.oid=t.relnamespace JOIN pg_catalog.pg_class tr ON tr.oid=k.confrelid JOIN pg_catalog.pg_namespace nr ON nr.oid=tr.relnamespace CROSS JOIN LATERAL unnest(k.conkey,k.confkey) WITH ORDINALITY AS u(attnum,refnum,ord) JOIN pg_catalog.pg_attribute ac ON ac.attrelid=t.oid AND ac.attnum=u.attnum JOIN pg_catalog.pg_attribute ar ON ar.attrelid=tr.oid AND ar.attnum=u.refnum WHERE n.nspname=` + a + ` AND t.relname=` + c + ` AND k.contype='f' ORDER BY k.conname,u.ord`
 		case d == SQLServer:
-			q = `SELECT fk.name,c.name,rs.name,rt.name,rc.name,k.constraint_column_id FROM sys.foreign_keys fk JOIN sys.foreign_key_columns k ON k.constraint_object_id=fk.object_id JOIN sys.tables t ON t.object_id=k.parent_object_id JOIN sys.schemas s ON s.schema_id=t.schema_id JOIN sys.columns c ON c.object_id=t.object_id AND c.column_id=k.parent_column_id JOIN sys.tables rt ON rt.object_id=k.referenced_object_id JOIN sys.schemas rs ON rs.schema_id=rt.schema_id JOIN sys.columns rc ON rc.object_id=rt.object_id AND rc.column_id=k.referenced_column_id WHERE s.name=` + a + ` AND t.name=` + c + ` ORDER BY fk.name,k.constraint_column_id`
+			q = `SELECT fk.name,c.name,rs.name,rt.name,rc.name,k.constraint_column_id,(SELECT COUNT(*) FROM sys.foreign_key_columns z WHERE z.constraint_object_id=fk.object_id) FROM sys.foreign_keys fk JOIN sys.foreign_key_columns k ON k.constraint_object_id=fk.object_id JOIN sys.tables t ON t.object_id=k.parent_object_id JOIN sys.schemas s ON s.schema_id=t.schema_id JOIN sys.columns c ON c.object_id=t.object_id AND c.column_id=k.parent_column_id JOIN sys.tables rt ON rt.object_id=k.referenced_object_id JOIN sys.schemas rs ON rs.schema_id=rt.schema_id JOIN sys.columns rc ON rc.object_id=rt.object_id AND rc.column_id=k.referenced_column_id WHERE s.name=` + a + ` AND t.name=` + c + ` ORDER BY fk.name,k.constraint_column_id`
 		case IsOracleDialect(d):
-			q = `SELECT f.CONSTRAINT_NAME,k.COLUMN_NAME,r.OWNER,r.TABLE_NAME,rk.COLUMN_NAME,k.POSITION FROM ALL_CONSTRAINTS f JOIN ALL_CONS_COLUMNS k ON k.OWNER=f.OWNER AND k.CONSTRAINT_NAME=f.CONSTRAINT_NAME JOIN ALL_CONSTRAINTS r ON r.OWNER=f.R_OWNER AND r.CONSTRAINT_NAME=f.R_CONSTRAINT_NAME JOIN ALL_CONS_COLUMNS rk ON rk.OWNER=r.OWNER AND rk.CONSTRAINT_NAME=r.CONSTRAINT_NAME AND rk.POSITION=k.POSITION WHERE f.OWNER=` + a + ` AND f.TABLE_NAME=` + c + ` AND f.CONSTRAINT_TYPE='R' ORDER BY f.CONSTRAINT_NAME,k.POSITION`
+			q = `SELECT f.CONSTRAINT_NAME,k.COLUMN_NAME,r.OWNER,r.TABLE_NAME,rk.COLUMN_NAME,k.POSITION,(SELECT COUNT(*) FROM ALL_CONS_COLUMNS z WHERE z.OWNER=f.OWNER AND z.CONSTRAINT_NAME=f.CONSTRAINT_NAME) FROM ALL_CONSTRAINTS f JOIN ALL_CONS_COLUMNS k ON k.OWNER=f.OWNER AND k.CONSTRAINT_NAME=f.CONSTRAINT_NAME JOIN ALL_CONSTRAINTS r ON r.OWNER=f.R_OWNER AND r.CONSTRAINT_NAME=f.R_CONSTRAINT_NAME JOIN ALL_CONS_COLUMNS rk ON rk.OWNER=r.OWNER AND rk.CONSTRAINT_NAME=r.CONSTRAINT_NAME AND rk.POSITION=k.POSITION WHERE f.OWNER=` + a + ` AND f.TABLE_NAME=` + c + ` AND f.CONSTRAINT_TYPE='R' ORDER BY f.CONSTRAINT_NAME,k.POSITION`
 		case d == DB2:
-			q = `SELECT f.CONSTNAME,k.COLNAME,f.REFTABSCHEMA,f.REFTABNAME,rk.COLNAME,k.COLSEQ FROM SYSCAT.REFERENCES f JOIN SYSCAT.KEYCOLUSE k ON k.TABSCHEMA=f.TABSCHEMA AND k.TABNAME=f.TABNAME AND k.CONSTNAME=f.CONSTNAME JOIN SYSCAT.KEYCOLUSE rk ON rk.TABSCHEMA=f.REFTABSCHEMA AND rk.TABNAME=f.REFTABNAME AND rk.CONSTNAME=f.REFKEYNAME AND rk.COLSEQ=k.COLSEQ WHERE f.TABSCHEMA=` + a + ` AND f.TABNAME=` + c + ` ORDER BY f.CONSTNAME,k.COLSEQ`
+			q = `SELECT f.CONSTNAME,k.COLNAME,f.REFTABSCHEMA,f.REFTABNAME,rk.COLNAME,k.COLSEQ,(SELECT COUNT(*) FROM SYSCAT.KEYCOLUSE z WHERE z.TABSCHEMA=f.TABSCHEMA AND z.TABNAME=f.TABNAME AND z.CONSTNAME=f.CONSTNAME) FROM SYSCAT.REFERENCES f JOIN SYSCAT.KEYCOLUSE k ON k.TABSCHEMA=f.TABSCHEMA AND k.TABNAME=f.TABNAME AND k.CONSTNAME=f.CONSTNAME JOIN SYSCAT.KEYCOLUSE rk ON rk.TABSCHEMA=f.REFTABSCHEMA AND rk.TABNAME=f.REFTABNAME AND rk.CONSTNAME=f.REFKEYNAME AND rk.COLSEQ=k.COLSEQ WHERE f.TABSCHEMA=` + a + ` AND f.TABNAME=` + c + ` ORDER BY f.CONSTNAME,k.COLSEQ`
 		}
 	}
 	if q == "" {
 		return catalogQuery{}, nil, false
 	}
+	// The editor consumes the original three-column primary-key query. Only
+	// inspection requests its source key size to detect incomplete metadata.
+	if kind == "primary_key" && len(keySize) > 0 && keySize[0] {
+		count := ""
+		switch {
+		case IsMySQLDialect(d):
+			q = strings.Replace(q, "FROM information_schema.KEY_COLUMN_USAGE", "FROM information_schema.KEY_COLUMN_USAGE k", 1)
+			count = "(SELECT COUNT(*) FROM information_schema.KEY_COLUMN_USAGE z WHERE z.TABLE_SCHEMA=k.TABLE_SCHEMA AND z.TABLE_NAME=k.TABLE_NAME AND z.CONSTRAINT_NAME=k.CONSTRAINT_NAME)"
+		case d == PostgreSQL:
+			count = "cardinality(k.conkey)"
+		case d == SQLServer:
+			count = "(SELECT COUNT(*) FROM sys.index_columns z WHERE z.object_id=i.object_id AND z.index_id=i.index_id AND z.key_ordinal>0)"
+		case IsOracleDialect(d):
+			count = "(SELECT COUNT(*) FROM ALL_CONS_COLUMNS z WHERE z.OWNER=c.OWNER AND z.CONSTRAINT_NAME=c.CONSTRAINT_NAME)"
+		case d == DB2:
+			count = "(SELECT COUNT(*) FROM SYSCAT.KEYCOLUSE z WHERE z.TABSCHEMA=k.TABSCHEMA AND z.TABNAME=k.TABNAME AND z.CONSTNAME=k.CONSTNAME)"
+		}
+		if count != "" {
+			pos := strings.Index(q, " FROM ")
+			q = q[:pos] + "," + count + q[pos:]
+			names = append(names, "column_count")
+		}
+	}
+
 	if d == PostgreSQL {
 		// PostgreSQL catalogs are broadly readable. The workspace still follows
 		// the column scope used by ColumnRows, including composite metadata and
