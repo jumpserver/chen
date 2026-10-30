@@ -63,6 +63,7 @@ type StatementResult struct {
 	RowsAffected string `json:"rows_affected,omitempty"`
 }
 type ExecutionView struct {
+	Plan             *PlanIdentity            `json:"plan,omitempty"`
 	SQL              string                   `json:"sql,omitempty"` // server-generated browse SQL
 	Edit             *EditOutcome             `json:"edit,omitempty"`
 	ExportID         string                   `json:"export_id,omitempty"`
@@ -111,7 +112,10 @@ type Event struct {
 }
 
 type execution struct {
-	edit            *editPlan // immutable plan, consumed under console lock
+	planMode        string         // immutable intent; original SQL stays in sql
+	planSQL         string         // guarded by mu; omitted from small SSE snapshots
+	planResult      *ExecutionPlan // guarded by mu, immutable after publication
+	edit            *editPlan      // immutable plan, consumed under console lock
 	browse          *editBrowse
 	resultAnalysis  *sqlanalysis.Statement
 	resultSQL       string     // worker-owned original SQL for result provenance
@@ -139,6 +143,10 @@ func (e *execution) snapshot() ExecutionView {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 	v := e.view
+	if v.Plan != nil {
+		identity := *v.Plan
+		v.Plan = &identity
+	}
 	v.ResultIDs = append([]string{}, v.ResultIDs...)
 	v.StatementResults = append([]StatementResult{}, v.StatementResults...)
 	if v.Edit != nil {

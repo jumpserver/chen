@@ -77,6 +77,7 @@ func (v *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /chen/api/v1/exports/{xid}/download-ticket", v.exportDownloadTicket)
 	mux.HandleFunc("POST /chen/api/v1/downloads", v.downloadExport)
 	mux.HandleFunc("GET /chen/api/v1/executions/{eid}", v.executionStatus)
+	mux.HandleFunc("GET /chen/api/v1/executions/{eid}/plan", v.executionPlan)
 	mux.HandleFunc("POST /chen/api/v1/executions/{eid}/cancel", v.cancelExecution)
 	mux.HandleFunc("GET /chen/api/v1/results/{rid}/rows", v.resultRows)
 	mux.HandleFunc("POST /chen/api/v1/consoles/{cid}/explain", v.prepareExplain)
