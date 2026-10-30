@@ -41,6 +41,7 @@ func (v *Server) submit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req struct {
+		PlanMode        string `json:"plan_mode"`
 		Format          string `json:"format"`
 		SQL             string `json:"sql"`
 		RequestID       string `json:"request_id"`
@@ -49,6 +50,10 @@ func (v *Server) submit(w http.ResponseWriter, r *http.Request) {
 		ConfirmWarnings bool   `json:"confirm_warnings"`
 	}
 	if !decode(w, r, &req) {
+		return
+	}
+	if req.PlanMode != "" && (req.PlanMode != "ESTIMATED" || isExport || browse != nil) {
+		fail(w, 400, "invalid_plan_mode", "Estimated plans require an ordinary execution request")
 		return
 	}
 	if !isExport && req.Format != "" {
@@ -78,7 +83,7 @@ func (v *Server) submit(w http.ResponseWriter, r *http.Request) {
 	}
 	if old := c.requests[req.RequestID]; old != nil {
 		s.mu.Unlock()
-		if old.sql != req.SQL || old.submitReview != req.SubmitReview || old.confirmWarnings != req.ConfirmWarnings || (old.export != nil) != isExport || (old.export != nil && old.export.format != req.Format) || (old.browse != nil) != (browse != nil) || old.edit != nil {
+		if old.planMode != req.PlanMode || old.sql != req.SQL || old.submitReview != req.SubmitReview || old.confirmWarnings != req.ConfirmWarnings || (old.export != nil) != isExport || (old.export != nil && old.export.format != req.Format) || (old.browse != nil) != (browse != nil) || old.edit != nil {
 			fail(w, 409, "idempotency_conflict", "Request ID already belongs to different SQL")
 			return
 		}
@@ -92,6 +97,10 @@ func (v *Server) submit(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithCancel(c.ctx)
 	e := &execution{view: ExecutionView{ID: newID("exe_"), ConsoleID: c.id, Status: "queued", ResultIDs: []string{}, StatementResults: []StatementResult{}, AuditStatus: "pending"}, sql: req.SQL, documentVersion: req.DocumentVersion, ctx: ctx, cancel: cancel, cancelDone: make(chan struct{}), submitReview: req.SubmitReview, confirmWarnings: req.ConfirmWarnings}
+	e.planMode = req.PlanMode
+	if e.planMode != "" {
+		e.view.Plan = &PlanIdentity{RequestID: req.RequestID, Mode: e.planMode, Dialect: s.grant.Config.Dialect}
+	}
 	e.browse = browse
 	if e.browse != nil {
 		e.view.SQL = req.SQL
@@ -275,6 +284,13 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		}
 		c.mu.Unlock()
 	}()
+	if e.planMode != "" {
+		e.mu.Lock()
+		identity := *e.view.Plan
+		identity.Database, identity.Schema = c.context.Database, c.context.Schema
+		e.view.Plan = &identity
+		e.mu.Unlock()
+	}
 	start := time.Now()
 	audit := jumpserver.AuditRecord{ID: e.view.ID, SQL: e.sql, StartedAt: start, RiskClassified: true}
 	var runErr error
@@ -289,6 +305,9 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		}
 		view := e.snapshot()
 		audit.Output = fmt.Sprintf("execution_id=%s state=%s completed_statements=%d result_sets=%d", view.ID, view.Status, completedStatements, len(view.ResultIDs))
+		if view.Plan != nil {
+			audit.Output += fmt.Sprintf(" plan_mode=%s generated_sql=%q", view.Plan.Mode, e.planSQL)
+		}
 		if e.export != nil {
 			out := e.export.snapshot()
 			audit.Output += fmt.Sprintf(" export_id=%s format=%s rows=%d bytes=%d", out.ID, out.Format, out.Rows, out.Bytes)
@@ -399,7 +418,18 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		failure(err, safeDatabaseError(err))
 		return
 	}
-	analysis, err := sqlservice.AnalyzeWithOptions(sqlservice.Dialect(s.grant.Config.Dialect), e.sql, opts)
+	runSQL := e.sql
+	if e.planMode != "" {
+		runSQL, err = sqlservice.EstimatedPlanSQL(sqlservice.Dialect(s.grant.Config.Dialect), e.sql, opts)
+		if err != nil {
+			failure(err, &APIError{err.Error(), "Estimated plans require a supported database and one read SELECT without INTO, locking clauses or nested EXPLAIN"})
+			return
+		}
+		e.mu.Lock()
+		e.planSQL = runSQL
+		e.mu.Unlock()
+	}
+	analysis, err := sqlservice.AnalyzeWithOptions(sqlservice.Dialect(s.grant.Config.Dialect), runSQL, opts)
 	if err != nil {
 		failure(err, &APIError{"sql_parse_error", err.Error()})
 		return
@@ -420,7 +450,7 @@ func (v *Server) run(s *session, c *console, e *execution) {
 	}
 	// Validate the complete script and each original statement before sending any
 	// statement, including generated and multi-statement SQL.
-	if err := v.authorizeExecution(s, e, append([]string{e.sql}, statementSQL(analysis.Statements)...), &audit); err != nil {
+	if err := v.authorizeExecution(s, e, append([]string{e.sql, runSQL}, statementSQL(analysis.Statements)...), &audit); err != nil {
 		var pe *jumpserver.PolicyError
 		code := "command_denied"
 		if errors.As(err, &pe) {
@@ -469,6 +499,10 @@ func (v *Server) run(s *session, c *console, e *execution) {
 			failure(err, safeDatabaseError(err))
 			return
 		}
+		if e.planMode != "" && current != opts {
+			failure(errors.New("sql_context_changed"), &APIError{"sql_context_changed", "SQL mode changed during plan admission; submit a new plan"})
+			return
+		}
 		// AST facts remain valid while parser options are unchanged. Reuse them
 		// for dispatch and edit provenance instead of reparsing each consumer.
 		if statement.Facts == nil || current != opts {
@@ -496,7 +530,18 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		}
 		currentInFlight = true
 		databaseTouched.Store(true)
-		if statement.ReturnsRows {
+		if e.planMode != "" {
+			err := v.runEstimatedPlan(s, c, e, statement.SQL)
+			if err != nil {
+				var api *APIError
+				if errors.As(err, &api) && !c.lost.Load() {
+					currentInFlight = false
+				}
+				confirmedCancel = isServerCancellation(err) || driverConfirmedCancellation(s.grant.Config.Dialect, err)
+				failure(err, planAPIError(err))
+				return
+			}
+		} else if statement.ReturnsRows {
 			e.resultSQL = statement.SQL
 			e.resultAnalysis = statement.Facts
 			rows, err := c.conn.QueryContext(executionContext(e.ctx, s.grant.Config.Dialect, e.view.ID), statement.SQL)
@@ -805,6 +850,9 @@ func (v *Server) journal(s *session, e *execution, phase string) error {
 		return err
 	}
 	entry := map[string]any{"session_id": s.id, "core_session_id": s.grant.ID, "execution": e.snapshot(), "sql": e.sql, "phase": phase, "recovery": "An unfinished intent has unknown outcome; never replay SQL"}
+	if e.planMode != "" {
+		entry["generated_sql"] = e.planSQL
+	}
 	data, err := json.Marshal(entry)
 	if err != nil {
 		return err

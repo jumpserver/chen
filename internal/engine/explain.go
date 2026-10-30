@@ -1,35 +1,13 @@
 package engine
 
 import (
-	"errors"
 	"net/http"
-	"strings"
 
 	"github.com/jumpserver/chen/internal/sqlservice"
 )
 
 func prepareExplainSQL(dialect, document string) (string, error) {
-	switch dialect {
-	case "mysql", "mariadb", "postgresql", "clickhouse", "oceanbase-mysql":
-	default:
-		return "", errors.New("explain_not_supported")
-	}
-	analysis, err := sqlservice.AnalyzeWithOptions(sqlservice.Dialect(dialect), document, sqlservice.AnalyzeOptions{})
-	if err != nil || len(analysis.Statements) != 1 {
-		return "", errors.New("explain_requires_single_select")
-	}
-	s := analysis.Statements[0]
-	if s.MayWrite || !s.ReturnsRows || (s.Kind != "select" && s.Kind != "setopr") {
-		return "", errors.New("explain_requires_single_select")
-	}
-	prefix := "EXPLAIN "
-	if dialect == "postgresql" {
-		prefix = "EXPLAIN (FORMAT JSON, ANALYZE FALSE) "
-	}
-	if dialect == "clickhouse" {
-		prefix = "EXPLAIN PLAN "
-	}
-	return prefix + strings.TrimSpace(s.SQL), nil
+	return sqlservice.EstimatedPlanSQL(sqlservice.Dialect(dialect), document, sqlservice.AnalyzeOptions{})
 }
 
 func (v *Server) prepareExplain(w http.ResponseWriter, r *http.Request) {
@@ -37,7 +15,8 @@ func (v *Server) prepareExplain(w http.ResponseWriter, r *http.Request) {
 	if s == nil {
 		return
 	}
-	if v.findConsole(w, r, s) == nil {
+	c := v.findConsole(w, r, s)
+	if c == nil {
 		return
 	}
 	var request struct {
@@ -46,7 +25,14 @@ func (v *Server) prepareExplain(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &request) {
 		return
 	}
-	sql, err := prepareExplainSQL(s.grant.Config.Dialect, request.SQL)
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	opts, err := liveOptions(r.Context(), c, s.grant.Config.Dialect)
+	if err != nil {
+		fail(w, 409, "sql_context_unavailable", "Console SQL context is unavailable")
+		return
+	}
+	sql, err := sqlservice.EstimatedPlanSQL(sqlservice.Dialect(s.grant.Config.Dialect), request.SQL, opts)
 	if err != nil {
 		fail(w, 400, err.Error(), "Estimated plans require one read query and a supported database")
 		return
