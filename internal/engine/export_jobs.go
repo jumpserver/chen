@@ -32,6 +32,7 @@ type ExportView struct {
 	Limits      map[string]int64 `json:"limits"`
 }
 type exportJob struct {
+	cachedRows                                                      *int // immutable requested prefix, including zero; nil exports the entire cache
 	expiryTimer                                                     *time.Timer
 	stopSessionWatch                                                func() bool
 	mu                                                              sync.Mutex
@@ -370,6 +371,7 @@ func (v *Server) createCachedExport(w http.ResponseWriter, r *http.Request) {
 	var request struct {
 		Format    string `json:"format"`
 		RequestID string `json:"request_id"`
+		Rows      *int   `json:"rows,omitempty"`
 	}
 	if !decode(w, r, &request) {
 		return
@@ -389,7 +391,7 @@ func (v *Server) createCachedExport(w http.ResponseWriter, r *http.Request) {
 	}
 	if old := s.exportRequests[request.RequestID]; old != nil {
 		s.mu.Unlock()
-		if old.format != request.Format || old.resultID != r.PathValue("rid") {
+		if old.format != request.Format || old.resultID != r.PathValue("rid") || (old.cachedRows == nil) != (request.Rows == nil) || (old.cachedRows != nil && request.Rows != nil && *old.cachedRows != *request.Rows) {
 			fail(w, 409, "idempotency_conflict", "Request id belongs to another export")
 			return
 		}
@@ -401,6 +403,15 @@ func (v *Server) createCachedExport(w http.ResponseWriter, r *http.Request) {
 		s.mu.Unlock()
 		fail(w, 404, "not_found", "Result not found")
 		return
+	}
+	count := len(result.Rows)
+	if request.Rows != nil {
+		if *request.Rows < 0 || *request.Rows > count {
+			s.mu.Unlock()
+			fail(w, 400, "invalid_export_rows", "Requested cached rows are unavailable")
+			return
+		}
+		count = *request.Rows
 	}
 	if len(s.exportRequests) >= 256 {
 		s.mu.Unlock()
@@ -414,6 +425,7 @@ func (v *Server) createCachedExport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	j.resultID = result.ID
+	j.cachedRows = request.Rows
 	j.truncated = result.Truncated
 	s.exportRequests[request.RequestID] = j
 	s.workers.Add(1)
@@ -424,7 +436,7 @@ func (v *Server) createCachedExport(w http.ResponseWriter, r *http.Request) {
 		defer cancel()
 		i := 0
 		err := j.produce(ctx, result.Columns, func() ([]any, bool, error) {
-			if i >= len(result.Rows) {
+			if i >= count {
 				return nil, false, nil
 			}
 			row := result.Rows[i]

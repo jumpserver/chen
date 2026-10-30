@@ -431,6 +431,12 @@ func (v *Server) run(s *session, c *console, e *execution) {
 			failure(err, &APIError{"invalid_browse", err.Error()})
 			return
 		}
+		if p.action == "append" {
+			if _, err := v.browseAppendSource(s, c.id, p); err != nil {
+				failure(err, &APIError{"invalid_browse", err.Error()})
+				return
+			}
+		}
 		runSQL, browseArgs = p.sql, p.args
 	}
 	if e.planMode != "" {
@@ -581,6 +587,8 @@ func (v *Server) run(s *session, c *console, e *execution) {
 					collectErr = rows.Err()
 				}
 				rows.Close()
+			} else if e.browse != nil && e.browse.plan != nil && e.browse.plan.action == "append" {
+				collectErr = v.collectBrowseAppend(s, e, rows)
 			} else if e.export != nil {
 				collectErr = v.collectExport(s, c, e, rows)
 			} else {
@@ -769,6 +777,9 @@ func (v *Server) readRows(s *session, rows *sql.Rows, plans ...*browsePlan) (*Re
 		view := plans[0].view
 		if view.Supported {
 			limit = view.PageSize
+			if plans[0].fetchSize > 0 {
+				limit = plans[0].fetchSize
+			}
 			more := false
 			view.HasMore = &more
 		}
@@ -854,6 +865,13 @@ func (v *Server) readRows(s *session, rows *sql.Rows, plans ...*browsePlan) (*Re
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
+	}
+	if result.Browse != nil && result.Browse.Supported {
+		if result.Truncated {
+			result.Browse.LimitReached = "bytes"
+		} else if len(result.Rows) >= v.opts.MaxRows && result.Browse.HasMore != nil && *result.Browse.HasMore {
+			result.Browse.LimitReached = "rows"
+		}
 	}
 	result.TotalRows = len(result.Rows)
 	result.memoryBytes = reserved
