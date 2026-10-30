@@ -10,6 +10,7 @@ import (
 	"mime"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -86,27 +87,79 @@ func (v *Server) Handler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
-		if origin := r.Header.Get("Origin"); origin != "" && !v.allowedOrigin(origin, r.Host) {
-			fail(w, 403, "origin_denied", "Request origin is not trusted")
+		if !v.allowCORS(w, r) {
 			return
 		}
 		if r.Header.Get("Sec-Fetch-Site") == "cross-site" && r.Header.Get("Origin") == "" {
 			fail(w, 403, "origin_denied", "Cross-site request denied")
 			return
 		}
-		// Token headers (not ambient cookies) authenticate every operation. No
-		// cross-origin preflight or credentialed CORS is enabled.
 		mux.ServeHTTP(w, r)
 	})
 }
+
+// CORS grants browser access only to the same host or an explicitly trusted
+// origin. Session tokens still authenticate every private API request.
+func (v *Server) allowCORS(w http.ResponseWriter, r *http.Request) bool {
+	w.Header().Add("Vary", "Origin")
+	origin := r.Header.Get("Origin")
+	if origin == "" {
+		return true
+	}
+	if !v.allowedOrigin(origin, r.Host) {
+		fail(w, 403, "origin_denied", "Request origin is not trusted")
+		return false
+	}
+	// Same-origin requests need no CORS headers. In particular, do not replace
+	// a gateway's public CORS origin with its rewritten upstream Origin.
+	scheme := "http"
+	if r.TLS != nil {
+		scheme = "https"
+	}
+	if origin != scheme+"://"+r.Host && slices.Contains(v.opts.AllowedOrigins, origin) {
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+		w.Header().Set("Access-Control-Expose-Headers", "Content-Disposition, X-Chen-Result-Truncated")
+	}
+	if r.Method != http.MethodOptions || r.Header.Get("Access-Control-Request-Method") == "" {
+		return true
+	}
+	w.Header().Add("Vary", "Access-Control-Request-Method")
+	w.Header().Add("Vary", "Access-Control-Request-Headers")
+	switch r.Header.Get("Access-Control-Request-Method") {
+	case http.MethodGet, http.MethodHead, http.MethodPost, http.MethodDelete:
+	default:
+		fail(w, 403, "cors_method_denied", "Request method is not allowed")
+		return false
+	}
+	for _, header := range strings.Split(r.Header.Get("Access-Control-Request-Headers"), ",") {
+		switch strings.ToLower(strings.TrimSpace(header)) {
+		case "", "accept", "authorization", "content-type", "token", "idempotency-key", "last-event-id", "x-csrftoken", "x-jms-org":
+		default:
+			fail(w, 403, "cors_header_denied", "Request header is not allowed")
+			return false
+		}
+	}
+	w.Header().Set("Access-Control-Allow-Methods", "GET, HEAD, POST, DELETE")
+	w.Header().Set("Access-Control-Allow-Headers", "Accept, Authorization, Content-Type, Token, Idempotency-Key, Last-Event-ID, X-CSRFToken, X-JMS-ORG")
+	w.WriteHeader(http.StatusNoContent)
+	return false
+}
+
 func (v *Server) allowedOrigin(origin, host string) bool {
+	u, err := url.Parse(origin)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.User != nil || u.Path != "" || u.RawQuery != "" || u.ForceQuery || u.Fragment != "" || u.Opaque != "" {
+		return false
+	}
+	if u.Host == host {
+		return true
+	}
 	for _, trusted := range v.opts.AllowedOrigins {
 		if origin == trusted {
 			return true
 		}
 	}
-	u, err := url.Parse(origin)
-	return err == nil && (u.Scheme == "http" || u.Scheme == "https") && u.Host == host && u.User == nil && u.Path == "" && u.RawQuery == "" && !u.ForceQuery && u.Fragment == "" && u.Opaque == ""
+	return false
 }
 func writeJSON(w http.ResponseWriter, status int, value any) {
 	w.Header().Set("Content-Type", "application/json")
