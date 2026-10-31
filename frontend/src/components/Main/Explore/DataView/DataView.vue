@@ -212,6 +212,16 @@ export default {
     })
   },
   methods: {
+    formatLiteral(dbType, value) {
+      // Ported from luna v5 dataGridCopy.ts formatChenSqlLiteral
+      if (value === null || value === undefined) return 'NULL'
+      if (typeof value === 'number') return Number.isFinite(value) ? String(value) : 'NULL'
+      if (typeof value === 'boolean') {
+        const numericBoolean = ['sqlserver', 'oracle', 'dm', 'dameng'].includes((dbType || '').trim().toLowerCase())
+        return numericBoolean ? (value ? '1' : '0') : (value ? 'TRUE' : 'FALSE')
+      }
+      return `'${String(value).replace(/'/g, "''")}'`
+    },
     getState() {
       return this.state
     },
@@ -293,12 +303,18 @@ export default {
       let hasPrimary = false
       const dbType = store.getters.profile.dbType
       const { schema, table } = this.meta
+      if (!schema || !table) {
+        // Aligned with luna v5 dataGridCopy.quoteTable: refuse to emit SQL
+        // when table metadata is missing (e.g. ad-hoc query results)
+        this.$message.warning('无法确定目标表，无法生成 SQL / Cannot determine target table')
+        return
+      }
       const char = SpecialCharacters[dbType]
       const tableName = `${this.wrap(schema, char)}.${this.wrap(table, char)}`
       const primaryKeys = ['id']
       for (let i = 0; i < this.colDefs.length; i++) {
         const fieldName = this.colDefs[i].field
-        const fieldValue = `'${(this.currentRow[fieldName] || '')}'`
+        const fieldValue = this.formatLiteral(dbType, this.currentRow[fieldName])
         if (action === 'insert') {
           fields += (i > 0 ? ', ' : '') + this.wrap(fieldName, char)
           values += (i > 0 ? ', ' : '') + `${fieldValue}`
@@ -313,7 +329,7 @@ export default {
             updated_attrs += (i > 0 ? ', ' : '') + `${this.wrap(fieldName, char)} = ${fieldValue}`
           }
           if (hasPrimary) {
-            conditional_attrs = `${this.wrap('id', char)} = '${this.currentRow['id']}'`
+            conditional_attrs = `${this.wrap('id', char)} = ${this.formatLiteral(dbType, this.currentRow['id'])}`
           } else {
             conditional_attrs = `${updated_attrs} LIMIT 1`
           }
