@@ -53,7 +53,11 @@ func AnalyzeWithOptions(dialect Dialect, document string, options AnalyzeOptions
 		return result, fmt.Errorf("SQL document contains NUL")
 	}
 	if dialect == ClickHouse && strings.HasPrefix(document, "EXPLAIN PLAN ") {
-		inner, err := analyzeSelectDocument(dialect, document[len("EXPLAIN PLAN "):], options)
+		body := strings.TrimPrefix(document, "EXPLAIN PLAN ")
+		if strings.HasPrefix(document, ClickHouseJSONPlanPrefix) {
+			body = strings.TrimPrefix(document, ClickHouseJSONPlanPrefix)
+		}
+		inner, err := planReadDocument(dialect, body, options)
 		if err != nil || len(inner.Statements) != 1 {
 			return result, fmt.Errorf("ClickHouse estimated plans require one read query")
 		}
