@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -44,6 +45,7 @@ type browseRequest struct {
 	ConfirmWarnings bool          `json:"confirm_warnings"`
 }
 type BrowsePage struct {
+	ServerVersion string        `json:"server_version,omitempty"`
 	MaxLoadedRows int           `json:"max_loaded_rows"`
 	LimitReached  string        `json:"limit_reached,omitempty"` // rows or bytes; not end of table
 	Supported     bool          `json:"supported"`
@@ -165,7 +167,7 @@ func (v *Server) resolveBrowse(ctx context.Context, s *session, c *console, req 
 		}
 		previous := result.browse.plan
 		if !previous.view.Supported {
-			return nil, errors.New("Database paging, filtering, counting and full filtered export are currently supported for PostgreSQL and MySQL only")
+			return nil, errors.New("This result supports cached browsing only: " + previous.view.Reason)
 		}
 		if scope.Database != previous.view.Database {
 			return nil, errors.New("Database changed; reopen this table")
@@ -193,24 +195,28 @@ func (v *Server) resolveBrowse(ctx context.Context, s *session, c *console, req 
 		if req.Table == "" {
 			return nil, errors.New("Select a table to browse")
 		}
+		p.options, err = liveOptions(ctx, c, d)
+		if err != nil {
+			return nil, err
+		}
+		version, reason, err := browseVendorContext(ctx, c, d, p.options)
+		if err != nil {
+			return nil, err
+		}
 		table, err := sqlservice.LoadEditTable(ctx, c.conn, sqlservice.Dialect(d), scope, req.Schema, req.Table)
 		if err != nil {
 			return nil, errors.New("This table is unavailable for editable browsing; open it as a normal query")
 		}
 		p.table = table
-		p.view = BrowsePage{Supported: d == "postgresql" || d == "mysql", Database: table.Database, Schema: table.Schema, Table: table.Table, Where: strings.TrimSpace(req.Where), Filter: req.Filter, Sort: append([]browseOrder{}, req.Sort...), Offset: req.Offset, PageSize: req.PageSize, MaxPageSize: min(1000, v.opts.MaxRows), MaxOffset: browseMaxOffset, MaxLoadedRows: v.opts.MaxRows}
+		p.view = BrowsePage{Supported: reason == "", Reason: reason, ServerVersion: version, Database: table.Database, Schema: table.Schema, Table: table.Table, Where: strings.TrimSpace(req.Where), Filter: req.Filter, Sort: append([]browseOrder{}, req.Sort...), Offset: req.Offset, PageSize: req.PageSize, MaxPageSize: min(1000, v.opts.MaxRows), MaxOffset: browseMaxOffset, MaxLoadedRows: v.opts.MaxRows}
 		if p.view.PageSize == 0 {
 			p.view.PageSize = min(200, p.view.MaxPageSize)
 		}
-		p.options, err = liveOptions(ctx, c, d)
-		if err != nil {
-			return nil, err
-		}
 		if !p.view.Supported {
-			if p.view.Where != "" || p.view.Filter != nil || len(p.view.Sort) > 0 || p.view.Offset != 0 || req.PageSize != 0 {
-				return nil, errors.New("Database filtering and paging currently support PostgreSQL and MySQL only; this dialect retains cached browsing")
+			if p.view.Where != "" || p.view.Filter != nil || len(p.view.Sort) > 0 || p.view.Offset != 0 {
+				return nil, errors.New("This connection supports cached browsing only: " + p.view.Reason)
 			}
-			p.view.Reason = "legacy_cached_browse"
+			// Initial page_size is a preference; legacy browsing retains its cache bound.
 			p.policySQL = "SELECT * FROM " + editQualified(table.Schema, table.Table, d)
 			switch d {
 			case "mariadb", "oceanbase-mysql":
@@ -475,4 +481,64 @@ func (v *Server) collectBrowseAppend(s *session, e *execution, rows *sql.Rows) e
 		x.StatementResults = append(x.StatementResults, StatementResult{ResultID: merged.ID})
 	})
 	return nil
+}
+
+var browseVersionNumber = regexp.MustCompile(`^(\d+)\.(\d+)\.(\d+)(?:[.-]|$)`)
+var browseOceanBaseVersion = regexp.MustCompile(`(?i)OceanBase[^\s]*-v(\d+\.\d+\.\d+(?:[.-].*)?)$`)
+
+// Keep browse admission independent from informational catalogs and EXPLAIN
+// formats. These families have the required LIMIT/metadata contract; each
+// connection must still supply complete authorized edit metadata.
+func browseVendorVersionSupported(d, version string) bool {
+	switch d {
+	case "mariadb":
+		if !strings.Contains(strings.ToLower(version), "mariadb") {
+			return false
+		}
+		version = strings.TrimPrefix(version, "5.5.5-")
+	case "oceanbase-mysql":
+		parts := browseOceanBaseVersion.FindStringSubmatch(version)
+		if len(parts) != 2 {
+			return false
+		}
+		version = parts[1]
+	default:
+		return false
+	}
+	parts := browseVersionNumber.FindStringSubmatch(version)
+	if len(parts) != 4 {
+		return false
+	}
+	major, _ := strconv.Atoi(parts[1])
+	minor, _ := strconv.Atoi(parts[2])
+	if d == "mariadb" {
+		return major == 10 && minor == 11 || major == 11 && minor <= 8
+	}
+	return major == 4 && (minor == 2 || minor == 3)
+}
+
+func browseVendorContext(ctx context.Context, c *console, d string, options sqlservice.AnalyzeOptions) (version, reason string, err error) {
+	switch d {
+	case "postgresql", "mysql":
+		return "", "", nil
+	case "mariadb", "oceanbase-mysql":
+		if err = sqlservice.ValidateBrowseSQLMode(sqlservice.Dialect(d), options); err != nil {
+			return
+		}
+		if err = c.conn.QueryRowContext(ctx, "SELECT VERSION()").Scan(&version); err != nil {
+			return "", "", errors.New("Unable to verify the server version for database browsing")
+		}
+		if d == "oceanbase-mysql" {
+			var mode string
+			if err = c.conn.QueryRowContext(ctx, "SELECT @@ob_compatibility_mode").Scan(&mode); err != nil || !strings.EqualFold(mode, "MYSQL") {
+				return "", "", errors.New("Database browsing requires a verified OceanBase MySQL tenant")
+			}
+		}
+		if !browseVendorVersionSupported(d, version) {
+			return version, "Server product/version is outside the supported browse families (MariaDB 10.11/11.0-11.8; OceanBase MySQL 4.2/4.3)", nil
+		}
+		return version, "", nil
+	default:
+		return "", "legacy_cached_browse", nil
+	}
 }
