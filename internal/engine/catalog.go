@@ -31,6 +31,7 @@ type catalogResource struct {
 	cursorKey [32]byte
 }
 type catalogCursor struct {
+	Contract     string `json:"oc,omitempty"`
 	Direction    string `json:"direction,omitempty"`
 	Section      string `json:"section,omitempty"`
 	Sort         string `json:"sort,omitempty"`
@@ -57,6 +58,7 @@ type catalogScope struct {
 	operation, schema, kind, query, table, cursor string
 	section, sort, database, direction            string
 	limit                                         int
+	overviewContract                              string
 }
 type catalogRequest struct {
 	session  *session
@@ -375,6 +377,8 @@ func catalogError(w http.ResponseWriter, r *http.Request, s *session, err error)
 		fail(w, 410, "session_closed", "Session is closed")
 	case errors.Is(err, sqlservice.ErrCatalogForbidden):
 		fail(w, 403, "catalog_forbidden", "Catalog access is denied")
+	case errors.Is(err, sqlservice.ErrOverviewContractChanged):
+		fail(w, 409, "overview_contract_changed", "Catalog product, version or fields changed; refresh the overview")
 	case errors.Is(err, sqlservice.ErrCatalogNotFound):
 		fail(w, 404, "catalog_not_found", "Object is unavailable or does not exist")
 	case errors.Is(err, context.DeadlineExceeded):
@@ -461,6 +465,7 @@ func (v *Server) catalogColumns(w http.ResponseWriter, r *http.Request) {
 func (c *catalogResource) encodeCursor(session, database string, scope catalogScope, afterSchema, afterName string, afterOrdinal int, afterTable ...string) string {
 	value := catalogCursor{Version: 1, Session: session, Database: database, Operation: scope.operation, Schema: scope.schema, Kind: scope.kind, Query: scope.query, Table: scope.table, AfterSchema: afterSchema, AfterName: afterName, AfterOrdinal: afterOrdinal}
 	if scope.operation == "overview" || scope.operation == "diagram" {
+		value.Contract = scope.overviewContract
 		value.Direction = scope.direction
 		value.Section = scope.section
 		value.Sort = scope.sort
