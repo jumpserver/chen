@@ -35,11 +35,13 @@ type CatalogOverview struct {
 	Fields     map[string]OverviewValue `json:"fields"`
 	HasMore    bool                     `json:"has_more"`
 	NextCursor string                   `json:"next_cursor,omitempty"`
+	Contract   string                   `json:"-"`
 }
 type OverviewRequest struct {
 	CatalogObjectRequest
 	Section, Sort, AfterTable string
 	AfterOrdinal              int
+	AfterContract             string
 }
 
 func overviewValue(v sql.NullString, state, source string) OverviewValue {
@@ -55,8 +57,13 @@ func overviewText(value, source string) OverviewValue {
 // CatalogOverviewRows performs section-level system catalog queries, never
 // business COUNT or per-object inspection. Scope is the connection's fixed DB;
 // an empty PG schema explicitly means all visible non-system schemas.
-func CatalogOverviewRows(ctx context.Context, conn *sql.Conn, d Dialect, req OverviewRequest) (CatalogOverview, error) {
-	result := CatalogOverview{Database: req.Database, Schema: req.Schema, Section: req.Section, State: "supported", SampledAt: time.Now().UTC().Format(time.RFC3339Nano), Visibility: "authorized_catalog", Rows: []OverviewRow{}, Fields: map[string]OverviewValue{}}
+func CatalogOverviewRows(ctx context.Context, conn *sql.Conn, d Dialect, req OverviewRequest) (result CatalogOverview, err error) {
+	defer func() {
+		if overviewPermissionDenied(err) {
+			err = ErrCatalogForbidden
+		}
+	}()
+	result = CatalogOverview{Database: req.Database, Schema: req.Schema, Section: req.Section, State: "supported", SampledAt: time.Now().UTC().Format(time.RFC3339Nano), Visibility: "authorized_catalog", Rows: []OverviewRow{}, Fields: map[string]OverviewValue{}}
 	if err := validateCatalogInput(conn, d, req.Database, req.Schema, req.Query, req.AfterSchema, req.AfterName, req.AfterTable); err != nil {
 		return result, err
 	}
@@ -74,9 +81,12 @@ func CatalogOverviewRows(ctx context.Context, conn *sql.Conn, d Dialect, req Ove
 			return result, err
 		}
 	}
-	// MySQL-compatible vendors keep their existing directory visibility. Deep
-	// properties are explicitly unsupported until validated for that vendor.
-	if d != PostgreSQL && d != MySQL {
+	result.Contract = string(d)
+	if !IsMySQLDialect(d) && req.AfterName != "" && req.AfterContract != "" && req.AfterContract != result.Contract {
+		return result, ErrOverviewContractChanged
+	}
+	// Other vendors retain their existing directory-only contract.
+	if d != PostgreSQL && !IsMySQLDialect(d) {
 		if req.Section != "tables" && req.Section != "views" {
 			result.State = "unsupported"
 			return result, nil
@@ -95,7 +105,26 @@ func CatalogOverviewRows(ctx context.Context, conn *sql.Conn, d Dialect, req Ove
 		}
 		return result, err
 	}
+	var capabilities *overviewMyCapabilities
+	if IsMySQLDialect(d) {
+		var err error
+		capabilities, err = probeOverviewMyCapabilities(ctx, conn, d, req.Section)
+		if err != nil {
+			return result, err
+		}
+		result.Contract = capabilities.contract
+		if req.AfterName != "" && req.AfterContract != result.Contract {
+			return result, ErrOverviewContractChanged
+		}
+	}
 	query, args := overviewSQL(d, req)
+	if capabilities != nil {
+		query = capabilities.adaptSQL(query)
+		if d == MariaDB && (req.Section == "tables" || req.Section == "views") {
+			// The MariaDB predicate also includes system-versioned tables.
+			args = append([]any{args[0], args[1], args[1]}, args[2:]...)
+		}
+	}
 	if query == "" {
 		result.State = "unsupported"
 		return result, nil
@@ -121,23 +150,42 @@ func CatalogOverviewRows(ctx context.Context, conn *sql.Conn, d Dialect, req Ove
 			}
 			for i, n := range names {
 				result.Fields[n] = overviewValue(values[i], "unknown", overviewSource(d, req.Section, n))
+				if capabilities != nil {
+					result.Fields[n] = capabilities.value(n, values[i], req.Section)
+				}
 			}
 			if req.Section == "statistics" {
 				for _, key := range []string{"estimated_rows", "data_bytes", "index_bytes", "total_bytes"} {
 					unknown := result.Fields[key+"_unknown"].Value
-					if unknown != nil && *unknown == "0" && result.Fields[key].Value == nil {
+					if unknown != nil && *unknown == "0" && result.Fields[key].Value == nil && result.Fields[key].State == "unknown" && (capabilities == nil || capabilities.state(key) == "unknown" && (capabilities.storage || !strings.HasSuffix(key, "_bytes"))) {
 						result.Fields[key] = overviewText("0", overviewSource(d, req.Section, key))
 					}
-					if unknown != nil && *unknown != "0" {
+					if unknown != nil && *unknown != "0" && result.Fields[key].Value != nil {
 						v := result.Fields[key]
 						v.State = "partial"
 						result.Fields[key] = v
+						result.State = "partial"
 					}
 				}
 			}
 		}
-		result.Fields["schema_ddl"] = OverviewValue{State: "unsupported"}
-		return result, rows.Err()
+		if err := rows.Err(); err != nil {
+			return result, err
+		}
+		if err := rows.Close(); err != nil {
+			return result, err
+		}
+		if req.Section == "properties" {
+			result.Fields["schema_ddl"] = OverviewValue{State: "unsupported", Source: "No native schema DDL implemented for this product"}
+			if capabilities != nil {
+				result.Fields["server_version"] = overviewText(capabilities.version, string(d)+"; SELECT VERSION()")
+				result.Fields["schema_ddl"], err = overviewDatabaseDDL(ctx, conn, d, req.Database)
+				if err != nil {
+					return result, err
+				}
+			}
+		}
+		return result, nil
 	}
 	for rows.Next() {
 		var row OverviewRow
@@ -148,16 +196,22 @@ func CatalogOverviewRows(ctx context.Context, conn *sql.Conn, d Dialect, req Ove
 				return result, err
 			}
 			row.Name = name.String
-			row.Ordinal, _ = strconv.Atoi(position.String)
+			row.Ordinal, err = strconv.Atoi(position.String)
+			if IsMySQLDialect(d) && (err != nil || row.Ordinal < 1) {
+				return result, fmt.Errorf("invalid overview index ordinal")
+			}
 			for k, v := range map[string]sql.NullString{"unique": unique, "method": method, "definition": definition, "column": column, "expression": expression, "position": position, "direction": direction, "prefix_length": prefix} {
 				state := "unknown"
 				if d == PostgreSQL && k == "definition" {
 					state = "restricted"
 				}
-				if (d == PostgreSQL && k != "definition" && k != "unique" && k != "method") || (d == MySQL && k == "definition") {
+				if (d == PostgreSQL && k != "definition" && k != "unique" && k != "method") || (IsMySQLDialect(d) && k == "definition") {
 					state = "unsupported"
 				}
 				f := overviewValue(v, state, overviewSource(d, req.Section, k))
+				if capabilities != nil {
+					f = capabilities.value(k, v, req.Section)
+				}
 				if v.Valid && len(v.String) > 16384 {
 					short := v.String[:16384]
 					for !validOverviewText(short) {
@@ -181,6 +235,9 @@ func CatalogOverviewRows(ctx context.Context, conn *sql.Conn, d Dialect, req Ove
 			row.Name = row.Object.Name
 			row.Object.Comment = comment.String
 			row.Fields["comment"] = overviewValue(comment, "unknown", "catalog")
+			if capabilities != nil {
+				row.Fields["comment"] = capabilities.value("comment", comment, req.Section)
+			}
 			if len(comment.String) > 4096 {
 				text := comment.String[:4096]
 				for !validOverviewText(text) {
@@ -192,10 +249,16 @@ func CatalogOverviewRows(ctx context.Context, conn *sql.Conn, d Dialect, req Ove
 			storage := row.Object.ObjectType == "table" || row.Object.ObjectType == "materialized_view"
 			for i, k := range []string{"estimated_rows", "data_bytes", "index_bytes", "total_bytes", "last_analyzed", "engine", "character_set", "collation"} {
 				state := "unknown"
-				if d == PostgreSQL && (i >= 5 || !storage && i <= 4) || d == MySQL && row.Object.Kind == "view" {
+				if d == PostgreSQL && (i >= 5 || !storage && i <= 4) || IsMySQLDialect(d) && row.Object.Kind == "view" {
 					state = "unsupported"
 				}
 				row.Fields[k] = overviewValue(vals[i], state, overviewSource(d, req.Section, k))
+				if capabilities != nil {
+					row.Fields[k] = capabilities.value(k, vals[i], req.Section)
+					if row.Object.Kind == "view" {
+						row.Fields[k] = OverviewValue{State: "unsupported", Source: "View has no stored table statistics or storage properties"}
+					}
+				}
 			}
 		}
 		result.Rows = append(result.Rows, row)
@@ -220,10 +283,19 @@ func overviewSource(d Dialect, section, key string) string {
 		return "pg_catalog; visible objects only"
 	}
 	if section == "indexes" {
-		return "information_schema.STATISTICS; one row per ordered index part; MySQL 8+"
+		if d == OceanBaseMySQL {
+			return "OceanBase MySQL information_schema.STATISTICS; ordered catalog column names, including generated columns; EXPRESSION is a NULL compatibility placeholder"
+		}
+		return string(d) + " information_schema.STATISTICS; one row per ordered index part; fields probed on the authorized catalog connection"
 	}
 	if key == "last_analyzed" {
 		return "unknown; UPDATE_TIME is not ANALYZE freshness"
+	}
+	if d == MariaDB {
+		return "MariaDB information_schema; TABLE_ROWS may be estimated; InnoDB/XtraDB page allocation, Aria/MyISAM file bytes, MEMORY allocated memory; TABLES partition totals counted once; visible base/system-versioned tables only"
+	}
+	if d == OceanBaseMySQL {
+		return "OceanBase MySQL information_schema; TABLE_ROWS catalog estimate; DATA_LENGTH table macroblock bytes, INDEX_LENGTH non-primary index macroblock bytes; TABLES logical-table totals counted once, not replica or tenant totals"
 	}
 	return "information_schema; TABLE_ROWS is engine-dependent estimate; DATA_LENGTH includes clustered data; INDEX_LENGTH secondary indexes; partition totals reported by TABLES; external LOB storage may be excluded"
 }
@@ -260,8 +332,8 @@ func overviewSQL(d Dialect, r OverviewRequest) (string, []any) {
  COUNT(*) FILTER(WHERE c.relkind IN ('p','f'))::text AS total_bytes_unknown` + overviewPGFrom + ` AND c.relkind IN ('r','p','m','f','v')`, []any{r.Database, r.Schema}
 		}
 		return `SELECT CAST(COALESCE(SUM(t.TABLE_TYPE='BASE TABLE'),0) AS CHAR) AS tables, CAST(COALESCE(SUM(t.TABLE_TYPE='VIEW'),0) AS CHAR) AS views,
- CAST(SUM(t.TABLE_ROWS) AS CHAR) AS estimated_rows, CAST(COALESCE(SUM(t.TABLE_TYPE='BASE TABLE' AND t.TABLE_ROWS IS NULL),0) AS CHAR) AS estimated_rows_unknown,
- CAST(SUM(t.DATA_LENGTH) AS CHAR) AS data_bytes, CAST(SUM(t.INDEX_LENGTH) AS CHAR) AS index_bytes, CAST(SUM(t.DATA_LENGTH+t.INDEX_LENGTH) AS CHAR) AS total_bytes,
+ CAST(SUM(CASE WHEN t.TABLE_TYPE='BASE TABLE' THEN t.TABLE_ROWS END) AS CHAR) AS estimated_rows, CAST(COALESCE(SUM(t.TABLE_TYPE='BASE TABLE' AND t.TABLE_ROWS IS NULL),0) AS CHAR) AS estimated_rows_unknown,
+ CAST(SUM(CASE WHEN t.TABLE_TYPE='BASE TABLE' THEN t.DATA_LENGTH END) AS CHAR) AS data_bytes, CAST(SUM(CASE WHEN t.TABLE_TYPE='BASE TABLE' THEN t.INDEX_LENGTH END) AS CHAR) AS index_bytes, CAST(SUM(CASE WHEN t.TABLE_TYPE='BASE TABLE' THEN t.DATA_LENGTH+t.INDEX_LENGTH END) AS CHAR) AS total_bytes,
  CAST(COALESCE(SUM(t.TABLE_TYPE='BASE TABLE' AND t.DATA_LENGTH IS NULL),0) AS CHAR) AS data_bytes_unknown,
  CAST(COALESCE(SUM(t.TABLE_TYPE='BASE TABLE' AND t.INDEX_LENGTH IS NULL),0) AS CHAR) AS index_bytes_unknown,
  CAST(COALESCE(SUM(t.TABLE_TYPE='BASE TABLE' AND (t.DATA_LENGTH IS NULL OR t.INDEX_LENGTH IS NULL)),0) AS CHAR) AS total_bytes_unknown` + overviewMyFrom, []any{r.Database}
