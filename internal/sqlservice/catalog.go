@@ -276,8 +276,12 @@ func catalogObjectAccess(ctx context.Context, conn *sql.Conn, dialect Dialect, s
 	}
 	if IsMySQLDialect(dialect) {
 		var exists bool
-		err := conn.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM information_schema.TABLES
-WHERE BINARY TABLE_SCHEMA = BINARY ? AND BINARY TABLE_NAME = BINARY ? AND TABLE_TYPE IN ('BASE TABLE', 'VIEW'))`, schema, table).Scan(&exists)
+		query := `SELECT EXISTS (SELECT 1 FROM information_schema.TABLES
+WHERE BINARY TABLE_SCHEMA = BINARY ? AND BINARY TABLE_NAME = BINARY ? AND TABLE_TYPE IN ('BASE TABLE', 'VIEW'))`
+		if dialect == MariaDB {
+			query = strings.Replace(query, "('BASE TABLE', 'VIEW')", "('BASE TABLE', 'SYSTEM VERSIONED', 'VIEW')", 1)
+		}
+		err := conn.QueryRowContext(ctx, query, schema, table).Scan(&exists)
 		if err != nil {
 			return fmt.Errorf("check catalog object: %w", err)
 		}

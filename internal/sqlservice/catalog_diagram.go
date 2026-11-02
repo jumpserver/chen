@@ -14,6 +14,8 @@ const DiagramPageBytes = 512 * 1024
 type DiagramRequest struct {
 	CatalogObjectRequest
 	Section, Direction, Table, AfterTable string
+	Contract                              string
+	Continuation                          bool
 }
 type DiagramPair struct {
 	Ordinal int     `json:"ordinal"`
@@ -34,6 +36,8 @@ type DiagramItem struct {
 	Edge   *DiagramEdge   `json:"edge,omitempty"`
 }
 type CatalogDiagram struct {
+	Contract   string        `json:"-"`
+	Reason     string        `json:"reason,omitempty"`
 	Database   string        `json:"database"`
 	Schema     string        `json:"schema"`
 	Table      string        `json:"table"`
@@ -51,15 +55,20 @@ type CatalogDiagram struct {
 
 // Two independent keyset streams: visible tables and complete constraints. A
 // page never splits a composite FK. Only catalog connections/queries are used.
-func CatalogDiagramRows(ctx context.Context, conn *sql.Conn, d Dialect, r DiagramRequest) (CatalogDiagram, error) {
-	result := CatalogDiagram{Database: r.Database, Schema: r.Schema, Table: r.Table, Direction: r.Direction, Section: r.Section, State: "complete", Visibility: "authorized_catalog", SampledAt: time.Now().UTC().Format(time.RFC3339Nano), Items: []DiagramItem{}}
+func CatalogDiagramRows(ctx context.Context, conn *sql.Conn, d Dialect, r DiagramRequest) (result CatalogDiagram, err error) {
+	defer func() {
+		if overviewPermissionDenied(err) {
+			err = ErrCatalogForbidden
+		}
+	}()
+	result = CatalogDiagram{Database: r.Database, Schema: r.Schema, Table: r.Table, Direction: r.Direction, Section: r.Section, State: "complete", Visibility: "authorized_catalog", SampledAt: time.Now().UTC().Format(time.RFC3339Nano), Items: []DiagramItem{}}
 	if err := validateCatalogInput(conn, d, r.Database, r.Schema, r.Table, r.AfterSchema, r.AfterName, r.AfterTable); err != nil {
 		return result, err
 	}
 	if (r.Section != "nodes" && r.Section != "edges") || (r.Direction != "schema" && r.Direction != "incoming") || r.Direction == "incoming" && (r.Table == "" || r.Schema == "") {
 		return result, fmt.Errorf("invalid diagram request")
 	}
-	if d != PostgreSQL && d != MySQL {
+	if d != PostgreSQL && !IsMySQLDialect(d) {
 		result.State = "unsupported"
 		return result, nil
 	}
@@ -67,7 +76,7 @@ func CatalogDiagramRows(ctx context.Context, conn *sql.Conn, d Dialect, r Diagra
 	if d == PostgreSQL {
 		result.Source = "pg_catalog"
 	}
-	if systemCatalogSchema(r.Schema, d) || d == MySQL && r.Schema != "" && r.Schema != r.Database {
+	if systemCatalogSchema(r.Schema, d) || IsMySQLDialect(d) && r.Schema != "" && r.Schema != r.Database {
 		return result, ErrCatalogForbidden
 	}
 	if err := catalogDatabaseAccess(ctx, conn, d, r.Database); err != nil {
@@ -78,13 +87,48 @@ func CatalogDiagramRows(ctx context.Context, conn *sql.Conn, d Dialect, r Diagra
 			return result, err
 		}
 	}
+	columnPrivileges := false
+	if d == MariaDB || d == OceanBaseMySQL {
+		result.Contract, result.Source, result.Reason, columnPrivileges, err = probeDiagramMyContract(ctx, conn, d, r.Database)
+		if err != nil {
+			return result, err
+		}
+		if r.Continuation && (result.Contract == "" || r.Contract != result.Contract) {
+			return result, ErrDiagramContractChanged
+		}
+		if result.Reason != "" {
+			result.State = "unsupported"
+			return result, nil
+		}
+	}
+	// Column-only grants can hide an entire FK in KCU, not just its column
+	// names. Be conservative even if the account also holds wider grants.
+	if d == MariaDB || d == OceanBaseMySQL {
+		var columnGrants bool
+		if !columnPrivileges {
+			result.State = "partial"
+			result.Reason = "Column privilege visibility cannot be verified; relationships are limited to the visible catalog"
+		} else {
+			err = conn.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM information_schema.COLUMN_PRIVILEGES p JOIN information_schema.TABLES t ON BINARY t.TABLE_SCHEMA=BINARY p.TABLE_SCHEMA AND BINARY t.TABLE_NAME=BINARY p.TABLE_NAME WHERE BINARY p.TABLE_SCHEMA=BINARY ?)`, r.Database).Scan(&columnGrants)
+			if err != nil {
+				return result, err
+			}
+		}
+		if columnGrants {
+			result.State = "partial"
+			result.Reason = "Column privileges may hide entire constraints; relationships are limited to the visible catalog"
+		}
+	}
 	if r.Direction == "incoming" {
-		if err := catalogObjectAccess(ctx, conn, d, r.Schema, r.Table); err != nil {
+		if err := diagramObjectAccess(ctx, conn, d, r); err != nil {
 			return result, err
 		}
 	}
 	r.Limit = min(catalogLimit(r.Limit), 100)
 	query, args := diagramSQL(d, r)
+	if d == MariaDB || d == OceanBaseMySQL {
+		query, args = diagramCompatibleSQL(d, r)
+	}
 	rows, err := conn.QueryContext(ctx, query, args...)
 	if err != nil {
 		return result, err
@@ -101,7 +145,8 @@ func CatalogDiagramRows(ctx context.Context, conn *sql.Conn, d Dialect, r Diagra
 		}
 		var schema, table, name string
 		var targetSchema, targetName, sourceColumn, targetColumn sql.NullString
-		var ordinal, count int
+		var ordinal sql.NullInt64
+		var count int
 		var openable bool
 		if err := rows.Scan(&schema, &table, &name, &targetSchema, &targetName, &openable, &ordinal, &count, &sourceColumn, &targetColumn); err != nil {
 			return result, err
@@ -117,7 +162,7 @@ func CatalogDiagramRows(ctx context.Context, conn *sql.Conn, d Dialect, r Diagra
 			edge = &DiagramEdge{ColumnCount: count, Name: name, Source: CatalogObject{Database: r.Database, Schema: schema, Name: table, Kind: "table", ObjectType: "table"}, State: "complete", Pairs: []DiagramPair{}, TargetOpenable: openable}
 			if targetSchema.Valid && targetName.Valid {
 				database := r.Database
-				if d == MySQL {
+				if IsMySQLDialect(d) {
 					database = targetSchema.String
 				}
 				edge.Target = &CatalogObject{Database: database, Schema: targetSchema.String, Name: targetName.String, Kind: "table", ObjectType: "table"}
@@ -126,7 +171,21 @@ func CatalogDiagramRows(ctx context.Context, conn *sql.Conn, d Dialect, r Diagra
 			}
 			result.Items = append(result.Items, DiagramItem{Edge: edge})
 		}
-		pair := DiagramPair{Ordinal: ordinal}
+		if !ordinal.Valid || ordinal.Int64 < 1 || ordinal.Int64 > DiagramMaxPairs || len(edge.Pairs) >= DiagramMaxPairs {
+			edge.State = "partial"
+			continue
+		}
+		// Reject inconsistent targets/counts and duplicate pairs rather than emitting
+		// a complete relationship assembled from changing or malformed metadata.
+		if count != edge.ColumnCount || edge.TargetOpenable != openable || (edge.Target != nil && (!targetSchema.Valid || !targetName.Valid || edge.Target.Schema != targetSchema.String || edge.Target.Name != targetName.String)) {
+			edge.State = "partial"
+			edge.TargetOpenable = false
+		}
+		if len(edge.Pairs) > 0 && int(ordinal.Int64) <= edge.Pairs[len(edge.Pairs)-1].Ordinal {
+			edge.State = "partial"
+			continue
+		}
+		pair := DiagramPair{Ordinal: int(ordinal.Int64)}
 		if sourceColumn.Valid {
 			v := sourceColumn.String
 			pair.Source = &v
@@ -135,10 +194,10 @@ func CatalogDiagramRows(ctx context.Context, conn *sql.Conn, d Dialect, r Diagra
 			v := targetColumn.String
 			pair.Target = &v
 		}
-		if pair.Source == nil || pair.Target == nil {
+		if (pair.Source == nil || pair.Target == nil) && edge.State != "partial" {
 			edge.State = "restricted"
 		}
-		if ordinal != len(edge.Pairs)+1 || count > DiagramMaxPairs {
+		if pair.Ordinal != len(edge.Pairs)+1 || count > DiagramMaxPairs {
 			edge.State = "partial"
 		}
 		edge.Pairs = append(edge.Pairs, pair)
@@ -159,7 +218,7 @@ func CatalogDiagramRows(ctx context.Context, conn *sql.Conn, d Dialect, r Diagra
 			break
 		}
 		size += len(b)
-		if item.Edge != nil && len(item.Edge.Pairs) != item.Edge.ColumnCount {
+		if item.Edge != nil && (len(item.Edge.Pairs) != item.Edge.ColumnCount || item.Edge.ColumnCount < 1) {
 			item.Edge.State = "partial"
 		}
 		if item.Edge != nil && item.Edge.State != "complete" {
@@ -228,4 +287,17 @@ func diagramSQL(d Dialect, r DiagramRequest) (string, []any) {
  LEFT JOIN information_schema.COLUMNS sc ON BINARY sc.TABLE_SCHEMA=BINARY k.TABLE_SCHEMA AND BINARY sc.TABLE_NAME=BINARY k.TABLE_NAME AND BINARY sc.COLUMN_NAME=BINARY k.COLUMN_NAME
  LEFT JOIN information_schema.COLUMNS tc ON BINARY tc.TABLE_SCHEMA=BINARY t.TABLE_SCHEMA AND BINARY tc.TABLE_NAME=BINARY t.TABLE_NAME AND BINARY tc.COLUMN_NAME=BINARY k.REFERENCED_COLUMN_NAME
  WHERE k.ORDINAL_POSITION<=64 ORDER BY BINARY k.TABLE_SCHEMA,BINARY k.TABLE_NAME,BINARY k.CONSTRAINT_NAME,k.ORDINAL_POSITION`, args
+}
+
+func diagramObjectAccess(ctx context.Context, conn *sql.Conn, d Dialect, r DiagramRequest) error {
+	if d != MariaDB && d != OceanBaseMySQL {
+		return catalogObjectAccess(ctx, conn, d, r.Schema, r.Table)
+	}
+	q, args := diagramCompatibleSQL(d, DiagramRequest{CatalogObjectRequest: r.CatalogObjectRequest, Section: "nodes", Direction: "incoming", Table: r.Table})
+	var schema, name, kind string
+	err := conn.QueryRowContext(ctx, q, args...).Scan(&schema, &name, &kind)
+	if err == sql.ErrNoRows {
+		return ErrCatalogNotFound
+	}
+	return err
 }
