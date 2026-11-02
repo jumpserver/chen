@@ -48,7 +48,7 @@ func webHandler(api http.Handler, o options) (http.Handler, func(), error) {
 			return
 		}
 		path := r.URL.Path
-		if path == "/healthy" || strings.HasPrefix(path, "/chen/api/") || root == nil {
+		if path == "/healthy" || path == "/ready" || strings.HasPrefix(path, "/chen/api/") || root == nil {
 			api.ServeHTTP(w, r)
 			return
 		}

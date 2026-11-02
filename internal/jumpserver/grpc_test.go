@@ -70,6 +70,19 @@ func TestWispGRPCControlLossPausesAndRecoveryPreservesAdminLock(t *testing.T) {
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 			defer cancel()
+			// Reproduce HTTP arriving before go p.Run(ctx) has been scheduled.
+			if _, err := p.Open(ctx, "unused-token", "192.0.2.1"); !errors.Is(err, ErrControlNotReady) {
+				t.Fatalf("unstarted control worker allowed token exchange: %v", err)
+			}
+			if !errors.Is(p.Ready(ctx), ErrControlNotReady) {
+				t.Fatal("unstarted provider reported ready")
+			}
+			w.backend.mu.Lock()
+			calls := w.backend.tokenCalls
+			w.backend.mu.Unlock()
+			if calls != 0 {
+				t.Fatal("startup consumed a one-time token")
+			}
 			done := make(chan struct{})
 			go func() { p.Run(ctx); close(done) }()
 			select {
@@ -77,6 +90,7 @@ func TestWispGRPCControlLossPausesAndRecoveryPreservesAdminLock(t *testing.T) {
 			case <-ctx.Done():
 				t.Fatal("first stream absent")
 			}
+			eventually(t, func() bool { return p.Ready(ctx) == nil })
 			g, err := p.Open(ctx, "synthetic-token", "192.0.2.1")
 			if err != nil {
 				t.Fatal(err)
@@ -101,6 +115,15 @@ func TestWispGRPCControlLossPausesAndRecoveryPreservesAdminLock(t *testing.T) {
 			if _, err := p.Open(ctx, "another-token", "192.0.2.2"); !errors.Is(err, ErrControlNotReady) {
 				t.Fatal("new sessions allowed without controls")
 			}
+			if !errors.Is(p.Ready(ctx), ErrControlNotReady) {
+				t.Fatal("lost control remained ready")
+			}
+			w.backend.mu.Lock()
+			calls = w.backend.tokenCalls
+			w.backend.mu.Unlock()
+			if calls != 1 {
+				t.Fatal("lost control consumed another token")
+			}
 			if adminLock {
 				p.applyTask(&protobuf.TerminalTask{SessionId: g.ID, Action: protobuf.TaskAction_LockSession})
 			}
@@ -119,10 +142,20 @@ func TestWispGRPCControlLossPausesAndRecoveryPreservesAdminLock(t *testing.T) {
 			if err := g.Check(); err != nil {
 				t.Fatalf("recovered session remained unusable: %v", err)
 			}
+			if err := p.Ready(ctx); err != nil {
+				t.Fatalf("recovery remained unready: %v", err)
+			}
 			cancel()
 			<-done
+			if !errors.Is(p.Ready(context.Background()), ErrControlNotReady) {
+				t.Fatal("stopped worker remained ready")
+			}
 		})
 	}
+}
+
+func (w *wireWisp) GetPublicSetting(context.Context, *protobuf.Empty) (*protobuf.PublicSettingResponse, error) {
+	return &protobuf.PublicSettingResponse{Status: &protobuf.Status{Ok: true}, Data: &protobuf.PublicSetting{}}, nil
 }
 
 func (w *wireWisp) GetTokenAuthInfo(ctx context.Context, r *protobuf.TokenRequest) (*protobuf.TokenResponse, error) {

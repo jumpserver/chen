@@ -35,7 +35,6 @@ type WispProvider struct {
 	wake             chan struct{}
 	runOnce          sync.Once
 	flushMu          sync.Mutex
-	controlMonitored bool
 	controlAvailable bool
 }
 
@@ -84,7 +83,9 @@ func statusOK(status *protobuf.Status) bool { return status != nil && status.Ok 
 
 func (p *WispProvider) Open(ctx context.Context, token, remoteAddr string) (_ *Grant, resultErr error) {
 	p.mu.RLock()
-	controlUnavailable := p.controlMonitored && !p.controlAvailable
+	// Fail closed even before Run gets scheduled. A one-time token must not
+	// be exchanged until the managed control worker is available.
+	controlUnavailable := !p.controlAvailable
 	p.mu.RUnlock()
 	if controlUnavailable {
 		// Do not consume a one-time Core connection token while its session
@@ -211,7 +212,7 @@ func (p *WispProvider) Open(ctx context.Context, token, remoteAddr string) (_ *G
 		return nil, errors.New("duplicate_core_session_id")
 	}
 	p.grants[g.ID] = g
-	g.controlUnavailable = p.controlMonitored && !p.controlAvailable
+	g.controlUnavailable = !p.controlAvailable
 	p.mu.Unlock()
 	if len(data.Gateways) > 0 {
 		forward, forwardErr := p.createForward(ctx, &protobuf.ForwardRequest{

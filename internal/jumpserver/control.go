@@ -78,6 +78,7 @@ func (p *WispProvider) listGrants() []*Grant {
 }
 
 func (p *WispProvider) watchTasks(ctx context.Context) {
+	defer p.setControlAvailable(false)
 	for ctx.Err() == nil {
 		stream, err := p.client.DispatchTask(ctx)
 		if err == nil && stream != nil {
@@ -114,8 +115,8 @@ func (p *WispProvider) watchTasks(ctx context.Context) {
 // separate health boundary and is not exposed by this protobuf version.
 func (p *WispProvider) setControlAvailable(available bool) {
 	p.mu.Lock()
-	changed := !p.controlMonitored || p.controlAvailable != available
-	p.controlMonitored, p.controlAvailable = true, available
+	changed := p.controlAvailable != available
+	p.controlAvailable = available
 	grants := make([]*Grant, 0, len(p.grants))
 	if changed {
 		for _, grant := range p.grants {

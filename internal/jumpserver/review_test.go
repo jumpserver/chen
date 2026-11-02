@@ -110,6 +110,7 @@ func reviewGRPCProvider(t *testing.T, w *reviewWireWisp) (*WispProvider, *Grant)
 	if err != nil {
 		t.Fatal(err)
 	}
+	p.setControlAvailable(true) // This fixture tests approval RPCs, not control startup.
 	g, err := p.Open(context.Background(), "synthetic-token", "192.0.2.1")
 	if err != nil {
 		t.Fatal(err)

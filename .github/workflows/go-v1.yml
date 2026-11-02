@@ -22,9 +22,16 @@ jobs:
       - run: cd third_party/dm && go test -race ./...
       - run: go vet ./...
       - run: bash -n start.sh entrypoint.sh scripts/*.sh
-      - run: ./scripts/test-entrypoint.sh
+      - name: Verify sibling process failures and shutdown order
+        run: ./scripts/test-entrypoint.sh
       - run: python3 scripts/test-update-base-image.py
       - run: WISP_TEST_ONLY=1 ./scripts/build-wisp.sh
+      - name: Exercise pinned Wisp retry limits against an isolated Core stub
+        run: |
+          mkdir -p data/bin
+          go build -o data/bin/chen-go ./cmd/chen-go
+          ./scripts/build-wisp.sh
+          python3 scripts/test-managed-startup.py --chen data/bin/chen-go --wisp data/bin/wisp
       - run: docker compose config --quiet
       - run: docker compose -f docker-compose.yml -f docker-compose.wisp-dev.yml config --quiet
       - run: docker pull mysql:8.4 && docker pull postgres:16-alpine
@@ -62,7 +69,7 @@ jobs:
           go-version-file: go.mod
       - name: Build formal base, CE and EE chain
         run: make image-ee
-      - name: Run the resulting CE and EE images against disposable PostgreSQL
+      - name: Check CE/EE health metadata, managed startup failures and single database sessions
         run: |
           suffix=''
           if [ "$WITH_DB2" = 1 ]; then suffix='-db2'; fi

@@ -41,7 +41,7 @@ func main() {
 type options struct {
 	listen, wisp, state, origins, ca, serverName, backends, webDir string
 	single, plaintext, insecureBackends                            bool
-	timeout                                                        time.Duration
+	timeout, startupTimeout                                        time.Duration
 	rows, bytes                                                    int
 }
 
@@ -51,7 +51,9 @@ func parseOptions(args []string) (options, error) {
 		o.single = true
 		args = args[1:]
 	}
+	var startupTimeout string
 	flags := flag.NewFlagSet("chen-go [single]", flag.ContinueOnError)
+	flags.StringVar(&startupTimeout, "startup-timeout", env("CHEN_STARTUP_TIMEOUT", "120s"), "Maximum wait for Wisp initialization (managed mode only)")
 	flags.BoolVar(&o.single, "single", o.single, "Run independently using a local backend file; no Core or Wisp")
 	flags.StringVar(&o.listen, "listen", env("CHEN_HTTP_ADDR", "127.0.0.1:8083"), "HTTP host:port (single mode defaults to loopback)")
 	flags.StringVar(&o.wisp, "wisp-address", env("CHEN_WISP_ADDRESS", "127.0.0.1:9090"), "Wisp gRPC host:port (managed mode only)")
@@ -73,6 +75,13 @@ func parseOptions(args []string) (options, error) {
 	if flags.NArg() != 0 {
 		return o, errors.New("unexpected command argument")
 	}
+	if !o.single {
+		var err error
+		o.startupTimeout, err = time.ParseDuration(startupTimeout)
+		if err != nil || o.startupTimeout <= 0 {
+			return o, errors.New("invalid_startup_timeout")
+		}
+	}
 	if o.timeout <= 0 || o.rows <= 0 || o.bytes <= 0 {
 		return o, errors.New("invalid resource limits")
 	}
@@ -88,6 +97,10 @@ func parseOptions(args []string) (options, error) {
 // Only the selected mode initializes its provider. Single mode never constructs
 // a Wisp client or starts the managed audit/control background processes.
 func configuredProvider(o options) (jumpserver.Provider, func(), error) {
+	return configuredProviderContext(context.Background(), o)
+}
+
+func configuredProviderContext(startupCtx context.Context, o options) (jumpserver.Provider, func(), error) {
 	if o.single {
 		config, err := standalone.Load(o.backends, standalone.LoadOptions{AllowInsecurePermissions: o.insecureBackends})
 		if err != nil {
@@ -103,6 +116,10 @@ func configuredProvider(o options) (jumpserver.Provider, func(), error) {
 	client, err := grpc.NewClient(o.wisp, grpc.WithTransportCredentials(transport))
 	if err != nil {
 		return nil, nil, errors.New("wisp_client_configuration_failed")
+	}
+	if err := waitWisp(startupCtx, pb.NewServiceClient(client), o.startupTimeout); err != nil {
+		_ = client.Close()
+		return nil, nil, err
 	}
 	p, err := jumpserver.NewWispProvider(pb.NewServiceClient(client), jumpserver.Options{SpoolDir: filepath.Join(o.state, "outbox"), OnError: func(err error) { slog.Warn(err.Error()) }})
 	if err != nil {
@@ -134,7 +151,9 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	provider, stopProvider, err := configuredProvider(o)
+	stopCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	provider, stopProvider, err := configuredProviderContext(stopCtx, o)
 	if err != nil {
 		return err
 	}
@@ -155,8 +174,6 @@ func run() error {
 	server := &http.Server{Addr: o.listen, Handler: handler, ReadHeaderTimeout: 10 * time.Second, ReadTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 << 10}
 	failure := make(chan error, 1)
 	go func() { failure <- server.ListenAndServe() }()
-	stopCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
 	mode := "managed"
 	if o.single {
 		mode = "single"

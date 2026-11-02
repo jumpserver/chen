@@ -44,6 +44,7 @@ func TestFaceMonitorJoinRequiredBeforeOpen(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		p.setControlAvailable(true)
 		g, err := p.Open(context.Background(), "synthetic", "127.0.0.1")
 		if fail {
 			if err == nil || err.Error() != "face_monitor_join_failed" || g != nil {
@@ -70,6 +71,7 @@ func TestReplayDurabilityRedactionAndRecovery(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	p.setControlAvailable(true)
 	g, err := p.Open(context.Background(), "synthetic", "127.0.0.1")
 	if err != nil {
 		t.Fatal(err)
@@ -146,6 +148,7 @@ func TestReplayLostUploadReplyRetainsCanonicalCast(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	p.setControlAvailable(true)
 	g, err := p.Open(context.Background(), "synthetic", "127.0.0.1")
 	if err != nil {
 		t.Fatal(err)

@@ -118,6 +118,106 @@ proxies or redirects. This is liveness, not proof of Core registration or an
 open authorized database session. Managed acceptance must establish those
 separately. HTTP and query logs must not contain connection credentials.
 
+### Managed startup and readiness
+
+Previously the entrypoint started both processes and Chen immediately opened
+HTTP: `grpc.NewClient` only configured a client. `/healthy` could succeed while
+Wisp was still validating its access key or registering with Core.
+
+The sibling process layout is retained, but startup now follows:
+
+```text
+entrypoint starts Wisp and Chen
+  Wisp retries Core registration/key validation, loads terminal configuration
+  Chen waits for a successful Wisp GetPublicSetting RPC (including Status.Ok/data)
+  Chen initializes its persistent outbox and starts audit/control workers
+  Chen opens HTTP; /ready additionally checks local initialization and control state
+```
+
+`CHEN_STARTUP_TIMEOUT=120s` (or `--startup-timeout 120s`) bounds Chen's managed
+startup wait. Each RPC has a two-second deadline, retries pause one second, and
+each failed attempt logs a fixed code and attempt number. No RPC response,
+Core URL, token or credential is logged by these probes. Wisp has its own bounded
+registration retry policy and can fail before this deadline; increasing Chen's
+timeout does not extend Wisp's retry policy. The supervisor propagates an early
+Wisp exit, stops a waiting Chen, and treats an unexpected zero exit as failure.
+SIGTERM cancels the wait promptly. After startup the existing shutdown order is
+unchanged: Chen HTTP shutdown (10s), session cleanup (15s), provider drain (up to
+12s), then Wisp; the supervisor's limits remain 40s/10s and Compose allows 55s.
+The signal context used for startup does not cancel the running audit provider
+before sessions have closed.
+
+No separate Core `/api/health/` gate is needed. That endpoint returns HTTP 200
+even when its JSON `status`, `db_status` or `redis_status` is false. A bare HTTP
+200 would therefore not be a substitute for initialization.
+
+| Check | Meaning |
+| --- | --- |
+| `GET /healthy`, `chen-go healthcheck` | HTTP liveness, 200 with `{"status":"ok"}`; no external probe. |
+| `GET /ready`, `chen-go readycheck` | 200 with `{"status":"ready"}`, or 503 with `{"status":"not_ready"}`. Local export storage must initialize and shutdown must not have begun. Managed mode also requires the local task worker to be available and a successful read-only Wisp/Core public-settings RPC. |
+| `chen-go wisp-healthcheck` | One bounded Wisp public-settings RPC using the same address/TLS flags; opens no journal. Used for the separate Wisp Compose startup dependency. |
+
+Before managed initialization finishes, HTTP is not listening, so both HTTP
+checks fail to connect; neither reports healthy/ready. After listening, a lost
+dependency changes readiness to 503 without changing liveness, stopping sessions
+or initiating a restart. Existing task-stream protection still applies. A
+successful probe proves one Core settings read, **not** Core WebSocket health,
+all database/Redis dependencies, permission validity or a database session.
+Wisp v0.2.15 exposes no authoritative upstream WebSocket health signal. The local
+stream flag is not an upstream handshake acknowledgement. No health request
+consumes a one-time connection token. Single/standalone mode does not initialize
+Wisp or depend on any Core check or managed startup timeout.
+
+Managed providers start fail-closed: `Open` refuses token exchange before the
+control worker runs, as well as during a known control-channel outage. There is
+no "not yet monitored" bypass. A recovered control stream restores readiness
+without clearing independent administrator locks.
+
+Each `/ready` request makes one Wisp RPC and one Core settings GET; `/healthy`
+makes neither. Use a modest readiness cadence (for example 15s), not a browser
+polling loop. The two-second RPC deadline bounds Chen's response, but pinned
+Wisp's SDK call does not inherit that context and may continue up to its own
+30s HTTP timeout. No cache or background health state machine is introduced;
+high-frequency probes would require a separate measured load/timeout change.
+
+The CE Dockerfile already defines the 15s/5s/60s/3-retry liveness HEALTHCHECK;
+EE inherits it from CE. The base is a build image and needs no service check.
+These intervals are unchanged. Installer's `chen-go healthcheck` branch remains
+compatible; the `/chen/healthy` fallback is only for legacy Java images and must
+not be selected for Go images. Keep readiness separate from restart decisions,
+including in any external auto-heal tooling. Docker health status alone does
+not restart a container; `restart: unless-stopped` acts on process exit.
+
+### Verify the deployed image and effective healthcheck
+
+Run these after updating/recreating Chen with the intended Installer/Compose
+configuration. Do not delete the data volume or registration keys. A mutable
+tag on the host may refer to a different image from the running container:
+
+```sh
+docker image inspect jumpserver/chen:dev-ce \
+  --format 'id={{.Id}} digests={{json .RepoDigests}} health={{json .Config.Healthcheck}}'
+docker inspect jms_chen \
+  --format 'tag={{.Config.Image}} id={{.Image}} health={{json .Config.Healthcheck}} state={{json .State.Health}} restarts={{.RestartCount}}'
+image_id=$(docker inspect --format '{{.Image}}' jms_chen)
+docker image inspect "$image_id" \
+  --format 'id={{.Id}} labels={{json .Config.Labels}} user={{.Config.User}} health={{json .Config.Healthcheck}}'
+docker exec jms_chen chen-go --version
+docker exec jms_chen cat /usr/local/bin/wisp.version
+docker exec jms_chen id
+docker exec jms_chen chen-go healthcheck
+docker exec jms_chen chen-go readycheck
+```
+
+In the deployment directory, use the **same Compose files and environment** as
+Installer to inspect `docker compose config` and compare its `chen.healthcheck`
+with the container output above. Avoid sharing the full config: environment
+entries may include credentials. A container override can provide a working
+check even when the selected image has none. If the image itself has `null`,
+record the immutable image ID/digest and build version before attributing this
+to a Dockerfile change. The 2026-11-02 supplied logs establish a roughly 22s
+initialization gap followed by recovery, not persistent failure or a restart.
+
 ## Separate Wisp during development
 
 ```sh
@@ -187,6 +287,27 @@ that native POST download tickets are single use. The export files are written
 by UID 10001 under the same persistent state path as the deployed service.
 The retired synchronous CSV/JSON export URLs must return 404, so they cannot
 bypass export-job auditing and permission checks.
+The script also asserts CE/EE image and effective container HEALTHCHECK metadata,
+checks `readycheck` in single mode, runs fake-child supervisor faults in the
+runtime image, and verifies a real packaged Wisp/Chen startup against an
+unreachable Core fails within its budget without becoming healthy. This negative
+test uses a disposable volume and a closed loopback port, not an existing Core.
+Go tests use a real gRPC transport with controlled service responses to cover
+delayed Wisp, an initially failing upstream read followed by recovery, hung RPCs,
+startup timeout/cancellation, and readiness loss/recovery with stable liveness.
+These tests do not replace the real managed fixture below.
+
+`python3 scripts/test-managed-startup.py --chen data/bin/chen-go --wisp data/bin/wisp`
+runs the actual native binaries and entrypoint against a disposable partial Core
+stub with synthetic keys. Build them with `make build` and `./scripts/build-wisp.sh`.
+It checks an initially refused Core connection followed by recovery, Chen's
+short startup deadline, Wisp key-validation retry exhaustion, and graceful TERM.
+Wisp v0.2.15 attempts registration/validation up to ten times with five-second
+pauses: fast failures exhaust in about 50s, while request timeouts can take longer.
+Chen's independent default budget is 120s. Increasing it does not extend Wisp's
+policy. The image smoke similarly checks registration exhaustion with no stored
+key. The stub deliberately rejects WebSocket upgrades: these are startup and
+probe tests, not full Core authorization, database-session or audit acceptance.
 Repeat for amd64 and pass `1` for the Db2 variant; capability presence plus `ldd`
 checks verify packaging, while a real Db2 connection is a separate gate.
 

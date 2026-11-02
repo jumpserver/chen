@@ -13,6 +13,7 @@ services:
       CORE_HOST: ${CORE_HOST:-http://host.docker.internal:8080}
       BOOTSTRAP_TOKEN: ${BOOTSTRAP_TOKEN:-}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      CHEN_STARTUP_TIMEOUT: ${CHEN_STARTUP_TIMEOUT:-120s}
       CHEN_HTTP_ADDR: 0.0.0.0:8082
       CHEN_STATE_DIR: /opt/chen/data/go
     extra_hosts:
