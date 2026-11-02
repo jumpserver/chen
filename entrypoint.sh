@@ -8,7 +8,7 @@ if (( $# )); then shift; fi
 case "$mode" in
     single|standalone) exec "$chen_bin" single "$@" ;;
     backend) exec "$chen_bin" "$@" ;;
-    healthcheck|version|--version|--help|-h) exec "$chen_bin" "$mode" "$@" ;;
+    healthcheck|readycheck|wisp-healthcheck|version|--version|--help|-h) exec "$chen_bin" "$mode" "$@" ;;
     managed|wisp) ;;
     wisp-only) export EXECUTE_PROGRAM=''; exec "$wisp_bin" "$@" ;;
     *) exec "$mode" "$@" ;;

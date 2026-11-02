@@ -26,9 +26,9 @@ services:
     volumes:
       - chen-data:/opt/chen/data
     healthcheck:
-      test: ["CMD", "bash", "-c", "echo >/dev/tcp/127.0.0.1/9090"]
+      test: ["CMD", "chen-go", "wisp-healthcheck"]
       interval: 5s
-      timeout: 2s
+      timeout: 5s
       start_period: 30s
       retries: 12
     restart: unless-stopped

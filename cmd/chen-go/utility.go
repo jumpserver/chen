@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -9,6 +10,10 @@ import (
 	"runtime"
 	"runtime/debug"
 	"time"
+
+	"github.com/jumpserver/chen/internal/jumpserver"
+	pb "github.com/jumpserver/wisp/protobuf-go/protobuf"
+	"google.golang.org/grpc"
 )
 
 var version = "dev"
@@ -33,7 +38,22 @@ func runUtility(args []string, output io.Writer) (bool, error) {
 		}
 		_, err := fmt.Fprintf(output, "Chen %s %s/%s Wisp %s\n", version, runtime.GOOS, runtime.GOARCH, wisp)
 		return true, err
-	case "healthcheck":
+	case "wisp-healthcheck":
+		o, err := parseOptions(args[1:])
+		if err != nil {
+			return true, err
+		}
+		transport, err := wispCredentials(o.wisp, o.ca, o.serverName, o.plaintext)
+		if err != nil {
+			return true, err
+		}
+		client, err := grpc.NewClient(o.wisp, grpc.WithTransportCredentials(transport))
+		if err != nil {
+			return true, errors.New("wisp_client_configuration_failed")
+		}
+		defer client.Close()
+		return true, jumpserver.ProbeWisp(context.Background(), pb.NewServiceClient(client))
+	case "healthcheck", "readycheck":
 		if len(args) != 1 {
 			return true, errors.New("healthcheck does not accept arguments")
 		}
@@ -51,7 +71,11 @@ func runUtility(args []string, output io.Writer) (bool, error) {
 		transport := &http.Transport{Proxy: nil}
 		defer transport.CloseIdleConnections()
 		client := &http.Client{Transport: transport, Timeout: 3 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
-		response, err := client.Get("http://" + net.JoinHostPort(host, port) + "/healthy")
+		path := "/healthy"
+		if args[0] == "readycheck" {
+			path = "/ready"
+		}
+		response, err := client.Get("http://" + net.JoinHostPort(host, port) + path)
 		if err != nil {
 			return true, errors.New("healthcheck_unreachable")
 		}

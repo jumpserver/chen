@@ -42,6 +42,7 @@ func New(provider jumpserver.Provider, opts Options) *Server {
 }
 func (v *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
+	mux.HandleFunc("GET /ready", v.ready)
 	mux.HandleFunc("GET /healthy", func(w http.ResponseWriter, r *http.Request) { writeJSON(w, 200, map[string]string{"status": "ok"}) })
 	mux.HandleFunc("GET /chen/api/v1/capabilities", func(w http.ResponseWriter, r *http.Request) {
 		mode := "managed"
@@ -99,6 +100,21 @@ func (v *Server) Handler() http.Handler {
 		}
 		mux.ServeHTTP(w, r)
 	})
+}
+
+// Readiness is separate from Docker liveness. Probes never close sessions,
+// change control state or stop the process.
+func (v *Server) ready(w http.ResponseWriter, r *http.Request) {
+	ready := v.ctx.Err() == nil && v.exportInitErr == nil
+	if ready && !v.opts.SingleMode {
+		probe, ok := v.provider.(interface{ Ready(context.Context) error })
+		ready = ok && probe.Ready(r.Context()) == nil
+	}
+	if !ready || v.ctx.Err() != nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"status": "not_ready"})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ready"})
 }
 
 // CORS grants browser access only to the same host or an explicitly trusted

@@ -78,6 +78,7 @@ func (p *WispProvider) listGrants() []*Grant {
 }
 
 func (p *WispProvider) watchTasks(ctx context.Context) {
+	defer p.setControlAvailable(false)
 	for ctx.Err() == nil {
 		stream, err := p.client.DispatchTask(ctx)
 		if err == nil && stream != nil {
