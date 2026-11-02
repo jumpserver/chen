@@ -25,7 +25,7 @@ func ProbeWisp(ctx context.Context, client protobuf.ServiceClient) error {
 
 func (p *WispProvider) Ready(ctx context.Context) error {
 	p.mu.RLock()
-	available := p.controlMonitored && p.controlAvailable
+	available := p.controlAvailable
 	p.mu.RUnlock()
 	if !available {
 		return ErrControlNotReady

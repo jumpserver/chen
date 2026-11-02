@@ -129,6 +129,14 @@ func TestAICancellationReleasesBoundedCatalogTask(t *testing.T) {
 		return nil, ctx.Err()
 	}}
 	db := sql.OpenDB(executionConnector{state})
+	conn, err := db.Conn(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	// AI catalog access uses the editor's console connection, not the tree's
+	// independent pool. Without this, it returns connection_lost before querying.
+	s.consoles[e.ConsoleID].conn = conn
+	t.Cleanup(func() { s.consoles[e.ConsoleID].cancel(); _ = conn.Close() })
 	s.catalog = &catalogResource{db: db, slots: make(chan struct{}, 2)}
 	h := v.Handler()
 	path := "/chen/api/v1/sessions/" + s.id + "/ai/messages"
@@ -158,7 +166,14 @@ func TestAICancellationReleasesBoundedCatalogTask(t *testing.T) {
 		t.Fatal("canceled tool returned metadata")
 	}
 	s.workers.Wait()
-	if db.Stats().InUse != 0 {
-		t.Fatal("canceled catalog leaked its connection")
+	if db.Stats().InUse != 1 {
+		t.Fatal("canceled catalog lost the console connection or leaked another")
+	}
+	if !s.consoles[e.ConsoleID].mu.TryLock() {
+		t.Fatal("canceled catalog retained the console lock")
+	}
+	s.consoles[e.ConsoleID].mu.Unlock()
+	if len(v.catalogSlots) != 0 || len(s.catalog.slots) != 0 {
+		t.Fatal("canceled catalog retained capacity")
 	}
 }

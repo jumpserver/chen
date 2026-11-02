@@ -25,6 +25,7 @@ type testWisp struct {
 	finishes      []*protobuf.SessionFinishRequest
 	deletes       []string
 	creates       int
+	tokenCalls    int
 	uploadFail    bool
 	finishFail    bool
 	forward       *protobuf.ForwardResponse
@@ -33,6 +34,9 @@ type testWisp struct {
 }
 
 func (w *testWisp) GetTokenAuthInfo(context.Context, *protobuf.TokenRequest, ...grpc.CallOption) (*protobuf.TokenResponse, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.tokenCalls++
 	return &protobuf.TokenResponse{Status: &protobuf.Status{Ok: true}, Data: w.token}, nil
 }
 
@@ -114,6 +118,9 @@ func testProvider(t *testing.T, w *testWisp) *WispProvider {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// These policy/audit unit tests inject control readiness explicitly. Actual
+	// worker startup and loss/recovery are exercised by the gRPC tests.
+	p.setControlAvailable(true)
 	return p
 }
 

@@ -36,3 +36,22 @@ func TestUtilityVersionDoesNotInitializeProvider(t *testing.T) {
 		t.Fatalf("handled=%v error=%v output=%q", handled, err, out.String())
 	}
 }
+
+func TestUtilityReadinessUsesReadyWithoutInitializingState(t *testing.T) {
+	t.Setenv("CHEN_STATE_DIR", "/does/not/exist")
+	for _, status := range []int{200, 503, 302} {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/ready" {
+				t.Errorf("unexpected path: %s", r.URL.Path)
+			}
+			w.Header().Set("Location", "/healthy")
+			w.WriteHeader(status)
+		}))
+		t.Setenv("CHEN_HTTP_ADDR", strings.TrimPrefix(server.URL, "http://"))
+		handled, err := runUtility([]string{"readycheck"}, &bytes.Buffer{})
+		server.Close()
+		if !handled || (err == nil) != (status == 200) {
+			t.Fatalf("status=%d handled=%v err=%v", status, handled, err)
+		}
+	}
+}

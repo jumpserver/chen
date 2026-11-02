@@ -47,6 +47,10 @@ func TestModeSelectionAndManagedFlags(t *testing.T) {
 }
 
 func TestSingleProviderDoesNotInitializeWisp(t *testing.T) {
+	t.Setenv("CHEN_STARTUP_TIMEOUT", "ignored-in-single-mode")
+	if _, err := parseOptions([]string{"single"}); err != nil {
+		t.Fatal(err)
+	}
 	dir := t.TempDir()
 	path := filepath.Join(dir, "backends.yml")
 	config := "version: 1\nbackends:\n  - selector: local-mysql\n    protocol: mysql\n    host: 127.0.0.1\n    port: 3306\n    user: example\n"
@@ -130,6 +134,7 @@ func TestSingleStaticEntryAndLoopbackHostBoundary(t *testing.T) {
 		{"GET", "/luna/../secret", "localhost:8083", 404, ""},
 		{"POST", "/luna/chen/", "localhost:8083", 405, ""},
 		{"GET", "/chen/api/v1/capabilities", "localhost:8083", 200, "api"},
+		{"GET", "/ready", "localhost:8083", 200, "api"},
 		{"POST", "/chen/api/v1/sessions", "evil.example:8083", 403, ""},
 	} {
 		r := httptest.NewRequest(tc.method, tc.path, nil)
