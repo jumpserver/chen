@@ -424,9 +424,16 @@ func (v *Server) run(s *session, c *console, e *execution) {
 	if e.browse != nil && e.browse.plan != nil {
 		p := e.browse.plan
 		scope, scopeErr := liveContext(e.ctx, c, s.grant.Config.Dialect)
-		if scopeErr != nil || scope.Database != p.view.Database || (p.view.Where != "" && opts != p.options) {
+		if scopeErr != nil || scope.Database != p.view.Database || (p.view.Supported && opts != p.options) {
 			failure(errors.New("browse_context_changed"), &APIError{"browse_context_changed", "Database or SQL mode changed; apply the browse conditions again"})
 			return
+		}
+		if p.view.Supported && p.view.ServerVersion != "" {
+			version, reason, err := browseVendorContext(e.ctx, c, s.grant.Config.Dialect, opts)
+			if err != nil || reason != "" || version != p.view.ServerVersion {
+				failure(errors.New("browse_context_changed"), &APIError{"browse_context_changed", "Server capabilities changed; reopen this table"})
+				return
+			}
 		}
 		if err := validateBrowseWhere(e.ctx, c, s.grant.Config.Dialect, p); err != nil {
 			failure(err, &APIError{"invalid_browse", err.Error()})

@@ -170,7 +170,8 @@ func LoadEditTable(ctx context.Context, conn *sql.Conn, d Dialect, scope Context
 		item.Supported = EditTypeSupported(d, col.DataType)
 		out.Columns = append(out.Columns, item)
 	}
-	pk, _, ok := inspectionQuery(d, r, "primary_key")
+	verifyKeySize := d == MariaDB || d == OceanBaseMySQL
+	pk, _, ok := inspectionQuery(d, r, "primary_key", verifyKeySize)
 	if !ok {
 		return out, fmt.Errorf("%w: primary key metadata is unavailable", ErrNotEditable)
 	}
@@ -178,14 +179,27 @@ func LoadEditTable(ctx context.Context, conn *sql.Conn, d Dialect, scope Context
 	if err != nil {
 		return out, fmt.Errorf("read primary key: %w", err)
 	}
+	expectedKeySize := 0
+	keyConstraint := ""
 	for rows.Next() {
 		var constraint, name string
-		var ordinal int
-		if err = rows.Scan(&constraint, &name, &ordinal); err != nil {
+		var ordinal, keySize int
+		dest := []any{&constraint, &name, &ordinal}
+		if verifyKeySize {
+			dest = append(dest, &keySize)
+		}
+		if err = rows.Scan(dest...); err != nil {
 			break
 		}
 		if d == DB2 {
 			name = strings.TrimRight(name, " ")
+		}
+		if verifyKeySize {
+			if ordinal != len(out.PrimaryKey)+1 || keySize < ordinal || keySize > MaxCatalogPageSize || constraint == "" || (keyConstraint != "" && (keyConstraint != constraint || expectedKeySize != keySize)) {
+				err = fmt.Errorf("primary key metadata is incomplete or ambiguous")
+				break
+			}
+			expectedKeySize, keyConstraint = keySize, constraint
 		}
 		if len(out.PrimaryKey) >= MaxCatalogPageSize {
 			err = fmt.Errorf("primary key metadata exceeds bounds")
@@ -194,7 +208,11 @@ func LoadEditTable(ctx context.Context, conn *sql.Conn, d Dialect, scope Context
 		found := false
 		for i := range out.Columns {
 			if editNameKey(out.Columns[i].Name, d) == editNameKey(name, d) {
+				if out.Columns[i].PrimaryKey {
+					break
+				}
 				out.Columns[i].PrimaryKey = true
+				name = out.Columns[i].Name
 				found = true
 				break
 			}
@@ -211,6 +229,9 @@ func LoadEditTable(ctx context.Context, conn *sql.Conn, d Dialect, scope Context
 	_ = rows.Close()
 	if err != nil {
 		return out, fmt.Errorf("read complete primary key: %w", err)
+	}
+	if verifyKeySize && expectedKeySize != len(out.PrimaryKey) {
+		return out, fmt.Errorf("primary key metadata is incomplete")
 	}
 	return out, ctx.Err()
 }

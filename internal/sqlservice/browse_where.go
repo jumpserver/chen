@@ -2,6 +2,7 @@ package sqlservice
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 
 	pg "github.com/pganalyze/pg_query_go/v6"
@@ -105,8 +106,21 @@ func ValidateBrowseWhere(d Dialect, where string, opts AnalyzeOptions, columns [
 		}
 		return nil
 	}
-	if d != MySQL {
+	if !IsMySQLDialect(d) {
 		return ErrUnsupportedDialect
+	}
+	if err := ValidateBrowseSQLMode(d, opts); err != nil {
+		return err
+	}
+	if d == MariaDB || d == OceanBaseMySQL {
+		mode, _ := mysql.GetSQLMode(opts.MySQLSQLMode)
+		// Vendor executable comments have different activation rules. Inspect
+		// lexer comment tokens, never quoted strings; the AST remains mandatory.
+		for _, token := range lexMode(document, d, mode.HasANSIQuotesMode(), mode.HasNoBackslashEscapesMode()) {
+			if token.kind == 'c' && (strings.HasPrefix(token.text, "/*!") || strings.HasPrefix(strings.ToUpper(token.text), "/*M!")) {
+				return errors.New("Executable comments are unavailable in handwritten browse conditions")
+			}
+		}
 	}
 	input, err := mysqlParserInput(document, opts)
 	if err != nil {
@@ -192,3 +206,21 @@ func (v *browseWhereVisitor) Enter(n ast.Node) (ast.Node, bool) {
 	return n, v.invalid
 }
 func (v *browseWhereVisitor) Leave(n ast.Node) (ast.Node, bool) { v.depth--; return n, !v.invalid }
+
+// ValidateBrowseSQLMode admits only modes whose predicate/parameter semantics
+// are represented by the bounded MySQL AST path. Ordinary SQL is unaffected.
+func ValidateBrowseSQLMode(d Dialect, opts AnalyzeOptions) error {
+	if d != MariaDB && d != OceanBaseMySQL {
+		return nil
+	}
+	for _, mode := range strings.Split(opts.MySQLSQLMode, ",") {
+		switch mode {
+		case "ORACLE", "MSSQL", "DB2", "MAXDB", "POSTGRESQL", "MYSQL323", "MYSQL40", "EMPTY_STRING_IS_NULL":
+			return fmt.Errorf("Database browsing does not support SQL mode %s on %s", mode, d)
+		}
+	}
+	if _, err := mysql.GetSQLMode(opts.MySQLSQLMode); err != nil {
+		return fmt.Errorf("Database browsing cannot verify this %s SQL mode: %w", d, err)
+	}
+	return nil
+}
