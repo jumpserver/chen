@@ -178,7 +178,7 @@ func planAPIError(err error) *APIError {
 
 // Run on the already locked console. PostgreSQL errors are isolated with a
 // savepoint only when a user transaction is active; no BEGIN/COMMIT is injected.
-func (v *Server) runEstimatedPlan(s *session, c *console, e *execution, command string) (err error) {
+func (v *Server) runEstimatedPlan(s *session, c *console, e *execution, command, version string) (err error) {
 	var boundary *editBoundary
 	if s.grant.Config.Dialect == "postgresql" {
 		state, probeErr := editTransactionState(e.ctx, c, "postgresql")
@@ -241,7 +241,7 @@ func (v *Server) runEstimatedPlan(s *session, c *console, e *execution, command 
 	reserved = result.memoryBytes
 	// readRows has applied the existing masking and per-session row/byte limits.
 	// Retain only the masked plan, never the result's original/edit buffers.
-	p = normalizePlan(s.grant.Config.Dialect, result)
+	p = normalizePlan(s.grant.Config.Dialect, result, version)
 	if rows.NextResultSet() {
 		p.Status = "RAW_ONLY"
 		p.Roots = []*PlanNode{}
@@ -289,8 +289,11 @@ func planPrefix(s string, limit int) string {
 	}
 	return s
 }
-func normalizePlan(dialect string, r *Result) *ExecutionPlan {
+func normalizePlan(dialect string, r *Result, versions ...string) *ExecutionPlan {
 	p := emptyPlan(dialect)
+	if len(versions) > 0 {
+		p.ServerVersion = planString(versions[0])
+	}
 	p.RawFormat = "TABLE"
 	raw, _ := json.Marshal(struct {
 		Columns []Column `json:"columns"`
@@ -301,7 +304,7 @@ func normalizePlan(dialect string, r *Result) *ExecutionPlan {
 		p.RawFormat = "JSON"
 		p.RawText = planText(r.Rows[0][0])
 	}
-	if dialect == "clickhouse" {
+	if dialect == "clickhouse" || dialect == "oceanbase-mysql" {
 		p.RawFormat = "TEXT"
 		lines := []string{}
 		for _, row := range r.Rows {
@@ -312,6 +315,9 @@ func normalizePlan(dialect string, r *Result) *ExecutionPlan {
 			lines = append(lines, strings.Join(cells, "\t"))
 		}
 		p.RawText = strings.Join(lines, "\n")
+		if dialect == "clickhouse" && strings.HasPrefix(strings.TrimSpace(p.RawText), "[") {
+			p.RawFormat = "JSON"
+		}
 	}
 	p.RawTruncated = r.Truncated || len(p.RawText) > planMaxBytes
 	p.RawText = planPrefix(p.RawText, planMaxBytes)
@@ -354,6 +360,8 @@ func normalizePlan(dialect string, r *Result) *ExecutionPlan {
 			p.RawFormatVersion = planString("mysql-classic")
 			p.warn("plan_flat_summary", "Classic EXPLAIN rows are independent facts; parent/child hierarchy and costs are unavailable")
 		}
+	case dialect == "mariadb" || dialect == "oceanbase-mysql" || dialect == "clickhouse":
+		normalizeVendorPlan(p, r)
 	default:
 		p.warn("plan_raw_dialect", "This dialect currently supports estimated raw output only; structured normalization has not been verified")
 	}

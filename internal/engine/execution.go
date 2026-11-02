@@ -419,6 +419,7 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		return
 	}
 	runSQL := e.sql
+	planVersion := ""
 	var browseArgs []any
 	if e.browse != nil && e.browse.plan != nil {
 		p := e.browse.plan
@@ -440,9 +441,13 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		runSQL, browseArgs = p.sql, p.args
 	}
 	if e.planMode != "" {
-		runSQL, err = sqlservice.EstimatedPlanSQL(sqlservice.Dialect(s.grant.Config.Dialect), e.sql, opts)
+		runSQL, planVersion, err = estimatedPlanSQL(e.ctx, c, s.grant.Config.Dialect, e.sql, opts)
 		if err != nil {
-			failure(err, &APIError{err.Error(), "Estimated plans require a supported database and one read SELECT without INTO, locking clauses or nested EXPLAIN"})
+			api := &APIError{err.Error(), "Estimated plans require a supported database and one read SELECT without INTO, locking clauses or nested EXPLAIN"}
+			if !strings.HasPrefix(err.Error(), "explain_") {
+				api = safeDatabaseError(err)
+			}
+			failure(err, api)
 			return
 		}
 		e.mu.Lock()
@@ -551,7 +556,7 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		currentInFlight = true
 		databaseTouched.Store(true)
 		if e.planMode != "" {
-			err := v.runEstimatedPlan(s, c, e, statement.SQL)
+			err := v.runEstimatedPlan(s, c, e, statement.SQL, planVersion)
 			if err != nil {
 				var api *APIError
 				if errors.As(err, &api) && !c.lost.Load() {

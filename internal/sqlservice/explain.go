@@ -11,6 +11,9 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
+// ClickHouseJSONPlanPrefix pins the vendor PLAN format without executing ANALYZE.
+const ClickHouseJSONPlanPrefix = "EXPLAIN PLAN json=1, description=1, actions=0 "
+
 // EstimatedPlanSQL validates the original statement using the physical console's
 // parser options. It is an admission check, never an authorization or purity proof.
 func EstimatedPlanSQL(d Dialect, document string, options AnalyzeOptions) (string, error) {
