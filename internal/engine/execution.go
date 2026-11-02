@@ -36,6 +36,7 @@ func (v *Server) submit(w http.ResponseWriter, r *http.Request) {
 	}
 	isExport, _ := r.Context().Value(exportRequestContextKey{}).(bool)
 	browse, _ := r.Context().Value(editBrowseKey{}).(*editBrowse)
+	queryPage, _ := r.Context().Value(queryPageKey{}).(*queryPagePlan)
 	if isExport && !s.grant.Permissions.Download {
 		fail(w, 403, "download_permission_denied", "Result download is not permitted")
 		return
@@ -52,7 +53,7 @@ func (v *Server) submit(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &req) {
 		return
 	}
-	if req.PlanMode != "" && (req.PlanMode != "ESTIMATED" || isExport || browse != nil) {
+	if req.PlanMode != "" && (req.PlanMode != "ESTIMATED" || isExport || browse != nil || queryPage != nil) {
 		fail(w, 400, "invalid_plan_mode", "Estimated plans require an ordinary execution request")
 		return
 	}
@@ -83,7 +84,7 @@ func (v *Server) submit(w http.ResponseWriter, r *http.Request) {
 	}
 	if old := c.requests[req.RequestID]; old != nil {
 		s.mu.Unlock()
-		if old.planMode != req.PlanMode || old.sql != req.SQL || old.submitReview != req.SubmitReview || old.confirmWarnings != req.ConfirmWarnings || (old.export != nil) != isExport || (old.export != nil && old.export.format != req.Format) || (old.browse != nil) != (browse != nil) || old.edit != nil || (browse != nil && browse.plan != nil && (old.browse == nil || old.browse.plan == nil || old.browse.plan.fingerprint != browse.plan.fingerprint)) {
+		if (old.queryPage != nil) != (queryPage != nil) || (queryPage != nil && old.queryPage.fingerprint != queryPage.fingerprint) || old.planMode != req.PlanMode || old.sql != req.SQL || old.submitReview != req.SubmitReview || old.confirmWarnings != req.ConfirmWarnings || (old.export != nil) != isExport || (old.export != nil && old.export.format != req.Format) || (old.browse != nil) != (browse != nil) || old.edit != nil || (browse != nil && browse.plan != nil && (old.browse == nil || old.browse.plan == nil || old.browse.plan.fingerprint != browse.plan.fingerprint)) {
 			fail(w, 409, "idempotency_conflict", "Request ID already belongs to different SQL")
 			return
 		}
@@ -102,6 +103,7 @@ func (v *Server) submit(w http.ResponseWriter, r *http.Request) {
 		e.view.Plan = &PlanIdentity{RequestID: req.RequestID, Mode: e.planMode, Dialect: s.grant.Config.Dialect}
 	}
 	e.browse = browse
+	e.queryPage = queryPage
 	if e.browse != nil {
 		e.view.SQL = req.SQL
 	}
@@ -305,6 +307,9 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		}
 		view := e.snapshot()
 		audit.Output = fmt.Sprintf("execution_id=%s state=%s completed_statements=%d result_sets=%d", view.ID, view.Status, completedStatements, len(view.ResultIDs))
+		if e.queryPage != nil {
+			audit.Output += queryPageAudit(e.queryPage)
+		}
 		if view.Plan != nil {
 			audit.Output += fmt.Sprintf(" plan_mode=%s generated_sql=%q", view.Plan.Mode, e.planSQL)
 		}
@@ -461,7 +466,20 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		e.planSQL = runSQL
 		e.mu.Unlock()
 	}
+	if e.queryPage != nil {
+		if err := validateQueryPage(e.ctx, c, s.grant.Config.Dialect, e.queryPage, opts); err != nil {
+			failure(err, &APIError{"query_page_context_changed", err.Error()})
+			return
+		}
+		runSQL = e.queryPage.generated
+	}
 	analysis, err := sqlservice.AnalyzeWithOptions(sqlservice.Dialect(s.grant.Config.Dialect), runSQL, opts)
+	// Generated windows may exceed the pinned TiDB grammar. Their source was
+	// admitted by the AST; only server-owned wrapping and bounded integers differ.
+	if e.queryPage != nil {
+		analysis = sqlservice.Analysis{Statements: []sqlservice.Statement{{SQL: runSQL, Kind: "select", ReturnsRows: true}}}
+		err = nil
+	}
 	if err != nil {
 		failure(err, &APIError{"sql_parse_error", err.Error()})
 		return
@@ -498,6 +516,21 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		failure(err, &APIError{code, err.Error()})
 		return
 	}
+	if err := e.ctx.Err(); err != nil {
+		failure(err, safeDatabaseError(err))
+		return
+	}
+	if e.cancelRequested.Load() {
+		failure(context.Canceled, &APIError{"query_canceled", "Query cancellation requested"})
+		return
+	}
+	if e.queryPage == nil && e.browse == nil && e.planMode == "" && e.export == nil {
+		if len(analysis.Statements) == 1 && analysis.Statements[0].ReturnsRows {
+			v.captureQuerySource(s, c, e, opts)
+		} else {
+			e.querySource = &queryPagePlan{view: QueryPage{Mode: "cache", Reason: "Database paging requires one SELECT; script results retain cached browsing"}}
+		}
+	}
 	executionStart := time.Now()
 	var startErr error
 	v.update(s, e, func(x *ExecutionView) {
@@ -531,13 +564,13 @@ func (v *Server) run(s *session, c *console, e *execution) {
 			failure(err, safeDatabaseError(err))
 			return
 		}
-		if (e.planMode != "" || e.browse != nil) && current != opts {
+		if (e.planMode != "" || e.browse != nil || e.queryPage != nil) && current != opts {
 			failure(errors.New("sql_context_changed"), &APIError{"sql_context_changed", "SQL mode changed during admission; submit a new request"})
 			return
 		}
 		// AST facts remain valid while parser options are unchanged. Reuse them
 		// for dispatch and edit provenance instead of reparsing each consumer.
-		if statement.Facts == nil || current != opts {
+		if e.queryPage == nil && (statement.Facts == nil || current != opts) {
 			checked, err := sqlservice.AnalyzeWithOptions(sqlservice.Dialect(s.grant.Config.Dialect), statement.SQL, current)
 			if err != nil || len(checked.Statements) != 1 {
 				failure(errors.New("sql_context_changed"), &APIError{"sql_context_changed", "Statement boundaries changed with the connection SQL mode; run statements separately"})
@@ -583,7 +616,9 @@ func (v *Server) run(s *session, c *console, e *execution) {
 				return
 			}
 			var collectErr error
-			if e.browse != nil && e.browse.plan != nil && e.browse.plan.action == "count" {
+			if e.queryPage != nil && e.queryPage.action == "count" {
+				collectErr = v.collectQueryCount(s, e, rows)
+			} else if e.browse != nil && e.browse.plan != nil && e.browse.plan.action == "count" {
 				if !rows.Next() {
 					collectErr = errors.New("Count returned no value")
 				} else {
@@ -739,7 +774,7 @@ func (v *Server) collectResults(s *session, e *execution, rows *sql.Rows) error 
 	var collected []*Result
 	defer func() {
 		rows.Close()
-		if e.resultSQL != "" {
+		if e.resultSQL != "" && e.queryPage == nil {
 			v.bindResultEditSource(s, e, collected)
 		}
 		for _, result := range collected {
@@ -757,12 +792,30 @@ func (v *Server) collectResults(s *session, e *execution, rows *sql.Rows) error 
 		if e.browse != nil {
 			browse = e.browse.plan
 		}
+		// Reuse the bounded row reader without publishing a table-browse identity.
+		if e.queryPage != nil {
+			browse = &browsePlan{view: BrowsePage{Supported: true, PageSize: e.queryPage.view.PageSize}}
+		}
 		result, err := v.readRows(s, rows, browse)
 		if err != nil {
 			return err
 		}
 		result.consoleID, result.sourceSQL, result.browse = e.view.ConsoleID, e.resultSQL, e.browse
 		result.sourceAnalysis = e.resultAnalysis
+		result.querySource = e.querySource
+		if e.queryPage != nil {
+			p := *e.queryPage
+			p.view.HasMore = result.Browse.HasMore
+			result.querySource = &p
+			result.sourceSQL = p.original
+			result.Browse = nil
+			result.editSourceBound = true
+			result.editSourceError = p.view.ReadOnlyReason
+		}
+		if result.querySource != nil {
+			view := result.querySource.view
+			result.QueryPage = &view
+		}
 		collected = append(collected, result)
 		if !rows.NextResultSet() {
 			return rows.Err()

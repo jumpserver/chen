@@ -63,6 +63,7 @@ type StatementResult struct {
 	RowsAffected string `json:"rows_affected,omitempty"`
 }
 type ExecutionView struct {
+	QueryCount       *QueryCount              `json:"query_count,omitempty"`
 	BrowseCount      *BrowseCount             `json:"browse_count,omitempty"`
 	Plan             *PlanIdentity            `json:"plan,omitempty"`
 	SQL              string                   `json:"sql,omitempty"` // server-generated browse SQL
@@ -84,6 +85,8 @@ type Column struct {
 	DataType string `json:"data_type"`
 }
 type Result struct {
+	QueryPage       *QueryPage `json:"query_page,omitempty"`
+	querySource     *queryPagePlan
 	Browse          *BrowsePage `json:"browse,omitempty"`
 	consoleID       string
 	sourceAnalysis  *sqlanalysis.Statement
@@ -114,6 +117,8 @@ type Event struct {
 }
 
 type execution struct {
+	queryPage       *queryPagePlan // immutable submitted operation
+	querySource     *queryPagePlan // worker-owned source snapshot
 	planMode        string         // immutable intent; original SQL stays in sql
 	planSQL         string         // guarded by mu; omitted from small SSE snapshots
 	planResult      *ExecutionPlan // guarded by mu, immutable after publication
