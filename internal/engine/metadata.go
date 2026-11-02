@@ -110,7 +110,11 @@ func (v *Server) catalogConsole(w http.ResponseWriter, r *http.Request) (*sessio
 		fail(w, 409, "console_busy", "Metadata is unavailable while this console is executing")
 		return nil, nil, nil, nil
 	}
-	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
+	// A stale editor request must not close the console's physical MySQL
+	// connection (the driver closes it when QueryContext is canceled). Let an
+	// admitted metadata read finish within its small budget; console/session
+	// shutdown still cancels it. No user SQL is executed by these handlers.
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), 3*time.Second)
 	stop := context.AfterFunc(c.ctx, cancel)
 	s.grant.SetBusy(true)
 	return s, c, ctx, func() { stop(); cancel(); s.grant.SetBusy(false); c.mu.Unlock() }

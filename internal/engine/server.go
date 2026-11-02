@@ -83,6 +83,7 @@ func (v *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /chen/api/v1/executions/{eid}/plan", v.executionPlan)
 	mux.HandleFunc("POST /chen/api/v1/executions/{eid}/cancel", v.cancelExecution)
 	mux.HandleFunc("GET /chen/api/v1/results/{rid}/rows", v.resultRows)
+	mux.HandleFunc("POST /chen/api/v1/consoles/{cid}/query-page", v.queryPage)
 	mux.HandleFunc("POST /chen/api/v1/consoles/{cid}/explain", v.prepareExplain)
 	mux.HandleFunc("GET /chen/api/v1/consoles/{cid}/relations", v.relations)
 	mux.HandleFunc("GET /chen/api/v1/consoles/{cid}/columns", v.columns)
