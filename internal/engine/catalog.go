@@ -31,6 +31,7 @@ type catalogResource struct {
 	cursorKey [32]byte
 }
 type catalogCursor struct {
+	Direction    string `json:"direction,omitempty"`
 	Section      string `json:"section,omitempty"`
 	Sort         string `json:"sort,omitempty"`
 	Limit        int    `json:"limit,omitempty"`
@@ -54,7 +55,7 @@ type catalogPage[T any] struct {
 }
 type catalogScope struct {
 	operation, schema, kind, query, table, cursor string
-	section, sort, database                       string
+	section, sort, database, direction            string
 	limit                                         int
 }
 type catalogRequest struct {
@@ -72,6 +73,10 @@ func parseCatalogScope(r *http.Request, operation string) (catalogScope, error) 
 	s := catalogScope{operation: operation, limit: 100}
 	allowed := map[string]bool{"cursor": true, "limit": true}
 	switch operation {
+	case "diagram":
+		for _, key := range []string{"database", "schema", "section", "direction", "table"} {
+			allowed[key] = true
+		}
 	case "overview":
 		for _, key := range []string{"database", "schema", "section", "q", "sort"} {
 			allowed[key] = true
@@ -107,6 +112,12 @@ func parseCatalogScope(r *http.Request, operation string) (catalogScope, error) 
 			return s, errors.New("invalid_catalog_request")
 		}
 	}
+	if operation == "diagram" {
+		s.direction = values.Get("direction")
+		if s.database == "" || (s.section != "nodes" && s.section != "edges") || (s.direction != "schema" && s.direction != "incoming") || s.direction == "schema" && values.Get("table") != "" || s.direction == "incoming" && (values.Get("table") == "" || values.Get("schema") == "") {
+			return s, errors.New("invalid_catalog_request")
+		}
+	}
 	s.schema, s.kind, s.query, s.table, s.cursor = values.Get("schema"), values.Get("kind"), values.Get("q"), values.Get("table"), values.Get("cursor")
 	for _, name := range []string{s.schema, s.query, s.table, s.database} {
 		if len(name) > 256 || strings.ContainsRune(name, 0) || !utf8.ValidString(name) {
@@ -128,6 +139,9 @@ func parseCatalogScope(r *http.Request, operation string) (catalogScope, error) 
 			return s, errors.New("invalid_catalog_request")
 		}
 		s.limit = min(n, 200)
+	}
+	if operation == "diagram" {
+		s.limit = min(s.limit, 100)
 	}
 	return s, nil
 }
@@ -201,7 +215,7 @@ func (v *Server) beginCatalogAccess(w http.ResponseWriter, r *http.Request, oper
 	globalAndLocalFinish := finish
 	finish = func() { <-resource.slots; globalAndLocalFinish() }
 	timeout := 3 * time.Second
-	if operation == "inspect" || operation == "ai" || operation == "overview" {
+	if operation == "inspect" || operation == "ai" || operation == "overview" || operation == "diagram" {
 		timeout = 12 * time.Second
 	}
 	if operation == "ddl" {
@@ -261,7 +275,7 @@ func (v *Server) beginCatalogAccess(w http.ResponseWriter, r *http.Request, oper
 		catalogError(w, r, s, err)
 		return nil
 	}
-	if operation == "overview" && scope.database != database {
+	if (operation == "overview" || operation == "diagram") && scope.database != database {
 		finish()
 		fail(w, 403, "catalog_forbidden", "Catalog database does not match authorized session")
 		return nil
@@ -318,6 +332,9 @@ func (v *Server) catalogAudit(req *catalogRequest, outcome string, count int) er
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(req.ctx), 3*time.Second)
 	defer cancel()
 	output := fmt.Sprintf("outcome=%s database=%q schema=%q table=%q kind=%s returned=%d", outcome, req.database, req.scope.schema, req.scope.table, req.scope.kind, count)
+	if req.scope.operation == "diagram" {
+		output += fmt.Sprintf(" direction=%s section=%s", req.scope.direction, req.scope.section)
+	}
 	if req.scope.operation == "overview" {
 		output += fmt.Sprintf(" section=%s sort=%s", req.scope.section, req.scope.sort)
 	}
@@ -443,7 +460,8 @@ func (v *Server) catalogColumns(w http.ResponseWriter, r *http.Request) {
 
 func (c *catalogResource) encodeCursor(session, database string, scope catalogScope, afterSchema, afterName string, afterOrdinal int, afterTable ...string) string {
 	value := catalogCursor{Version: 1, Session: session, Database: database, Operation: scope.operation, Schema: scope.schema, Kind: scope.kind, Query: scope.query, Table: scope.table, AfterSchema: afterSchema, AfterName: afterName, AfterOrdinal: afterOrdinal}
-	if scope.operation == "overview" {
+	if scope.operation == "overview" || scope.operation == "diagram" {
+		value.Direction = scope.direction
 		value.Section = scope.section
 		value.Sort = scope.sort
 		value.Limit = scope.limit
@@ -475,7 +493,7 @@ func (c *catalogResource) decodeCursor(encoded, session, database string, scope 
 	if !hmac.Equal(signature, mac.Sum(nil)) {
 		return value, errors.New("invalid cursor")
 	}
-	if json.Unmarshal(data, &value) != nil || scope.operation == "overview" && (value.Section != scope.section || value.Sort != scope.sort || value.Limit != scope.limit) || value.Version != 1 || value.Session != session || value.Database != database || value.Operation != scope.operation || value.Schema != scope.schema || value.Kind != scope.kind || value.Query != scope.query || value.Table != scope.table {
+	if json.Unmarshal(data, &value) != nil || (scope.operation == "overview" || scope.operation == "diagram") && (value.Direction != scope.direction || value.Section != scope.section || value.Sort != scope.sort || value.Limit != scope.limit) || value.Version != 1 || value.Session != session || value.Database != database || value.Operation != scope.operation || value.Schema != scope.schema || value.Kind != scope.kind || value.Query != scope.query || value.Table != scope.table {
 		return value, errors.New("cursor scope mismatch")
 	}
 	return value, nil
