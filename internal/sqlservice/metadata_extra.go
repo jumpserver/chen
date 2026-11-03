@@ -50,7 +50,15 @@ func extraMetadata(ctx context.Context, conn *sql.Conn, d Dialect, req MetadataR
 	if systemCatalogSchema(schema, d) || d == ClickHouse && schema != req.Context.Database {
 		return items, ErrCatalogForbidden
 	}
-	query, err := extraObjectQuery(d, CatalogObjectRequest{Database: req.Context.Database, Schema: schema, Query: req.Prefix}, true, req.Limit)
+	var clickHouse *clickHouseCapabilities
+	if d == ClickHouse {
+		var err error
+		clickHouse, err = probeClickHouseCapabilities(ctx, conn, "objects")
+		if err != nil {
+			return items, err
+		}
+	}
+	query, err := extraObjectQuery(d, CatalogObjectRequest{Database: req.Context.Database, Schema: schema, Query: req.Prefix}, true, req.Limit, clickHouse)
 	if err != nil {
 		return items, err
 	}

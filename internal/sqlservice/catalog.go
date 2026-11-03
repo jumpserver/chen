@@ -121,7 +121,14 @@ func ObjectRows(ctx context.Context, conn *sql.Conn, dialect Dialect, req Catalo
 	var err error
 	if extraCatalogDialect(dialect) {
 		var query catalogQuery
-		query, err = extraObjectQuery(dialect, req, false, catalogLimit(req.Limit)+1)
+		var clickHouse *clickHouseCapabilities
+		if dialect == ClickHouse {
+			clickHouse, err = probeClickHouseCapabilities(ctx, conn, "objects")
+			if err != nil {
+				return items, err
+			}
+		}
+		query, err = extraObjectQuery(dialect, req, false, catalogLimit(req.Limit)+1, clickHouse)
 		if err == nil {
 			rows, err = queryCatalogRows(ctx, conn, dialect, query.SQL, query.Args...)
 		}

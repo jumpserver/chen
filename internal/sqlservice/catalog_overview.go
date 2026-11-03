@@ -82,6 +82,22 @@ func CatalogOverviewRows(ctx context.Context, conn *sql.Conn, d Dialect, req Ove
 		}
 	}
 	result.Contract = string(d)
+	var clickHouse *clickHouseCapabilities
+	if d == ClickHouse {
+		clickHouse, err = probeClickHouseCapabilities(ctx, conn, req.Section, true)
+		if err != nil {
+			return result, err
+		}
+		result.Contract = clickHouse.contract(req.Section)
+		if req.AfterName != "" && req.AfterContract != result.Contract {
+			return result, ErrOverviewContractChanged
+		}
+		if req.Section == "indexes" && clickHouse.skippingIndexes != CapabilitySupported {
+			result.State = string(clickHouse.skippingIndexes)
+			result.Fields["indexes"] = OverviewValue{State: result.State, Source: "system.data_skipping_indices; capability=" + result.State}
+			return result, nil
+		}
+	}
 	oracleBroadSegments := false
 	if d == Oracle && (req.Section == "tables" || req.Section == "views" || req.Section == "statistics") {
 		oracleBroadSegments, err = overviewOracleSegmentAccess(ctx, conn)
@@ -107,7 +123,7 @@ func CatalogOverviewRows(ctx context.Context, conn *sql.Conn, d Dialect, req Ove
 	}
 	query, args := overviewSQL(d, req)
 	if extraCatalogDialect(d) {
-		q, e := overviewExtraSQL(d, req, oracleBroadSegments)
+		q, e := overviewExtraSQLWithClickHouse(d, req, clickHouse, oracleBroadSegments)
 		if e != nil {
 			return result, e
 		}
@@ -152,11 +168,14 @@ func CatalogOverviewRows(ctx context.Context, conn *sql.Conn, d Dialect, req Ove
 				if extraCatalogDialect(d) {
 					result.Fields[n] = overviewExtraValue(d, req.Section, n, values[i], oracleBroadSegments)
 				}
+				if clickHouse != nil {
+					result.Fields[n] = clickHouse.value(n, result.Fields[n])
+				}
 			}
 			if req.Section == "statistics" {
 				for _, key := range []string{"estimated_rows", "data_bytes", "index_bytes", "total_bytes"} {
 					unknown := result.Fields[key+"_unknown"].Value
-					if unknown != nil && *unknown == "0" && result.Fields[key].Value == nil && result.Fields[key].State == "unknown" && (capabilities == nil || capabilities.state(key) == "unknown" && (capabilities.storage || !strings.HasSuffix(key, "_bytes"))) {
+					if unknown != nil && *unknown == "0" && result.Fields[key].Value == nil && result.Fields[key].State == "unknown" && (clickHouse == nil || clickHouse.supportsValue(key)) && (capabilities == nil || capabilities.state(key) == "unknown" && (capabilities.storage || !strings.HasSuffix(key, "_bytes"))) {
 						result.Fields[key] = overviewText("0", overviewSource(d, req.Section, key))
 					}
 					if unknown != nil && *unknown != "0" && result.Fields[key].Value != nil {
@@ -257,6 +276,9 @@ func CatalogOverviewRows(ctx context.Context, conn *sql.Conn, d Dialect, req Ove
 			row.Name = row.Object.Name
 			row.Object.Comment = comment.String
 			row.Fields["comment"] = overviewValue(comment, "unknown", "catalog")
+			if clickHouse != nil {
+				row.Fields["comment"] = clickHouse.value("comment", row.Fields["comment"])
+			}
 			if capabilities != nil {
 				row.Fields["comment"] = capabilities.value("comment", comment, req.Section)
 			}
@@ -286,6 +308,9 @@ func CatalogOverviewRows(ctx context.Context, conn *sql.Conn, d Dialect, req Ove
 					if row.Object.Kind == "view" {
 						row.Fields[k] = OverviewValue{State: "unsupported", Source: "View has no stored table statistics or storage properties"}
 					}
+				}
+				if clickHouse != nil {
+					row.Fields[k] = clickHouse.value(k, row.Fields[k])
 				}
 			}
 		}

@@ -48,7 +48,16 @@ func overviewExtraSource(d Dialect, b *catalogBinder, database string, broadSegm
  LEFT JOIN (SELECT i.TABSCHEMA,i.TABNAME,SUM(CASE WHEN i.NLEAF>=0 THEN DECIMAL(i.NLEAF,31,0)*sp.PAGESIZE END) AS index_bytes,
  SUM(CASE WHEN i.NLEAF<0 OR sp.PAGESIZE IS NULL THEN 1 ELSE 0 END) AS unknown_pages FROM SYSCAT.INDEXES i LEFT JOIN SYSCAT.TABLESPACES sp ON sp.TBSPACEID=i.TBSPACEID GROUP BY i.TABSCHEMA,i.TABNAME) ix ON ix.TABSCHEMA=t.TABSCHEMA AND ix.TABNAME=t.TABNAME`
 	case d == ClickHouse:
-		fields = `t.total_rows AS estimated_rows,NULL AS data_bytes,NULL AS index_bytes,t.total_bytes AS total_bytes,NULL AS last_analyzed,t.engine AS engine,NULL AS character_set,NULL AS collation`
+		rows, bytes := "CAST(NULL AS Nullable(UInt64))", "CAST(NULL AS Nullable(UInt64))"
+		if b.clickHouse != nil {
+			if b.clickHouse.tableRows == CapabilitySupported {
+				rows = "t.total_rows"
+			}
+			if b.clickHouse.tableBytes == CapabilitySupported {
+				bytes = "t.total_bytes"
+			}
+		}
+		fields = rows + ` AS estimated_rows,CAST(NULL AS Nullable(UInt64)) AS data_bytes,CAST(NULL AS Nullable(UInt64)) AS index_bytes,` + bytes + ` AS total_bytes,NULL AS last_analyzed,t.engine AS engine,NULL AS character_set,NULL AS collation`
 		join = ` JOIN system.tables t ON t.database=o.schemaname AND t.name=o.objectname`
 	default:
 		return "", ErrUnsupportedDialect
@@ -67,12 +76,16 @@ func overviewExtraSource(d Dialect, b *catalogBinder, database string, broadSegm
 }
 
 func overviewExtraSQL(d Dialect, r OverviewRequest, broadSegments ...bool) (catalogQuery, error) {
+	return overviewExtraSQLWithClickHouse(d, r, nil, broadSegments...)
+}
+
+func overviewExtraSQLWithClickHouse(d Dialect, r OverviewRequest, clickHouse *clickHouseCapabilities, broadSegments ...bool) (catalogQuery, error) {
 	switch r.Section {
 	case "tables", "views", "indexes", "statistics", "properties":
 	default:
 		return catalogQuery{}, nil
 	}
-	b := &catalogBinder{dialect: d}
+	b := &catalogBinder{dialect: d, clickHouse: clickHouse}
 	if r.Section == "properties" {
 		return overviewExtraProperties(d, r, b)
 	}
@@ -86,6 +99,9 @@ func overviewExtraSQL(d Dialect, r OverviewRequest, broadSegments ...bool) (cata
 	if err != nil {
 		return catalogQuery{}, err
 	}
+	if source == "" {
+		return catalogQuery{}, nil
+	}
 	filter := "1=1"
 	if r.Schema != "" {
 		filter += " AND schemaname=" + b.bind(r.Schema)
@@ -93,7 +109,19 @@ func overviewExtraSQL(d Dialect, r OverviewRequest, broadSegments ...bool) (cata
 	if r.Section == "statistics" {
 		q := `SELECT COALESCE(SUM(CASE WHEN objectkind='table' THEN 1 ELSE 0 END),0) AS tables,COALESCE(SUM(CASE WHEN objectkind='view' THEN 1 ELSE 0 END),0) AS views`
 		for _, k := range []string{"estimated_rows", "data_bytes", "index_bytes", "total_bytes"} {
-			q += `,SUM(CASE WHEN objectkind='table' THEN ` + k + ` END) AS ` + k + `,SUM(CASE WHEN objectkind='table' AND ` + k + ` IS NULL THEN 1 ELSE 0 END) AS ` + k + `_unknown`
+			column := k
+			if d == ClickHouse {
+				// Qualify inputs so ClickHouse's global output aliases cannot
+				// substitute an aggregate into another aggregate's argument.
+				column = "stats." + k
+			}
+			total := `SUM(CASE WHEN objectkind='table' THEN ` + column + ` END)`
+			if d == ClickHouse {
+				// ClickHouse SUM of entirely NULL input returns zero. Keep it
+				// unknown until at least one engine reported an actual value.
+				total = `if(countIf(objectkind='table' AND ` + column + ` IS NOT NULL)=0,NULL,` + total + `)`
+			}
+			q += `,` + total + ` AS ` + k + `,SUM(CASE WHEN objectkind='table' AND ` + column + ` IS NULL THEN 1 ELSE 0 END) AS ` + k + `_unknown`
 		}
 		return catalogQuery{q + ` FROM (` + source + `) stats WHERE ` + filter, b.args}, nil
 	}
@@ -172,6 +200,9 @@ func overviewExtraSQL(d Dialect, r OverviewRequest, broadSegments ...bool) (cata
 }
 
 func overviewExtraIndexes(d Dialect, b *catalogBinder, database string) (string, error) {
+	if d == ClickHouse && (b.clickHouse == nil || b.clickHouse.skippingIndexes != CapabilitySupported) {
+		return "", nil
+	}
 	objects, err := extraObjectSource(d, b, database)
 	if err != nil {
 		return "", err
@@ -252,6 +283,10 @@ func overviewExtraValue(d Dialect, section, key string, v sql.NullString, broadS
 	}
 	if d == ClickHouse && (key == "total_bytes" || key == "estimated_rows") {
 		source = "system.tables local engine totals; NULL when not available; not a cluster/replica sum"
+	}
+	if d == ClickHouse && (key == "data_bytes" || key == "index_bytes") {
+		state = "unsupported"
+		source = "system.tables does not split engine totals into data and index bytes"
 	}
 	return overviewValue(v, state, source)
 }

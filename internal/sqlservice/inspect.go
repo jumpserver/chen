@@ -12,6 +12,7 @@ import (
 )
 
 type MetadataSection struct {
+	State     CapabilityState  `json:"state,omitempty"`
 	Deferred  bool             `json:"deferred,omitempty"`
 	Supported bool             `json:"supported"`
 	Items     []map[string]any `json:"items,omitempty"`
@@ -81,15 +82,40 @@ WHERE n.nspname=$1 AND t.relname=$2`, req.Schema, req.Table).Scan(&fullAccess, &
 		}
 	}
 	result.Sections["ddl"] = ddl
+	if d == ClickHouse && includeDDL {
+		result.Sections["ddl"] = inspectionDDL(ctx, conn, d, req, result)
+		return result, ctx.Err()
+	}
 	for _, kind := range []string{"primary_key", "foreign_keys", "indexes", "defaults", "constraints"} {
 		q, names, ok := inspectionQuery(d, req, kind, true)
+		clickHouseIndexes := d == ClickHouse && kind == "indexes"
+		if clickHouseIndexes {
+			capabilities, err := probeClickHouseCapabilities(ctx, conn, "indexes")
+			if err != nil {
+				return result, err
+			}
+			if capabilities.skippingIndexes != CapabilitySupported {
+				result.Sections[kind] = MetadataSection{Supported: false, State: capabilities.skippingIndexes, Source: "system.data_skipping_indices; capability=" + string(capabilities.skippingIndexes)}
+				continue
+			}
+			q, names, ok = capabilities.indexesQuery(req)
+		}
 		if !ok {
 			result.Sections[kind] = MetadataSection{Supported: false}
 			continue
 		}
 		section := MetadataSection{Supported: true, Items: []map[string]any{}}
+		if clickHouseIndexes {
+			section.State = CapabilitySupported
+		}
 		rows, err := conn.QueryContext(ctx, q.SQL, q.Args...)
 		if err != nil {
+			if clickHouseIndexes {
+				if !clickHousePermissionDenied(err) {
+					return result, err
+				}
+				section.State, section.Supported = CapabilityRestricted, false
+			}
 			section.Error = "Metadata is unavailable for this account or server version"
 			result.Sections[kind] = section
 			continue
@@ -123,6 +149,9 @@ WHERE n.nspname=$1 AND t.relname=$2`, req.Schema, req.Table).Scan(&fullAccess, &
 		}
 		_ = rows.Close()
 		if err != nil {
+			if clickHouseIndexes {
+				return result, err
+			}
 			section.Error = "Unable to read complete metadata"
 		}
 		result.Sections[kind] = section
@@ -190,8 +219,6 @@ func inspectionQuery(d Dialect, r CatalogColumnRequest, kind string, keySize ...
 			q = `SELECT i.INDEX_NAME,k.COLUMN_NAME,k.COLUMN_POSITION,CASE WHEN i.UNIQUENESS='UNIQUE' THEN 1 ELSE 0 END FROM ALL_INDEXES i JOIN ALL_IND_COLUMNS k ON k.INDEX_OWNER=i.OWNER AND k.INDEX_NAME=i.INDEX_NAME WHERE i.TABLE_OWNER=` + a + ` AND i.TABLE_NAME=` + c + ` ORDER BY i.INDEX_NAME,k.COLUMN_POSITION`
 		case d == DB2:
 			q = `SELECT i.INDNAME,k.COLNAME,k.COLSEQ,CASE WHEN i.UNIQUERULE IN ('P','U') THEN 1 ELSE 0 END FROM SYSCAT.INDEXES i JOIN SYSCAT.INDEXCOLUSE k ON k.INDSCHEMA=i.INDSCHEMA AND k.INDNAME=i.INDNAME WHERE i.TABSCHEMA=` + a + ` AND i.TABNAME=` + c + ` ORDER BY i.INDNAME,k.COLSEQ`
-		case d == ClickHouse:
-			q = `SELECT name,expr,0,0 FROM system.data_skipping_indices WHERE database=` + a + ` AND table=` + c + ` ORDER BY name`
 		}
 	case "foreign_keys":
 		names = []string{"name", "column", "referenced_schema", "referenced_table", "referenced_column", "ordinal", "column_count"}

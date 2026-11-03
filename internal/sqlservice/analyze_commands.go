@@ -121,6 +121,12 @@ func unsupportedCommandWord(t token) bool {
 	return commandIs(t, "KILL", "PRINT", "WAITFOR", "DBCC", "BACKUP", "RESTORE", "DUMP", "LOAD", "BULK", "DECLARE", "DEALLOCATE", "OPEN", "CLOSE", "CHECKPOINT", "RECONFIGURE", "SHUTDOWN", "SETUSER", "IF", "WHILE", "GOTO", "BREAK", "CONTINUE", "RETURN", "RAISERROR", "THROW", "SEND", "RECEIVE", "MOVE", "GET", "ENABLE", "DISABLE", "WRITETEXT", "UPDATETEXT", "READTEXT", "ATTACH", "DETACH", "SYSTEM", "OPTIMIZE", "FLUSH", "RESET", "PURGE", "REPAIR", "ABORT", "DISK", "DO", "HANDLER", "LOCK", "UNLOCK")
 }
 
+// SYSTEM is also the ordinary ClickHouse system database name. Followed by a
+// dot and an identifier it cannot begin a SYSTEM administration command.
+func clickHouseSystemQualifier(d Dialect, ts []token, i int) bool {
+	return d == ClickHouse && ts[i].is("SYSTEM") && i+2 < len(ts) && ts[i+1].kind == '.' && ts[i+2].ident()
+}
+
 func commandHead(ts []token) (string, int, error) {
 	if len(ts) == 0 || ts[0].kind != 'i' || ts[0].quoted {
 		return "", 0, fmt.Errorf("expected a SQL command")
@@ -179,6 +185,9 @@ func validateCommandBoundaries(d Dialect, document string, ts []token, kind stri
 			depth--
 		}
 		if t.kind != 'i' || t.quoted {
+			continue
+		}
+		if clickHouseSystemQualifier(d, ts, i) {
 			continue
 		}
 		if t.is("DELIMITER") || t.is("GO") && standaloneDirective(document, t) {
