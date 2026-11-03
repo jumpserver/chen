@@ -5,19 +5,17 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"errors"
+	"io"
 	"net"
 	"time"
 
 	dm "gitee.com/chunanyong/dm"
 )
 
-// DM v1.8.23's context watcher calls close concurrently with statement/row and
-// transaction mutations. database/sql already serializes driver calls, but that
-// vendor goroutine bypasses its lock. Never give the watcher a cancelable context:
-// check cancellation before dispatch and discard the connection, synchronously,
-// after an interrupted call returns. Our dialer bounds each individual I/O;
-// v1.8.23's misleading socketTimeout option only bounds its default TCP dial.
-// This cannot acknowledge server cancellation; an in-flight outcome stays unknown.
+// DM v1.8.23's watcher mutates driver maps concurrently with protocol calls.
+// Keep it isolated with WithoutCancel. Our separate watcher only closes a
+// network-transport snapshot, then joins before synchronous driver cleanup.
+// A dispatched cancel has unknown database outcome and discards the console.
 const damengDialName = "chen-bounded-dameng"
 
 func init() {
@@ -189,6 +187,13 @@ func (c *damengConn) finish(ctx context.Context, err error) error {
 func (c *damengConn) discard() {
 	if !c.bad {
 		c.bad = true
+		// Close only the transport first. Driver close may otherwise send rollback
+		// and statement-free RPCs on a canceled or partial protocol frame.
+		if snapshot, ok := c.damengContextConn.(interface{ ChenTransportCloser() io.Closer }); ok {
+			if transport := snapshot.ChenTransportCloser(); transport != nil {
+				_ = transport.Close()
+			}
+		}
 		_ = c.damengContextConn.Close()
 	}
 }
@@ -196,33 +201,48 @@ func (c *damengConn) BeginTx(ctx context.Context, opts driver.TxOptions) (driver
 	if err := c.check(ctx); err != nil {
 		return nil, err
 	}
-	tx, err := c.damengContextConn.BeginTx(context.WithoutCancel(ctx), opts)
+	var tx driver.Tx
+	err := c.withTransportCancel(ctx, func() error {
+		var err error
+		tx, err = c.damengContextConn.BeginTx(context.WithoutCancel(ctx), opts)
+		return err
+	})
 	return tx, c.finish(ctx, err)
 }
 func (c *damengConn) Ping(ctx context.Context) error {
 	if err := c.check(ctx); err != nil {
 		return err
 	}
-	return c.finish(ctx, c.damengContextConn.Ping(context.WithoutCancel(ctx)))
+	return c.finish(ctx, c.withTransportCancel(ctx, func() error { return c.damengContextConn.Ping(context.WithoutCancel(ctx)) }))
 }
 func (c *damengConn) ResetSession(ctx context.Context) error {
 	if err := c.check(ctx); err != nil {
 		return err
 	}
-	return c.finish(ctx, c.damengContextConn.ResetSession(context.WithoutCancel(ctx)))
+	return c.finish(ctx, c.withTransportCancel(ctx, func() error { return c.damengContextConn.ResetSession(context.WithoutCancel(ctx)) }))
 }
 func (c *damengConn) ExecContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
 	if err := c.check(ctx); err != nil {
 		return nil, err
 	}
-	result, err := c.damengContextConn.ExecContext(context.WithoutCancel(ctx), query, args)
+	var result driver.Result
+	err := c.withTransportCancel(ctx, func() error {
+		var err error
+		result, err = c.damengContextConn.ExecContext(context.WithoutCancel(ctx), query, args)
+		return err
+	})
 	return result, c.finish(ctx, err)
 }
 func (c *damengConn) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
 	if err := c.check(ctx); err != nil {
 		return nil, err
 	}
-	rows, err := c.damengContextConn.QueryContext(context.WithoutCancel(ctx), query, args)
+	var rows driver.Rows
+	err := c.withTransportCancel(ctx, func() error {
+		var err error
+		rows, err = c.damengContextConn.QueryContext(context.WithoutCancel(ctx), query, args)
+		return err
+	})
 	return c.rows(ctx, rows, err)
 }
 func (c *damengConn) Prepare(query string) (driver.Stmt, error) {
@@ -232,7 +252,12 @@ func (c *damengConn) PrepareContext(ctx context.Context, query string) (driver.S
 	if err := c.check(ctx); err != nil {
 		return nil, err
 	}
-	stmt, err := c.damengContextConn.PrepareContext(context.WithoutCancel(ctx), query)
+	var stmt driver.Stmt
+	err := c.withTransportCancel(ctx, func() error {
+		var err error
+		stmt, err = c.damengContextConn.PrepareContext(context.WithoutCancel(ctx), query)
+		return err
+	})
 	if ctx.Err() != nil && stmt != nil {
 		_ = stmt.Close()
 	}
@@ -260,14 +285,24 @@ func (s *damengStmt) ExecContext(ctx context.Context, args []driver.NamedValue) 
 	if err := s.conn.check(ctx); err != nil {
 		return nil, err
 	}
-	result, err := s.damengContextStmt.ExecContext(context.WithoutCancel(ctx), args)
+	var result driver.Result
+	err := s.conn.withTransportCancel(ctx, func() error {
+		var err error
+		result, err = s.damengContextStmt.ExecContext(context.WithoutCancel(ctx), args)
+		return err
+	})
 	return result, s.conn.finish(ctx, err)
 }
 func (s *damengStmt) QueryContext(ctx context.Context, args []driver.NamedValue) (driver.Rows, error) {
 	if err := s.conn.check(ctx); err != nil {
 		return nil, err
 	}
-	rows, err := s.damengContextStmt.QueryContext(context.WithoutCancel(ctx), args)
+	var rows driver.Rows
+	err := s.conn.withTransportCancel(ctx, func() error {
+		var err error
+		rows, err = s.damengContextStmt.QueryContext(context.WithoutCancel(ctx), args)
+		return err
+	})
 	return s.conn.rows(ctx, rows, err)
 }
 
@@ -301,13 +336,13 @@ func (c *damengConn) rows(ctx context.Context, rows driver.Rows, err error) (dri
 	return &damengRows{rows.(damengDriverRows), c, ctx}, nil
 }
 func (r *damengRows) Close() error {
-	return r.conn.finish(r.ctx, r.damengDriverRows.Close())
+	return r.conn.finish(r.ctx, r.conn.withTransportCancel(r.ctx, func() error { return r.damengDriverRows.Close() }))
 }
 func (r *damengRows) Next(dest []driver.Value) error {
 	if err := r.ctx.Err(); err != nil {
 		return err
 	}
-	err := r.damengDriverRows.Next(dest)
+	err := r.conn.withTransportCancel(r.ctx, func() error { return r.damengDriverRows.Next(dest) })
 	if isDamengTransportError(err) {
 		return r.conn.finish(r.ctx, err)
 	}
@@ -320,7 +355,7 @@ func (r *damengRows) NextResultSet() error {
 	if err := r.ctx.Err(); err != nil {
 		return err
 	}
-	err := r.damengDriverRows.NextResultSet()
+	err := r.conn.withTransportCancel(r.ctx, func() error { return r.damengDriverRows.NextResultSet() })
 	if isDamengTransportError(err) {
 		return r.conn.finish(r.ctx, err)
 	}

@@ -11,7 +11,7 @@ import (
 )
 
 var planVersionNumber = regexp.MustCompile(`^(\d+)\.(\d+)\.(\d+)`)
-var oceanBasePlanVersion = regexp.MustCompile(`(?i)OceanBase[^\s]*-v(\d+\.\d+\.\d+)`)
+var oceanBasePlanVersion = regexp.MustCompile(`(?i)OceanBase(?:[^\s]*-v|(?:_[A-Z]+)?\s+)(\d+\.\d+\.\d+)`)
 
 // These are format compatibility families, not a claim of live testing every
 // release. New families must provide versioned output evidence before admission.
@@ -22,7 +22,7 @@ func supportedPlanVersion(dialect, version string) bool {
 			return false
 		}
 		version = strings.TrimPrefix(version, "5.5.5-")
-	case "oceanbase-mysql":
+	case "oceanbase-mysql", "oceanbase-oracle":
 		match := oceanBasePlanVersion.FindStringSubmatch(version)
 		if len(match) != 2 {
 			return false
@@ -38,7 +38,7 @@ func supportedPlanVersion(dialect, version string) bool {
 	switch dialect {
 	case "mariadb":
 		return major == 10 && minor == 11 || major == 11 && minor <= 8
-	case "oceanbase-mysql":
+	case "oceanbase-mysql", "oceanbase-oracle":
 		return major == 4 && (minor == 2 || minor == 3)
 	case "clickhouse":
 		return major == 21 && minor >= 6 || major >= 22 && major <= 26
@@ -57,7 +57,7 @@ func normalizeVendorPlan(p *ExecutionPlan, r *Result) {
 	case "mariadb":
 		p.RawFormatVersion = planString("mariadb-classic")
 		roots, err = parseMariaDBPlan(r)
-	case "oceanbase-mysql":
+	case "oceanbase-mysql", "oceanbase-oracle":
 		p.RawFormatVersion = planString("oceanbase-explain-text")
 		if !planSingleTextColumn(r, "Query Plan") {
 			err = errors.New("Expected OceanBase Query Plan text")

@@ -93,6 +93,16 @@ func (lob *Lob) getSize() (size int64, err error) {
 }
 
 func (lob *Lob) getDataWithOffsetSize(ctx context.Context, offset, count int64) (data []byte, err error) {
+	if ctx == nil || ctx.Done() == nil {
+		return lob.getDataWithActiveContext(offset, count)
+	}
+	done := lob.connection.session.StartContext(ctx)
+	defer lob.connection.session.EndContext(done)
+	return lob.getDataWithActiveContext(offset, count)
+}
+
+// The caller owns the session's context watcher for this complete LOB read.
+func (lob *Lob) getDataWithActiveContext(offset, count int64) (data []byte, err error) {
 	if offset == 0 && count == 0 {
 		lob.connection.tracer.Print("Read Lob Data:")
 	} else {
@@ -105,8 +115,6 @@ func (lob *Lob) getDataWithOffsetSize(ctx context.Context, offset, count int64) 
 	lob.data.Reset()
 	session := lob.connection.session
 	session.ResetBuffer()
-	done := session.StartContext(ctx)
-	defer session.EndContext(done)
 	lob.writeOp(2)
 	err = session.Write()
 	if err != nil {

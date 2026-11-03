@@ -2,6 +2,8 @@ package engine
 
 import (
 	"context"
+	"encoding/hex"
+	"errors"
 	"net/http"
 	"strings"
 
@@ -9,6 +11,9 @@ import (
 )
 
 func prepareExplainSQL(dialect, document string) (string, error) {
+	if specialPlanDialect(dialect) {
+		return "", errors.New("explain_requires_plan_execution")
+	}
 	return sqlservice.EstimatedPlanSQL(sqlservice.Dialect(dialect), document, sqlservice.AnalyzeOptions{})
 }
 
@@ -25,6 +30,13 @@ func (v *Server) prepareExplain(w http.ResponseWriter, r *http.Request) {
 		SQL string `json:"sql"`
 	}
 	if !decode(w, r, &request) {
+		return
+	}
+	// Stateful and plan-table dialects must use the execution intent endpoint;
+	// returning their original SELECT here would execute user data queries in a
+	// legacy prepare-then-execute consumer.
+	if specialPlanDialect(s.grant.Config.Dialect) {
+		fail(w, 400, "explain_requires_plan_execution", "This database requires plan_mode=ESTIMATED on the execution endpoint")
 		return
 	}
 	c.mu.Lock()
@@ -54,6 +66,38 @@ func estimatedPlanSQL(ctx context.Context, c *console, dialect, document string,
 		return "", "", err
 	}
 	switch dialect {
+	case "sqlserver":
+		var version string
+		if err := c.conn.QueryRowContext(ctx, "SELECT CAST(SERVERPROPERTY('ProductVersion') AS nvarchar(128))").Scan(&version); err != nil {
+			return "", "", err
+		}
+		return command, version, nil
+	case "oracle":
+		table, err := resolveOraclePlanTable(ctx, c)
+		if err != nil {
+			return "", "", err
+		}
+		var version string
+		if err := c.conn.QueryRowContext(ctx, "SELECT BANNER FROM V$VERSION WHERE ROWNUM=1").Scan(&version); err != nil {
+			return "", "", err
+		}
+		return strings.Replace(command, "EXPLAIN PLAN FOR ", "EXPLAIN PLAN SET STATEMENT_ID = 'chen_"+newID("")[:20]+"' INTO "+table+" FOR ", 1), version, nil
+	case "db2":
+		schema, err := resolveDB2PlanSchema(ctx, c)
+		if err != nil {
+			return "", "", err
+		}
+		var version string
+		if err := c.conn.QueryRowContext(ctx, "SELECT SERVICE_LEVEL FROM TABLE(SYSPROC.ENV_GET_INST_INFO()) AS T").Scan(&version); err != nil {
+			return "", "", err
+		}
+		return strings.Replace(command, "EXPLAIN PLAN FOR ", "EXPLAIN PLAN SET QUERYNO = 1 SET QUERYTAG = 'chen_"+newID("")[:15]+"' FOR ", 1) + db2PlanMarker + hex.EncodeToString([]byte(schema)), version, nil
+	case "dameng", "oceanbase-oracle":
+		var version string
+		if err := c.conn.QueryRowContext(ctx, "SELECT BANNER FROM V$VERSION WHERE ROWNUM=1").Scan(&version); err != nil {
+			return "", "", err
+		}
+		return command, version, nil
 	case "mariadb", "oceanbase-mysql", "clickhouse":
 		var version string
 		if err := c.conn.QueryRowContext(ctx, "SELECT VERSION()").Scan(&version); err != nil {

@@ -5,6 +5,7 @@
 package go_ibm_db
 
 import (
+	"context"
 	"database/sql/driver"
 	"fmt"
 	"io"
@@ -16,7 +17,8 @@ import (
 )
 
 type Rows struct {
-	os *ODBCStmt
+	os  *ODBCStmt
+	ctx context.Context
 }
 
 func (r *Rows) Columns() []string {
@@ -132,17 +134,32 @@ func (r *Rows) ColumnTypeDatabaseTypeName(index int) string {
 func (r *Rows) Next(dest []driver.Value) error {
 	trc.Trace1("rows.go: Next() - ENTRY")
 
-	ret := api.SQLFetch(r.os.h)
+	ctx := r.ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	ret, cancelErr := callCLIContext(ctx, r.os.h, func() api.SQLRETURN { return api.SQLFetch(r.os.h) })
+	if cancelErr != nil {
+		return cancelErr
+	}
 	if ret == api.SQL_NO_DATA {
 		return io.EOF
 	}
 	if IsError(ret) {
-		return NewError("SQLFetch", r.os.h)
+		return r.os.owner.noteCancellation(NewError("SQLFetch", r.os.h))
 	}
 	for i := range dest {
-		v, err := r.os.Cols[i].Value(r.os.h, i)
+		var v driver.Value
+		var err error
+		if contextual, ok := r.os.Cols[i].(interface {
+			ValueContext(context.Context, api.SQLHSTMT, int) (driver.Value, error)
+		}); ok {
+			v, err = contextual.ValueContext(ctx, r.os.h, i)
+		} else {
+			v, err = r.os.Cols[i].Value(r.os.h, i)
+		}
 		if err != nil {
-			return err
+			return r.os.owner.noteCancellation(err)
 		}
 		dest[i] = v
 	}
@@ -159,12 +176,19 @@ func (r *Rows) HasNextResultSet() bool {
 func (r *Rows) NextResultSet() error {
 	trc.Trace1("rows.go: NextResultSet() - ENTRY")
 
-	ret := api.SQLMoreResults(r.os.h)
+	ctx := r.ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	ret, cancelErr := callCLIContext(ctx, r.os.h, func() api.SQLRETURN { return api.SQLMoreResults(r.os.h) })
+	if cancelErr != nil {
+		return cancelErr
+	}
 	if ret == api.SQL_NO_DATA {
 		return io.EOF
 	}
 	if IsError(ret) {
-		return NewError("SQLMoreResults", r.os.h)
+		return r.os.owner.noteCancellation(NewError("SQLMoreResults", r.os.h))
 	}
 
 	err := r.os.BindColumns()

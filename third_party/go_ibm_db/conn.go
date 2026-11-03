@@ -5,17 +5,21 @@
 package go_ibm_db
 
 import (
+	"context"
 	"database/sql/driver"
+	"errors"
 	"fmt"
 	"github.com/ibmdb/go_ibm_db/api"
 	trc "github.com/ibmdb/go_ibm_db/log2"
 	"runtime"
+	"sync/atomic"
 	"unsafe"
 )
 
 type Conn struct {
-	h  api.SQLHDBC
-	tx *Tx
+	h               api.SQLHDBC
+	tx              *Tx
+	cancellationAck atomic.Uint64
 }
 
 func (d *Driver) Open(dsn string) (driver.Conn, error) {
@@ -50,18 +54,42 @@ func (d *Driver) Open(dsn string) (driver.Conn, error) {
 func (c *Conn) Close() error {
 	trc.Trace1("conn.go: Close() - ENTRY")
 
+	if c.h == api.SQLHDBC(api.SQL_NULL_HDBC) {
+		return nil
+	}
+	var rollbackErr error
+	if c.tx != nil {
+		// Discard must not leave a live user transaction or enable auto-commit
+		// (which could commit it). A later stale Tx must not touch this handle.
+		c.tx = nil
+		ret := api.SQLEndTran(api.SQL_HANDLE_DBC, api.SQLHANDLE(c.h), api.SQL_ROLLBACK)
+		if IsError(ret) {
+			rollbackErr = NewError("SQLEndTran", c.h)
+		}
+	}
 	ret := api.SQLDisconnect(c.h)
 	if IsError(ret) {
-		return NewError("SQLDisconnect", c.h)
+		return errors.Join(rollbackErr, NewError("SQLDisconnect", c.h))
 	}
+
 	h := c.h
 	c.h = api.SQLHDBC(api.SQL_NULL_HDBC)
 	trc.Trace1("conn.go: Close() - EXIT")
-	return releaseHandle(h)
+	return errors.Join(rollbackErr, releaseHandle(h))
 }
 
 // Query method executes the statement with out prepare if no args provided, and a driver.ErrSkip otherwise (handled by sql.go to execute usual preparedStmt)
 func (c *Conn) Query(query string, args []driver.Value) (driver.Rows, error) {
+	values := make([]driver.NamedValue, len(args))
+	for i, v := range args {
+		values[i] = driver.NamedValue{Ordinal: i + 1, Value: v}
+	}
+	return c.QueryContext(context.Background(), query, values)
+}
+func (c *Conn) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	trc.Trace1("conn.go: Query() - ENTRY")
 	trc.Trace1(fmt.Sprintf("query = %s", query))
 
@@ -78,11 +106,14 @@ func (c *Conn) Query(query string, args []driver.Value) (driver.Rows, error) {
 	h := api.SQLHSTMT(out)
 	drv.Stats.updateHandleCount(api.SQL_HANDLE_STMT, 1)
 	b := api.StringToUTF16(query)
-	ret = api.SQLExecDirect(h,
-		(*api.SQLWCHAR)(unsafe.Pointer(&b[0])), api.SQL_NTS)
+	ret, cancelErr := callCLIContext(ctx, h, func() api.SQLRETURN { return api.SQLExecDirect(h, (*api.SQLWCHAR)(unsafe.Pointer(&b[0])), api.SQL_NTS) })
+	if cancelErr != nil {
+		_ = releaseHandle(h)
+		return nil, cancelErr
+	}
 	if IsError(ret) {
 		defer releaseHandle(h)
-		return nil, NewError("SQLExecDirectW", h)
+		return nil, c.noteCancellation(NewError("SQLExecDirectW", h))
 	}
 	ps, err := ExtractParameters(h)
 	if err != nil {
@@ -91,12 +122,18 @@ func (c *Conn) Query(query string, args []driver.Value) (driver.Rows, error) {
 	}
 	os = &ODBCStmt{
 		h:          h,
+		owner:      c,
 		Parameters: ps,
 		usedByRows: true}
 	err = os.BindColumns()
 	if err != nil {
+		_ = releaseHandle(h)
+		return nil, err
+	}
+	if err := ctx.Err(); err != nil {
+		_ = releaseHandle(h)
 		return nil, err
 	}
 	trc.Trace1("conn.go: Query() - EXIT")
-	return &Rows{os: os}, nil
+	return &Rows{os: os, ctx: ctx}, nil
 }

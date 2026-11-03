@@ -159,6 +159,9 @@ func (v *Server) relations(w http.ResponseWriter, r *http.Request) {
 		fail(w, 502, "metadata_failed", "Unable to read database context")
 		return
 	}
+	if s.grant.Config.Dialect == "postgresql" {
+		current.Schema = "" // This endpoint lists unqualified suggestions in the live search_path.
+	}
 	items, err := sqlservice.Metadata(ctx, c.conn, sqlservice.Dialect(s.grant.Config.Dialect), sqlservice.MetadataRequest{Context: current, Prefix: r.URL.Query().Get("prefix"), Limit: 200})
 	if err != nil {
 		fail(w, 502, "metadata_failed", "Unable to load authorized database relations")

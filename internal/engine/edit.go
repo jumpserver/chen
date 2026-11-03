@@ -159,7 +159,7 @@ func (v *Server) resolveResultSource(ctx context.Context, s *session, c *console
 		source = sqlservice.EditableSource{Schema: r.browse.Schema, Table: r.browse.Table, Star: true}
 	case r.editSource != nil:
 		source = *r.editSource
-	case r.sourceAnalysis != nil:
+	case r.sourceAnalysis != nil && r.sourceAnalysis.SourceCandidate:
 		source, err = sqlservice.EditableSourceFromFacts(*r.sourceAnalysis)
 	default:
 		source, err = sqlservice.AnalyzeEditableQuery(d, r.sourceSQL, opts)
@@ -468,7 +468,7 @@ func editPlaceholder(d string, n int) string {
 		return fmt.Sprintf("$%d", n)
 	case "sqlserver":
 		return fmt.Sprintf("@p%d", n)
-	case "oracle", "dameng", "oceanbase-oracle":
+	case "oracle", "dameng":
 		return fmt.Sprintf(":%d", n)
 	default:
 		return "?"

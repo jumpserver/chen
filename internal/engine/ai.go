@@ -441,6 +441,20 @@ func (v *Server) runAITool(ctx context.Context, r *http.Request, s *session, e a
 		if err != nil {
 			return nil, errors.New("Unable to inspect authorized schema")
 		}
+		if name == "search_schema" {
+			for len(objects) > 0 && len(objects) <= 1000 && len(objects)%100 == 1 {
+				last := objects[len(objects)-2]
+				objects = objects[:len(objects)-1]
+				page, pageErr := sqlservice.ObjectRows(req.ctx, req.conn, sqlservice.Dialect(e.Dialect), sqlservice.CatalogObjectRequest{Database: req.database, Schema: e.Schema, Limit: 100, AfterSchema: last.Schema, AfterName: last.Name})
+				if pageErr != nil {
+					return nil, errors.New("Unable to search authorized schema")
+				}
+				objects = append(objects, page...)
+				if len(page) <= 100 {
+					break
+				}
+			}
+		}
 		result, err := aiSchemaResult(req, e, name, args.Query, args.Tables, args.Limit, objects)
 		if err != nil {
 			return nil, err

@@ -82,28 +82,16 @@ func CatalogOverviewRows(ctx context.Context, conn *sql.Conn, d Dialect, req Ove
 		}
 	}
 	result.Contract = string(d)
+	oracleBroadSegments := false
+	if d == Oracle && (req.Section == "tables" || req.Section == "views" || req.Section == "statistics") {
+		oracleBroadSegments, err = overviewOracleSegmentAccess(ctx, conn)
+		if err != nil {
+			return result, err
+		}
+		result.Contract += fmt.Sprintf(":segments_dba=%t", oracleBroadSegments)
+	}
 	if !IsMySQLDialect(d) && req.AfterName != "" && req.AfterContract != "" && req.AfterContract != result.Contract {
 		return result, ErrOverviewContractChanged
-	}
-	// Other vendors retain their existing directory-only contract.
-	if d != PostgreSQL && !IsMySQLDialect(d) {
-		if req.Section != "tables" && req.Section != "views" {
-			result.State = "unsupported"
-			return result, nil
-		}
-		if req.Sort == "name_desc" {
-			result.State = "unsupported"
-			return result, nil
-		}
-		req.Kind = "table"
-		if req.Section == "views" {
-			req.Kind = "view"
-		}
-		objects, err := ObjectRows(ctx, conn, d, req.CatalogObjectRequest)
-		for _, o := range objects {
-			result.Rows = append(result.Rows, OverviewRow{Object: o, Name: o.Name, Fields: map[string]OverviewValue{"comment": overviewText(o.Comment, "catalog"), "estimated_rows": {State: "unsupported"}, "data_bytes": {State: "unsupported"}, "index_bytes": {State: "unsupported"}, "total_bytes": {State: "unsupported"}, "last_analyzed": {State: "unsupported"}, "engine": {State: "unsupported"}, "character_set": {State: "unsupported"}, "collation": {State: "unsupported"}}})
-		}
-		return result, err
 	}
 	var capabilities *overviewMyCapabilities
 	if IsMySQLDialect(d) {
@@ -118,6 +106,13 @@ func CatalogOverviewRows(ctx context.Context, conn *sql.Conn, d Dialect, req Ove
 		}
 	}
 	query, args := overviewSQL(d, req)
+	if extraCatalogDialect(d) {
+		q, e := overviewExtraSQL(d, req, oracleBroadSegments)
+		if e != nil {
+			return result, e
+		}
+		query, args = q.SQL, q.Args
+	}
 	if capabilities != nil {
 		query = capabilities.adaptSQL(query)
 		if d == MariaDB && (req.Section == "tables" || req.Section == "views") {
@@ -129,7 +124,7 @@ func CatalogOverviewRows(ctx context.Context, conn *sql.Conn, d Dialect, req Ove
 		result.State = "unsupported"
 		return result, nil
 	}
-	rows, err := conn.QueryContext(ctx, query, args...)
+	rows, err := queryCatalogRows(ctx, conn, d, query, args...)
 	if err != nil {
 		return result, err
 	}
@@ -149,9 +144,13 @@ func CatalogOverviewRows(ctx context.Context, conn *sql.Conn, d Dialect, req Ove
 				return result, err
 			}
 			for i, n := range names {
+				n = strings.ToLower(n)
 				result.Fields[n] = overviewValue(values[i], "unknown", overviewSource(d, req.Section, n))
 				if capabilities != nil {
 					result.Fields[n] = capabilities.value(n, values[i], req.Section)
+				}
+				if extraCatalogDialect(d) {
+					result.Fields[n] = overviewExtraValue(d, req.Section, n, values[i], oracleBroadSegments)
 				}
 			}
 			if req.Section == "statistics" {
@@ -177,6 +176,12 @@ func CatalogOverviewRows(ctx context.Context, conn *sql.Conn, d Dialect, req Ove
 		}
 		if req.Section == "properties" {
 			result.Fields["schema_ddl"] = OverviewValue{State: "unsupported", Source: "No native schema DDL implemented for this product"}
+			if extraCatalogDialect(d) {
+				result.Fields["schema_ddl"], err = overviewExtraDDL(ctx, conn, d, req)
+				if err != nil {
+					return result, err
+				}
+			}
 			if capabilities != nil {
 				result.Fields["server_version"] = overviewText(capabilities.version, string(d)+"; SELECT VERSION()")
 				result.Fields["schema_ddl"], err = overviewDatabaseDDL(ctx, conn, d, req.Database)
@@ -191,11 +196,21 @@ func CatalogOverviewRows(ctx context.Context, conn *sql.Conn, d Dialect, req Ove
 		var row OverviewRow
 		row.Fields = map[string]OverviewValue{}
 		if req.Section == "indexes" {
-			var name, unique, method, definition, column, expression, position, direction, prefix sql.NullString
-			if err := rows.Scan(&row.Object.Database, &row.Object.Schema, &row.Object.Name, &row.Object.Kind, &row.Object.ObjectType, &name, &unique, &method, &definition, &column, &expression, &position, &direction, &prefix); err != nil {
+			var name, unique, method, definition, column, expression, position, direction, prefix, included sql.NullString
+			dest := []any{&row.Object.Database, &row.Object.Schema, &row.Object.Name, &row.Object.Kind, &row.Object.ObjectType, &name, &unique, &method, &definition, &column, &expression, &position, &direction, &prefix}
+			if extraCatalogDialect(d) {
+				dest = append(dest, &included)
+			}
+			if err := rows.Scan(dest...); err != nil {
 				return result, err
 			}
+			if IsOracleDialect(d) && expression.Valid && strings.TrimSpace(expression.String) != "" {
+				column = sql.NullString{}
+			}
 			row.Name = name.String
+			if extraCatalogDialect(d) {
+				row.Fields["included"] = overviewExtraValue(d, req.Section, "included", included)
+			}
 			row.Ordinal, err = strconv.Atoi(position.String)
 			if IsMySQLDialect(d) && (err != nil || row.Ordinal < 1) {
 				return result, fmt.Errorf("invalid overview index ordinal")
@@ -212,6 +227,9 @@ func CatalogOverviewRows(ctx context.Context, conn *sql.Conn, d Dialect, req Ove
 				if capabilities != nil {
 					f = capabilities.value(k, v, req.Section)
 				}
+				if extraCatalogDialect(d) {
+					f = overviewExtraValue(d, req.Section, k, v, oracleBroadSegments)
+				}
 				if v.Valid && len(v.String) > 16384 {
 					short := v.String[:16384]
 					for !validOverviewText(short) {
@@ -224,7 +242,11 @@ func CatalogOverviewRows(ctx context.Context, conn *sql.Conn, d Dialect, req Ove
 			}
 		} else {
 			var comment sql.NullString
-			vals := make([]sql.NullString, 8)
+			valueKeys := []string{"estimated_rows", "data_bytes", "index_bytes", "total_bytes", "last_analyzed", "engine", "character_set", "collation"}
+			if extraCatalogDialect(d) {
+				valueKeys = append(valueKeys, "tablespace", "status", "average_row_length", "sample_size", "created")
+			}
+			vals := make([]sql.NullString, len(valueKeys))
 			dest := []any{&row.Object.Database, &row.Object.Schema, &row.Object.Name, &row.Object.Kind, &row.Object.ObjectType, &comment}
 			for i := range vals {
 				dest = append(dest, &vals[i])
@@ -247,12 +269,18 @@ func CatalogOverviewRows(ctx context.Context, conn *sql.Conn, d Dialect, req Ove
 				row.Fields["comment"] = OverviewValue{State: "truncated", Value: &text, Source: "catalog"}
 			}
 			storage := row.Object.ObjectType == "table" || row.Object.ObjectType == "materialized_view"
-			for i, k := range []string{"estimated_rows", "data_bytes", "index_bytes", "total_bytes", "last_analyzed", "engine", "character_set", "collation"} {
+			for i, k := range valueKeys {
 				state := "unknown"
 				if d == PostgreSQL && (i >= 5 || !storage && i <= 4) || IsMySQLDialect(d) && row.Object.Kind == "view" {
 					state = "unsupported"
 				}
 				row.Fields[k] = overviewValue(vals[i], state, overviewSource(d, req.Section, k))
+				if extraCatalogDialect(d) {
+					row.Fields[k] = overviewExtraValue(d, req.Section, k, vals[i], oracleBroadSegments)
+					if row.Object.Kind == "view" && k != "engine" {
+						row.Fields[k] = OverviewValue{State: "unsupported", Source: "View has no stored table statistics"}
+					}
+				}
 				if capabilities != nil {
 					row.Fields[k] = capabilities.value(k, vals[i], req.Section)
 					if row.Object.Kind == "view" {

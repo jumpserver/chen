@@ -106,7 +106,7 @@ comment AS objectcomment FROM system.tables WHERE is_temporary = 0 AND database 
 
 func extraOrder(d Dialect, column string) string {
 	if d == SQLServer {
-		return column + " COLLATE Latin1_General_100_BIN2"
+		return column + " COLLATE Latin1_General_BIN2"
 	}
 	if IsOracleDialect(d) {
 		return "NLSSORT(" + column + ", 'NLS_SORT=BINARY')"
@@ -218,7 +218,7 @@ func clickHouseLike(value string) string {
 	return strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`).Replace(value)
 }
 
-func extraColumnQuery(d Dialect, req CatalogColumnRequest, limit int) (catalogQuery, error) {
+func extraColumnQuery(d Dialect, req CatalogColumnRequest, limit int, typmod ...bool) (catalogQuery, error) {
 	b := &catalogBinder{dialect: d}
 	var query string
 	switch d {
@@ -226,7 +226,9 @@ func extraColumnQuery(d Dialect, req CatalogColumnRequest, limit int) (catalogQu
 		query = `SELECT DB_NAME(), s.name, o.name, c.name,
 t.name + CASE WHEN t.name IN ('varchar','char','varbinary','binary') THEN '(' + CASE WHEN c.max_length = -1 THEN 'max' ELSE CONVERT(varchar(10),c.max_length) END + ')'
 WHEN t.name IN ('nvarchar','nchar') THEN '(' + CASE WHEN c.max_length = -1 THEN 'max' ELSE CONVERT(varchar(10),c.max_length / 2) END + ')'
-WHEN t.name IN ('decimal','numeric') THEN '(' + CONVERT(varchar(10),c.precision) + ',' + CONVERT(varchar(10),c.scale) + ')' ELSE '' END,
+WHEN t.name IN ('decimal','numeric') THEN '(' + CONVERT(varchar(10),c.precision) + ',' + CONVERT(varchar(10),c.scale) + ')'
+WHEN t.name IN ('time','datetime2','datetimeoffset') THEN '(' + CONVERT(varchar(10),c.scale) + ')'
+WHEN t.name='float' THEN '(' + CONVERT(varchar(10),c.precision) + ')' ELSE '' END,
 c.is_nullable, COALESCE(CONVERT(nvarchar(4000),ep.value), ''), c.column_id
 FROM sys.columns c JOIN sys.objects o ON o.object_id = c.object_id JOIN sys.schemas s ON s.schema_id = o.schema_id
 JOIN sys.types t ON t.user_type_id = c.user_type_id
@@ -234,12 +236,12 @@ LEFT JOIN sys.extended_properties ep ON ep.class = 1 AND ep.major_id = c.object_
 WHERE o.type IN ('U','V') AND o.is_ms_shipped = 0 AND s.name = ` + b.bind(req.Schema) + " AND o.name = " + b.bind(req.Table) + " AND c.column_id > " + b.bind(req.AfterOrdinal) + " ORDER BY c.column_id"
 	case Oracle, Dameng, OceanBaseOracle:
 		query = `SELECT ` + b.bind(req.Database) + `, c.OWNER, c.TABLE_NAME, c.COLUMN_NAME, c.DATA_TYPE,
-CASE WHEN c.NULLABLE = 'Y' THEN 1 ELSE 0 END, cc.COMMENTS, c.COLUMN_ID
+CASE WHEN c.NULLABLE = 'Y' THEN 1 ELSE 0 END, cc.COMMENTS, c.COLUMN_ID, c.DATA_LENGTH, c.DATA_PRECISION, c.DATA_SCALE, c.CHAR_LENGTH, c.CHAR_USED
 FROM ALL_TAB_COLUMNS c LEFT JOIN ALL_COL_COMMENTS cc ON cc.OWNER = c.OWNER AND cc.TABLE_NAME = c.TABLE_NAME AND cc.COLUMN_NAME = c.COLUMN_NAME
 WHERE c.OWNER = ` + b.bind(req.Schema) + " AND c.TABLE_NAME = " + b.bind(req.Table) + " AND c.COLUMN_ID > " + b.bind(req.AfterOrdinal) + " ORDER BY c.COLUMN_ID"
 	case DB2:
 		query = `SELECT RTRIM(CURRENT SERVER), RTRIM(c.TABSCHEMA), RTRIM(c.TABNAME), RTRIM(c.COLNAME), c.TYPENAME,
-CASE WHEN c.NULLS = 'Y' THEN 1 ELSE 0 END, COALESCE(c.REMARKS, ''), c.COLNO + 1
+CASE WHEN c.NULLS = 'Y' THEN 1 ELSE 0 END, COALESCE(c.REMARKS, ''), c.COLNO + 1, c.LENGTH, c.LENGTH, c.SCALE, c.STRINGUNITSLENGTH, c.TYPESTRINGUNITS
 FROM SYSCAT.COLUMNS c JOIN SYSCAT.TABLES t ON t.TABSCHEMA = c.TABSCHEMA AND t.TABNAME = c.TABNAME
 WHERE c.TABSCHEMA = ` + b.bind(req.Schema) + " AND c.TABNAME = " + b.bind(req.Table) + " AND c.COLNO + 1 > " + b.bind(req.AfterOrdinal) + " AND " + db2TableVisible + " ORDER BY c.COLNO"
 	case ClickHouse:
@@ -248,6 +250,15 @@ WHERE c.TABSCHEMA = ` + b.bind(req.Schema) + " AND c.TABNAME = " + b.bind(req.Ta
 FROM system.columns WHERE database = ` + b.bind(req.Database) + " AND table = " + b.bind(req.Table) + " AND position > " + b.bind(req.AfterOrdinal) + " ORDER BY position"
 	default:
 		return catalogQuery{}, ErrUnsupportedDialect
+	}
+	includeModifiers := len(typmod) > 0 && typmod[0]
+	if !includeModifiers {
+		query = strings.ReplaceAll(query, ", c.DATA_LENGTH, c.DATA_PRECISION, c.DATA_SCALE, c.CHAR_LENGTH, c.CHAR_USED", "")
+		query = strings.ReplaceAll(query, ", c.LENGTH, c.LENGTH, c.SCALE, c.STRINGUNITSLENGTH, c.TYPESTRINGUNITS", "")
+	}
+	if d == DB2 && includeModifiers && len(typmod) > 1 && !typmod[1] {
+		query = strings.ReplaceAll(query, "c.STRINGUNITSLENGTH", "CAST(NULL AS INTEGER)")
+		query = strings.ReplaceAll(query, "c.TYPESTRINGUNITS", "CAST('UNKNOWN' AS VARCHAR(11))")
 	}
 	return b.orderedPage(query, limit), nil
 }
@@ -287,11 +298,19 @@ func extraCatalogObjectAccess(ctx context.Context, conn *sql.Conn, d Dialect, sc
 		return err
 	}
 	query := "SELECT objectname FROM (" + source + ") objects WHERE schemaname = " + b.bind(schema) + " AND objectname = " + b.bind(table)
-	var name string
-	if err := conn.QueryRowContext(ctx, query, b.args...).Scan(&name); err != nil {
-		if err == sql.ErrNoRows {
-			return ErrCatalogNotFound
+	rows, err := queryCatalogRows(ctx, conn, d, query, b.args...)
+	if err != nil {
+		return fmt.Errorf("check catalog object: %w", err)
+	}
+	defer rows.Close()
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return err
 		}
+		return ErrCatalogNotFound
+	}
+	var name string
+	if err := rows.Scan(&name); err != nil {
 		return fmt.Errorf("check catalog object: %w", err)
 	}
 	return nil

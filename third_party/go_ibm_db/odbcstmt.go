@@ -5,6 +5,7 @@
 package go_ibm_db
 
 import (
+	"context"
 	"database/sql/driver"
 	"errors"
 	"fmt"
@@ -20,6 +21,7 @@ import (
 
 type ODBCStmt struct {
 	h          api.SQLHSTMT
+	owner      *Conn
 	Parameters []Parameter
 	Cols       []Column
 	// locking/lifetime
@@ -29,6 +31,12 @@ type ODBCStmt struct {
 }
 
 func (c *Conn) PrepareODBCStmt(query string) (*ODBCStmt, error) {
+	return c.prepareODBCStmtContext(context.Background(), query)
+}
+func (c *Conn) prepareODBCStmtContext(ctx context.Context, query string) (*ODBCStmt, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	trc.Trace1("odbcstmt.go: PrepareODBCStmt() - ENTRY")
 	trc.Trace1(fmt.Sprintf("query=%s", query))
 
@@ -40,11 +48,14 @@ func (c *Conn) PrepareODBCStmt(query string) (*ODBCStmt, error) {
 	h := api.SQLHSTMT(out)
 	drv.Stats.updateHandleCount(api.SQL_HANDLE_STMT, 1)
 	b := api.StringToUTF16(query)
-	ret = api.SQLPrepare(h,
-		(*api.SQLWCHAR)(unsafe.Pointer(&b[0])), api.SQL_NTS)
+	ret, cancelErr := callCLIContext(ctx, h, func() api.SQLRETURN { return api.SQLPrepare(h, (*api.SQLWCHAR)(unsafe.Pointer(&b[0])), api.SQL_NTS) })
+	if cancelErr != nil {
+		_ = releaseHandle(h)
+		return nil, cancelErr
+	}
 	if IsError(ret) {
 		defer releaseHandle(h)
-		return nil, NewError("SQLPrepare", h)
+		return nil, c.noteCancellation(NewError("SQLPrepare", h))
 	}
 	ps, err := ExtractParameters(h)
 	if err != nil {
@@ -55,6 +66,7 @@ func (c *Conn) PrepareODBCStmt(query string) (*ODBCStmt, error) {
 	trc.Trace1("odbcstmt.go: PrepareODBCStmt() - EXIT")
 	return &ODBCStmt{
 		h:          h,
+		owner:      c,
 		Parameters: ps,
 		usedByStmt: true,
 	}, nil
@@ -114,7 +126,11 @@ func (s *ODBCStmt) releaseHandle() error {
 
 var testingIssue5 bool // used during tests
 
-func (s *ODBCStmt) Exec(args []driver.Value) error {
+func (s *ODBCStmt) Exec(args []driver.Value) error { return s.execContext(context.Background(), args) }
+func (s *ODBCStmt) execContext(ctx context.Context, args []driver.Value) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	trc.Trace1("odbcstmt.go: Exec() - ENTRY")
 
 	ArrayCheck := 0
@@ -210,13 +226,16 @@ func (s *ODBCStmt) Exec(args []driver.Value) error {
 		}
 	}
 
-	ret := api.SQLExecute(s.h)
+	ret, cancelErr := callCLIContext(ctx, s.h, func() api.SQLRETURN { return api.SQLExecute(s.h) })
+	if cancelErr != nil {
+		return cancelErr
+	}
 	if ret == api.SQL_NO_DATA {
 		// success but no data to report
 		return nil
 	}
 	if IsError(ret) {
-		return NewError("SQLExecute", s.h)
+		return s.owner.noteCancellation(NewError("SQLExecute", s.h))
 	}
 	for _, p := range s.Parameters {
 		for _, o := range p.Outs {

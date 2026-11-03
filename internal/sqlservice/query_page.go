@@ -17,24 +17,35 @@ import (
 // Admission is deliberately narrower than ordinary execution, which is unchanged.
 type QueryPageRelation struct{ Schema, Name string }
 
+type QueryPageOrder struct {
+	Key, Name, Nulls string
+	Ordinal          int
+	Desc             bool
+}
 type QueryPageSQL struct {
-	Relations []QueryPageRelation
-	CTEs      map[string]bool
-	Functions []string
-	Operators []string
-	Types     []string
-	Original  string
-	Ordered   bool
-	Dialect   Dialect
+	Scopes               []*QueryPageScope
+	ProjectionKeys       []string
+	Order                []QueryPageOrder
+	OrderStart, OrderEnd int
+	Relations            []QueryPageRelation
+	CTEs                 map[string]bool
+	Functions            []string
+	Operators            []string
+	Types                []string
+	Original             string
+	Ordered              bool
+	Dialect              Dialect
+	PositionalAliases    bool
+	HasWindow            bool
+	HasCTE               bool
+	Prefix               string
+	Body                 string
 }
 
 func AnalyzeQueryPage(d Dialect, document string, options AnalyzeOptions) (*QueryPageSQL, error) {
 	bad := errors.New("Database paging requires one repeatable SELECT; writes, locks, variables, parameters, executable hints and unverified functions are unsupported")
-	if d != PostgreSQL && d != MySQL {
-		return nil, errors.New("Database query paging supports PostgreSQL and MySQL only")
-	}
-	if d == MySQL && options.MySQLVersion < 80031 {
-		return nil, errors.New("Database query paging requires MySQL 8.0.31 or later for nested query windows")
+	if !IsMySQLDialect(d) && d != PostgreSQL {
+		return analyzeVendorQueryPage(d, document, options)
 	}
 	a, err := AnalyzeWithOptions(d, document, options)
 	if err != nil {
@@ -43,7 +54,7 @@ func AnalyzeQueryPage(d Dialect, document string, options AnalyzeOptions) (*Quer
 	if len(a.Statements) != 1 || a.Statements[0].MayWrite || !a.Statements[0].ReturnsRows || (a.Statements[0].Kind != "select" && a.Statements[0].Kind != "setopr") {
 		return nil, bad
 	}
-	p := &QueryPageSQL{Dialect: d, CTEs: map[string]bool{}}
+	p := &QueryPageSQL{Dialect: d, CTEs: map[string]bool{}, PositionalAliases: d == MySQL && options.MySQLVersion >= 80031}
 	mode, err := mysql.GetSQLMode(options.MySQLSQLMode)
 	if err != nil {
 		return nil, err
@@ -204,7 +215,7 @@ func (g *queryPageGuard) Enter(n ast.Node) (ast.Node, bool) {
 func (g *queryPageGuard) Leave(n ast.Node) (ast.Node, bool) { return n, !g.unsafe }
 
 func (p *QueryPageSQL) Page(offset, size int, columns []string) string {
-	if p.Dialect == MySQL {
+	if p.PositionalAliases {
 		// A derived table keeps the original LIMIT/OFFSET isolated from the UI
 		// window. Positional aliases permit duplicate output names; the outer
 		// projection restores their exact labels before masking/metadata binding.
@@ -215,18 +226,32 @@ func (p *QueryPageSQL) Page(offset, size int, columns []string) string {
 		}
 		return fmt.Sprintf("SELECT %s FROM (\n%s\n) AS __chen_query_page(%s) LIMIT %d OFFSET %d", strings.Join(projection, ","), p.Original, strings.Join(aliases, ","), size, offset)
 	}
+	if IsMySQLDialect(p.Dialect) {
+		return fmt.Sprintf("SELECT * FROM (\n%s\n) AS __chen_query_page LIMIT %d OFFSET %d", p.Original, size, offset)
+	}
+	if p.Dialect != PostgreSQL {
+		return p.vendorPage(offset, size, columns)
+	}
+
 	return fmt.Sprintf("SELECT * FROM (\n%s\n) AS \"__chen_query_page\" LIMIT %d OFFSET %d", p.Original, size, offset)
 }
 func (p *QueryPageSQL) Count(columns int) string {
+	if p.Dialect != PostgreSQL && !IsMySQLDialect(p.Dialect) {
+		return p.vendorCount(columns)
+	}
 	aliases := make([]string, columns)
 	for i := range aliases {
 		aliases[i] = fmt.Sprintf("c%d", i)
 	}
 	suffix := ""
-	if columns > 0 {
+	if columns > 0 && (p.Dialect == PostgreSQL || p.PositionalAliases) {
 		suffix = "(" + strings.Join(aliases, ",") + ")"
 	}
-	return "SELECT COUNT(*) FROM (\n" + p.Original + "\n) AS __chen_query_count" + suffix
+	count := "COUNT(*)"
+	if p.Dialect == PostgreSQL {
+		count = "pg_catalog.count(*)"
+	}
+	return "SELECT " + count + " FROM (\n" + p.Original + "\n) AS __chen_query_count" + suffix
 }
 
 func queryPageType(name string) bool {
@@ -243,4 +268,29 @@ func queryPageOperator(op string) bool {
 		return true
 	}
 	return false
+}
+
+// Legacy MySQL-compatible derived tables cannot positionally rename duplicate
+// output labels. Ordinary execution/cached export still preserves those labels.
+func (p *QueryPageSQL) ValidateColumns(columns []string) error {
+	for _, name := range columns {
+		if p.Dialect == Oracle && strings.ContainsRune(name, '"') {
+			return errors.New("Oracle cannot express a double quote inside an output SQL identifier; use an explicit compatible alias or cached results")
+		}
+		if name == "" && p.Dialect != PostgreSQL && !p.PositionalAliases {
+			return errors.New("This database cannot wrap unnamed output columns without changing their labels; add explicit SQL aliases or keep cached results")
+		}
+	}
+	if p.PositionalAliases || p.Dialect == PostgreSQL || p.Dialect == SQLServer || p.Dialect == DB2 || IsOracleDialect(p.Dialect) {
+		return nil
+	}
+	seen := map[string]bool{}
+	for _, name := range columns {
+		key := strings.ToLower(name)
+		if name == "" || seen[key] {
+			return errors.New("This database version cannot wrap duplicate or empty result labels; use unique SQL aliases or cached results")
+		}
+		seen[key] = true
+	}
+	return nil
 }

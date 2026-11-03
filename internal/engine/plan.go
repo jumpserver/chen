@@ -95,7 +95,7 @@ type ExecutionPlan struct {
 func emptyPlan(dialect string) *ExecutionPlan {
 	supported := false
 	switch dialect {
-	case "postgresql", "mysql", "mariadb", "oceanbase-mysql", "clickhouse":
+	case "postgresql", "mysql", "mariadb", "oceanbase-mysql", "clickhouse", "sqlserver", "oracle", "db2", "dameng", "oceanbase-oracle":
 		supported = true
 	}
 	p := &ExecutionPlan{Database: dialect, Mode: "ESTIMATED", Status: "RAW_ONLY", Roots: []*PlanNode{}, Prerequisites: []PlanDiagnostic{}, Warnings: []PlanDiagnostic{},
@@ -104,6 +104,15 @@ func emptyPlan(dialect string) *ExecutionPlan {
 		Limits:       map[string]int{"maxBytes": planMaxBytes, "maxNodes": planMaxNodes, "maxDepth": planMaxDepth}}
 	if dialect == "postgresql" {
 		p.Capabilities.TransactionPolicy = "SAVEPOINT_IF_ACTIVE"
+	}
+	if dialect == "sqlserver" {
+		p.Capabilities.RequiresSessionState = true
+		p.Capabilities.TransactionPolicy = "RESTORE_SHOWPLAN"
+	}
+	if dialect == "oracle" || dialect == "db2" {
+		p.Capabilities.TwoStep = true
+		p.Capabilities.RequiresPlanTable = true
+		p.Capabilities.TransactionPolicy = "ROLLBACK_AUXILIARY_ONLY"
 	}
 	return p
 }
@@ -149,9 +158,9 @@ func (v *Server) executionPlan(w http.ResponseWriter, r *http.Request) {
 			switch e.view.Error.Code {
 			case "explain_not_supported":
 				p.Status = "UNSUPPORTED_DATABASE"
-			case "explain_requires_single_select", "explain_unsafe_select":
+			case "explain_requires_single_select", "explain_unsafe_select", "explain_unsafe_function":
 				p.Status = "UNSUPPORTED_STATEMENT"
-			case "plan_transaction_failed", "plan_transaction_unknown":
+			case "plan_transaction_failed", "plan_transaction_unknown", "plan_prerequisites_unmet", "plan_session_state_unknown", "plan_permission_denied":
 				p.Status = "PREREQUISITES_UNMET"
 			case "connection_lost", "plan_connection_lost":
 				p.Status = "CONNECTION_INVALIDATED"
@@ -179,6 +188,20 @@ func planAPIError(err error) *APIError {
 // Run on the already locked console. PostgreSQL errors are isolated with a
 // savepoint only when a user transaction is active; no BEGIN/COMMIT is injected.
 func (v *Server) runEstimatedPlan(s *session, c *console, e *execution, command, version string) (err error) {
+	switch s.grant.Config.Dialect {
+	case "sqlserver":
+		return v.runSQLServerPlan(s, c, e, command, version)
+	case "oracle", "db2":
+		return v.runAuxiliaryPlan(s, c, e, command, version)
+	case "dameng":
+		state, probeErr := editTransactionState(e.ctx, c, "dameng")
+		if probeErr != nil {
+			return probeErr
+		}
+		if state != editTxIdle {
+			return &APIError{"plan_transaction_unknown", "DM estimated plans require a verified auto-commit idle connection"}
+		}
+	}
 	var boundary *editBoundary
 	if s.grant.Config.Dialect == "postgresql" {
 		state, probeErr := editTransactionState(e.ctx, c, "postgresql")
@@ -300,11 +323,14 @@ func normalizePlan(dialect string, r *Result, versions ...string) *ExecutionPlan
 		Rows    [][]any  `json:"rows"`
 	}{r.Columns, r.Rows})
 	p.RawText = string(raw)
-	if dialect == "postgresql" && len(r.Rows) == 1 && len(r.Rows[0]) == 1 {
+	if (dialect == "postgresql" || dialect == "sqlserver") && len(r.Rows) == 1 && len(r.Rows[0]) == 1 {
 		p.RawFormat = "JSON"
 		p.RawText = planText(r.Rows[0][0])
 	}
-	if dialect == "clickhouse" || dialect == "oceanbase-mysql" {
+	if dialect == "sqlserver" {
+		p.RawFormat = "XML"
+	}
+	if dialect == "clickhouse" || dialect == "oceanbase-mysql" || dialect == "dameng" || dialect == "oceanbase-oracle" {
 		p.RawFormat = "TEXT"
 		lines := []string{}
 		for _, row := range r.Rows {
@@ -360,7 +386,9 @@ func normalizePlan(dialect string, r *Result, versions ...string) *ExecutionPlan
 			p.RawFormatVersion = planString("mysql-classic")
 			p.warn("plan_flat_summary", "Classic EXPLAIN rows are independent facts; parent/child hierarchy and costs are unavailable")
 		}
-	case dialect == "mariadb" || dialect == "oceanbase-mysql" || dialect == "clickhouse":
+	case dialect == "oracle" || dialect == "sqlserver" || dialect == "db2" || dialect == "dameng":
+		normalizeSessionPlan(p, r)
+	case dialect == "mariadb" || dialect == "oceanbase-mysql" || dialect == "clickhouse" || dialect == "oceanbase-oracle":
 		normalizeVendorPlan(p, r)
 	default:
 		p.warn("plan_raw_dialect", "This dialect currently supports estimated raw output only; structured normalization has not been verified")

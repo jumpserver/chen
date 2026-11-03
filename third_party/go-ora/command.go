@@ -44,6 +44,9 @@ type defaultStmt struct {
 	// disableCompression bool
 	_hasLONG          bool
 	_hasBLOB          bool
+	_hasJSON          bool
+	chenQueryContext  context.Context
+	chenQueryActive   bool
 	_hasMoreRows      bool
 	_hasReturnClause  bool
 	_noOfRowsToFetch  int
@@ -190,7 +193,7 @@ func (stmt *defaultStmt) basicWrite(exeOp int, parse, define bool) error {
 	default:
 		// this.m_al8i4[1] = !fetch ? 0L : noOfRowsToFetch;
 		// al8i4[1] = stmt._noOfRowsToFetch
-		if stmt.connection.connOption.Lob == configurations.INLINE {
+		if stmt.connection.connOption.Lob == configurations.INLINE || stmt.chenJSONTextEnabled() {
 			if parse {
 				al8i4[1] = 0
 			} else {
@@ -244,10 +247,23 @@ func (stmt *defaultStmt) writeDefine() error {
 		col.Precision = 0
 		col.Scale = 0
 		col.MaxCharLen = 0
-		if col.DataType == OCIBlobLocator || col.DataType == OCIClobLocator || col.DataType == VECTOR {
+		if col.DataType == JSON && stmt.chenJSONTextEnabled() {
+			col.DataType = OCIBlobLocator
+			col.chenJSONText = true
+			col.CharsetID, col.CharsetForm = 0, 0
+			stmt.columns[index] = col
+		}
+		if col.chenJSONText {
+			num = chenJSONTextLimit
+			col.ContFlag = 0x2000000
+			// Fetch metadata plus one byte, retaining the locator for the
+			// bounded complete read; never treat this prefix as the value.
+			col.MaxCharLen = 1
+			stmt.columns[index] = col
+		} else if col.DataType == OCIBlobLocator || col.DataType == OCIClobLocator || col.DataType == VECTOR {
 			num = 0
 			// temp.ContFlag |= 0x2000000
-			if stmt.connection.connOption.Lob == configurations.INLINE && !col.IsJson {
+			if stmt.connection.connOption.Lob == configurations.INLINE && !col.IsJson && !col.chenJSONText {
 				num = 0x3FFFFFFF
 				// col.MaxCharLen = 0
 				if col.DataType == OCIBlobLocator || col.DataType == VECTOR {
@@ -259,10 +275,12 @@ func (stmt *defaultStmt) writeDefine() error {
 					// change data type in the original array
 					stmt.columns[index].DataType = LongVarChar
 				}
-			} else {
+			} else if stmt.connection.connOption.Lob == configurations.INLINE {
 				col.ContFlag |= 0x2000000
-				// num = 0x7FFFFFFF
 				col.MaxCharLen = 0x8000
+			} else {
+				col.ContFlag = 0
+				col.MaxCharLen = 0
 			}
 		} else {
 			col.ContFlag = 0
@@ -317,6 +335,7 @@ func NewStmt(text string, conn *Connection) *Stmt {
 	stmt.connection = conn
 	stmt.text = text
 	stmt._hasBLOB = false
+	stmt._hasJSON = false
 	stmt._hasLONG = false
 	// stmt.disableCompression = false
 	stmt.arrayBindCount = 0
@@ -599,7 +618,18 @@ func (stmt *Stmt) getExeOption() int {
 
 // fetch get more rows from network stream
 func (stmt *defaultStmt) fetch(resultSet *ResultSet) error {
-	if stmt._noOfRowsToFetch == 25 {
+	return stmt.fetchBatch(resultSet, false)
+}
+
+func (stmt *defaultStmt) fetchBatch(resultSet *ResultSet, initial bool) error {
+	if stmt.chenJSONTextEnabled() && stmt.chenQueryContext != nil && !stmt.chenQueryActive {
+		if err := stmt.chenQueryContext.Err(); err != nil {
+			return err
+		}
+		stop := stmt.connection.session.StartContextWithAck(stmt.chenQueryContext)
+		defer stop()
+	}
+	if stmt._noOfRowsToFetch == 25 && !initial {
 		// m_maxRowSize = m_maxRowSize + m_numOfLOBColumns * Math.Max(86, 86 + (int) lobSize) + m_numOfLONGColumns * Math.Max(2, longSize) + m_numOfBFileColumns * 86;
 		maxRowSize := 0
 		for _, col := range stmt.columns {
@@ -823,6 +853,16 @@ func (stmt *defaultStmt) read(resultSet *ResultSet) (err error) {
 								if err != nil {
 									return err
 								}
+							} else if col.chenJSONText {
+								for trailer := 0; trailer < 2; trailer++ {
+									status, readErr := session.GetInt(4, true, true)
+									if readErr != nil {
+										return readErr
+									}
+									if status != 0 && !(trailer == 0 && status == -1 && col.oPrimValue == nil) {
+										return errors.New("unsupported native JSON text status")
+									}
+								}
 							}
 							stmt.columns[index] = col
 						}
@@ -937,17 +977,24 @@ func (stmt *defaultStmt) read(resultSet *ResultSet) (err error) {
 			if resultSet.columnCount > 0 {
 				_, err = session.GetByte() // session.GetInt(1, false, false)
 			}
+			previousColumns := stmt.columns
 			stmt.columns = make([]ParameterInfo, resultSet.columnCount)
 			for x := 0; x < resultSet.columnCount; x++ {
 				err = stmt.columns[x].load(stmt.connection)
 				if err != nil {
 					return err
 				}
+				if x < len(previousColumns) && previousColumns[x].chenJSONText && previousColumns[x].Name == stmt.columns[x].Name && stmt.columns[x].DataType == OCIBlobLocator {
+					stmt.columns[x].chenJSONText = true
+				}
 				if stmt.columns[x].isLongType() {
 					stmt._hasLONG = true
 				}
 				if stmt.columns[x].isLobType() {
 					stmt._hasBLOB = true
+				}
+				if stmt.columns[x].DataType == JSON {
+					stmt._hasJSON = true
 				}
 			}
 			_, err = session.GetDlc()
@@ -1931,12 +1978,18 @@ func (stmt *Stmt) setParam(pos int, par ParameterInfo) {
 //
 // args is an array of values that corresponding to parameters in sql
 func (stmt *Stmt) Query_(namedArgs []driver.NamedValue) (*DataSet, error) {
+	if stmt.chenJSONTextEnabled() {
+		stmt.execute = true
+	}
 	if stmt.connection.State != Opened {
 		stmt.connection.setBad()
 		return nil, driver.ErrBadConn
 	}
 	tracer := stmt.connection.tracer
 	stmt._noOfRowsToFetch = stmt.connection.connOption.PrefetchRows
+	if stmt.chenJSONTextEnabled() && stmt._hasJSON && stmt._noOfRowsToFetch > 4 {
+		stmt._noOfRowsToFetch = 4
+	}
 	stmt._hasMoreRows = true
 	useNamedPars := len(namedArgs) > 0
 	for x := 0; x < len(namedArgs); x++ {
@@ -1984,6 +2037,16 @@ func (stmt *Stmt) QueryContext(ctx context.Context, namedArgs []driver.NamedValu
 	}
 	tracer := stmt.connection.tracer
 	tracer.Print("Query With Context:", stmt.text)
+	stmt.chenQueryContext = ctx
+	if stmt.chenJSONTextEnabled() {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		stop := stmt.connection.session.StartContextWithAck(ctx)
+		stmt.chenQueryActive = true
+		defer func() { stop(); stmt.chenQueryActive = false }()
+		return stmt.Query_(namedArgs)
+	}
 
 	done := stmt.connection.session.StartContext(ctx)
 	defer stmt.connection.session.EndContext(done)
@@ -2029,13 +2092,27 @@ func (stmt *Stmt) _query() (*DataSet, error) {
 		dataSet.index++
 	}
 	// deal with lobs
-	if stmt.parse && (stmt._hasBLOB || stmt._hasLONG) && stmt.connection.connOption.Lob == configurations.INLINE {
+	if stmt.parse && ((stmt._hasBLOB || stmt._hasLONG) && stmt.connection.connOption.Lob == configurations.INLINE || stmt._hasJSON && stmt.chenJSONTextEnabled()) {
+		if stmt._hasJSON && stmt.chenJSONTextEnabled() && stmt._noOfRowsToFetch > 4 {
+			// JSON BLOBs must be materialized before the next cursor fetch.
+			// Bound a driver batch independently of locator size metadata.
+			stmt._noOfRowsToFetch = 4
+		}
 		stmt.define = true
 		stmt.execute = false
 		stmt.parse = false
 		stmt.reSendParDef = false
 		err = stmt.queryLobPrefetch(stmt.getExeOption(), dataSet.currentResultSet())
 		if err != nil {
+			return nil, err
+		}
+	}
+	if stmt.parse && stmt.chenJSONTextEnabled() && !stmt._hasJSON && len(dataSet.currentResultSet().rows) == 0 && stmt._hasMoreRows {
+		// The describe-only request also precedes ordinary results. Fetch the
+		// first batch on this same cursor; no SQL is replayed.
+		stmt.parse = false
+		stmt.execute = false
+		if err = stmt.fetchBatch(dataSet.currentResultSet(), true); err != nil {
 			return nil, err
 		}
 	}
@@ -2051,11 +2128,20 @@ func (stmt *Stmt) _query() (*DataSet, error) {
 
 func (stmt *defaultStmt) decodePrim(resultSet *ResultSet) error {
 	var err error
+	jsonRemaining := int64(chenJSONTextLimit)
 	// convert from go-ora primitives to sql primitives
 	for rowIndex, row := range resultSet.rows {
 		for colIndex, col := range stmt.columns {
 			if row == nil {
 				continue
+			}
+			if col.chenJSONText {
+				if text, ok := row[colIndex].(string); ok {
+					jsonRemaining -= int64(len(text))
+					if jsonRemaining < 0 {
+						return errors.New("native JSON text exceeds the 16 MiB batch bound")
+					}
+				}
 			}
 			switch val := row[colIndex].(type) {
 			case *RefCursor:
@@ -2071,7 +2157,15 @@ func (stmt *defaultStmt) decodePrim(resultSet *ResultSet) error {
 				}
 				resultSet.rows[rowIndex][colIndex] = val.Data
 			case Lob:
-				if col.DataType == OCIClobLocator {
+				if col.chenJSONText {
+					resultSet.rows[rowIndex][colIndex], err = chenJSONTextValue(val, stmt.chenQueryContext, jsonRemaining)
+					if err != nil {
+						return err
+					}
+					if text, ok := resultSet.rows[rowIndex][colIndex].(string); ok {
+						jsonRemaining -= int64(len(text))
+					}
+				} else if col.DataType == OCIClobLocator {
 					tempString := sql.NullString{String: "", Valid: false}
 					err = setLob(reflect.ValueOf(&tempString).Elem(), val)
 					if err != nil {
@@ -2109,6 +2203,7 @@ func (stmt *defaultStmt) decodePrim(resultSet *ResultSet) error {
 //
 // args is an array of values that corresponding to parameters in sql
 func (stmt *Stmt) Query(args []driver.Value) (driver.Rows, error) {
+	stmt.chenQueryContext = nil
 	if stmt.connection.State != Opened {
 		stmt.connection.setBad()
 		return nil, driver.ErrBadConn

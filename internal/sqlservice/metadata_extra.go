@@ -54,7 +54,7 @@ func extraMetadata(ctx context.Context, conn *sql.Conn, d Dialect, req MetadataR
 	if err != nil {
 		return items, err
 	}
-	rows, err := conn.QueryContext(ctx, query.SQL, query.Args...)
+	rows, err := queryCatalogRows(ctx, conn, d, query.SQL, query.Args...)
 	if err != nil {
 		return items, fmt.Errorf("list relations: %w", err)
 	}
@@ -116,7 +116,7 @@ func extraColumns(ctx context.Context, conn *sql.Conn, d Dialect, req ColumnRequ
 	if err != nil {
 		return items, err
 	}
-	rows, err := conn.QueryContext(ctx, query.SQL, query.Args...)
+	rows, err := queryCatalogRows(ctx, conn, d, query.SQL, query.Args...)
 	if err != nil {
 		return items, fmt.Errorf("list columns: %w", err)
 	}

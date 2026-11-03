@@ -27,15 +27,21 @@ func aiSchemaResult(req *catalogRequest, e aiEditorContext, tool, query string, 
 			Matches  []string `json:"matches"`
 		}
 		out := []candidate{}
-		for i, o := range objects {
-			if i >= 16 {
-				break
-			}
+		objectsTruncated := len(objects) > 1000
+		if objectsTruncated {
+			objects = objects[:1000]
+		}
+		columnObjects, columnsScanned := 0, 0
+		columnsTruncated := false
+		for _, o := range objects {
 			score := 0
 			matches := []string{}
 			for _, term := range terms {
 				if strings.Contains(strings.ToLower(o.Name), term) {
 					score += 10
+					if strings.EqualFold(o.Name, term) {
+						score += 100
+					}
 					matches = append(matches, "table_name")
 				}
 				if strings.Contains(strings.ToLower(o.Comment), term) {
@@ -43,7 +49,21 @@ func aiSchemaResult(req *catalogRequest, e aiEditorContext, tool, query string, 
 					matches = append(matches, "table_comment")
 				}
 			}
-			columns, err := sqlservice.ColumnRows(req.ctx, req.conn, d, sqlservice.CatalogColumnRequest{Database: req.database, Schema: o.Schema, Table: o.Name, Limit: 96})
+			// Score every visible name/comment even after the bounded column budget.
+			// Metadata fan-out remains bounded independently of name search.
+			columns := []sqlservice.CatalogColumn{}
+			var err error
+			if columnObjects < 16 {
+				columnObjects++
+				columns, err = sqlservice.ColumnRows(req.ctx, req.conn, d, sqlservice.CatalogColumnRequest{Database: req.database, Schema: o.Schema, Table: o.Name, Limit: 96})
+				if len(columns) > 96 {
+					columnsTruncated = true
+					columns = columns[:96]
+				}
+				columnsScanned += len(columns)
+			} else {
+				columnsTruncated = true
+			}
 			if err != nil {
 				return nil, errors.New("Unable to search authorized columns")
 			}
@@ -72,11 +92,11 @@ func aiSchemaResult(req *catalogRequest, e aiEditorContext, tool, query string, 
 			}
 		}
 		sort.SliceStable(out, func(i, j int) bool { return out[i].Score > out[j].Score })
-		truncated := len(objects) > 16 || len(out) > limit
+		truncated := objectsTruncated || columnsTruncated || len(out) > limit
 		if len(out) > limit {
 			out = out[:limit]
 		}
-		return map[string]any{"kind": "schema_search", "tables": out, "truncated": truncated, "scope": map[string]string{"database": req.database, "schema": e.Schema}, "business_rows_read": false}, nil
+		return map[string]any{"kind": "schema_search", "tables": out, "truncated": truncated, "objects_scanned": len(objects), "column_objects_scanned": columnObjects, "columns_scanned": columnsScanned, "object_limit": 1000, "column_object_limit": 16, "columns_per_object_limit": 96, "incomplete_columns": columnsTruncated, "incomplete_objects": objectsTruncated, "not_found_is_conclusive": false, "coverage": "authorized_catalog_only", "snapshot": false, "scope": map[string]string{"database": req.database, "schema": e.Schema}, "business_rows_read": false}, nil
 	}
 	wanted := map[string]bool{}
 	for _, table := range tables {

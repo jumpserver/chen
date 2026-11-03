@@ -63,6 +63,8 @@ WHERE c.relkind IN ('r', 'p', 'v', 'm', 'f')
 AND (($1 = '' AND n.nspname = ANY(current_schemas(false)) AND pg_catalog.pg_table_is_visible(c.oid)) OR n.nspname = $1)
 AND ($2 = '' OR current_database() = $2)
 AND c.relname ILIKE $3 ESCAPE '!' AND has_schema_privilege(n.oid, 'USAGE')
+AND (pg_catalog.has_table_privilege(c.oid, 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
+ OR pg_catalog.has_any_column_privilege(c.oid, 'SELECT,INSERT,UPDATE,REFERENCES'))
 ORDER BY n.nspname, c.relname LIMIT $4`, req.Context.Schema, req.Context.Database, likePrefix(req.Prefix), req.Limit)
 	}
 	if err != nil {
@@ -120,11 +122,16 @@ ORDER BY ORDINAL_POSITION LIMIT 2000`, database, req.Table)
 		// to_regclass resolves unqualified names through this connection's live
 		// search_path. format(%I) quotes values as identifiers inside PostgreSQL;
 		// parameters are never interpolated into executable SQL.
-		rows, err = conn.QueryContext(ctx, `SELECT a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod), NOT a.attnotnull,
+		rows, err = conn.QueryContext(ctx, `SELECT a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod), NOT (a.attnotnull OR t.typnotnull),
 COALESCE(col_description(a.attrelid, a.attnum), '')
 FROM pg_catalog.pg_attribute a
+JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
+JOIN pg_catalog.pg_class c ON c.oid = a.attrelid
+JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
 WHERE a.attrelid = to_regclass(CASE WHEN $1 = '' THEN format('%I', $2) ELSE format('%I.%I', $1, $2) END)
 AND a.attnum > 0 AND NOT a.attisdropped AND ($3 = '' OR current_database() = $3)
+AND pg_catalog.has_schema_privilege(n.oid, 'USAGE')
+AND pg_catalog.has_column_privilege(c.oid, a.attnum, 'SELECT,INSERT,UPDATE,REFERENCES')
 ORDER BY a.attnum LIMIT 2000`, schema, req.Table, req.Context.Database)
 	}
 	if err != nil {

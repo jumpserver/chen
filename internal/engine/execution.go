@@ -259,6 +259,10 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		return
 	}
 	c.mu.Lock()
+	var db2CancelCheckpoint uint64
+	if s.grant.Config.Dialect == "db2" {
+		db2CancelCheckpoint = db2CancellationCheckpoint(c)
+	}
 	// A canceled mysql driver context closes the client TCP connection; that
 	// alone does not prove that a server-side write stopped. Cover timeouts,
 	// admin/session/console closure as well as the explicit HTTP cancel path.
@@ -311,7 +315,7 @@ func (v *Server) run(s *session, c *console, e *execution) {
 			audit.Output += queryPageAudit(e.queryPage)
 		}
 		if view.Plan != nil {
-			audit.Output += fmt.Sprintf(" plan_mode=%s generated_sql=%q", view.Plan.Mode, e.planSQL)
+			audit.Output += fmt.Sprintf(" plan_mode=%s generated_sql=%q auxiliary_sql=%q", view.Plan.Mode, e.planSQL, planAuthorizationSQL(s.grant.Config.Dialect, e.planSQL))
 		}
 		if e.export != nil {
 			out := e.export.snapshot()
@@ -349,7 +353,7 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		if e.export != nil {
 			e.export.finishExecution()
 		}
-		if databaseTouched.Load() && runErr != nil && !c.closed.Load() {
+		if databaseTouched.Load() && runErr != nil && !c.closed.Load() && !c.lost.Load() {
 			ping, done := context.WithTimeout(context.Background(), time.Second)
 			defer done()
 			if c.conn.PingContext(ping) != nil {
@@ -364,6 +368,9 @@ func (v *Server) run(s *session, c *console, e *execution) {
 			api = safeDatabaseError(err)
 		}
 		runErr = err
+		if s.grant.Config.Dialect == "db2" && db2CancellationAcknowledged(c, db2CancelCheckpoint) {
+			confirmedCancel = true
+		}
 		// PostgreSQL conversion/constraint errors can quote original field
 		// values (for example protected_text::integer). A result-only mask would
 		// otherwise leak that value through an error response and command audit.
@@ -396,6 +403,9 @@ func (v *Server) run(s *session, c *console, e *execution) {
 			}
 		}
 		v.update(s, e, func(x *ExecutionView) { x.Status = status; x.Error = api })
+		if (s.grant.Config.Dialect == "dameng" || s.grant.Config.Dialect == "db2") && databaseTouched.Load() && (e.ctx.Err() != nil || e.cancelRequested.Load() || confirmedCancel) {
+			invalidateEditConnection(s, c)
+		}
 	}
 	if err := e.ctx.Err(); err != nil {
 		failure(err, safeDatabaseError(err))
@@ -456,7 +466,10 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		runSQL, planVersion, err = estimatedPlanSQL(e.ctx, c, s.grant.Config.Dialect, e.sql, opts)
 		if err != nil {
 			api := &APIError{err.Error(), "Estimated plans require a supported database and one read SELECT without INTO, locking clauses or nested EXPLAIN"}
-			if !strings.HasPrefix(err.Error(), "explain_") {
+			var explicit *APIError
+			if errors.As(err, &explicit) {
+				api = explicit
+			} else if !strings.HasPrefix(err.Error(), "explain_") {
 				api = safeDatabaseError(err)
 			}
 			failure(err, api)
@@ -480,6 +493,10 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		analysis = sqlservice.Analysis{Statements: []sqlservice.Statement{{SQL: runSQL, Kind: "select", ReturnsRows: true}}}
 		err = nil
 	}
+	if e.planMode != "" && specialPlanDialect(s.grant.Config.Dialect) {
+		analysis = sqlservice.Analysis{Statements: []sqlservice.Statement{{SQL: runSQL, Kind: "explain", ReturnsRows: true}}}
+		err = nil
+	}
 	if err != nil {
 		failure(err, &APIError{"sql_parse_error", err.Error()})
 		return
@@ -500,7 +517,11 @@ func (v *Server) run(s *session, c *console, e *execution) {
 	}
 	// Validate the complete script and each original statement before sending any
 	// statement, including generated and multi-statement SQL.
-	if err := v.authorizeExecution(s, e, append([]string{e.sql, runSQL}, statementSQL(analysis.Statements)...), &audit); err != nil {
+	commands := append([]string{e.sql, runSQL}, statementSQL(analysis.Statements)...)
+	if e.planMode != "" {
+		commands = append(commands, planAuthorizationSQL(s.grant.Config.Dialect, runSQL)...)
+	}
+	if err := v.authorizeExecution(s, e, commands, &audit); err != nil {
 		var pe *jumpserver.PolicyError
 		code := "command_denied"
 		if errors.As(err, &pe) {
@@ -523,13 +544,6 @@ func (v *Server) run(s *session, c *console, e *execution) {
 	if e.cancelRequested.Load() {
 		failure(context.Canceled, &APIError{"query_canceled", "Query cancellation requested"})
 		return
-	}
-	if e.queryPage == nil && e.browse == nil && e.planMode == "" && e.export == nil {
-		if len(analysis.Statements) == 1 && analysis.Statements[0].ReturnsRows {
-			v.captureQuerySource(s, c, e, opts)
-		} else {
-			e.querySource = &queryPagePlan{view: QueryPage{Mode: "cache", Reason: "Database paging requires one SELECT; script results retain cached browsing"}}
-		}
 	}
 	executionStart := time.Now()
 	var startErr error
@@ -570,7 +584,7 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		}
 		// AST facts remain valid while parser options are unchanged. Reuse them
 		// for dispatch and edit provenance instead of reparsing each consumer.
-		if e.queryPage == nil && (statement.Facts == nil || current != opts) {
+		if e.queryPage == nil && !(e.planMode != "" && specialPlanDialect(s.grant.Config.Dialect)) && (statement.Facts == nil || current != opts) {
 			checked, err := sqlservice.AnalyzeWithOptions(sqlservice.Dialect(s.grant.Config.Dialect), statement.SQL, current)
 			if err != nil || len(checked.Statements) != 1 {
 				failure(errors.New("sql_context_changed"), &APIError{"sql_context_changed", "Statement boundaries changed with the connection SQL mode; run statements separately"})
@@ -583,6 +597,13 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		if e.cancelRequested.Load() {
 			failure(context.Canceled, &APIError{"query_canceled", "Query cancellation requested"})
 			return
+		}
+		if statement.ReturnsRows && e.planMode == "" && e.queryPage == nil && e.browse == nil && e.export == nil {
+			v.captureQuerySQLSource(s, c, e, current, statement.SQL)
+			if err := e.ctx.Err(); err != nil {
+				failure(err, safeDatabaseError(err))
+				return
+			}
 		}
 		for _, command := range []string{e.sql, statement.SQL} {
 			if warning, ok := e.policyWarnings[command]; ok {
@@ -812,6 +833,7 @@ func (v *Server) collectResults(s *session, e *execution, rows *sql.Rows) error 
 			result.editSourceBound = true
 			result.editSourceError = p.view.ReadOnlyReason
 		}
+		result.SourceSQL = result.sourceSQL
 		if result.querySource != nil {
 			view := result.querySource.view
 			result.QueryPage = &view
@@ -987,6 +1009,7 @@ func (v *Server) journal(s *session, e *execution, phase string) error {
 	entry := map[string]any{"session_id": s.id, "core_session_id": s.grant.ID, "execution": e.snapshot(), "sql": e.sql, "phase": phase, "recovery": "An unfinished intent has unknown outcome; never replay SQL"}
 	if e.planMode != "" {
 		entry["generated_sql"] = e.planSQL
+		entry["auxiliary_sql"] = planAuthorizationSQL(s.grant.Config.Dialect, e.planSQL)
 	}
 	data, err := json.Marshal(entry)
 	if err != nil {
