@@ -40,7 +40,7 @@ func LoadBrowseTable(ctx context.Context, conn *sql.Conn, d Dialect, scope Conte
 				return out, err
 			}
 		} else if d == SQLServer {
-			if err := conn.QueryRowContext(ctx, `SELECT OBJECT_SCHEMA_NAME(OBJECT_ID(@p1, 'U'))`, quoteIdentifier(table, d, '[')).Scan(&schema); err != nil {
+			if err := conn.QueryRowContext(ctx, `SELECT OBJECT_SCHEMA_NAME(OBJECT_ID(@p1))`, quoteIdentifier(table, d, '[')).Scan(&schema); err != nil {
 				return out, err
 			}
 		} else {
@@ -66,28 +66,12 @@ func LoadBrowseTable(ctx context.Context, conn *sql.Conn, d Dialect, scope Conte
 	}
 	out.Schema, out.Table = schema, table
 	r := CatalogColumnRequest{Database: scope.Database, Schema: schema, Table: table, Limit: MaxCatalogPageSize}
-	// Views use the ordinary SQL path: hidden functions are not introduced by
-	// the table browser. ClickHouse storage engines need no transactional flags.
-	if d != ClickHouse {
-		q, err := editBaseTableQuery(d, r)
-		if err != nil {
-			return out, err
-		}
-		if d == MariaDB {
-			q.SQL = strings.Replace(q.SQL, "TABLE_TYPE='BASE TABLE'", "TABLE_TYPE IN ('BASE TABLE','SYSTEM VERSIONED')", 1)
-		}
-		var kind string
-		if err = conn.QueryRowContext(ctx, q.SQL, q.Args...).Scan(&kind); err != nil {
-			return out, err
-		}
-		if IsMySQLDialect(d) {
-			if kind == "" {
-				return out, ErrCatalogNotFound
-			}
-		} else if !editBaseTableKind(d, kind) {
-			return out, ErrCatalogNotFound
-		}
+	// View reads require explicit reexecution confirmation at the HTTP layer.
+	isView, err := BrowseRelationIsView(ctx, conn, d, r)
+	if err != nil {
+		return out, err
 	}
+	out.View = isView
 	cols, err := ColumnRows(ctx, conn, d, r)
 	if err != nil {
 		return out, err
@@ -100,7 +84,9 @@ func LoadBrowseTable(ctx context.Context, conn *sql.Conn, d Dialect, scope Conte
 	}
 	// Only complete non-null, unconditional unique keys promise a tie breaker.
 	// ClickHouse primary/sorting keys do not enforce uniqueness.
-	out.PrimaryKey, err = browseUniqueKey(ctx, conn, d, out)
+	if !out.View {
+		out.PrimaryKey, err = browseUniqueKey(ctx, conn, d, out)
+	}
 	if err != nil {
 		if ctx.Err() != nil {
 			return out, ctx.Err()
@@ -111,6 +97,58 @@ func LoadBrowseTable(ctx context.Context, conn *sql.Conn, d Dialect, scope Conte
 		out.PrimaryKey = nil
 	}
 	return out, nil
+}
+
+// BrowseRelationIsView also detects a table replaced by a view between pages.
+// Reads never infer that a sorting key or view projection is a writable identity.
+func BrowseRelationIsView(ctx context.Context, conn *sql.Conn, d Dialect, r CatalogColumnRequest) (bool, error) {
+	if d == ClickHouse {
+		var engine string
+		err := conn.QueryRowContext(ctx, `SELECT engine FROM system.tables WHERE database=? AND name=?`, r.Schema, r.Table).Scan(&engine)
+		return strings.Contains(strings.ToLower(engine), "view"), err
+	}
+	q, err := editBaseTableQuery(d, r)
+	if err != nil {
+		return false, err
+	}
+	if d == MariaDB {
+		q.SQL = strings.Replace(q.SQL, "TABLE_TYPE='BASE TABLE'", "TABLE_TYPE IN ('BASE TABLE','SYSTEM VERSIONED')", 1)
+	}
+	var kind string
+	err = conn.QueryRowContext(ctx, q.SQL, q.Args...).Scan(&kind)
+	if errors.Is(err, sql.ErrNoRows) {
+		var ok bool
+		q, ok = browseViewQuery(d, r)
+		if !ok {
+			return false, err
+		}
+		err = conn.QueryRowContext(ctx, q.SQL, q.Args...).Scan(&kind)
+	}
+	if err != nil {
+		return false, err
+	}
+	view := kind == "VIEW" || d == PostgreSQL && (kind == "v" || kind == "m")
+	if !view && (IsMySQLDialect(d) && kind == "" || !IsMySQLDialect(d) && !editBaseTableKind(d, kind)) {
+		return false, ErrCatalogNotFound
+	}
+	return view, nil
+}
+
+func browseViewQuery(d Dialect, r CatalogColumnRequest) (catalogQuery, bool) {
+	b := catalogBinder{dialect: d}
+	s, t := b.bind(r.Schema), b.bind(r.Table)
+	q := ""
+	switch {
+	case IsMySQLDialect(d):
+		q = `SELECT 'VIEW' FROM information_schema.TABLES WHERE TABLE_SCHEMA=` + s + ` AND TABLE_NAME=` + t + ` AND TABLE_TYPE='VIEW'`
+	case d == SQLServer:
+		q = `SELECT 'VIEW' FROM sys.views v JOIN sys.schemas s ON s.schema_id=v.schema_id WHERE s.name=` + s + ` AND v.name=` + t
+	case IsOracleDialect(d):
+		q = `SELECT 'VIEW' FROM ALL_VIEWS WHERE OWNER=` + s + ` AND VIEW_NAME=` + t
+	case d == DB2:
+		q = `SELECT 'VIEW' FROM SYSCAT.TABLES WHERE TABSCHEMA=` + s + ` AND TABNAME=` + t + ` AND TYPE='V'`
+	}
+	return catalogQuery{SQL: q, Args: b.args}, q != ""
 }
 
 func browseUniqueKey(ctx context.Context, conn *sql.Conn, d Dialect, table EditTable) ([]string, error) {

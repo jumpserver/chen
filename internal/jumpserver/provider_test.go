@@ -135,9 +135,9 @@ func TestOpenRequiresCorePermissionAndSupportedPolicy(t *testing.T) {
 		{"not password", func(info *protobuf.TokenAuthInfo) { info.Account.SecretType.Value = "ssh_key" }, "unsupported_database_credential_type"},
 		{"unsupported db", func(info *protobuf.TokenAuthInfo) { info.Asset.Protocols[0].Name = "redis" }, "unsupported_database_for_go_v1"},
 		{"missing settings", func(info *protobuf.TokenAuthInfo) { info.Setting = nil }, "incomplete_connection_authorization"},
-		{"java lookaround", func(info *protobuf.TokenAuthInfo) {
-			info.FilterRules = []*protobuf.CommandACL{{Id: "deny-rule", Action: protobuf.CommandACL_Reject, CommandGroups: []*protobuf.CommandGroup{{Pattern: "(?=drop)"}}}}
-		}, "unsupported_command_acl_regex_use_legacy_chen"},
+		{"invalid regex", func(info *protobuf.TokenAuthInfo) {
+			info.FilterRules = []*protobuf.CommandACL{{Id: "deny-rule", Action: protobuf.CommandACL_Reject, CommandGroups: []*protobuf.CommandGroup{{Pattern: "(?=drop"}}}}
+		}, "unsupported_command_acl_regex"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

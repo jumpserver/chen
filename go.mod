@@ -6,6 +6,7 @@ require (
 	gitee.com/chunanyong/dm v1.8.23
 	github.com/ClickHouse/clickhouse-go/v2 v2.49.0
 	github.com/bytebase/omni v0.0.0-20261028061125-c1e38b7dfe51
+	github.com/dlclark/regexp2 v1.11.4
 	github.com/go-sql-driver/mysql v1.9.3
 	github.com/ibmdb/go_ibm_db v0.5.4
 	github.com/jackc/pgx/v5 v5.9.2
@@ -32,7 +33,6 @@ require (
 	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
 	github.com/aws/aws-sdk-go v1.44.306 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/dlclark/regexp2 v1.11.4 // indirect
 	github.com/elastic/elastic-transport-go/v8 v8.6.0 // indirect
 	github.com/elastic/go-elasticsearch/v6 v6.8.5 // indirect
 	github.com/elastic/go-elasticsearch/v8 v8.14.0 // indirect

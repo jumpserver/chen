@@ -30,7 +30,7 @@ func makeTLS(c jumpserver.ConnectionConfig) (*tls.Config, error) {
 		mode = ""
 	}
 	switch mode {
-	case "", "require", "verify-ca", "verify-full":
+	case "", "require", "verify-ca", "verify-full", "prefer", "allow":
 	case "disable":
 		return nil, nil
 	default:
@@ -72,7 +72,7 @@ func makeTLS(c jumpserver.ConnectionConfig) (*tls.Config, error) {
 			_, err := state.PeerCertificates[0].Verify(x509.VerifyOptions{Roots: t.RootCAs, Intermediates: intermediates})
 			return err
 		}
-	} else if mode == "require" {
+	} else if mode == "require" || mode == "prefer" || mode == "allow" {
 		t.InsecureSkipVerify = true
 	}
 	if c.TLS.ClientCert != "" || c.TLS.ClientKey != "" {
@@ -128,6 +128,7 @@ func openDatabase(c jumpserver.ConnectionConfig, max int) (*sql.DB, error) {
 		}
 		cfg.TLSConfig = t
 		cfg.Fallbacks = nil
+		configurePostgresTLSFallback(cfg, c, t)
 		cfg.SSLNegotiation = "postgres"
 		cfg.ConnectTimeout = 10 * time.Second
 		cfg.RuntimeParams = map[string]string{"application_name": "Chen Go"}
@@ -146,6 +147,21 @@ func openDatabase(c jumpserver.ConnectionConfig, max int) (*sql.DB, error) {
 	db.SetMaxIdleConns(1)
 	db.SetConnMaxIdleTime(5 * time.Minute)
 	return db, nil
+}
+
+// Only an explicit Core/local sslmode=prefer or allow permits a plaintext
+// alternative. All other modes retain their single encrypted/plaintext path.
+func configurePostgresTLSFallback(cfg *pgx.ConnConfig, c jumpserver.ConnectionConfig, t *tls.Config) {
+	if !c.TLS.Enabled || t == nil {
+		return
+	}
+	switch strings.ToLower(strings.TrimSpace(c.TLS.Mode)) {
+	case "prefer":
+		cfg.Fallbacks = []*pgconn.FallbackConfig{{Host: c.Host, Port: uint16(c.Port)}}
+	case "allow":
+		cfg.TLSConfig = nil
+		cfg.Fallbacks = []*pgconn.FallbackConfig{{Host: c.Host, Port: uint16(c.Port), TLSConfig: t}}
+	}
 }
 func safeDatabaseError(err error) *APIError {
 	if err == nil {

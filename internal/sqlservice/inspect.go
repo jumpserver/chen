@@ -81,7 +81,7 @@ WHERE n.nspname=$1 AND t.relname=$2`, req.Schema, req.Table).Scan(&fullAccess, &
 		}
 	}
 	result.Sections["ddl"] = ddl
-	for _, kind := range []string{"primary_key", "foreign_keys", "indexes", "defaults"} {
+	for _, kind := range []string{"primary_key", "foreign_keys", "indexes", "defaults", "constraints"} {
 		q, names, ok := inspectionQuery(d, req, kind, true)
 		if !ok {
 			result.Sections[kind] = MetadataSection{Supported: false}
@@ -133,6 +133,9 @@ WHERE n.nspname=$1 AND t.relname=$2`, req.Schema, req.Table).Scan(&fullAccess, &
 	return result, ctx.Err()
 }
 func inspectionQuery(d Dialect, r CatalogColumnRequest, kind string, keySize ...bool) (catalogQuery, []string, bool) {
+	if kind == "constraints" {
+		return inspectionConstraints(d, r.Schema, r.Table)
+	}
 	b := catalogBinder{dialect: d}
 	a, c := b.bind(r.Schema), b.bind(r.Table)
 	if d == PostgreSQL {

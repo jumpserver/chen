@@ -32,7 +32,12 @@ func (p *warningExecutionProvider) AuthorizeCommand(ctx context.Context, g *jump
 func TestNotifyWarningStopsWholeScriptBeforeAnyQueryOrReview(t *testing.T) {
 	for _, confirmed := range []bool{false, true} {
 		var sent atomic.Int32
-		v, s, c, e := executionFixture(t, "postgresql", "SELECT 1 AS requires_review; SELECT 2 AS requires_warning", &executionDriverState{query: func(context.Context, string) (driver.Rows, error) { sent.Add(1); return &executionRows{}, nil }})
+		v, s, c, e := executionFixture(t, "postgresql", "SELECT 1 AS requires_review; SELECT 2 AS requires_warning", &executionDriverState{query: func(_ context.Context, q string) (driver.Rows, error) {
+			if strings.HasPrefix(strings.TrimSpace(q), "SELECT 1 AS requires_review") || strings.HasPrefix(strings.TrimSpace(q), "SELECT 2 AS requires_warning") {
+				sent.Add(1)
+			}
+			return &executionRows{}, nil
+		}})
 		p := &warningExecutionProvider{}
 		v.provider = p
 		e.submitReview = true

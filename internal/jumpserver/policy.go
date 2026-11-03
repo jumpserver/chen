@@ -6,20 +6,24 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 
+	"github.com/dlclark/regexp2"
 	"github.com/jumpserver/wisp/protobuf-go/protobuf"
 )
 
 type commandMatcher struct {
-	pattern *regexp.Regexp
-	action  protobuf.CommandACL_Action
-	aclID   string
-	groupID string
+	pattern     *regexp.Regexp
+	advanced    *regexp2.Regexp
+	matchFailed bool
+	action      protobuf.CommandACL_Action
+	aclID       string
+	groupID     string
 }
 
-// Preserve the Core-provided order (first matching ACL/group wins). RE2 does
-// not understand every Java regular expression. Reject unsupported patterns
-// while authenticating rather than silently dropping an enforcing rule.
+// Preserve the Core-provided order (first matching ACL/group wins). Keep the
+// linear-time engine for ordinary patterns and use the existing backtracking
+// engine for Java lookarounds/backreferences, with a bounded match deadline.
 func compileMatchers(rules []*protobuf.CommandACL) ([]commandMatcher, error) {
 	var result []commandMatcher
 	for _, rule := range rules {
@@ -38,10 +42,15 @@ func compileMatchers(rules []*protobuf.CommandACL) ([]commandMatcher, error) {
 				pattern = "(?i)" + pattern
 			}
 			compiled, err := regexp.Compile(pattern)
+			matcher := commandMatcher{pattern: compiled, action: rule.Action, aclID: rule.Id, groupID: group.Id}
 			if err != nil {
-				return nil, errors.New("unsupported_command_acl_regex_use_legacy_chen")
+				matcher.advanced, err = regexp2.Compile(javaACLQuotedPattern(pattern), regexp2.RE2)
+				if err != nil {
+					return nil, errors.New("unsupported_command_acl_regex")
+				}
+				matcher.advanced.MatchTimeout = 100 * time.Millisecond
 			}
-			result = append(result, commandMatcher{compiled, rule.Action, rule.Id, group.Id})
+			result = append(result, matcher)
 		}
 	}
 	return result, nil
@@ -49,7 +58,22 @@ func compileMatchers(rules []*protobuf.CommandACL) ([]commandMatcher, error) {
 
 func matchPolicy(g *Grant, sql string) *commandMatcher {
 	for i := range g.matchers {
-		if g.matchers[i].pattern.MatchString(sql) {
+		m := &g.matchers[i]
+		matched := false
+		if m.pattern != nil {
+			matched = m.pattern.MatchString(sql)
+		} else if m.advanced != nil {
+			var err error
+			matched, err = m.advanced.MatchString(sql)
+			if err != nil {
+				// A timeout is a policy failure, never permission to try a later
+				// accepting rule. Do not mutate the shared compiled matcher.
+				failed := *m
+				failed.action, failed.matchFailed = protobuf.CommandACL_Reject, true
+				return &failed
+			}
+		}
+		if matched {
 			return &g.matchers[i]
 		}
 	}
@@ -71,6 +95,10 @@ func (p *WispProvider) Authorize(ctx context.Context, g *Grant, sql string) erro
 		return nil
 	}
 	e := &PolicyError{ACLID: matched.aclID, GroupID: matched.groupID}
+	if matched.matchFailed {
+		e.Code, e.RiskLevel = "command_acl_match_failed", int32(protobuf.RiskLevel_Reject)
+		return e
+	}
 	switch matched.action {
 	case protobuf.CommandACL_Accept, protobuf.CommandACL_Warning:
 		// Ordinary warnings are audited without an interactive confirmation.
@@ -85,6 +113,36 @@ func (p *WispProvider) Authorize(ctx context.Context, g *Grant, sql string) erro
 		e.Code, e.RiskLevel = "unsupported_command_acl_action", int32(protobuf.RiskLevel_Reject)
 	}
 	return e
+}
+
+// Java's literal quotation can be combined with lookarounds. regexp2 supports
+// the latter but not \Q...\E, so translate only the quoted text, preserving all
+// other escapes and regex operators verbatim.
+func javaACLQuotedPattern(pattern string) string {
+	var out strings.Builder
+	for i := 0; i < len(pattern); {
+		if i+1 < len(pattern) && pattern[i] == '\\' {
+			if pattern[i+1] == 'Q' {
+				i += 2
+				end := strings.Index(pattern[i:], `\E`)
+				if end < 0 {
+					end = len(pattern) - i
+				}
+				out.WriteString(regexp.QuoteMeta(pattern[i : i+end]))
+				i += end
+				if i < len(pattern) {
+					i += 2
+				}
+				continue
+			}
+			out.WriteString(pattern[i : i+2])
+			i += 2
+			continue
+		}
+		out.WriteByte(pattern[i])
+		i++
+	}
+	return out.String()
 }
 
 type maskRule struct {

@@ -13,10 +13,17 @@ character set compatibility and are retained.
 empty LOB, not SQL NULL. The upstream zero-length early return incorrectly
 converted `EMPTY_BLOB()` and `EMPTY_CLOB()` to NULL. Keep the existing null
 locator check, normalize an empty byte result to a non-nil slice, and continue
-through the normal type conversion. All other driver source is unchanged. Chen uses `LOB FETCH=post`: upstream
+through the normal type conversion. Chen uses `LOB FETCH=post`: upstream
 inline/pre mode coerces LOB columns to LONG/LONG RAW and loses empty versus
 NULL information before the normal conversion.
 
 Regression evidence lives in Chen's opt-in `TestReadonlyDatabaseMatrix`, using
 native empty/non-empty BLOB, CLOB and NCLOB expressions from a read-only Oracle
 connection. No database tables or objects are created by that test.
+
+`chen_transaction.go` exposes the driver's existing implicit auto-commit flag
+through `ChenSetAutoCommit`. It changes no server transaction state. Chen calls
+it under `sql.Conn.Raw` while holding its console lock to preserve an active
+user transaction during grid-save and execution-plan savepoints, then restores
+the previous flag. Deterministic driver regressions cover successful staging,
+rollback and failed savepoint creation without committing the outer transaction.

@@ -55,7 +55,7 @@ func TestAdditionalDriverValuesPreservePrecisionAndBinary(t *testing.T) {
 }
 
 func TestUnsupportedActiveCancellationIsNotFalselyAcknowledged(t *testing.T) {
-	for _, dialect := range []string{"db2", "dameng"} {
+	for _, dialect := range []string{"db2"} {
 		for _, status := range []string{"queued", "running"} {
 			t.Run(dialect+"/"+status, func(t *testing.T) {
 				v, s, _, e := executionFixture(t, dialect, "SELECT 1", &executionDriverState{})

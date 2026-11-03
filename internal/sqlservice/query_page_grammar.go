@@ -13,6 +13,7 @@ import (
 // base relation/function. Unknown product syntax stays ordinary execution.
 // Native Oracle/T-SQL parsing is required as well for those two products.
 type repeatableQueryParser struct {
+	reexecute                    bool
 	tokens                       []token
 	pos, depth                   int
 	query                        *QueryPageSQL
@@ -22,7 +23,7 @@ type repeatableQueryParser struct {
 	currentScope, lastQueryScope *QueryPageScope
 }
 
-func analyzeVendorQueryPage(d Dialect, document string, options AnalyzeOptions) (*QueryPageSQL, error) {
+func analyzeVendorQueryPage(d Dialect, document string, options AnalyzeOptions, replay ...bool) (*QueryPageSQL, error) {
 	bad := errors.New("Database paging requires one repeatable SELECT with verified relations and built-ins; writes, locks, parameters, hints, sequence references and unverified vendor syntax keep cached results")
 	switch d {
 	case Oracle, SQLServer, Dameng, DB2, ClickHouse, OceanBaseOracle:
@@ -35,10 +36,10 @@ func analyzeVendorQueryPage(d Dialect, document string, options AnalyzeOptions) 
 	tokens := []token{}
 	for _, t := range lex(document, d) {
 		if t.kind == 'c' {
-			if strings.HasPrefix(t.text, "--+") {
+			if strings.HasPrefix(t.text, "--+") && !(len(replay) > 0 && replay[0]) {
 				return nil, bad
 			}
-			if strings.HasPrefix(t.text, "/*") && (!t.closed || strings.HasPrefix(t.text, "/*+") || strings.HasPrefix(t.text, "/*!") || strings.HasPrefix(strings.ToUpper(t.text), "/*M!")) {
+			if strings.HasPrefix(t.text, "/*") && (!t.closed || strings.HasPrefix(t.text, "/*+") && !(len(replay) > 0 && replay[0]) || strings.HasPrefix(t.text, "/*!") || strings.HasPrefix(strings.ToUpper(t.text), "/*M!")) {
 				return nil, bad
 			}
 			continue
@@ -55,7 +56,7 @@ func analyzeVendorQueryPage(d Dialect, document string, options AnalyzeOptions) 
 		return nil, bad
 	}
 	q := &QueryPageSQL{Dialect: d, CTEs: map[string]bool{}}
-	p := repeatableQueryParser{tokens: tokens, query: q, document: document}
+	p := repeatableQueryParser{tokens: tokens, query: q, document: document, reexecute: len(replay) > 0 && replay[0]}
 	if !p.selectQuery(true) || p.pos != len(tokens) {
 		return nil, bad
 	}
@@ -672,14 +673,28 @@ func (p *repeatableQueryParser) value() bool {
 		return false
 	}
 	parts := []string{name}
+	for i := 0; p.take("."); i++ {
+		if i > 1 {
+			return false
+		}
+		if p.take("*") {
+			return true
+		}
+		quotedName = quotedName || p.pos < len(p.tokens) && p.tokens[p.pos].quoted
+		name, ok = p.name()
+		if !ok || !p.reexecute && (strings.EqualFold(name, "NEXTVAL") || strings.EqualFold(name, "CURRVAL")) {
+			return false
+		}
+		parts = append(parts, name)
+	}
 	if p.take("(") {
-		if quotedName {
+		if (quotedName || len(parts) != 1) && !p.reexecute {
 			return false
 		}
-		if !queryPageVendorFunction(p.query.Dialect, name) {
+		if !p.reexecute && !queryPageVendorFunction(p.query.Dialect, name) {
 			return false
 		}
-		p.query.Functions = append(p.query.Functions, name)
+		p.query.Functions = append(p.query.Functions, strings.Join(parts, "."))
 		p.take("DISTINCT")
 		if !p.take(")") {
 			if !p.expression() {
@@ -727,19 +742,6 @@ func (p *repeatableQueryParser) value() bool {
 			}
 		}
 		return true
-	}
-	for i := 0; p.take("."); i++ {
-		if i > 1 {
-			return false
-		}
-		if p.take("*") {
-			return true
-		}
-		name, ok = p.name()
-		if !ok || strings.EqualFold(name, "NEXTVAL") || strings.EqualFold(name, "CURRVAL") {
-			return false
-		}
-		parts = append(parts, name)
 	}
 	if p.currentScope != nil {
 		p.currentScope.References = append(p.currentScope.References, QueryPageReference{Parts: parts})

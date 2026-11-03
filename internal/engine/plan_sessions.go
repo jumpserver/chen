@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"reflect"
 	"regexp"
 	"strings"
 	"time"
@@ -227,6 +226,9 @@ func (v *Server) runAuxiliaryPlan(s *session, c *console, e *execution, command,
 	if state == editTxIdle {
 		boundary.tx, err = c.conn.BeginTx(context.WithoutCancel(e.ctx), nil)
 	} else {
+		if err = boundary.preserveOracleTransaction(); err != nil {
+			return err
+		}
 		q := "SAVEPOINT " + boundary.savepoint
 		if d == "db2" {
 			q += " ON ROLLBACK RETAIN CURSORS"
@@ -234,6 +236,7 @@ func (v *Server) runAuxiliaryPlan(s *session, c *console, e *execution, command,
 		_, err = c.conn.ExecContext(e.ctx, q)
 	}
 	if err != nil {
+		boundary.restoreOracleTransaction()
 		return err
 	}
 	p := emptyPlan(s.grant.Config.Dialect)
@@ -449,37 +452,6 @@ func enrichDB2Plan(p *ExecutionPlan, captures map[string]*Result) {
 }
 
 func planAuxTransactionState(ctx context.Context, c *console, d string) (editTxState, error) {
-	if d != "oracle" {
-		return editTransactionState(ctx, c, d)
-	}
-	var id sql.NullString
-	if err := c.conn.QueryRowContext(ctx, "SELECT DBMS_TRANSACTION.LOCAL_TRANSACTION_ID FROM DUAL").Scan(&id); err != nil {
-		return editTxUnknown, err
-	}
-	if id.Valid && id.String != "" {
-		state := editTxUnknown
-		err := c.conn.Raw(func(raw any) error {
-			if probe, ok := raw.(interface{ ChenTransactionState() string }); ok {
-				state = editTxState(probe.ChenTransactionState())
-				return nil
-			}
-			value := reflect.ValueOf(raw)
-			if value.Kind() != reflect.Pointer || value.IsNil() {
-				return nil
-			}
-			value = value.Elem()
-			if value.Kind() != reflect.Struct || value.Type().PkgPath() != "github.com/sijms/go-ora/v2" {
-				return nil
-			}
-			auto := value.FieldByName("autoCommit")
-			if auto.IsValid() && auto.Kind() == reflect.Bool && !auto.Bool() {
-				state = editTxActive
-			}
-			return nil
-		})
-		return state, err
-	}
-
 	return editTransactionState(ctx, c, d)
 }
 

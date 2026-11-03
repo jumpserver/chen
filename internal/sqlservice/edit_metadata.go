@@ -24,6 +24,7 @@ type EditColumn struct {
 }
 
 type EditTable struct {
+	View       bool         `json:"-"`
 	Database   string       `json:"database"`
 	Schema     string       `json:"schema"`
 	Table      string       `json:"table"`

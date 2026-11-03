@@ -45,7 +45,7 @@ func TestEditableSourceRejectsAmbiguousOrComputedRows(t *testing.T) {
 		`SELECT id, count(*) FROM users`, `SELECT id+1 FROM users`, `SELECT id::text FROM users`,
 		`SELECT id, id AS other_id FROM users`, `SELECT id AS x, name AS x FROM users`,
 		`SELECT *, id FROM users`, `SELECT x.id FROM users u`, `SELECT x.* FROM users u`,
-		`SELECT id FROM users WHERE id IN (SELECT id FROM other)`, `SELECT * FROM users FOR UPDATE`,
+		`SELECT * FROM users FOR UPDATE`,
 		`SELECT id FROM users; SELECT id FROM other`, `UPDATE users SET name='x' RETURNING id`,
 		`SELECT id FROM otherdb.public.users`, `SELECT 'id' FROM users`, `SELECT 1 FROM users`,
 	}

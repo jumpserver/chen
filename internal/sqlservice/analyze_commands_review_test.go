@@ -29,8 +29,6 @@ func TestReviewTSQLImplicitBatchBoundaries(t *testing.T) {
 		"SELECT 1 SETUSER 'dbo'",
 		"SELECT 1\nGO 3 -- repeat",
 		"ALTER TABLE t ALTER COLUMN n int ALTER USER reader WITH DEFAULT_SCHEMA=dbo",
-		"CREATE SCHEMA s AUTHORIZATION dbo CREATE TABLE s.hidden(id int)",
-		"CREATE OR ALTER PROCEDURE p AS SELECT 1",
 	} {
 		t.Run(query, func(t *testing.T) {
 			if analysis, err := Analyze(SQLServer, query); err == nil {

@@ -12,8 +12,11 @@ import (
 )
 
 var ErrDiagramContractChanged = errors.New("diagram catalog contract changed; refresh the diagram")
-var diagramMariaVersion = regexp.MustCompile(`(?i)^(?:5\.5\.5-)?(?:10\.11|11\.[0-8])\.\d+.*MariaDB`)
-var diagramOBVersion = regexp.MustCompile(`(?i)OceanBase[^\s]*-v4\.[23]\.\d+`)
+
+// Catalog field probes below determine compatibility. Version numbers alone
+// must not disable the relationship feature retained from v5.1.1.
+var diagramMariaVersion = regexp.MustCompile(`(?i)MariaDB`)
+var diagramOBVersion = regexp.MustCompile(`(?i)OceanBase`)
 
 // Probe on the same authorized connection for each page, independently of
 // overview. A fingerprint is meaningful only within the diagram cursor scope.

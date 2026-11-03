@@ -116,6 +116,7 @@ const (
 )
 
 type Statement struct {
+	PolicySpans []Span       `json:"policy_spans,omitempty"`
 	Span        Span         `json:"span"`
 	Kind        Kind         `json:"kind"`
 	ReturnsRows bool         `json:"returns_rows"` // routing hint, not a server guarantee

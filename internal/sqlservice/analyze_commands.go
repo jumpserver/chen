@@ -25,7 +25,7 @@ func analyzeCommandDocument(d Dialect, document string, options AnalyzeOptions) 
 		case "SHOW", "DESCRIBE", "DESC":
 			rows, write = true, false
 		case "INSERT", "UPDATE", "DELETE", "MERGE", "UPSERT", "REPLACE":
-		case "CREATE", "ALTER", "DROP", "TRUNCATE", "RENAME", "COMMENT":
+		case "CREATE", "ALTER", "DROP", "TRUNCATE", "RENAME", "COMMENT", "GRANT", "REVOKE", "DENY", "OPTIMIZE", "SYSTEM", "ANALYZE", "VACUUM", "REORG", "RUNSTATS", "REFRESH":
 		case "COMMIT", "ROLLBACK", "SAVEPOINT", "RELEASE", "SET", "USE", "SAVE":
 			write = false
 		case "BEGIN":
@@ -40,6 +40,8 @@ func analyzeCommandDocument(d Dialect, document string, options AnalyzeOptions) 
 			write = false
 		case "CALL", "EXEC", "EXECUTE":
 			rows = true
+		case "KILL":
+			rows = d == ClickHouse
 		case "EXPLAIN":
 			rows = true // Arbitrary EXPLAIN may execute a write; the estimated-plan endpoint validates separately.
 		default:
@@ -112,7 +114,7 @@ func commandIs(t token, choices ...string) bool {
 // accepts whitespace as a batch boundary. Unknown procedural/control commands
 // must never be hidden in a SELECT classified as safe to rerun for export.
 func commandStart(t token) bool {
-	return commandIs(t, "SELECT", "INSERT", "UPDATE", "DELETE", "MERGE", "UPSERT", "REPLACE", "CREATE", "ALTER", "DROP", "TRUNCATE", "RENAME", "COMMENT", "GRANT", "REVOKE", "DENY", "BEGIN", "START", "COMMIT", "ROLLBACK", "SAVE", "SAVEPOINT", "RELEASE", "SET", "USE", "SHOW", "DESCRIBE", "DESC", "EXPLAIN", "CALL", "EXEC", "EXECUTE", "FETCH") || unsupportedCommandWord(t)
+	return commandIs(t, "SELECT", "INSERT", "UPDATE", "DELETE", "MERGE", "UPSERT", "REPLACE", "CREATE", "ALTER", "DROP", "TRUNCATE", "RENAME", "COMMENT", "GRANT", "REVOKE", "DENY", "BEGIN", "START", "COMMIT", "ROLLBACK", "SAVE", "SAVEPOINT", "RELEASE", "SET", "USE", "SHOW", "DESCRIBE", "DESC", "EXPLAIN", "CALL", "EXEC", "EXECUTE", "FETCH", "ANALYZE", "VACUUM", "REORG", "RUNSTATS", "REFRESH") || unsupportedCommandWord(t)
 }
 
 func unsupportedCommandWord(t token) bool {
@@ -147,7 +149,7 @@ func validateCommandBoundaries(d Dialect, document string, ts []token, kind stri
 		return fmt.Errorf("unsupported or ambiguous command boundary near %s at byte %d; use supported ordinary SQL and separate statements with semicolons", t.value, t.start)
 	}
 	if kind == "GRANT" || kind == "REVOKE" || kind == "DENY" {
-		return fmt.Errorf("permission-management commands require vendor grammar support")
+		return validatePrivilegeCommand(ts)
 	}
 	ddlObject := ""
 	if kind == "CREATE" || kind == "ALTER" || kind == "DROP" {
@@ -158,10 +160,13 @@ func validateCommandBoundaries(d Dialect, document string, ts []token, kind stri
 		for pos < len(ts) && commandIs(ts[pos], "UNIQUE", "CLUSTERED", "NONCLUSTERED", "TEMP", "TEMPORARY", "GLOBAL", "LOCAL") {
 			pos++
 		}
-		if pos >= len(ts) || !commandIs(ts[pos], "TABLE", "INDEX", "VIEW") {
-			return fmt.Errorf("this SQL scanner supports ordinary TABLE, INDEX and VIEW DDL; other DDL requires vendor grammar support")
+		if pos >= len(ts) || !commandIs(ts[pos], "TABLE", "INDEX", "VIEW", "SEQUENCE", "SCHEMA", "DATABASE", "USER", "ROLE", "SYNONYM", "TABLESPACE", "PROCEDURE", "FUNCTION", "TRIGGER", "TYPE", "MATERIALIZED") {
+			return fmt.Errorf("unknown DDL object; use a supported server SQL statement")
 		}
 		ddlObject = strings.ToUpper(ts[pos].value)
+		if ddlObject == "MATERIALIZED" && pos+1 < len(ts) && ts[pos+1].is("VIEW") {
+			ddlObject = "VIEW"
+		}
 	}
 	depth, caseDepth := 0, 0
 	sawSourceSelect, sawInsertValues, sawSet, alterMutation := false, false, false, false
@@ -210,6 +215,12 @@ func validateCommandBoundaries(d Dialect, document string, ts []token, kind stri
 		}
 		allowed := false
 		switch {
+		case t.is("START"):
+			allowed = ddlObject == "SEQUENCE" && next.is("WITH") || kind == "SYSTEM" && i == at+1
+		case t.is("FLUSH"):
+			allowed = kind == "SYSTEM" && i == at+1
+		case t.is("RETURN"):
+			allowed = ddlObject == "PROCEDURE" || ddlObject == "FUNCTION"
 		case t.is("SELECT"):
 			setOperator := commandIs(prev, "UNION", "EXCEPT", "INTERSECT", "MINUS") || commandIs(prev, "ALL", "DISTINCT") && i >= 2 && commandIs(ts[i-2], "UNION", "EXCEPT", "INTERSECT", "MINUS")
 			allowed = (kind == "SELECT" || sawSourceSelect) && setOperator ||
@@ -270,6 +281,41 @@ func validateCommandBoundaries(d Dialect, document string, ts []token, kind stri
 		if !allowed {
 			return boundary(t)
 		}
+	}
+	return nil
+}
+
+// Privilege verbs are grammar within GRANT/REVOKE, not implicit SQL batches.
+// Require the recipient clause and reject unrelated command heads anywhere in
+// the unquoted source; the server validates product-specific privilege names.
+func validatePrivilegeCommand(ts []token) error {
+	recipient, beforeTarget := false, true
+	for i, t := range ts {
+		if i == 0 || t.quoted || t.kind != 'i' {
+			continue
+		}
+		if commandIs(t, "ON", "TO", "FROM") {
+			beforeTarget = false
+		}
+		if commandIs(t, "TO", "FROM") {
+			recipient = true
+		}
+		if !commandStart(t) {
+			continue
+		}
+		if beforeTarget && commandIs(t, "SELECT", "INSERT", "UPDATE", "DELETE", "CREATE", "ALTER", "DROP", "EXECUTE", "TRUNCATE", "COMMENT") {
+			continue
+		}
+		if t.is("GRANT") && i > 0 && ts[i-1].is("WITH") {
+			continue
+		}
+		if t.is("GRANT") && i == 1 && ts[0].is("REVOKE") {
+			continue
+		}
+		return fmt.Errorf("ambiguous privilege-command boundary near %s; separate SQL statements with semicolons", t.value)
+	}
+	if !recipient {
+		return fmt.Errorf("privilege command requires TO or FROM")
 	}
 	return nil
 }

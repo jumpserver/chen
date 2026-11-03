@@ -52,6 +52,13 @@ func AnalyzeWithOptions(dialect Dialect, document string, options AnalyzeOptions
 	if strings.IndexByte(document, 0) >= 0 {
 		return result, fmt.Errorf("SQL document contains NUL")
 	}
+	if (dialect == Dameng || dialect == OceanBaseOracle) && oracleUnitDocument(dialect, document) {
+		// Oracle-compatible procedural units need the grammar's complete
+		// source boundaries, not the ordinary scanner's semicolon splitting.
+		// The actual product still validates its own SQL at execution.
+		facts, err := (oracleanalysis.Analyzer{}).Analyze(sqlanalysis.Input{SQL: document, Profile: sqlanalysis.Profile{Dialect: sqlanalysis.Oracle}})
+		return analysisFromFacts(document, facts, err)
+	}
 	if dialect == ClickHouse && strings.HasPrefix(document, "EXPLAIN PLAN ") {
 		body := strings.TrimPrefix(document, "EXPLAIN PLAN ")
 		if strings.HasPrefix(document, ClickHouseJSONPlanPrefix) {
@@ -142,6 +149,32 @@ func AnalyzeWithOptions(dialect Dialect, document string, options AnalyzeOptions
 	}
 	result.Syntax = sqlanalysis.Checked
 	return result, nil
+}
+
+func oracleUnitDocument(d Dialect, document string) bool {
+	var ts []token
+	for _, t := range lex(document, d) {
+		if t.kind != 'c' {
+			ts = append(ts, t)
+		}
+		if len(ts) >= 5 {
+			break
+		}
+	}
+	if len(ts) == 0 {
+		return false
+	}
+	if commandIs(ts[0], "BEGIN", "DECLARE") {
+		return true
+	}
+	if !ts[0].is("CREATE") {
+		return false
+	}
+	pos := 1
+	if len(ts) > 3 && ts[1].is("OR") && ts[2].is("REPLACE") {
+		pos = 3
+	}
+	return pos < len(ts) && commandIs(ts[pos], "PROCEDURE", "FUNCTION", "PACKAGE", "TRIGGER", "TYPE")
 }
 
 func mysqlStatementCapabilities(node ast.StmtNode) (bool, bool) {

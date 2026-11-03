@@ -482,6 +482,7 @@ func authorizationError(err error) *APIError {
 		"unsupported_database_credential_type":          "This credential type requires the legacy workspace",
 		"unsupported_database_for_go_v1":                "This database is not supported by the Go workspace",
 		"unsupported_command_acl_regex_use_legacy_chen": "This command policy requires the legacy workspace",
+		"unsupported_command_acl_regex":                 "This command policy contains an unsupported regular expression",
 		"unsupported_command_acl_action":                "This command policy requires the legacy workspace",
 		"unsupported_empty_command_acl":                 "This command policy cannot be enforced; use the legacy workspace",
 		"unsupported_empty_command_acl_pattern":         "This command policy cannot be enforced; use the legacy workspace",
