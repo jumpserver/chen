@@ -68,7 +68,7 @@ func CatalogDiagramRows(ctx context.Context, conn *sql.Conn, d Dialect, r Diagra
 	if (r.Section != "nodes" && r.Section != "edges") || (r.Direction != "schema" && r.Direction != "incoming") || r.Direction == "incoming" && (r.Table == "" || r.Schema == "") {
 		return result, fmt.Errorf("invalid diagram request")
 	}
-	if d != PostgreSQL && !IsMySQLDialect(d) {
+	if d != PostgreSQL && !IsMySQLDialect(d) && !extraCatalogDialect(d) {
 		result.State = "unsupported"
 		return result, nil
 	}
@@ -76,7 +76,7 @@ func CatalogDiagramRows(ctx context.Context, conn *sql.Conn, d Dialect, r Diagra
 	if d == PostgreSQL {
 		result.Source = "pg_catalog"
 	}
-	if systemCatalogSchema(r.Schema, d) || IsMySQLDialect(d) && r.Schema != "" && r.Schema != r.Database {
+	if systemCatalogSchema(r.Schema, d) || (IsMySQLDialect(d) || d == ClickHouse) && r.Schema != "" && r.Schema != r.Database {
 		return result, ErrCatalogForbidden
 	}
 	if err := catalogDatabaseAccess(ctx, conn, d, r.Database); err != nil {
@@ -125,11 +125,30 @@ func CatalogDiagramRows(ctx context.Context, conn *sql.Conn, d Dialect, r Diagra
 		}
 	}
 	r.Limit = min(catalogLimit(r.Limit), 100)
+	if extraCatalogDialect(d) {
+		result.Contract = string(d) + ":authorized_catalog:v1"
+		result.Source = string(d) + "; authorized system catalog"
+		if r.Continuation && r.Contract != result.Contract {
+			return result, ErrDiagramContractChanged
+		}
+		if d == ClickHouse && r.Section == "edges" {
+			result.State = "unsupported"
+			result.Reason = "ClickHouse has no foreign-key relationship catalog"
+			return result, nil
+		}
+	}
 	query, args := diagramSQL(d, r)
+	if extraCatalogDialect(d) {
+		q, e := diagramExtraSQL(d, r)
+		if e != nil {
+			return result, e
+		}
+		query, args = q.SQL, q.Args
+	}
 	if d == MariaDB || d == OceanBaseMySQL {
 		query, args = diagramCompatibleSQL(d, r)
 	}
-	rows, err := conn.QueryContext(ctx, query, args...)
+	rows, err := queryCatalogRows(ctx, conn, d, query, args...)
 	if err != nil {
 		return result, err
 	}

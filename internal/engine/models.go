@@ -42,15 +42,16 @@ type Permissions struct {
 	Download bool `json:"can_download"`
 }
 type SessionView struct {
-	ID          string      `json:"id"`
-	Dialect     string      `json:"dialect"`
-	Asset       string      `json:"asset"`
-	Account     string      `json:"account"`
-	Permissions Permissions `json:"permissions"`
-	ExpiresAt   time.Time   `json:"expires_at"`
-	State       string      `json:"state"`
-	CanCancel   bool        `json:"can_cancel"`
-	StateReason string      `json:"state_reason,omitempty"`
+	ID               string      `json:"id"`
+	Dialect          string      `json:"dialect"`
+	Asset            string      `json:"asset"`
+	Account          string      `json:"account"`
+	Permissions      Permissions `json:"permissions"`
+	ExpiresAt        time.Time   `json:"expires_at"`
+	State            string      `json:"state"`
+	CanCancel        bool        `json:"can_cancel"`
+	StateReason      string      `json:"state_reason,omitempty"`
+	CancellationMode string      `json:"cancellation_mode,omitempty"`
 }
 type ConsoleView struct {
 	ID       string `json:"id"`
@@ -85,6 +86,7 @@ type Column struct {
 	DataType string `json:"data_type"`
 }
 type Result struct {
+	SourceSQL       string     `json:"source_sql,omitempty"` // exact server-bound statement, including script result provenance
 	QueryPage       *QueryPage `json:"query_page,omitempty"`
 	querySource     *queryPagePlan
 	Browse          *BrowsePage `json:"browse,omitempty"`
@@ -227,7 +229,13 @@ func (s *session) viewLocked() SessionView {
 		reason = err.Error()
 	}
 	p := s.grant.Permissions
-	return SessionView{s.id, s.grant.Config.Dialect, s.grant.AssetName, s.grant.AccountName, Permissions{p.Copy, p.Paste, p.Upload, p.Download}, s.grant.ExpiresAt, state, supportsActiveCancellation(s.grant.Config.Dialect), reason}
+	mode := ""
+	if s.grant.Config.Dialect == "dameng" {
+		mode = "connection"
+	} else if s.grant.Config.Dialect == "db2" && db2Available {
+		mode = "statement_reconnect"
+	}
+	return SessionView{s.id, s.grant.Config.Dialect, s.grant.AssetName, s.grant.AccountName, Permissions{p.Copy, p.Paste, p.Upload, p.Download}, s.grant.ExpiresAt, state, supportsActiveCancellation(s.grant.Config.Dialect), reason, mode}
 }
 func (s *session) emit(kind string, data any) {
 	s.mu.Lock()

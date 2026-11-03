@@ -195,7 +195,7 @@ func (v *Server) runEdits(s *session, c *console, e *execution) {
 		}
 		count, countErr := result.RowsAffected()
 		if countErr != nil || count != 1 {
-			rollback(editError("edit_conflict", "A row changed or disappeared since it was loaded. This entire save was rolled back; refresh the table"))
+			rollback(editError("edit_conflict", "The original row values no longer match or cannot be verified. This entire save was rolled back; refresh the table or use SQL for values requiring native types"))
 			return
 		}
 	}

@@ -107,7 +107,15 @@ func ValidateBrowseWhere(d Dialect, where string, opts AnalyzeOptions, columns [
 		return nil
 	}
 	if !IsMySQLDialect(d) {
-		return ErrUnsupportedDialect
+		switch d {
+		case Oracle, SQLServer, DB2, Dameng, OceanBaseOracle, ClickHouse:
+			if validatePortableBrowseWhere(d, where, known) {
+				return nil
+			}
+			return bad
+		default:
+			return ErrUnsupportedDialect
+		}
 	}
 	if err := ValidateBrowseSQLMode(d, opts); err != nil {
 		return err

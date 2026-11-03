@@ -85,16 +85,21 @@ func buildEditPlan(dialect, cid string, r *Result, x *editResolved, req editPrev
 			if err != nil {
 				return nil, fmt.Errorf("Column %s: %s", cv.Name, err)
 			}
+			value, err = normalizeTypedEditValue(dialect, field, value)
+			if err != nil {
+				return nil, fmt.Errorf("Column %s: %s", cv.Name, err)
+			}
 			name := quoteDatabaseIdentifier(field.Name, dialect)
-			cmd.args = append(cmd.args, value)
-			placeholder := editPlaceholder(dialect, len(cmd.args))
+			cmd.args = append(cmd.args, editDriverBindValue(dialect, field, value))
+			placeholder := editTypedExpression(dialect, field, editPlaceholder(dialect, len(cmd.args)))
+			literal := editTypedLiteral(dialect, field, value, false)
 			assign = append(assign, name+" = "+placeholder)
-			policyAssign = append(policyAssign, name+" = "+editMaskSQL(dialect, value, false))
-			previewAssign = append(previewAssign, name+" = "+editMaskSQL(dialect, value, false))
+			policyAssign = append(policyAssign, name+" = "+literal)
+			previewAssign = append(previewAssign, name+" = "+literal)
 			colNames = append(colNames, name)
 			placeholders = append(placeholders, placeholder)
-			policyValues = append(policyValues, editMaskSQL(dialect, value, false))
-			previewValues = append(previewValues, editMaskSQL(dialect, value, false))
+			policyValues = append(policyValues, literal)
+			previewValues = append(previewValues, literal)
 		}
 		if change.Op == "insert" {
 			for i, field := range x.columns {
@@ -145,11 +150,19 @@ func buildEditPlan(dialect, cid string, r *Result, x *editResolved, req editPrev
 				if dialect == "postgresql" && strings.EqualFold(field.DataType, "json") {
 					name = "CAST(" + name + " AS text)"
 				}
-				cmd.args = append(cmd.args, value)
-				where = append(where, name+" = "+editPlaceholder(dialect, len(cmd.args)))
-				policyWhere = append(policyWhere, name+" = "+editMaskSQL(dialect, value, false))
+				value, err := normalizeTypedEditValue(dialect, field, value)
+				if err != nil {
+					return nil, fmt.Errorf("Column %s original value: %s", field.Name, err)
+				}
+				cmd.args = append(cmd.args, editDriverBindValue(dialect, field, value))
+				where = append(where, editTypedEquality(dialect, field, name, editPlaceholder(dialect, len(cmd.args))))
+				policyValue := value
+				if dialect == "oracle" && editOracleJSON(dialect, field) {
+					policyValue = editASCIIJSON(value.(string))
+				}
+				policyWhere = append(policyWhere, editTypedEquality(dialect, field, name, editMaskSQL(dialect, policyValue, false)))
 				masked := row < len(r.masked) && index < len(r.masked[row]) && r.masked[row][index]
-				previewWhere = append(previewWhere, name+" = "+editMaskSQL(dialect, value, masked))
+				previewWhere = append(previewWhere, editTypedEquality(dialect, field, name, editMaskSQL(dialect, policyValue, masked)))
 			}
 			if change.Op == "update" {
 				cmd.sql = "UPDATE " + target + " SET " + strings.Join(assign, ", ")

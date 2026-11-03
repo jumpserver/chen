@@ -6,6 +6,7 @@ package go_ibm_db
 
 import (
 	"bytes"
+	"context"
 	"database/sql/driver"
 	"errors"
 	"fmt"
@@ -27,14 +28,16 @@ func (l *BufferLen) IsNull() bool {
 }
 
 func (l *BufferLen) GetData(h api.SQLHSTMT, idx int, ctype api.SQLSMALLINT, buf []byte) api.SQLRETURN {
-	trc.Trace1("column.go: GetData()")
-
-	// Keep the C output scalar separate from Go objects containing pointers.
-	var length api.SQLLEN
-	ret := api.SQLGetData(h, api.SQLUSMALLINT(idx+1), ctype,
-		api.SQLPOINTER(unsafe.Pointer(&buf[0])), api.SQLLEN(len(buf)), &length)
-	*l = BufferLen(length)
+	ret, _ := l.getDataContext(context.Background(), h, idx, ctype, buf)
 	return ret
+}
+func (l *BufferLen) getDataContext(ctx context.Context, h api.SQLHSTMT, idx int, ctype api.SQLSMALLINT, buf []byte) (api.SQLRETURN, error) {
+	var length api.SQLLEN
+	ret, err := callCLIContext(ctx, h, func() api.SQLRETURN {
+		return api.SQLGetData(h, api.SQLUSMALLINT(idx+1), ctype, api.SQLPOINTER(unsafe.Pointer(&buf[0])), api.SQLLEN(len(buf)), &length)
+	})
+	*l = BufferLen(length)
+	return ret, err
 }
 
 func (l *BufferLen) Bind(h api.SQLHSTMT, idx int, ctype api.SQLSMALLINT, buf []byte) api.SQLRETURN {
@@ -300,11 +303,17 @@ func (c *BindableColumn) Bind(h api.SQLHSTMT, idx int) (bool, error) {
 }
 
 func (c *BindableColumn) Value(h api.SQLHSTMT, idx int) (driver.Value, error) {
+	return c.ValueContext(context.Background(), h, idx)
+}
+func (c *BindableColumn) ValueContext(ctx context.Context, h api.SQLHSTMT, idx int) (driver.Value, error) {
 	trc.Trace1("column.go: Value() - ENTRY")
 	trc.Trace1(fmt.Sprintf("idx = %d", idx))
 
 	if !c.IsBound {
-		ret := c.Len.GetData(h, idx, c.CType, c.Buffer)
+		ret, cancelErr := c.Len.getDataContext(ctx, h, idx, c.CType, c.Buffer)
+		if cancelErr != nil {
+			return nil, cancelErr
+		}
 		if IsError(ret) {
 			return nil, NewError("SQLGetData", h)
 		}
@@ -337,13 +346,19 @@ func (c *NonBindableColumn) Bind(h api.SQLHSTMT, idx int) (bool, error) {
 }
 
 func (c *NonBindableColumn) Value(h api.SQLHSTMT, idx int) (driver.Value, error) {
+	return c.ValueContext(context.Background(), h, idx)
+}
+func (c *NonBindableColumn) ValueContext(ctx context.Context, h api.SQLHSTMT, idx int) (driver.Value, error) {
 	var l BufferLen
 	total := make([]byte, 0)
 	b := make([]byte, 64<<10)
 	trc.Trace1("column.go: Value() - ENTRY")
 loop:
 	for {
-		ret := l.GetData(h, idx, c.CType, b)
+		ret, cancelErr := l.getDataContext(ctx, h, idx, c.CType, b)
+		if cancelErr != nil {
+			return nil, cancelErr
+		}
 		switch ret {
 		case api.SQL_SUCCESS:
 			if l.IsNull() {

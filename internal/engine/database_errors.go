@@ -51,5 +51,5 @@ func extraServerCancellation(err error) bool {
 	if errors.As(err, &ch) {
 		return ch.Code == 394
 	}
-	return false
+	return db2ServerCancellation(err)
 }

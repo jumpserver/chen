@@ -41,6 +41,7 @@ type ConnectionConfig struct {
 	TraceDir      string
 	PrefetchRows  int
 	Lob           LobFetch
+	JSONAsText    bool
 }
 
 func (config *ConnectionConfig) ConnectionData() string {
@@ -305,6 +306,15 @@ func ParseConfig(dsn string) (*ConnectionConfig, error) {
 			// if err != nil {
 			//	config.RetryTime = 0
 			// }
+		case "JSON FETCH":
+			switch strings.ToUpper(val[0]) {
+			case "TEXT":
+				config.JSONAsText = true
+			case "NATIVE":
+				config.JSONAsText = false
+			default:
+				return nil, errors.New("JSON FETCH value should be TEXT or NATIVE")
+			}
 		case "LOB FETCH":
 			tempVal := strings.ToUpper(val[0])
 			if tempVal == "PRE" || tempVal == "INLINE" {

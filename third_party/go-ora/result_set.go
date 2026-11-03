@@ -121,6 +121,9 @@ func (resultSet *ResultSet) Trace(t trace.Tracer) {
 
 // ColumnTypeDatabaseTypeName return Col DataType name
 func (resultSet *ResultSet) ColumnTypeDatabaseTypeName(index int) string {
+	if (*resultSet.cols)[index].chenJSONText {
+		return "JSON"
+	}
 	return (*resultSet.cols)[index].DataType.String()
 }
 
@@ -150,6 +153,9 @@ func (resultSet *ResultSet) ColumnTypePrecisionScale(index int) (int64, int64, b
 
 func (resultSet *ResultSet) ColumnTypeScanType(index int) reflect.Type {
 	col := (*resultSet.cols)[index]
+	if col.chenJSONText {
+		return tyString
+	}
 	switch col.DataType {
 	case NUMBER:
 		if col.Precision > 0 {
@@ -278,7 +284,7 @@ func (resultSet *ResultSet) Next(dest []driver.Value) error {
 	if !hasMoreRows && noOfRowsToFetch == 0 {
 		return io.EOF
 	}
-	if hasMoreRows && (hasBLOB || hasLONG) && resultSet.index == 0 {
+	if hasMoreRows && (hasBLOB || hasLONG) && resultSet.index == 0 && !chenJSONInitialFetchReady(resultSet) {
 		// dataSet.rows = make([]Row, 0, dataSet.parent.noOfRowsToFetch())
 		if err := resultSet.parent.fetch(resultSet); err != nil {
 			return err

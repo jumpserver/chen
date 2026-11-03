@@ -19,8 +19,8 @@ func openDB2(c jumpserver.ConnectionConfig, t *tls.Config) (*sql.DB, error) {
 	if t != nil {
 		return nil, errors.New("Db2 TLS requires IBM CLI certificate configuration; TLS cannot be silently disabled")
 	}
-	// The native CLI enforces an upper execution bound even though this driver
-	// cannot interrupt SQLExecute when a Go context is canceled.
+	// The native CLI timeout remains an upper bound. Context cancellation also
+	// requests SQLCancel; only the original native call can confirm its outcome.
 	dsn, err := db2DSN(c, 60)
 	if err != nil {
 		return nil, err
@@ -40,6 +40,9 @@ func db2DSN(c jumpserver.ConnectionConfig, queryTimeout int) (string, error) {
 }
 
 func db2DatabaseError(err error) *APIError {
+	if db2UncertainNativeError(err) {
+		return nil
+	}
 	var dbError *ibmdb.Error
 	if errors.As(err, &dbError) && (strings.Contains(dbError.APIName, "Exec") || strings.Contains(dbError.APIName, "Fetch") || strings.Contains(dbError.APIName, "Prepare")) {
 		return &APIError{"DB2_SQL_ERROR", dbError.Error()}

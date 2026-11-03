@@ -67,7 +67,7 @@ func SchemaRows(ctx context.Context, conn *sql.Conn, dialect Dialect, database, 
 		var query catalogQuery
 		query, err = extraSchemaQuery(dialect, database, after, limit)
 		if err == nil {
-			rows, err = conn.QueryContext(ctx, query.SQL, query.Args...)
+			rows, err = queryCatalogRows(ctx, conn, dialect, query.SQL, query.Args...)
 		}
 	} else if IsMySQLDialect(dialect) {
 		rows, err = conn.QueryContext(ctx, `SELECT SCHEMA_NAME, SCHEMA_NAME FROM information_schema.SCHEMATA
@@ -123,7 +123,7 @@ func ObjectRows(ctx context.Context, conn *sql.Conn, dialect Dialect, req Catalo
 		var query catalogQuery
 		query, err = extraObjectQuery(dialect, req, false, catalogLimit(req.Limit)+1)
 		if err == nil {
-			rows, err = conn.QueryContext(ctx, query.SQL, query.Args...)
+			rows, err = queryCatalogRows(ctx, conn, dialect, query.SQL, query.Args...)
 		}
 	} else if IsMySQLDialect(dialect) {
 		// MySQL's INFORMATION_SCHEMA applies the current account's table and
@@ -198,9 +198,15 @@ func ColumnRows(ctx context.Context, conn *sql.Conn, dialect Dialect, req Catalo
 	var err error
 	if extraCatalogDialect(dialect) {
 		var query catalogQuery
-		query, err = extraColumnQuery(dialect, req, catalogLimit(req.Limit)+1)
+		query, err = extraColumnQuery(dialect, req, catalogLimit(req.Limit)+1, true)
 		if err == nil {
-			rows, err = conn.QueryContext(ctx, query.SQL, query.Args...)
+			rows, err = queryCatalogRows(ctx, conn, dialect, query.SQL, query.Args...)
+			if err != nil && dialect == DB2 && catalogMissingStringUnits(err) {
+				query, err = extraColumnQuery(dialect, req, catalogLimit(req.Limit)+1, true, false)
+				if err == nil {
+					rows, err = queryCatalogRows(ctx, conn, dialect, query.SQL, query.Args...)
+				}
+			}
 		}
 	} else if IsMySQLDialect(dialect) {
 		rows, err = conn.QueryContext(ctx, `SELECT TABLE_SCHEMA, TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_TYPE,
@@ -210,9 +216,10 @@ WHERE BINARY TABLE_SCHEMA = BINARY ? AND BINARY TABLE_NAME = BINARY ? AND ORDINA
 ORDER BY ORDINAL_POSITION LIMIT ?`, req.Schema, req.Table, req.AfterOrdinal, catalogLimit(req.Limit)+1)
 	} else {
 		rows, err = conn.QueryContext(ctx, `SELECT pg_catalog.current_database(), n.nspname, c.relname, a.attname,
-pg_catalog.format_type(a.atttypid, a.atttypmod), NOT a.attnotnull, COALESCE(pg_catalog.col_description(a.attrelid, a.attnum), ''), a.attnum
+pg_catalog.format_type(a.atttypid, a.atttypmod), NOT (a.attnotnull OR t.typnotnull), COALESCE(pg_catalog.col_description(a.attrelid, a.attnum), ''), a.attnum
 FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_class c ON c.oid = a.attrelid
 JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
 WHERE pg_catalog.current_database() = $1 AND n.nspname = $2 AND c.relname = $3 AND c.relkind IN ('r', 'p', 'v', 'm', 'f')
 AND a.attnum > $4 AND NOT a.attisdropped AND pg_catalog.has_schema_privilege(n.oid, 'USAGE')
 AND pg_catalog.has_column_privilege(c.oid, a.attnum, 'SELECT,INSERT,UPDATE,REFERENCES')
@@ -222,11 +229,25 @@ ORDER BY a.attnum LIMIT $5`, req.Database, req.Schema, req.Table, req.AfterOrdin
 		return items, fmt.Errorf("list catalog columns: %w", err)
 	}
 	defer rows.Close()
+	columnNames, err := rows.Columns()
+	if err != nil {
+		return nil, err
+	}
 	for rows.Next() {
 		var item CatalogColumn
 		var comment sql.NullString
-		if err := rows.Scan(&item.Database, &item.Schema, &item.Table, &item.Name, &item.DataType, &item.Nullable, &comment, &item.Ordinal); err != nil {
+		var length, precision, scale, charLength sql.NullInt64
+		var units sql.NullString
+		dest := []any{&item.Database, &item.Schema, &item.Table, &item.Name, &item.DataType, &item.Nullable, &comment, &item.Ordinal}
+		modifiers := (IsOracleDialect(dialect) || dialect == DB2) && len(columnNames) == 13
+		if modifiers {
+			dest = append(dest, &length, &precision, &scale, &charLength, &units)
+		}
+		if err := rows.Scan(dest...); err != nil {
 			return nil, err
+		}
+		if modifiers {
+			item.DataType = catalogColumnType(dialect, item.DataType, length, precision, scale, charLength, units)
 		}
 		item.Comment = comment.String
 		items = append(items, item)

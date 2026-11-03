@@ -74,6 +74,7 @@ type browsePlan struct {
 	table                                                            sqlservice.EditTable
 	options                                                          sqlservice.AnalyzeOptions
 	sql, policySQL, fullSQL, fullPolicySQL, countSQL, countPolicySQL string
+	pageBaseSQL, pageBasePolicySQL, orderSQL                         string
 	args                                                             []any
 	fingerprint, action, sourceResultID                              string
 }
@@ -203,9 +204,9 @@ func (v *Server) resolveBrowse(ctx context.Context, s *session, c *console, req 
 		if err != nil {
 			return nil, err
 		}
-		table, err := sqlservice.LoadEditTable(ctx, c.conn, sqlservice.Dialect(d), scope, req.Schema, req.Table)
+		table, err := sqlservice.LoadBrowseTable(ctx, c.conn, sqlservice.Dialect(d), scope, req.Schema, req.Table)
 		if err != nil {
-			return nil, errors.New("This table is unavailable for editable browsing; open it as a normal query")
+			return nil, errors.New("This table is unavailable for authorized browsing; open it as a normal query")
 		}
 		p.table = table
 		p.view = BrowsePage{Supported: reason == "", Reason: reason, ServerVersion: version, Database: table.Database, Schema: table.Schema, Table: table.Table, Where: strings.TrimSpace(req.Where), Filter: req.Filter, Sort: append([]browseOrder{}, req.Sort...), Offset: req.Offset, PageSize: req.PageSize, MaxPageSize: min(1000, v.opts.MaxRows), MaxOffset: browseMaxOffset, MaxLoadedRows: v.opts.MaxRows}
@@ -272,12 +273,37 @@ func (v *Server) resolveBrowse(ctx context.Context, s *session, c *console, req 
 			}
 		}
 		p.view.Stable = len(p.table.PrimaryKey) > 0
-		// ponytail: unique-index discovery is not shared with grid metadata yet.
-		// Tables without a proven PK remain readable, with explicit offset instability.
+		if sqlservice.IsOracleDialect(sqlservice.Dialect(d)) {
+			// A binary unique character key need not be unique under the
+			// active NLS/column sort collation (e.g. A/a under BINARY_CI).
+			// Until both collations are verified, keep the real key/order but
+			// report uniqueness in the current ordering as unproven.
+			for _, key := range p.table.PrimaryKey {
+				col := browseColumn(p.table, key)
+				if col != nil {
+					typ := strings.ToUpper(col.DataType)
+					if strings.Contains(typ, "CHAR") || strings.Contains(typ, "TEXT") {
+						p.view.Stable = false
+						break
+					}
+				}
+			}
+		}
+		// The browse key is independent of the actual primary key used by editing.
+		// Without a proven non-null unique key, offset instability stays explicit.
 		base := " FROM " + editQualified(p.view.Schema, p.view.Table, d)
 		p.fullSQL = "SELECT *" + base
 		p.fullPolicySQL = p.fullSQL
 		p.countSQL = "SELECT COUNT(*)" + base
+		if d == "postgresql" {
+			p.countSQL = "SELECT pg_catalog.count(*)" + base
+		}
+		if d == "db2" {
+			p.countSQL = "SELECT SYSIBM.COUNT_BIG(*)" + base
+		}
+		if d == "sqlserver" {
+			p.countSQL = "SELECT COUNT_BIG(*)" + base
+		}
 		p.countPolicySQL = p.countSQL
 		if predicate != "" {
 			p.fullSQL += " WHERE " + predicate
@@ -285,6 +311,8 @@ func (v *Server) resolveBrowse(ctx context.Context, s *session, c *console, req 
 			p.fullPolicySQL += " WHERE " + policy
 			p.countPolicySQL += " WHERE " + policy
 		}
+		p.pageBaseSQL, p.pageBasePolicySQL = p.fullSQL, p.fullPolicySQL
+		p.orderSQL = strings.Join(order, ", ")
 		if len(order) > 0 {
 			p.fullSQL += " ORDER BY " + strings.Join(order, ", ")
 			p.fullPolicySQL += " ORDER BY " + strings.Join(order, ", ")
@@ -308,8 +336,8 @@ func (v *Server) resolveBrowse(ctx context.Context, s *session, c *console, req 
 		if p.fetchSize > 0 {
 			size = p.fetchSize
 		}
-		suffix := fmt.Sprintf(" LIMIT %d OFFSET %d", size+1, p.view.Offset)
-		p.sql, p.policySQL = p.fullSQL+suffix, p.fullPolicySQL+suffix
+		p.sql = browsePageSQL(d, p.fullSQL, p.pageBaseSQL, p.orderSQL, p.table.Columns, p.view.Offset, size+1)
+		p.policySQL = browsePageSQL(d, p.fullPolicySQL, p.pageBasePolicySQL, p.orderSQL, p.table.Columns, p.view.Offset, size+1)
 	}
 	return p, nil
 }
@@ -391,7 +419,7 @@ func buildBrowseFilter(d string, table sqlservice.EditTable, f browseFilter, arg
 		}
 		*args = append(*args, value)
 		slots = append(slots, editPlaceholder(d, len(*args)))
-		lit, err := copyTextLiteral(d, fmt.Sprint(value))
+		lit, err := browsePolicyLiteral(d, fmt.Sprint(value))
 		if err != nil {
 			return "", "", err
 		}
@@ -519,7 +547,7 @@ func browseVendorVersionSupported(d, version string) bool {
 
 func browseVendorContext(ctx context.Context, c *console, d string, options sqlservice.AnalyzeOptions) (version, reason string, err error) {
 	switch d {
-	case "postgresql", "mysql":
+	case "postgresql", "mysql", "oracle", "sqlserver", "dameng", "db2", "oceanbase-oracle", "clickhouse":
 		return "", "", nil
 	case "mariadb", "oceanbase-mysql":
 		if err = sqlservice.ValidateBrowseSQLMode(sqlservice.Dialect(d), options); err != nil {

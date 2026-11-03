@@ -28,7 +28,8 @@ type EditableSource struct {
 // AnalyzeEditableQuery proves the narrow source shape needed for writing result
 // cells back. Syntax analysis alone cannot prove column identity: callers must
 // match this projection to LoadEditTable and the actual result columns as well.
-// The accepted grammar deliberately excludes joins, CTEs and expressions.
+// The outer SELECT deliberately excludes joins, CTEs and computed projections;
+// predicate subqueries do not change the identity of its direct result columns.
 func AnalyzeEditableQuery(d Dialect, document string, opts AnalyzeOptions) (EditableSource, error) {
 	var out EditableSource
 	fail := func(reason string) (EditableSource, error) {
@@ -38,10 +39,10 @@ func AnalyzeEditableQuery(d Dialect, document string, opts AnalyzeOptions) (Edit
 	if err != nil {
 		return EditableSource{}, fmt.Errorf("%w: %w", ErrNotEditable, err)
 	}
-	if len(analysis.Statements) == 1 && analysis.Statements[0].Facts != nil {
+	if len(analysis.Statements) == 1 && analysis.Statements[0].Facts != nil && analysis.Statements[0].Facts.SourceCandidate {
 		return EditableSourceFromFacts(*analysis.Statements[0].Facts)
 	}
-	if len(analysis.Statements) != 1 || !analysis.Statements[0].ReturnsRows || analysis.Statements[0].MayWrite {
+	if len(analysis.Statements) != 1 || !analysis.Statements[0].ReturnsRows {
 		return fail("one SELECT is required")
 	}
 	mode, err := mysql.GetSQLMode(opts.MySQLSQLMode)
@@ -63,6 +64,15 @@ func AnalyzeEditableQuery(d Dialect, document string, opts AnalyzeOptions) (Edit
 	}
 	if len(ts) < 4 || !ts[0].is("SELECT") {
 		return fail("simple SELECT is required")
+	}
+	if source, handled, err := editWhereSubquerySource(d, document, ts, analysis, opts); handled {
+		return source, err
+	}
+	if analysis.Statements[0].Facts != nil {
+		return EditableSourceFromFacts(*analysis.Statements[0].Facts)
+	}
+	if analysis.Statements[0].MayWrite {
+		return fail("one read SELECT is required")
 	}
 	from := -1
 	for i, t := range ts {

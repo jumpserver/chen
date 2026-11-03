@@ -356,7 +356,9 @@ func EditTypeSupported(d Dialect, dataType string) bool {
 		return true
 	case "date", "time", "time without time zone", "timestamp", "timestamp without time zone", "datetime", "datetime2", "smalldatetime":
 		return true
-	case "timestamp with time zone", "timestamptz", "datetimeoffset":
+	case "timestamp with time zone":
+		return d == PostgreSQL || d == Oracle || d == SQLServer || d == OceanBaseOracle
+	case "timestamptz", "datetimeoffset":
 		return d == PostgreSQL || d == Oracle || d == SQLServer
 	case "boolean", "bool":
 		return d == PostgreSQL || IsMySQLDialect(d) || d == DB2
@@ -366,7 +368,11 @@ func EditTypeSupported(d Dialect, dataType string) bool {
 		return d == PostgreSQL
 	case "uniqueidentifier":
 		return d == SQLServer
-	case "json", "jsonb":
+	case "json":
+		// Oracle uses the opt-in server text define plus UTF-8 JSON binds.
+		// OceanBase has its own text wire codec; neither path decodes OSON.
+		return d == PostgreSQL || IsMySQLDialect(d) || d == Oracle || d == OceanBaseOracle
+	case "jsonb":
 		return d == PostgreSQL || IsMySQLDialect(d)
 	default:
 		return false

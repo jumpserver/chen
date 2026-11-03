@@ -116,7 +116,7 @@ func unsupportedContext(dialect string) error {
 }
 
 func oracleConnectionOptions(c jumpserver.ConnectionConfig) map[string]string {
-	options := map[string]string{"CONNECTION TIMEOUT": "10", "TIMEOUT": "120", "LOB FETCH": "post", "DBA PRIVILEGE": "NONE"}
+	options := map[string]string{"CONNECTION TIMEOUT": "10", "TIMEOUT": "120", "LOB FETCH": "post", "JSON FETCH": "text", "DBA PRIVILEGE": "NONE"}
 	if c.OracleSYSDBA {
 		options["DBA PRIVILEGE"] = "SYSDBA"
 	}

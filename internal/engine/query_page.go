@@ -131,8 +131,24 @@ func (v *Server) queryPage(w http.ResponseWriter, r *http.Request) {
 		for i, column := range source.Columns {
 			names[i] = column.Name
 		}
+		if err := p.query.ValidateColumns(names); err != nil {
+			fail(w, 400, "query_page_unavailable", err.Error())
+			return
+		}
+		if err := p.query.ValidatePageOrder(names); err != nil {
+			fail(w, 400, "query_page_unavailable", err.Error())
+			return
+		}
 		p.generated = p.query.Page(p.view.Offset, p.view.PageSize+1, names)
 	case "count":
+		names := make([]string, len(source.Columns))
+		for i, col := range source.Columns {
+			names[i] = col.Name
+		}
+		if err := p.query.ValidateColumns(names); err != nil {
+			fail(w, 400, "query_page_unavailable", err.Error())
+			return
+		}
 		p.generated = p.query.Count(p.columns)
 	case "export":
 		p.generated = p.original
@@ -160,6 +176,8 @@ func queryPageContext(ctx context.Context, c *console, d string) (string, error)
 		if values[3] != "on" {
 			return "", errors.New("Database paging requires standard_conforming_strings=on")
 		}
+	} else if d != "mysql" && d != "mariadb" && d != "oceanbase-mysql" {
+		return vendorQueryPageContext(ctx, c, d)
 	} else {
 		values = make([]string, 6)
 		err := c.conn.QueryRowContext(ctx, "SELECT COALESCE(DATABASE(), ''), CURRENT_USER(), @@session.sql_mode, @@session.time_zone, @@session.character_set_connection, @@session.collation_connection").Scan(&values[0], &values[1], &values[2], &values[3], &values[4], &values[5])
@@ -171,9 +189,20 @@ func queryPageContext(ctx context.Context, c *console, d string) (string, error)
 	return string(b), nil
 }
 func (v *Server) captureQuerySource(s *session, c *console, e *execution, opts sqlservice.AnalyzeOptions) {
-	p := &queryPagePlan{original: e.sql, options: opts, view: QueryPage{Mode: "cache", MaxPageSize: min(1000, v.opts.MaxRows), MaxOffset: browseMaxOffset}}
+	v.captureQuerySQLSource(s, c, e, opts, e.sql)
+}
+func (v *Server) captureQuerySQLSource(s *session, c *console, e *execution, opts sqlservice.AnalyzeOptions, statementSQL string) {
+	p := &queryPagePlan{original: statementSQL, options: opts, view: QueryPage{Mode: "cache", MaxPageSize: min(1000, v.opts.MaxRows), MaxOffset: browseMaxOffset}}
 	e.querySource = p
-	q, err := sqlservice.AnalyzeQueryPage(sqlservice.Dialect(s.grant.Config.Dialect), e.sql, opts)
+	q, err := sqlservice.AnalyzeQueryPage(sqlservice.Dialect(s.grant.Config.Dialect), statementSQL, opts)
+	if err == nil && (s.grant.Config.Dialect == "mariadb" || s.grant.Config.Dialect == "oceanbase-mysql") {
+		_, reason, vendorErr := browseVendorContext(e.ctx, c, s.grant.Config.Dialect, opts)
+		if vendorErr != nil {
+			err = vendorErr
+		} else if reason != "" {
+			err = errors.New(reason)
+		}
+	}
 	if err == nil {
 		err = validateQueryPageSources(e.ctx, c, s.grant.Config.Dialect, q)
 	}
@@ -252,23 +281,44 @@ func validateQueryPageSources(ctx context.Context, c *console, d string, q *sqls
 		var safe bool
 		var err error
 		cteName := r.Name
+		if d == "sqlserver" {
+			cteName = strings.ToLower(cteName)
+		}
 		if d == "postgresql" {
 			qualified := sqlQuoteIdentifier(r.Name)
 			if r.Schema != "" {
 				qualified = sqlQuoteIdentifier(r.Schema) + "." + qualified
 			}
 			err = c.conn.QueryRowContext(ctx, `SELECT c.relkind IN ('r','m') AND NOT c.relrowsecurity AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_inherits i WHERE i.inhparent=c.oid) AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_type t ON t.oid=a.atttypid JOIN pg_catalog.pg_namespace n ON n.oid=t.typnamespace WHERE a.attrelid=c.oid AND a.attnum>0 AND NOT a.attisdropped AND n.nspname<>'pg_catalog') FROM pg_catalog.pg_class c WHERE c.oid=pg_catalog.to_regclass($1)`, qualified).Scan(&safe)
+		} else if d != "mysql" && d != "mariadb" && d != "oceanbase-mysql" {
+			err = vendorQueryPageSource(ctx, c, d, r, &safe)
 		} else {
 			cteName = strings.ToLower(cteName)
-			err = c.conn.QueryRowContext(ctx, `SELECT TABLE_TYPE='BASE TABLE' FROM information_schema.TABLES WHERE TABLE_SCHEMA=COALESCE(NULLIF(?,''),DATABASE()) AND TABLE_NAME=?`, r.Schema, r.Name).Scan(&safe)
+			query := `SELECT TABLE_TYPE='BASE TABLE' AND ENGINE IN ('InnoDB','MyISAM','MEMORY','Aria') FROM information_schema.TABLES WHERE TABLE_SCHEMA=COALESCE(NULLIF(?,''),DATABASE()) AND TABLE_NAME=?`
+			if d == "mariadb" {
+				query = strings.Replace(query, "TABLE_TYPE='BASE TABLE'", "TABLE_TYPE IN ('BASE TABLE','SYSTEM VERSIONED')", 1)
+			}
+			err = c.conn.QueryRowContext(ctx, query, r.Schema, r.Name).Scan(&safe)
 		}
-		if errors.Is(err, sql.ErrNoRows) && r.Schema == "" && q.CTEs[cteName] {
+		if errors.Is(err, sql.ErrNoRows) && (d == "postgresql" || sqlservice.IsMySQLDialect(sqlservice.Dialect(d))) && r.Schema == "" && q.CTEs[cteName] {
 			continue
 		}
 		if err != nil || !safe {
 			return errors.New("Database paging requires visible ordinary tables; views, inherited/partitioned or foreign tables, row security and unverified types cannot be safely replayed")
 		}
 	}
+	if d != "postgresql" && d != "mysql" && d != "mariadb" && d != "oceanbase-mysql" {
+		if err := validateVendorQueryFunctions(ctx, c, d, q.Functions); err != nil {
+			return err
+		}
+		if sqlservice.IsOracleDialect(sqlservice.Dialect(d)) {
+			if err := validateOracleColumnBindings(ctx, c, d, q.Scopes); err != nil {
+				return err
+			}
+		}
+
+	}
+
 	if d == "postgresql" && len(q.Functions) > 0 {
 		seen = map[string]bool{}
 		for _, name := range q.Functions {

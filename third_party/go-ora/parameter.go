@@ -116,6 +116,7 @@ type ParameterInfo struct {
 	IsNull               bool
 	AllowNull            bool
 	IsJson               bool
+	chenJSONText         bool
 	ColAlias             string
 	DataType             TNSType
 	IsXmlType            bool
@@ -385,6 +386,7 @@ func (par *ParameterInfo) write(session *network.Session) error {
 func (par *ParameterInfo) clone() ParameterInfo {
 	tempPar := ParameterInfo{}
 	tempPar.DataType = par.DataType
+	tempPar.chenJSONText = par.chenJSONText
 	tempPar.cusType = par.cusType
 	tempPar.TypeName = par.TypeName
 	tempPar.MaxLen = par.MaxLen
@@ -620,7 +622,7 @@ func (par *ParameterInfo) decodePrimValue(conn *Connection, temporaryLobs *[][]b
 			connection:    conn,
 			charsetID:     par.CharsetID,
 		}
-		if lob.isTemporary() {
+		if lob.isTemporary() && !par.chenJSONText {
 			*temporaryLobs = append(*temporaryLobs, locator)
 		}
 		par.oPrimValue = lob
@@ -708,8 +710,34 @@ func (par *ParameterInfo) decodeParameterValue(connection *Connection, temporary
 }
 
 func (par *ParameterInfo) decodeColumnValue(connection *Connection, temporaryLobs *[][]byte, udt bool) error {
+	if !udt && par.chenJSONText && par.DataType == OCIBlobLocator {
+		session := connection.session
+		present, err := session.GetInt(4, true, true)
+		if err != nil {
+			return err
+		}
+		if present == 0 {
+			par.oPrimValue = nil
+			return nil
+		}
+		if _, err = session.GetInt(8, true, true); err != nil { // complete LOB size
+			return err
+		}
+		if _, err = session.GetInt(4, true, true); err != nil { // chunk size
+			return err
+		}
+		if _, err = session.GetClr(); err != nil { // one-byte prefix
+			return err
+		}
+		locator, err := session.GetClr()
+		if err != nil {
+			return err
+		}
+		par.oPrimValue = Lob{sourceLocator: locator, sourceLen: len(locator), connection: connection}
+		return nil
+	}
 	// var err error
-	if !udt && connection.connOption.Lob == configurations.INLINE && (par.DataType == OCIBlobLocator ||
+	if !udt && !par.chenJSONText && connection.connOption.Lob == configurations.INLINE && (par.DataType == OCIBlobLocator ||
 		par.DataType == OCIClobLocator || par.DataType == VECTOR) {
 		session := connection.session
 		maxSize, err := session.GetInt(4, true, true)

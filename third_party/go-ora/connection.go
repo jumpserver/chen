@@ -1362,6 +1362,9 @@ func (conn *Connection) dataTypeNegotiation() error {
 	var err error
 	tracer.Print("Data Type Negotiation")
 	conn.dataNego = buildTypeNego(conn.tcpNego, conn.session)
+	if conn.connOption.JSONAsText {
+		chenJSONTextNegotiation(conn.dataNego)
+	}
 	err = conn.dataNego.write(conn.session)
 	if err != nil {
 		return err
