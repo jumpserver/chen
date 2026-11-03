@@ -49,6 +49,17 @@ func (Analyzer) Analyze(in a.Input) (a.Result, error) {
 	if lex.Err != nil {
 		return out, parseError(lex.Err)
 	}
+	// A T-SQL routine definition owns the remainder of its server batch,
+	// including semicolons. Never dispatch a parsed trailing body statement
+	// as a separate top-level command.
+	for _, node := range tree.Items {
+		switch node.(type) {
+		case *ast.CreateProcedureStmt, *ast.CreateFunctionStmt, *ast.CreateTriggerStmt, *ast.CreateViewStmt:
+			if len(tree.Items) != 1 {
+				return out, problem(a.Unsupported, "Submit a routine or view definition in its own SQL execution", location(node), nil)
+			}
+		}
+	}
 	r := reader{sql: in.SQL, tokens: tokens}
 	previousEnd, cursor := 0, 0
 	for i, node := range tree.Items {
@@ -227,18 +238,28 @@ func (r reader) statement(node ast.Node, loc a.Span) (a.Statement, error) {
 		s.Kind = a.Session
 		s.MayWrite = false
 	case *ast.DropStmt:
-		if n.ObjectType != ast.DropTable && n.ObjectType != ast.DropIndex && n.ObjectType != ast.DropView {
-			return s, problem(a.Unsupported, "Only ordinary TABLE, INDEX and VIEW DDL is supported", loc, nil)
-		}
 		s.Kind = a.DDL
 	case *ast.CreateTableStmt, *ast.AlterTableStmt, *ast.CreateIndexStmt, *ast.AlterIndexStmt, *ast.CreateViewStmt, *ast.TruncateStmt:
 		s.Kind = a.DDL
 	default:
-		return s, problem(a.Unsupported, fmt.Sprintf("SQL Server statement %T is outside the ordinary SQL execution scope", node), loc, nil)
+		// Parsed administrative statements retain their original source and
+		// policy checks. Conservative MayWrite excludes them from paging,
+		// export and estimated-plan admission, independently of execution.
+		name := strings.TrimPrefix(fmt.Sprintf("%T", node), "*ast.")
+		if strings.HasPrefix(name, "Create") || strings.HasPrefix(name, "Alter") || strings.HasPrefix(name, "Drop") {
+			s.Kind = a.DDL
+		}
+		switch node.(type) {
+		case *ast.BeginEndStmt, *ast.IfStmt, *ast.WhileStmt, *ast.TryCatchStmt, *ast.FetchCursorStmt, *ast.DbccStmt, *ast.ReadtextStmt, *ast.ReceiveStmt:
+			s.ReturnsRows = true
+		}
 	}
 	// Function and sequence names use TableRef nodes too; they are not tables.
 	nameNodes := map[*ast.TableRef]bool{}
 	ast.Inspect(node, func(child ast.Node) bool {
+		if _, ok := child.(ast.StmtNode); ok && child != node {
+			s.PolicySpans = append(s.PolicySpans, location(child))
+		}
 		switch n := child.(type) {
 		case *ast.SelectStmt:
 			if n != node {

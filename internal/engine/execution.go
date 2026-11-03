@@ -450,6 +450,11 @@ func (v *Server) run(s *session, c *console, e *execution) {
 				return
 			}
 		}
+		isView, kindErr := sqlservice.BrowseRelationIsView(e.ctx, c.conn, sqlservice.Dialect(s.grant.Config.Dialect), sqlservice.CatalogColumnRequest{Schema: p.view.Schema, Table: p.view.Table})
+		if kindErr != nil || isView != p.table.View || (isView && !p.reexecutionConfirmed) {
+			failure(errors.New("browse_source_changed"), &APIError{"browse_source_changed", "The table or view changed; reopen it before browsing"})
+			return
+		}
 		if err := validateBrowseWhere(e.ctx, c, s.grant.Config.Dialect, p); err != nil {
 			failure(err, &APIError{"invalid_browse", err.Error()})
 			return
@@ -510,7 +515,8 @@ func (v *Server) run(s *session, c *console, e *execution) {
 			failure(errors.New("download_permission_denied"), &APIError{"download_permission_denied", "Result download is not permitted"})
 			return
 		}
-		if len(analysis.Statements) != 1 || analysis.Statements[0].MayWrite || !analysis.Statements[0].ReturnsRows || (analysis.Statements[0].Kind != "select" && analysis.Statements[0].Kind != "setopr") {
+		confirmedQuery := e.queryPage != nil && e.queryPage.view.RequiresReexecution && e.queryPage.reexecutionConfirmed
+		if len(analysis.Statements) != 1 || analysis.Statements[0].MayWrite && !confirmedQuery || !analysis.Statements[0].ReturnsRows || (analysis.Statements[0].Kind != "select" && analysis.Statements[0].Kind != "setopr") {
 			failure(errors.New("export_requires_single_select"), &APIError{"export_requires_single_select", "Full export requires exactly one read query"})
 			return
 		}
@@ -690,6 +696,7 @@ func statementSQL(stmts []sqlservice.Statement) []string {
 	out := make([]string, 0, len(stmts))
 	for _, s := range stmts {
 		out = append(out, s.SQL)
+		out = append(out, s.PolicySQL...)
 	}
 	return out
 }

@@ -74,6 +74,9 @@ func TestVendorScannerRequiresPolicyVisibleBoundaries(t *testing.T) {
 			"CREATE PROCEDURE p AS SELECT 1; DELETE FROM t", "BEGIN DELETE FROM t; END", "INSERT INTO t VALUES ('unfinished)",
 			"UPDATE t SET n=(1; DELETE FROM t)", "DELETE FROM t /* unfinished", "SELECT 1; invalid trailing command",
 		} {
+			if (text == "BEGIN DELETE FROM t; END") && (d == SQLServer || d == Oracle || d == Dameng || d == OceanBaseOracle) {
+				continue // Native grammar now exposes the nested statement to ACL.
+			}
 			if a, err := Analyze(d, text); err == nil {
 				t.Errorf("%s accepted unproven script %q: %+v", d, text, a)
 			}

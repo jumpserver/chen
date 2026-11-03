@@ -16,17 +16,18 @@ import (
 )
 
 type QueryPage struct {
-	Supported      bool   `json:"supported"`
-	Reason         string `json:"reason,omitempty"`
-	Mode           string `json:"mode"` // cache or database
-	ScopeID        string `json:"scope_id,omitempty"`
-	Ordered        bool   `json:"ordered"` // not a uniqueness or snapshot guarantee
-	Offset         int    `json:"offset"`
-	PageSize       int    `json:"page_size"`
-	MaxPageSize    int    `json:"max_page_size"`
-	MaxOffset      int    `json:"max_offset"`
-	HasMore        *bool  `json:"has_more"`
-	ReadOnlyReason string `json:"read_only_reason,omitempty"`
+	RequiresReexecution bool   `json:"requires_reexecution_confirmation,omitempty"`
+	Supported           bool   `json:"supported"`
+	Reason              string `json:"reason,omitempty"`
+	Mode                string `json:"mode"` // cache or database
+	ScopeID             string `json:"scope_id,omitempty"`
+	Ordered             bool   `json:"ordered"` // not a uniqueness or snapshot guarantee
+	Offset              int    `json:"offset"`
+	PageSize            int    `json:"page_size"`
+	MaxPageSize         int    `json:"max_page_size"`
+	MaxOffset           int    `json:"max_offset"`
+	HasMore             *bool  `json:"has_more"`
+	ReadOnlyReason      string `json:"read_only_reason,omitempty"`
 }
 type QueryCount struct {
 	SourceResultID string `json:"source_result_id"`
@@ -34,16 +35,18 @@ type QueryCount struct {
 	Total          string `json:"total"`
 }
 type queryPageRequest struct {
-	SourceResultID  string `json:"source_result_id"`
-	Action          string `json:"action"`
-	Offset          int    `json:"offset"`
-	PageSize        int    `json:"page_size"`
-	Format          string `json:"format,omitempty"`
-	RequestID       string `json:"request_id"`
-	SubmitReview    bool   `json:"submit_review"`
-	ConfirmWarnings bool   `json:"confirm_warnings"`
+	ConfirmReexecution bool   `json:"confirm_reexecution,omitempty"`
+	SourceResultID     string `json:"source_result_id"`
+	Action             string `json:"action"`
+	Offset             int    `json:"offset"`
+	PageSize           int    `json:"page_size"`
+	Format             string `json:"format,omitempty"`
+	RequestID          string `json:"request_id"`
+	SubmitReview       bool   `json:"submit_review"`
+	ConfirmWarnings    bool   `json:"confirm_warnings"`
 }
 type queryPagePlan struct {
+	reexecutionConfirmed                bool
 	view                                QueryPage
 	query                               *sqlservice.QueryPageSQL
 	original                            string
@@ -101,6 +104,10 @@ func (v *Server) queryPage(w http.ResponseWriter, r *http.Request) {
 		fail(w, 400, "query_page_unavailable", "Choose a supported result from this console; database paging cannot replace its SQL")
 		return
 	}
+	if source.querySource.view.RequiresReexecution && !req.ConfirmReexecution {
+		fail(w, 409, "query_reexecution_confirmation_required", "This operation runs the original query again; confirm its SQL before continuing")
+		return
+	}
 	if req.Action == "" {
 		req.Action = "page"
 	}
@@ -113,6 +120,7 @@ func (v *Server) queryPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	p := *source.querySource
+	p.reexecutionConfirmed = req.ConfirmReexecution
 	p.action, p.sourceResultID, p.fingerprint = req.Action, source.ID, string(fingerprint)
 	p.view.Mode = "database"
 	p.view.Offset = req.Offset
@@ -206,9 +214,16 @@ func (v *Server) captureQuerySQLSource(s *session, c *console, e *execution, opt
 	if err == nil {
 		err = validateQueryPageSources(e.ctx, c, s.grant.Config.Dialect, q)
 	}
-	if err == nil {
-		p.context, err = queryPageContext(e.ctx, c, s.grant.Config.Dialect)
+	if err != nil {
+		reason := err.Error()
+		q, err = sqlservice.AnalyzeQueryPageForReexecution(sqlservice.Dialect(s.grant.Config.Dialect), statementSQL, opts)
+		if err != nil {
+			p.view.Reason = reason
+			return
+		}
+		p.view.RequiresReexecution = true
 	}
+	p.context, err = queryPageContext(e.ctx, c, s.grant.Config.Dialect)
 	if err != nil {
 		p.view.Reason = err.Error()
 		return
@@ -225,6 +240,13 @@ func validateQueryPage(ctx context.Context, c *console, d string, p *queryPagePl
 	}
 	if current != p.context || opts != p.options {
 		return errors.New("Query context changed; run the original SQL again before enabling database paging")
+	}
+	if p.view.RequiresReexecution {
+		if !p.reexecutionConfirmed {
+			return errors.New("Explicit query reexecution has not been confirmed")
+		}
+		_, err := sqlservice.AnalyzeQueryPageForReexecution(sqlservice.Dialect(d), p.original, opts)
+		return err
 	}
 	return validateQueryPageSources(ctx, c, d, p.query)
 }
@@ -261,7 +283,7 @@ func (v *Server) collectQueryCount(s *session, e *execution, rows *sql.Rows) err
 	return nil
 }
 func queryPageAudit(p *queryPagePlan) string {
-	return fmt.Sprintf(" query_scope=%s source_result=%s action=%s generated_sql=%q", p.view.ScopeID, p.sourceResultID, p.action, p.generated)
+	return fmt.Sprintf(" query_scope=%s source_result=%s action=%s confirmed_reexecution=%t generated_sql=%q", p.view.ScopeID, p.sourceResultID, p.action, p.reexecutionConfirmed, p.generated)
 }
 
 // Replay is restricted to ordinary tables with built-in PostgreSQL types and

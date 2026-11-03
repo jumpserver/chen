@@ -18,6 +18,14 @@ import (
 // classification. Functions, subqueries, parameters and statement tails cannot
 // enter this path. Server semantic/type checks still run on the same connection.
 func ValidateBrowseWhere(d Dialect, where string, opts AnalyzeOptions, columns []EditColumn) error {
+	return validateBrowseWhere(d, where, opts, columns, false)
+}
+
+func ValidateBrowseWhereForReexecution(d Dialect, where string, opts AnalyzeOptions, columns []EditColumn) error {
+	return validateBrowseWhere(d, where, opts, columns, true)
+}
+
+func validateBrowseWhere(d Dialect, where string, opts AnalyzeOptions, columns []EditColumn, reexecute bool) error {
 	if strings.TrimSpace(where) == "" {
 		return nil
 	}
@@ -51,6 +59,10 @@ func ValidateBrowseWhere(d Dialect, where string, opts AnalyzeOptions, columns [
 		base, _ := pg.Parse("SELECT 1")
 		if !proto.Equal(stmt, base.Stmts[0].Stmt.GetSelectStmt()) {
 			return bad
+		}
+		if reexecute {
+			_, err := AnalyzeQueryPageForReexecution(d, document, opts)
+			return err
 		}
 		var visit func(*pg.Node, int) bool
 		visit = func(n *pg.Node, depth int) bool {
@@ -109,6 +121,30 @@ func ValidateBrowseWhere(d Dialect, where string, opts AnalyzeOptions, columns [
 	if !IsMySQLDialect(d) {
 		switch d {
 		case Oracle, SQLServer, DB2, Dameng, OceanBaseOracle, ClickHouse:
+			if reexecute {
+				// The portable query parser must see exactly the enclosing WHERE.
+				// A balanced inner expression cannot close it to add UNION/FROM.
+				depth := 0
+				for _, token := range lex(where, d) {
+					if token.quoted || token.kind == 's' || token.kind == 'c' {
+						continue
+					}
+					switch token.text {
+					case "(":
+						depth++
+					case ")":
+						depth--
+						if depth < 0 {
+							return bad
+						}
+					}
+				}
+				if depth != 0 {
+					return bad
+				}
+				_, err := AnalyzeQueryPageForReexecution(d, document, opts)
+				return err
+			}
 			if validatePortableBrowseWhere(d, where, known) {
 				return nil
 			}
@@ -156,6 +192,10 @@ func ValidateBrowseWhere(d Dialect, where string, opts AnalyzeOptions, columns [
 	var restored strings.Builder
 	if stmt.Restore(format.NewRestoreCtx(format.DefaultRestoreFlags, &restored)) != nil || restored.String() != "SELECT 1" {
 		return bad
+	}
+	if reexecute {
+		_, err := AnalyzeQueryPageForReexecution(d, document, opts)
+		return err
 	}
 	v := &browseWhereVisitor{known: known}
 	_, ok = expr.Accept(v)

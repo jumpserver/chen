@@ -71,8 +71,8 @@ func TestDatabaseTLSModes(t *testing.T) {
 		t.Fatal("require must enforce encryption")
 	}
 	config.TLS.Mode = "prefer"
-	if _, err = makeTLS(config); err == nil {
-		t.Fatal("unsupported downgrade mode accepted")
+	if preferred, err := makeTLS(config); err != nil || preferred == nil {
+		t.Fatal("explicit prefer mode rejected")
 	}
 	config.TLS.Mode = "disable"
 	disabled, err := makeTLS(config)

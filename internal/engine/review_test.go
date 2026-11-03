@@ -173,7 +173,10 @@ func TestExecutionReviewDoesNotHideMixedWarningAudit(t *testing.T) {
 
 func TestExecutionReviewPreflightDoesNotWarnForUnexecutedStatement(t *testing.T) {
 	var queries atomic.Int32
-	v, s, c, e := executionFixture(t, "postgresql", "SELECT 1 / 0; SELECT 2 AS warns", &executionDriverState{query: func(context.Context, string) (driver.Rows, error) {
+	v, s, c, e := executionFixture(t, "postgresql", "SELECT 1 / 0; SELECT 2 AS warns", &executionDriverState{query: func(_ context.Context, q string) (driver.Rows, error) {
+		if strings.TrimSpace(q) != "SELECT 1 / 0" {
+			return &executionRows{}, nil
+		}
 		queries.Add(1)
 		return nil, errors.New("synthetic first-statement failure")
 	}})

@@ -49,8 +49,11 @@ The caller must:
   database execution remain bounded. Mixed scripts retain their batch audit plus
   warning records for distinct warning ACL/groups on SQL actually sent to the
   database, so an approved command cannot suppress a warning notification.
-- Invalid or Java-only regex syntax is rejected during token authentication.
-  RE2 is a bounded subset, not a claim of complete Java regex compatibility.
+- Ordinary ACL patterns use RE2. Java lookarounds and backreferences fall back
+  to regexp2 with a 100 ms match timeout; mixed Java literal quotation is
+  preserved. Invalid/unsupported syntax fails token authentication, and a match
+  timeout rejects the command before any later accepting rule. This does not
+  claim complete Java Pattern syntax compatibility.
 - A face-monitor token registers through Wisp before a database connection is
   allowed; failure compensates the Core session and fails closed. Non-password
   database credentials explicitly require legacy Chen. Unknown admin actions lock

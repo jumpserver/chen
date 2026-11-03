@@ -571,6 +571,13 @@ func integrationDatabase(t *testing.T, dialect string) jumpserver.ConnectionConf
 					t.Fatal("create limited integration account failed")
 				}
 			}
+			if dialect == "postgresql" && os.Getenv("CHEN_PARITY_INTEGRATION") == "1" {
+				for _, statement := range []string{"CREATE ROLE parity_restricted NOLOGIN", "GRANT parity_restricted TO chen_app"} {
+					if _, err := db.Exec(statement); err != nil {
+						t.Fatal("prepare restricted parity role failed")
+					}
+				}
+			}
 			cfg.User = "chen_app"
 			cfg.Password = appPassword
 			return cfg

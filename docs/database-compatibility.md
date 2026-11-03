@@ -11,6 +11,16 @@ CSV/XLSX 完整导出不使用普通查询的 10,000 行/16 MiB 缓存窗口。�
 
 以下时间、版本与浏览器细节保留为前一轮兼容性证据；不能将单机验证等同于每种数据库的全部托管功能或每个镜像架构都已通过。
 
+### v5.1.1 能力恢复（2026-11-03）
+
+- 恢复权限管理、序列和管理 DDL；Oracle/SQL Server 的过程与控制块保留完整原文，并额外校验内部语句 ACL。达梦和 OceanBase Oracle 的兼容过程复用 Oracle 边界解析；不能证明边界的厂商过程语法仍明确拒绝。
+- 一般约束页恢复 PRIMARY KEY、FOREIGN KEY、UNIQUE、CHECK。MySQL/MariaDB、PostgreSQL、Oracle、SQL Server、达梦、Db2、OceanBase 两种租户分别使用各自目录；ClickHouse 沿用非关系约束边界。定义只展示数据库能提供且账号可见的内容。
+- Oracle 活动用户事务内的网格保存恢复保存点暂存，避免驱动隐式提交外层事务；Db2 和 ClickHouse 接入复制 SQL，ClickHouse 只生成不依赖唯一身份的 INSERT。
+- 表和视图数据页接入分页、计数及完整导出；函数、子查询及视图的重新执行须显式确认。MariaDB/OceanBase MySQL 按产品身份、实际 SQL mode 和目录能力校验，不再靠少数版本号白名单排除其他版本。
+- 恢复 PostgreSQL 显式 prefer/allow 连接模式，以及常用 Java ACL 前后查找、反向引用和字面引用。不能编译的模式或匹配超时明确失败。
+
+本轮新增回归覆盖 10 种方言标识的复杂查询/筛选与边界拒绝、Oracle 保存点及 ACL 内层语句校验。隔离 PostgreSQL 16 的真实 HTTP 测试通过 10,037 行视图的分页、计数、完整 CSV 下载及函数/子查询筛选，也确认列授权不会暴露隐藏列的约束定义；现有达梦和 PostgreSQL 实例通过只读目录及一般约束检查。MySQL 配置缺少 database，MariaDB/Oracle/SQL Server 当前连接不可用；这些结果不能记为通过。Db2 仍需要 Linux amd64 的 IBM CLI 构建，OceanBase Oracle 未取得租户实测；本轮未把单元测试等同于全部数据库实库验收。
+
 ## 真实实例结果
 
 下列九项已使用用户提供的测试实例，通过 `TestReadonlyDatabaseMatrix`。

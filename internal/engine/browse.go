@@ -30,45 +30,48 @@ type browseFilter struct {
 	Children []browseFilter `json:"children,omitempty"`
 }
 type browseRequest struct {
-	Schema          string        `json:"schema"`
-	Table           string        `json:"table"`
-	SourceResultID  string        `json:"source_result_id,omitempty"`
-	Action          string        `json:"action,omitempty"` // page (default), append, count, export
-	Where           string        `json:"where,omitempty"`
-	Filter          *browseFilter `json:"filter,omitempty"`
-	Sort            []browseOrder `json:"sort,omitempty"`
-	Offset          int           `json:"offset"`
-	PageSize        int           `json:"page_size"`
-	Format          string        `json:"format,omitempty"`
-	RequestID       string        `json:"request_id"`
-	SubmitReview    bool          `json:"submit_review"`
-	ConfirmWarnings bool          `json:"confirm_warnings"`
+	ConfirmReexecution bool          `json:"confirm_reexecution,omitempty"`
+	Schema             string        `json:"schema"`
+	Table              string        `json:"table"`
+	SourceResultID     string        `json:"source_result_id,omitempty"`
+	Action             string        `json:"action,omitempty"` // page (default), append, count, export
+	Where              string        `json:"where,omitempty"`
+	Filter             *browseFilter `json:"filter,omitempty"`
+	Sort               []browseOrder `json:"sort,omitempty"`
+	Offset             int           `json:"offset"`
+	PageSize           int           `json:"page_size"`
+	Format             string        `json:"format,omitempty"`
+	RequestID          string        `json:"request_id"`
+	SubmitReview       bool          `json:"submit_review"`
+	ConfirmWarnings    bool          `json:"confirm_warnings"`
 }
 type BrowsePage struct {
-	ServerVersion string        `json:"server_version,omitempty"`
-	MaxLoadedRows int           `json:"max_loaded_rows"`
-	LimitReached  string        `json:"limit_reached,omitempty"` // rows or bytes; not end of table
-	Supported     bool          `json:"supported"`
-	Reason        string        `json:"reason,omitempty"`
-	Database      string        `json:"database"`
-	Schema        string        `json:"schema"`
-	Table         string        `json:"table"`
-	Where         string        `json:"where"`
-	Filter        *browseFilter `json:"filter,omitempty"`
-	Sort          []browseOrder `json:"sort"`
-	Offset        int           `json:"offset"`
-	PageSize      int           `json:"page_size"`
-	MaxPageSize   int           `json:"max_page_size"`
-	MaxOffset     int           `json:"max_offset"`
-	Stable        bool          `json:"stable"`
-	HasMore       *bool         `json:"has_more"` // null means the byte budget cut this page short
-	FullSQL       string        `json:"full_sql"`
+	RequiresReexecution bool          `json:"requires_reexecution_confirmation,omitempty"`
+	ServerVersion       string        `json:"server_version,omitempty"`
+	MaxLoadedRows       int           `json:"max_loaded_rows"`
+	LimitReached        string        `json:"limit_reached,omitempty"` // rows or bytes; not end of table
+	Supported           bool          `json:"supported"`
+	Reason              string        `json:"reason,omitempty"`
+	Database            string        `json:"database"`
+	Schema              string        `json:"schema"`
+	Table               string        `json:"table"`
+	Where               string        `json:"where"`
+	Filter              *browseFilter `json:"filter,omitempty"`
+	Sort                []browseOrder `json:"sort"`
+	Offset              int           `json:"offset"`
+	PageSize            int           `json:"page_size"`
+	MaxPageSize         int           `json:"max_page_size"`
+	MaxOffset           int           `json:"max_offset"`
+	Stable              bool          `json:"stable"`
+	HasMore             *bool         `json:"has_more"` // null means the byte budget cut this page short
+	FullSQL             string        `json:"full_sql"`
 }
 type BrowseCount struct {
 	SourceResultID string `json:"source_result_id"`
 	Total          string `json:"total"`
 }
 type browsePlan struct {
+	reexecutionConfirmed                                             bool
 	fetchSize                                                        int // final append may be smaller than the selected batch size
 	view                                                             BrowsePage
 	table                                                            sqlservice.EditTable
@@ -138,6 +141,11 @@ func (v *Server) browseTable(w http.ResponseWriter, r *http.Request) {
 	}
 	done()
 	if err != nil {
+		var api *APIError
+		if errors.As(err, &api) {
+			fail(w, 409, api.Code, api.Message)
+			return
+		}
 		fail(w, 400, "invalid_browse", err.Error())
 		return
 	}
@@ -177,6 +185,7 @@ func (v *Server) resolveBrowse(ctx context.Context, s *session, c *console, req 
 			return nil, errors.New("A result-bound request cannot replace its filter or target")
 		}
 		*p = *previous
+		p.reexecutionConfirmed = req.ConfirmReexecution
 		p.action = req.Action
 		p.sourceResultID = req.SourceResultID
 		p.view.Offset = req.Offset
@@ -210,6 +219,11 @@ func (v *Server) resolveBrowse(ctx context.Context, s *session, c *console, req 
 		}
 		p.table = table
 		p.view = BrowsePage{Supported: reason == "", Reason: reason, ServerVersion: version, Database: table.Database, Schema: table.Schema, Table: table.Table, Where: strings.TrimSpace(req.Where), Filter: req.Filter, Sort: append([]browseOrder{}, req.Sort...), Offset: req.Offset, PageSize: req.PageSize, MaxPageSize: min(1000, v.opts.MaxRows), MaxOffset: browseMaxOffset, MaxLoadedRows: v.opts.MaxRows}
+		p.view.RequiresReexecution = table.View
+		p.reexecutionConfirmed = req.ConfirmReexecution
+		if table.View && !req.ConfirmReexecution {
+			return nil, &APIError{"query_reexecution_confirmation_required", "This operation reads a view; confirm its SQL before continuing"}
+		}
 		if p.view.PageSize == 0 {
 			p.view.PageSize = min(200, p.view.MaxPageSize)
 		}
@@ -319,6 +333,9 @@ func (v *Server) resolveBrowse(ctx context.Context, s *session, c *console, req 
 		}
 		p.view.FullSQL = p.fullPolicySQL
 	}
+	if p.view.RequiresReexecution && !p.reexecutionConfirmed {
+		return nil, &APIError{"query_reexecution_confirmation_required", "This operation reruns the applied filter; confirm before continuing"}
+	}
 	if req.Action == "append" {
 		previous, err := v.browseAppendSource(s, c.id, p)
 		if err != nil {
@@ -355,7 +372,18 @@ func validateBrowseWhere(ctx context.Context, c *console, d string, p *browsePla
 			return errors.New("Handwritten WHERE requires standard_conforming_strings=on; use structured conditions")
 		}
 	}
-	return sqlservice.ValidateBrowseWhere(sqlservice.Dialect(d), p.view.Where, p.options, p.table.Columns)
+	err := sqlservice.ValidateBrowseWhere(sqlservice.Dialect(d), p.view.Where, p.options, p.table.Columns)
+	if err == nil {
+		return nil
+	}
+	if replayErr := sqlservice.ValidateBrowseWhereForReexecution(sqlservice.Dialect(d), p.view.Where, p.options, p.table.Columns); replayErr != nil {
+		return err
+	}
+	p.view.RequiresReexecution = true
+	if !p.reexecutionConfirmed {
+		return &APIError{"query_reexecution_confirmation_required", "This filter runs functions or subqueries; confirm the condition before applying it"}
+	}
+	return nil
 }
 
 func browseColumn(table sqlservice.EditTable, name string) *sqlservice.EditColumn {
@@ -538,11 +566,10 @@ func browseVendorVersionSupported(d, version string) bool {
 		return false
 	}
 	major, _ := strconv.Atoi(parts[1])
-	minor, _ := strconv.Atoi(parts[2])
-	if d == "mariadb" {
-		return major == 10 && minor == 11 || major == 11 && minor <= 8
-	}
-	return major == 4 && (minor == 2 || minor == 3)
+	// The statements use the same LIMIT/information_schema contract as
+	// v5.1.1. Actual metadata/SQL-mode probes, not a release whitelist,
+	// determine availability on this connection.
+	return major > 0
 }
 
 func browseVendorContext(ctx context.Context, c *console, d string, options sqlservice.AnalyzeOptions) (version, reason string, err error) {
@@ -563,7 +590,7 @@ func browseVendorContext(ctx context.Context, c *console, d string, options sqls
 			}
 		}
 		if !browseVendorVersionSupported(d, version) {
-			return version, "Server product/version is outside the supported browse families (MariaDB 10.11/11.0-11.8; OceanBase MySQL 4.2/4.3)", nil
+			return version, "Unable to verify the configured database product/version", nil
 		}
 		return version, "", nil
 	default:

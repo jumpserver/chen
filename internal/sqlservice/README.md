@@ -8,16 +8,25 @@ The execution parser and editor completion have separate responsibilities.
   are never reserialized before execution. PostgreSQL modifying CTEs are inspected
   recursively. These classifications do **not** prove absence of side effects
   (functions, triggers, stored procedures and extensions may perform writes).
-* Oracle, SQL Server, Db2, Dameng, ClickHouse and OceanBase Oracle use a
-  bounded command scanner for common queries, CRUD, TABLE/INDEX/VIEW DDL and
-  transaction commands. It checks quote/comment termination, parentheses,
-  statement boundaries and unsupported procedural/batch
-  keywords; the **database server validates vendor grammar**. This is not a full
-  ANTLR/native AST parser or a guarantee against function side effects. MariaDB
-  and OceanBase MySQL use the MySQL parser first with this conservative fallback for
-  dialect extensions. Procedural bodies, permission-management commands and
-  ambiguous implicit batches are rejected by the fallback. Read-only export gates
-  retain a separate stricter SELECT classifier. Original SQL is never rewritten.
+* Oracle and SQL Server use pinned native parsers, including administrative DDL
+  and procedural/control statements. Nested statements retain source spans for
+  individual ACL checks. Oracle-compatible procedural documents on Dameng and
+  OceanBase Oracle use the Oracle grammar for boundaries; their server remains
+  authoritative for product syntax. Routine definitions in T-SQL must occupy
+  their own execution so trailing body statements cannot be sent separately.
+* Db2, Dameng, ClickHouse and OceanBase Oracle use a bounded command scanner for
+  common queries, CRUD, DDL, privilege management, maintenance and transactions.
+  It checks quote/comment termination, parentheses and statement boundaries;
+  the **database server validates vendor grammar**. MariaDB and OceanBase MySQL
+  use the MySQL parser first with this fallback for dialect extensions. Ambiguous
+  implicit batches and procedural syntax without a proven boundary are rejected.
+  Original SQL is never rewritten.
+* Automatic read replay retains a stricter SELECT classifier and live source
+  verification. Explicitly confirmed database paging/count/export additionally
+  admits views and server-resolved functions. Handwritten WHERE expressions may
+  use functions and read subqueries after confirmation but cannot escape their
+  wrapper, add writes, locks or statement tails. Confirmation is bound to the
+  original result and connection context, and does not bypass ACL/audit checks.
 * `Completion` accepts a Monaco UTF-16 cursor position and document version. It
   returns a full-token replacement range and insertion text with dialect-correct
   identifier quoting. An error-tolerant lexer and SELECT scope grammar keep

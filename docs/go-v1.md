@@ -15,7 +15,7 @@ GOTOOLCHAIN=go1.26.3 go build -o /tmp/chen-go ./cmd/chen-go
 /tmp/chen-go --wisp-address 127.0.0.1:9090 --state-dir ./data/go
 ```
 
-默认只监听`127.0.0.1:8083`。本机Wisp使用明文gRPC；远端Wisp需要`--wisp-ca /path/ca.pem`，或在受保护网络显式设置`--wisp-insecure`。数据库TLS配置来自Core，不能由浏览器覆盖。PostgreSQL支持disable、require、verify-ca、verify-full；prefer/allow暂拒绝，避免默默降级为明文。服务不允许`PGSERVICE`替代Core连接配置。
+默认只监听`127.0.0.1:8083`。本机Wisp使用明文gRPC；远端Wisp需要`--wisp-ca /path/ca.pem`，或在受保护网络显式设置`--wisp-insecure`。数据库TLS配置来自Core，不能由浏览器覆盖。PostgreSQL支持disable、require、verify-ca、verify-full，以及显式配置的prefer（先TLS后明文）和allow（先明文后TLS）；require和校验模式不会增加明文回退。服务不允许`PGSERVICE`替代Core连接配置。
 
 正式构建已切换为 `Dockerfile-base` → `Dockerfile` → `Dockerfile-ee`，`make image-ee` 可完整构建。生产镜像及 `./start.sh managed` 保持 8082；独立 Go CLI 与 `make single` 默认 8083。Docker 数据保存在 `/opt/chen/data`。启动、Db2、多架构和验收步骤见 [构建文档](build.md)。
 
@@ -39,8 +39,9 @@ Luna构建时按已验收范围设置`NUXT_PUBLIC_CHEN_GO_V1_PROTOCOLS=mysql,mar
 - Core连接Token通过Wisp交换，浏览器不能提交地址、账号密码、DSN或TLS私钥。成功Ping数据库后才记录连接成功。Go会话Token仅在内存持有。
 - 创建会话需要稳定随机`request_id`。同连接Token与同请求ID可恢复该次请求的结果；另一个请求ID返回409。认证未知结果不能换新请求ID盲重试。
 - 每个控制台固定一个`sql.Conn`，串行执行、元数据查询与补全；事务、临时表、会话变量不会串到其他控制台。数据库实际断线后需显式新建控制台，不自动重放SQL。
-- SQL先由方言解析器或保守语句扫描器确定原文边界，再对整个脚本与各原文语句执行Core ACL校验；随后逐句执行原文。执行中再次读取MySQL SQL mode和校验权限。脚本不是隐式事务，前序已完成语句不会因后序失败自动回滚。
+- SQL先由方言解析器或保守语句扫描器确定原文边界，再对整个脚本、各原文语句和解析出的过程内语句执行Core ACL校验；随后逐句执行原文。执行中再次读取MySQL SQL mode和校验权限。脚本不是隐式事务，前序已完成语句不会因后序失败自动回滚。
 - 提交返回202和执行ID。按`request_id`在同控制台去重；相同ID、不同SQL或不同复核选择返回409。结果分页只读取已保存的结果，不重新执行SQL。整数和精确数值以字符串传递；NULL、重复列名、列顺序得到保留。
+- 显式切换数据库分页、计数或完整导出会重新执行来源 SQL。视图、自定义函数和复杂手写 WHERE 等无法证明无副作用的来源，需要逐次确认后提交 `confirm_reexecution`；来源、数据库和连接模式仍绑定在原结果上。此类浏览关闭自动追加，确认不会跳过 ACL、复核或审计。缓存分页保持只读缓存。
 - 取消是独立HTTP动作，通过受控连接调用MySQL KILL QUERY、PostgreSQL pg_cancel_backend或按精确query_id取消ClickHouse查询，并结合驱动取消。SQL Server只有驱动确认attention应答的返回路径才记录已取消；达梦和Db2暂不提供运行中主动取消。数据库已成功返回的结果保持成功；无法确认发送后结果时为`unknown`，禁止自动重试。`canceled`不表示脚本之前的语句已回滚。
 
 ## 命令复核与会话控制
@@ -89,7 +90,7 @@ Monaco提供编辑、快捷键和补全交互；Go提供当前授权目录、作
 ## dev 功能衔接
 
 - SQL AI 使用 Core 已启用的模型配置，通过 HTTP 请求及当前会话 SSE 返回消息；schema 工具只访问当前控制台权限，生成 SQL 以提案形式插入编辑器，不自动执行。
-- 对象详情提供列默认值、主外键和索引，DDL 单独按需加载；PostgreSQL 结构重建与原生视图定义分别标明来源，并过滤当前账号无权查看的列及其依赖对象。
+- 对象详情提供列默认值、主外键、索引和一般约束（含 UNIQUE/CHECK），DDL 单独按需加载；PostgreSQL 结构重建与原生视图定义分别标明来源，并过滤当前账号无权查看的列及其依赖对象。
 - 执行计划只准备不运行的 EXPLAIN SQL，随后走普通执行、ACL、告警、复核和审计路径；不自动使用 ANALYZE。
 - Oracle 的 SYSDBA 选项由 Core 连接设置或 single 配置决定；用户名 SYS 不再隐式取得 SYSDBA。SQL Server 尊重平台加密配置与资产 TLS 校验。
 
@@ -113,7 +114,7 @@ CHEN_INTEGRATION=1 GOTOOLCHAIN=go1.26.3 go test -race -count=1 -v ./internal/eng
 
 实库测试创建并自动清理专用MySQL 8.4/PostgreSQL 16容器，使用随机localhost端口；不连接现有业务库。Wisp测试使用真实生成的gRPC客户端/服务端内存通信，并注入Core响应。Luna同时提供Monaco组件smoke和真实工作区联调脚本。详细证据以当前运行记录为准。
 
-放量前仍需现网版本Core/Wisp、真实资产权限、网关、数据库TLS、管理员锁定/踢出、审计落Core和反向代理空闲重连验收。Java专有ACL正则和非密码认证仍明确拒绝，需在连接Token交换前选择旧Chen。带人脸监控令牌的连接先向 Wisp 注册，失败即关闭会话；真实摄像头流程仍需部署验收。表格写入、CSV 导入及结构编辑已接入，详细事务与类型边界见[写入说明](writes.md)。UI 范围不能代替数据库权限或 Core ACL，部署只读访问应使用只读数据库账号。
+放量前仍需现网版本Core/Wisp、真实资产权限、网关、数据库TLS、管理员锁定/踢出、审计落Core和反向代理空闲重连验收。ACL 已支持常见 Java 前后查找、反向引用及字面引用；不能编译的模式在认证时拒绝，匹配超时按拒绝处理，完整 Java Pattern 语法及非密码认证仍需独立适配。带人脸监控令牌的连接先向 Wisp 注册，失败即关闭会话；真实摄像头流程仍需部署验收。表格写入、CSV 导入及结构编辑已接入，详细事务与类型边界见[写入说明](writes.md)。UI 范围不能代替数据库权限或 Core ACL，部署只读访问应使用只读数据库账号。
 
 ### 2026-10-26 托管模式实测
 

@@ -204,16 +204,23 @@ func (r reader) statement(node ast.StmtNode, loc a.Span) (a.Statement, error) {
 	case *ast.CallStmt:
 		s.Kind, s.ReturnsRows = a.Call, n.Into == nil
 	case *ast.DropStmt:
-		if n.ObjectType != ast.OBJECT_TABLE && n.ObjectType != ast.OBJECT_INDEX && n.ObjectType != ast.OBJECT_VIEW {
-			return s, problem(a.Unsupported, "Only ordinary TABLE, INDEX and VIEW DDL is supported", loc, nil)
-		}
 		s.Kind = a.DDL
 	case *ast.CreateTableStmt, *ast.AlterTableStmt, *ast.CreateIndexStmt, *ast.AlterIndexStmt, *ast.CreateViewStmt, *ast.AlterViewStmt, *ast.TruncateStmt, *ast.CommentStmt, *ast.RenameStmt:
 		s.Kind = a.DDL
 	default:
-		return s, problem(a.Unsupported, fmt.Sprintf("Oracle statement %T is outside the ordinary SQL execution scope (including PL/SQL blocks)", node), loc, nil)
+		// The native parser has already proved this complete statement's
+		// source boundary. Preserve the console's administrative/procedural
+		// SQL instead of imposing a second, ordinary-DDL-only whitelist.
+		// Unknown operations stay write-capable and cannot enter read replay.
+		name := strings.TrimPrefix(fmt.Sprintf("%T", node), "*ast.")
+		if strings.HasPrefix(name, "Create") || strings.HasPrefix(name, "Alter") || strings.HasPrefix(name, "Drop") {
+			s.Kind = a.DDL
+		}
 	}
 	ast.Inspect(node, func(child ast.Node) bool {
+		if _, ok := child.(ast.StmtNode); ok && child != node {
+			s.PolicySpans = append(s.PolicySpans, location(child))
+		}
 		switch n := child.(type) {
 		case *ast.SelectStmt:
 			if n != node {

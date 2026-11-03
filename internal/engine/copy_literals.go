@@ -23,7 +23,48 @@ func copySQLLiteral(dialect, dataType string, value any) (string, error) {
 		t = strings.TrimSuffix(t, " unsigned")
 	}
 	kind := ""
+	if dialect == "clickhouse" {
+		for {
+			unwrapped := false
+			for _, wrapper := range []string{"nullable(", "lowcardinality("} {
+				if strings.HasPrefix(t, wrapper) && strings.HasSuffix(t, ")") {
+					t = t[len(wrapper) : len(t)-1]
+					unwrapped = true
+					break
+				}
+			}
+			if !unwrapped {
+				break
+			}
+		}
+	}
 	switch dialect {
+	case "db2":
+		switch t {
+		case "smallint", "integer", "int", "bigint", "decimal", "numeric", "decfloat", "real", "double", "float":
+			kind = "number"
+		case "char", "character", "varchar", "character varying", "graphic", "vargraphic", "clob", "dbclob", "long varchar":
+			kind = "text"
+		case "boolean":
+			kind = "bool"
+		case "blob", "binary", "varbinary":
+			kind = "binary"
+		case "date", "time", "timestamp":
+			kind = "temporal"
+		}
+	case "clickhouse":
+		switch t {
+		case "int8", "int16", "int32", "int64", "int128", "int256", "uint8", "uint16", "uint32", "uint64", "uint128", "uint256", "float32", "float64", "decimal", "decimal32", "decimal64", "decimal128", "decimal256":
+			kind = "number"
+		case "string", "fixedstring":
+			kind = "text"
+		case "bool", "boolean":
+			kind = "bool"
+		case "uuid":
+			kind = "uuid"
+		case "date", "date32", "datetime", "datetime64":
+			kind = "temporal"
+		}
 	case "postgresql":
 		switch t {
 		case "int2", "int4", "int8", "smallint", "integer", "bigint", "numeric", "decimal", "real", "double precision", "float4", "float8":
@@ -144,7 +185,7 @@ func copySQLLiteral(dialect, dataType string, value any) (string, error) {
 		if !b && text != "false" && text != "0" {
 			return "", errors.New("The cached boolean value is invalid")
 		}
-		if dialect == "postgresql" {
+		if dialect == "postgresql" || dialect == "db2" {
 			if b {
 				return "TRUE", nil
 			}
@@ -168,6 +209,8 @@ func copySQLLiteral(dialect, dataType string, value any) (string, error) {
 			return "decode('" + h + "', 'hex')", nil
 		case "sqlserver":
 			return "0x" + h, nil
+		case "db2":
+			return "BLOB(X'" + h + "')", nil
 		case "dameng":
 			if len(data) == 0 || len(data) > 32767 {
 				return "", errors.New("DM binary SQL copying supports 1 to 32767 bytes")
@@ -225,6 +268,10 @@ func copyTypeName(dataType string) string {
 func copyTextLiteral(dialect, text string) (string, error) {
 	escaped := strings.ReplaceAll(text, "'", "''")
 	switch dialect {
+	case "db2":
+		return "'" + escaped + "'", nil
+	case "clickhouse":
+		return "unhex('" + hex.EncodeToString([]byte(text)) + "')", nil
 	case "mysql", "mariadb", "oceanbase-mysql":
 		// Hex text with an explicit charset is independent of NO_BACKSLASH_ESCAPES,
 		// ANSI_QUOTES and the session connection charset. It preserves UTF-8 bytes.
@@ -291,9 +338,20 @@ func copyUnicodeText(text string) string {
 func copyTemporalLiteral(dialect, t, text string) (string, error) {
 	// Only complete ISO values are accepted. BC/infinity, zero dates, named zones,
 	// intervals and dialect-specific text require separate codecs.
-	date := t == "date"
+	if dialect == "db2" || dialect == "clickhouse" {
+		if dot := strings.IndexByte(text, '.'); dot >= 0 {
+			end := dot + 1
+			for end < len(text) && text[end] >= '0' && text[end] <= '9' {
+				end++
+			}
+			if end-dot-1 > 9 {
+				return "", errors.New("Temporal precision exceeds the target dialect codec")
+			}
+		}
+	}
+	date := t == "date" || t == "date32"
 	clock := t == "time" || t == "time without time zone"
-	zone := t == "timestamptz" || t == "timestamp with time zone" || t == "datetimeoffset"
+	zone := t == "timestamptz" || t == "timestamp with time zone" || t == "datetimeoffset" || dialect == "clickhouse" && !date
 	layouts := []string{time.RFC3339Nano, "2006-01-02 15:04:05.999999999Z07:00", "2006-01-02 15:04:05.999999999-07:00", "2006-01-02 15:04:05.999999999"}
 	if date {
 		layouts = []string{"2006-01-02"}
@@ -330,6 +388,25 @@ func copyTemporalLiteral(dialect, t, text string) (string, error) {
 		output = parsed.Format("2006-01-02 15:04:05.999999999Z07:00")
 	}
 	switch dialect {
+	case "db2":
+		target := "TIMESTAMP"
+		if date {
+			target = "DATE"
+		}
+		if clock {
+			target = "TIME"
+		}
+		return target + "('" + output + "')", nil
+	case "clickhouse":
+		if t == "date32" {
+			return "toDate32('" + output + "')", nil
+		}
+		if date {
+			return "toDate('" + output + "')", nil
+		}
+		// Explicit offsets retain the cached instant independently of the
+		// target session's timezone; local timestamps keep server semantics.
+		return "parseDateTime64BestEffort('" + output + "', 9)", nil
 	case "postgresql":
 		return "CAST('" + output + "' AS " + t + ")", nil
 	case "sqlserver":

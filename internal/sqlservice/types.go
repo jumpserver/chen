@@ -59,6 +59,7 @@ type Context struct {
 }
 
 type Statement struct {
+	PolicySQL []string `json:"-"`
 	// Facts is immutable, reusable syntax provenance, never an edit permission.
 	Facts       *sqlanalysis.Statement `json:"facts,omitempty"`
 	SQL         string                 `json:"sql"`

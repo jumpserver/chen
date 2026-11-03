@@ -15,7 +15,14 @@ func analysisFromFacts(document string, facts sqlanalysis.Result, parseErr error
 			return Analysis{Syntax: sqlanalysis.Unknown, Compatibility: sqlanalysis.Unknown, Statements: []Statement{}}, &sqlanalysis.Error{Diagnostic: sqlanalysis.Diagnostic{Code: sqlanalysis.Unsupported, Message: "Parser returned an invalid original source range"}}
 		}
 		last = f.Span.End
-		out.Statements = append(out.Statements, Statement{SQL: document[f.Span.Start:f.Span.End], Start: f.Span.Start, End: f.Span.End, Kind: string(f.Kind), ReturnsRows: f.ReturnsRows, MayWrite: f.MayWrite, Facts: f})
+		s := Statement{SQL: document[f.Span.Start:f.Span.End], Start: f.Span.Start, End: f.Span.End, Kind: string(f.Kind), ReturnsRows: f.ReturnsRows, MayWrite: f.MayWrite, Facts: f}
+		for _, p := range f.PolicySpans {
+			if !p.ValidFor(document) || p.Start < f.Span.Start || p.End > f.Span.End || len(s.PolicySQL) >= 1000 {
+				return Analysis{}, &sqlanalysis.Error{Diagnostic: sqlanalysis.Diagnostic{Code: sqlanalysis.Unsupported, Message: "Nested SQL does not have a valid policy-visible source range"}}
+			}
+			s.PolicySQL = append(s.PolicySQL, document[p.Start:p.End])
+		}
+		out.Statements = append(out.Statements, s)
 	}
 	return out, nil
 }

@@ -175,7 +175,7 @@ func (v *Server) resolveResultSource(ctx context.Context, s *session, c *console
 	if r.editSourceBound && r.editDatabase != "" && r.editDatabase != scope.Database {
 		return x, errors.New("Switch back to this result's database or refresh the table before editing")
 	}
-	table, err := sqlservice.LoadEditTable(ctx, c.conn, d, scope, source.Schema, source.Table)
+	table, err := sqlservice.LoadCopyTable(ctx, c.conn, d, scope, source.Schema, source.Table)
 	if err != nil {
 		if errors.Is(err, sqlservice.ErrEditColumnFlagsUnknown) {
 			return x, sqlservice.ErrEditColumnFlagsUnknown

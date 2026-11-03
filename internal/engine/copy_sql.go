@@ -43,7 +43,7 @@ func (v *Server) copyResultSQL(w http.ResponseWriter, req *http.Request) {
 	}
 	dialect := s.grant.Config.Dialect
 	switch dialect {
-	case "postgresql", "mysql", "mariadb", "oceanbase-mysql", "sqlserver", "oracle", "dameng", "oceanbase-oracle":
+	case "postgresql", "mysql", "mariadb", "oceanbase-mysql", "sqlserver", "oracle", "dameng", "oceanbase-oracle", "db2", "clickhouse":
 	default:
 		fail(w, 409, "copy_sql_unavailable", "SQL copying is not supported for dialect "+dialect+"; a separate literal codec is required")
 		return

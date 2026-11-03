@@ -53,7 +53,7 @@ func editTransactionState(ctx context.Context, c *console, dialect string) (edit
 			return state, err
 		}
 		if id.Valid && id.String != "" {
-			return state, nil
+			return editTxActive, nil
 		}
 	}
 	err := c.conn.Raw(func(raw any) error {
@@ -133,6 +133,41 @@ type editBoundary struct {
 	conn               *sql.Conn
 	tx                 *sql.Tx
 	savepoint, dialect string
+	restoreAutoCommit  func()
+}
+
+// Server-owned transaction state and the Oracle driver's commit-on-execute
+// flag are independent. Suppress that flag for our savepoint's lifetime so a
+// parameterized DML or cleanup cannot commit the user's outer transaction.
+func (b *editBoundary) preserveOracleTransaction() error {
+	if b.dialect != "oracle" {
+		return nil
+	}
+	return b.conn.Raw(func(raw any) error {
+		if conn, ok := raw.(interface{ ChenSetAutoCommit(bool) bool }); ok {
+			previous := conn.ChenSetAutoCommit(false)
+			b.restoreAutoCommit = func() {
+				_ = b.conn.Raw(func(raw any) error {
+					if conn, ok := raw.(interface{ ChenSetAutoCommit(bool) bool }); ok {
+						conn.ChenSetAutoCommit(previous)
+					}
+					return nil
+				})
+			}
+			return nil
+		}
+		if _, ok := raw.(interface{ ChenTransactionState() string }); ok {
+			return nil
+		}
+		return errors.New("Oracle driver cannot preserve the existing transaction")
+	})
+}
+
+func (b *editBoundary) restoreOracleTransaction() {
+	if b.restoreAutoCommit != nil {
+		b.restoreAutoCommit()
+		b.restoreAutoCommit = nil
+	}
 }
 
 func beginEditBoundary(ctx context.Context, c *console, dialect string) (*editBoundary, error) {
@@ -155,6 +190,9 @@ func beginEditBoundary(ctx context.Context, c *console, dialect string) (*editBo
 		return b, nil
 	}
 	b.savepoint = "chen_edit_" + strings.TrimPrefix(newID(""), "")[:16]
+	if err := b.preserveOracleTransaction(); err != nil {
+		return nil, err
+	}
 	command := "SAVEPOINT " + b.savepoint
 	if dialect == "sqlserver" {
 		command = "SAVE TRANSACTION " + b.savepoint
@@ -163,6 +201,7 @@ func beginEditBoundary(ctx context.Context, c *console, dialect string) (*editBo
 		command += " ON ROLLBACK RETAIN CURSORS"
 	}
 	if _, err = c.conn.ExecContext(ctx, command); err != nil {
+		b.restoreOracleTransaction()
 		return nil, err
 	}
 	return b, nil
@@ -174,6 +213,7 @@ func (b *editBoundary) exec(ctx context.Context, q string, args ...any) (sql.Res
 	return b.conn.ExecContext(ctx, q, args...)
 }
 func (b *editBoundary) finish(ctx context.Context) error {
+	defer b.restoreOracleTransaction()
 	if b.tx != nil {
 		return b.tx.Commit()
 	}
@@ -186,6 +226,7 @@ func (b *editBoundary) finish(ctx context.Context) error {
 	return err
 }
 func (b *editBoundary) rollback(ctx context.Context) error {
+	defer b.restoreOracleTransaction()
 	if b.tx != nil {
 		return b.tx.Rollback()
 	}

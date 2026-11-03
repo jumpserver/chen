@@ -43,9 +43,21 @@ type QueryPageSQL struct {
 }
 
 func AnalyzeQueryPage(d Dialect, document string, options AnalyzeOptions) (*QueryPageSQL, error) {
+	return analyzeQueryPage(d, document, options, false)
+}
+
+// Explicit reexecution retains the old console's paging semantics for views,
+// functions and other server-resolved sources. It still requires one SELECT
+// with no nested DML, locking, INTO, parameters or executable comments. Callers
+// must obtain confirmation and authorize every generated execution separately.
+func AnalyzeQueryPageForReexecution(d Dialect, document string, options AnalyzeOptions) (*QueryPageSQL, error) {
+	return analyzeQueryPage(d, document, options, true)
+}
+
+func analyzeQueryPage(d Dialect, document string, options AnalyzeOptions, reexecute bool) (*QueryPageSQL, error) {
 	bad := errors.New("Database paging requires one repeatable SELECT; writes, locks, variables, parameters, executable hints and unverified functions are unsupported")
 	if !IsMySQLDialect(d) && d != PostgreSQL {
-		return analyzeVendorQueryPage(d, document, options)
+		return analyzeVendorQueryPage(d, document, options, reexecute)
 	}
 	a, err := AnalyzeWithOptions(d, document, options)
 	if err != nil {
@@ -64,7 +76,7 @@ func AnalyzeQueryPage(d Dialect, document string, options AnalyzeOptions) (*Quer
 	source := a.Statements[0].SQL
 	end := len(source)
 	for _, t := range lexMode(source, d, mode.HasANSIQuotesMode(), mode.HasNoBackslashEscapesMode()) {
-		if t.kind == 'c' && (strings.HasPrefix(t.text, "/*!") || strings.HasPrefix(t.text, "/*+") || strings.HasPrefix(strings.ToUpper(t.text), "/*M!")) {
+		if t.kind == 'c' && (strings.HasPrefix(t.text, "/*!") || !reexecute && strings.HasPrefix(t.text, "/*+") || strings.HasPrefix(strings.ToUpper(t.text), "/*M!")) {
 			return nil, bad
 		}
 		if t.kind == ';' {
@@ -83,8 +95,10 @@ func AnalyzeQueryPage(d Dialect, document string, options AnalyzeOptions) (*Quer
 		var walk func(protoreflect.Message)
 		walk = func(m protoreflect.Message) {
 			switch m.Descriptor().Name() {
-			case "IntoClause", "LockingClause", "InsertStmt", "UpdateStmt", "DeleteStmt", "MergeStmt", "ParamRef", "RangeFunction", "RangeTableFunc", "TableSampleClause":
+			case "IntoClause", "LockingClause", "InsertStmt", "UpdateStmt", "DeleteStmt", "MergeStmt", "ParamRef":
 				unsafe = true
+			case "RangeFunction", "RangeTableFunc", "TableSampleClause":
+				unsafe = !reexecute
 			case "RangeVar":
 				r := m.Interface().(*pg.RangeVar)
 				p.Relations = append(p.Relations, QueryPageRelation{Schema: r.Schemaname, Name: r.Relname})
@@ -95,23 +109,23 @@ func AnalyzeQueryPage(d Dialect, document string, options AnalyzeOptions) (*Quer
 				if len(names) == 1 {
 					p.Types = append(p.Types, names[0].GetString_().GetSval())
 				}
-				if len(names) < 1 || len(names) > 2 || len(names) == 2 && names[0].GetString_().GetSval() != "pg_catalog" || !queryPageType(names[len(names)-1].GetString_().GetSval()) {
+				if !reexecute && (len(names) < 1 || len(names) > 2 || len(names) == 2 && names[0].GetString_().GetSval() != "pg_catalog" || !queryPageType(names[len(names)-1].GetString_().GetSval())) {
 					unsafe = true
 				}
 			case "A_Expr":
 				names := m.Interface().(*pg.A_Expr).Name
-				if len(names) > 1 {
+				if len(names) > 1 && !reexecute {
 					unsafe = true
 				}
 				if len(names) == 1 {
 					op := names[0].GetString_().GetSval()
 					p.Operators = append(p.Operators, op)
-					if !queryPageOperator(op) {
+					if !reexecute && !queryPageOperator(op) {
 						unsafe = true
 					}
 				}
 			case "SortBy":
-				if len(m.Interface().(*pg.SortBy).UseOp) > 0 {
+				if !reexecute && len(m.Interface().(*pg.SortBy).UseOp) > 0 {
 					unsafe = true
 				}
 			case "FuncCall":
@@ -120,7 +134,7 @@ func AnalyzeQueryPage(d Dialect, document string, options AnalyzeOptions) (*Quer
 				if len(names) == 1 {
 					p.Functions = append(p.Functions, names[0].GetString_().GetSval())
 				}
-				if len(names) < 1 || len(names) > 2 || len(names) == 2 && names[0].GetString_().GetSval() != "pg_catalog" || !queryPageFunction(names[len(names)-1].GetString_().GetSval()) {
+				if !reexecute && (len(names) < 1 || len(names) > 2 || len(names) == 2 && names[0].GetString_().GetSval() != "pg_catalog" || !queryPageFunction(names[len(names)-1].GetString_().GetSval())) {
 					unsafe = true
 				}
 			}
@@ -154,7 +168,7 @@ func AnalyzeQueryPage(d Dialect, document string, options AnalyzeOptions) (*Quer
 		if err != nil {
 			return nil, err
 		}
-		guard := &queryPageGuard{query: p}
+		guard := &queryPageGuard{query: p, reexecute: reexecute}
 		nodes[0].Accept(guard)
 		if guard.unsafe {
 			return nil, bad
@@ -181,8 +195,9 @@ func queryPageFunction(name string) bool {
 }
 
 type queryPageGuard struct {
-	unsafe bool
-	query  *QueryPageSQL
+	unsafe    bool
+	query     *QueryPageSQL
+	reexecute bool
 }
 
 func (g *queryPageGuard) Enter(n ast.Node) (ast.Node, bool) {
@@ -195,18 +210,20 @@ func (g *queryPageGuard) Enter(n ast.Node) (ast.Node, bool) {
 		if x.SelectIntoOpt != nil || x.LockInfo != nil && x.LockInfo.LockType != ast.SelectLockNone || x.SelectStmtOpts != nil && x.CalcFoundRows {
 			g.unsafe = true
 		}
-	case *ast.VariableExpr, ast.ParamMarkerExpr, *ast.TableOptimizerHint:
+	case *ast.VariableExpr, ast.ParamMarkerExpr:
 		g.unsafe = true
+	case *ast.TableOptimizerHint:
+		g.unsafe = !g.reexecute
 	case *ast.FuncCallExpr:
-		if x.Schema.O != "" || !queryPageFunction(x.FnName.L) {
+		if !g.reexecute && (x.Schema.O != "" || !queryPageFunction(x.FnName.L)) {
 			g.unsafe = true
 		}
 	case *ast.AggregateFuncExpr:
-		if !queryPageFunction(x.F) {
+		if !g.reexecute && !queryPageFunction(x.F) {
 			g.unsafe = true
 		}
 	case *ast.WindowFuncExpr:
-		if !queryPageFunction(x.Name) {
+		if !g.reexecute && !queryPageFunction(x.Name) {
 			g.unsafe = true
 		}
 	}
