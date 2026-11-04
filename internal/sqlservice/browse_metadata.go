@@ -22,7 +22,7 @@ func LoadBrowseTable(ctx context.Context, conn *sql.Conn, d Dialect, scope Conte
 	if table == "" {
 		return out, ErrCatalogNotFound
 	}
-	ctx, cancel := context.WithTimeout(ctx, catalogTimeout)
+	ctx, cancel := MetadataContext(ctx, d)
 	defer cancel()
 	if err := catalogDatabaseAccess(ctx, conn, d, scope.Database); err != nil {
 		return out, err

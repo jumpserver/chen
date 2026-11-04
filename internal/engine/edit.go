@@ -513,7 +513,7 @@ func (v *Server) bindResultEditSource(s *session, e *execution, results []*Resul
 			result.editSourceError = "Multiple-result statements cannot be edited"
 			continue
 		}
-		ctx, cancel := context.WithTimeout(e.ctx, 3*time.Second)
+		ctx, cancel := sqlservice.MetadataContext(e.ctx, sqlservice.Dialect(s.grant.Config.Dialect))
 		resolved, err := v.resolveResultSource(ctx, s, c, result)
 		cancel()
 		if resolved != nil && len(resolved.columns) == len(result.Columns) {

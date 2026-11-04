@@ -327,6 +327,11 @@ type damengRows struct {
 }
 
 func (c *damengConn) rows(ctx context.Context, rows driver.Rows, err error) (driver.Rows, error) {
+	// The vendor returns a typed nil *DmRows on query errors. Its interface is
+	// non-nil, so handle the error before attempting cancellation cleanup.
+	if err != nil {
+		return nil, c.finish(ctx, err)
+	}
 	if ctx.Err() != nil && rows != nil {
 		_ = rows.Close()
 	}
