@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"encoding/json"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -22,20 +23,26 @@ func TestLegacyResultExportRouteIsUnavailable(t *testing.T) {
 }
 
 func TestExplainOnlyProducesEstimatedSingleReadSQL(t *testing.T) {
-	for _, dialect := range []string{"mysql", "mariadb", "postgresql", "clickhouse", "oceanbase-mysql"} {
-		sql, err := prepareExplainSQL(dialect, "SELECT 1")
-		if err != nil || !strings.HasPrefix(sql, "EXPLAIN ") {
-			t.Fatalf("%s: %v", dialect, err)
-		}
-		for _, invalid := range []string{"SELECT 1; SELECT 2", "DELETE FROM t", "EXPLAIN ANALYZE SELECT 1", "WITH x AS (DELETE FROM t RETURNING *) SELECT * FROM x", "SELECT 1 INTO OUTFILE '/tmp/x'"} {
-			if _, err := prepareExplainSQL(dialect, invalid); err == nil {
-				t.Fatalf("unsafe explain input accepted by %s: %s", dialect, invalid)
+	for _, dialect := range []string{"mysql", "mariadb", "postgresql", "clickhouse", "oceanbase-mysql", "oracle", "db2", "dameng", "sqlserver", "oceanbase-oracle"} {
+		t.Run(dialect, func(t *testing.T) {
+			v, _, c, _ := executionFixture(t, dialect, "", &executionDriverState{})
+			for _, document := range []string{"SELECT 1", "SELECT 1; SELECT 2", "DELETE FROM t", "EXPLAIN ANALYZE SELECT 1", "WITH x AS (DELETE FROM t RETURNING *) SELECT * FROM x", "SELECT 1 INTO OUTFILE '/tmp/x'"} {
+				body, _ := json.Marshal(map[string]string{"sql": document})
+				w := httptest.NewRecorder()
+				v.Handler().ServeHTTP(w, engineRequest("POST", "/chen/api/v1/consoles/"+c.id+"/explain", string(body), "token"))
+				allowed := document == "SELECT 1" && !specialPlanDialect(dialect)
+				if (w.Code == 200) != allowed {
+					t.Fatalf("explain acceptance: SQL=%s status=%d body=%s", document, w.Code, w.Body.String())
+				}
+				if allowed {
+					var result struct {
+						SQL string `json:"sql"`
+					}
+					if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil || !strings.HasPrefix(result.SQL, "EXPLAIN ") {
+						t.Fatalf("invalid estimated plan response: %s", w.Body.String())
+					}
+				}
 			}
-		}
-	}
-	for _, dialect := range []string{"oracle", "db2", "dameng", "sqlserver", "oceanbase-oracle"} {
-		if _, err := prepareExplainSQL(dialect, "SELECT 1"); err == nil {
-			t.Fatalf("unsupported plan accepted: %s", dialect)
-		}
+		})
 	}
 }

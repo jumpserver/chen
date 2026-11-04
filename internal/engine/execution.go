@@ -3,14 +3,11 @@ package engine
 import (
 	"context"
 	"database/sql"
-	"database/sql/driver"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"math"
-	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -741,19 +738,6 @@ func isServerError(err error) bool {
 	return errors.As(err, &me) || errors.As(err, &pe) || extraDatabaseError(err) != nil
 }
 
-// A transport failure after dispatch cannot prove whether a write committed.
-func isTransportError(err error) bool {
-	if isDamengTransportError(err) {
-		return true
-	}
-	var me *mysql.MySQLError
-	var pe *pgconn.PgError
-	if errors.As(err, &me) || errors.As(err, &pe) || extraDatabaseError(err) != nil {
-		return false
-	}
-	var ne net.Error
-	return errors.Is(err, driver.ErrBadConn) || errors.Is(err, sql.ErrConnDone) || errors.Is(err, mysql.ErrInvalidConn) || errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) || errors.As(err, &ne) || pgconn.SafeToRetry(err) == false && strings.Contains(err.Error(), "conn closed")
-}
 func binaryResultType(dbType string) bool {
 	dbType = strings.ToUpper(dbType)
 	return strings.Contains(dbType, "BLOB") || strings.Contains(dbType, "BINARY") || dbType == "BYTEA" || dbType == "RAW" || dbType == "LONG RAW" || dbType == "IMAGE"

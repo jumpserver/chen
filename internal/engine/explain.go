@@ -3,19 +3,11 @@ package engine
 import (
 	"context"
 	"encoding/hex"
-	"errors"
 	"net/http"
 	"strings"
 
 	"github.com/jumpserver/chen/internal/sqlservice"
 )
-
-func prepareExplainSQL(dialect, document string) (string, error) {
-	if specialPlanDialect(dialect) {
-		return "", errors.New("explain_requires_plan_execution")
-	}
-	return sqlservice.EstimatedPlanSQL(sqlservice.Dialect(dialect), document, sqlservice.AnalyzeOptions{})
-}
 
 func (v *Server) prepareExplain(w http.ResponseWriter, r *http.Request) {
 	s := v.auth(w, r, false)

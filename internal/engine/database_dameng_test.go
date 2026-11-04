@@ -241,7 +241,7 @@ func TestDamengSocketBoundsEachReadAndWrite(t *testing.T) {
 func TestDamengTransportErrorsCannotBecomeKnownSQLFailures(t *testing.T) {
 	for _, code := range []int32{6001, 6060, 20000, 20001} {
 		vendorErr := &dm.DmError{ErrCode: code, ErrText: "private endpoint"}
-		if isServerError(vendorErr) || !isTransportError(vendorErr) {
+		if isServerError(vendorErr) || !isDamengTransportError(vendorErr) {
 			t.Fatalf("transport code %d was misclassified", code)
 		}
 		raw := &damengTestConn{}

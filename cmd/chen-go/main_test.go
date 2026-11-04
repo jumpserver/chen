@@ -57,7 +57,7 @@ func TestSingleProviderDoesNotInitializeWisp(t *testing.T) {
 	if err := os.WriteFile(path, []byte(config), 0600); err != nil {
 		t.Fatal(err)
 	}
-	p, stop, err := configuredProvider(options{single: true, backends: path, state: dir, wisp: "intentionally-invalid-address", ca: "/does-not-exist.pem"})
+	p, stop, err := configuredProviderContext(context.Background(), options{single: true, backends: path, state: dir, wisp: "intentionally-invalid-address", ca: "/does-not-exist.pem"})
 	if err != nil {
 		t.Fatalf("single mode depended on Wisp configuration: %v", err)
 	}

@@ -1,87 +1,69 @@
 # Chen
 
-Chen is JumpServer's database workspace. The backend is Go; the Luna frontend
-uses Monaco. Queries, catalog browsing, completion and cancellation use HTTP,
-with one SSE stream per session for execution and control updates. Wisp connects
-the managed service to JumpServer authentication, permissions, command approval,
-session control, audit and heartbeats.
+Chen is JumpServer's database workspace. It provides SQL queries, schema browsing,
+result editing and data import/export through the Luna frontend. The Go backend
+integrates with JumpServer through Wisp for authentication, permissions and audit.
 
-The workspace includes queries, inspection, draft-based grid editing, CSV import
-and table/index DDL previews. Writes use the same JumpServer policy and audit
-path. See [write workflows and limits](docs/writes.md).
+## Build
 
-## Run locally
-
-Go 1.26.3 and a C compiler are required: PostgreSQL parsing uses `libpg_query`
-through CGO. Node.js/pnpm are only needed when building Luna.
+Use the Go version specified in [go.mod](go.mod) and a C compiler. PostgreSQL SQL
+parsing requires CGO. Build the frontend separately in the Luna repository.
 
 ```sh
 make build
 make test vet
 ```
 
-For managed mode, start Core and supply its bootstrap credential through your
-private environment or a private Wisp configuration file. Never commit those
-values. Existing Wisp registration is retained in `data/keys`.
+To build and run the container image:
+
+```sh
+make image-ee VERSION=dev PLATFORM=linux/arm64
+make run
+```
+
+Linux amd64 and arm64 builds include all supported database drivers, including
+the pure Go Db2 driver.
+
+## Run with JumpServer
+
+Start Core and configure the bootstrap credential through the environment or a
+private Wisp configuration file, then run:
 
 ```sh
 CORE_HOST=http://127.0.0.1:8080 ./start.sh managed
 ```
 
-`start.sh` builds Go and pinned Wisp v0.2.15. Managed mode listens on
-`127.0.0.1:8082`; the HTTP API is under `/chen/api/v1/`. The startup script keeps
-Wisp alive while Chen closes sessions and drains its audit outbox. Neither Java
-nor Maven is part of the build or startup path.
+Managed mode listens on `127.0.0.1:8082`. Keep registration keys in `data/keys`
+and audit state in `data/go` persistent; container data is under `/opt/chen/data`.
+The API is served at `/chen/api/v1/` with SSE streaming. Use `chen-go healthcheck`
+for liveness and `chen-go readycheck` for readiness.
 
-## Run without Core
+## Run without JumpServer
+
+Build Luna's standalone frontend using its declared Node.js and pnpm versions:
 
 ```sh
-# In the adjacent Luna checkout:
-pnpm install --frozen-lockfile
-pnpm generate:chen
-
-# In Chen:
+pnpm --dir ../luna install --frozen-lockfile
+pnpm --dir ../luna generate:chen
 mkdir -p data
 cp conf/standalone_backends_example.yaml data/standalone_backends.yml
 chmod 600 data/standalone_backends.yml
-# Edit this private file with the database connection details.
+```
+
+Edit the configuration with your database connection details, then start Chen:
+
+```sh
 make single BACKENDS=data/standalone_backends.yml WEB_DIR=../luna/.output/public
 ```
 
 Open `http://127.0.0.1:8083/luna/chen/?selector=local-pg`, using a selector from
-the configuration. Single mode does not contact Core or Wisp. Keep its listener
-behind your intended access boundary; a selector is a routing name, not a secret.
-See [single mode](docs/single.md).
+the [configuration](conf/standalone_backends_example.yaml). Single mode has no
+Core authentication; keep access limited to the intended users. The selector
+identifies a connection and is not a password.
 
-## Build and run images
+## Release packages
 
-The formal build is `Dockerfile-base` → `Dockerfile` → `Dockerfile-ee`.
-The default image contains Go and Wisp and retains the existing JumpServer
-`chen:8082` endpoint and `/opt/chen/data` volume.
-
-```sh
-make image-ee VERSION=dev PLATFORM=linux/arm64
-make run
-# Or start in the background after providing Core configuration:
-make dev-up
-```
-
-The standard image supports Linux amd64 and arm64, including Db2. Db2 uses
-`github.com/go-db2/go-db2`, a pure Go DRDA driver pinned in `go.mod`. No IBM CLI,
-Db2-specific build tag, native runtime or separate image variant is required.
-Chen still needs CGO for PostgreSQL SQL parsing.
-
-See [build, release and integration acceptance](docs/build.md) and
-[database compatibility](docs/database-compatibility.md) for limits and evidence.
-
-## Development and integration
-
-- [Go backend architecture and APIs](docs/go-v1.md)
-- [JumpServer integration, approvals and validation boundaries](internal/jumpserver/README.md)
-- [SQL analysis and completion](internal/sqlservice/README.md)
-- [Build and integration acceptance](docs/build.md)
-
-Luna is a separate repository. Build its corresponding revision into docker-web;
-rebuilding Chen does not update the browser's static assets. The normal managed
-route, single route, web application and Electron integration must all select
-the same backend generation before consuming a one-use connection token.
+`make package` extracts the built image into `build/chen-<version>-linux-<arch>.tar.gz`.
+The archive includes binaries, configuration examples, licenses and this README.
+On a matching Linux system, extract it and run `./start.sh managed`, or
+`./start.sh single --backends /path/to/backends.yml --web-dir /path/to/luna`.

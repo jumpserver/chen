@@ -96,10 +96,6 @@ func parseOptions(args []string) (options, error) {
 
 // Only the selected mode initializes its provider. Single mode never constructs
 // a Wisp client or starts the managed audit/control background processes.
-func configuredProvider(o options) (jumpserver.Provider, func(), error) {
-	return configuredProviderContext(context.Background(), o)
-}
-
 func configuredProviderContext(startupCtx context.Context, o options) (jumpserver.Provider, func(), error) {
 	if o.single {
 		config, err := standalone.Load(o.backends, standalone.LoadOptions{AllowInsecurePermissions: o.insecureBackends})

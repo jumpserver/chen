@@ -115,8 +115,6 @@ func (p *repeatableQueryParser) readAlias() (string, bool) {
 	}
 	return "", true
 }
-func (p *repeatableQueryParser) alias() bool { _, ok := p.readAlias(); return ok }
-
 func (p *repeatableQueryParser) boundary() bool {
 	for _, s := range []string{"FROM", "WHERE", "GROUP", "HAVING", "ORDER", "LIMIT", "OFFSET", "FETCH", "UNION", "INTERSECT", "EXCEPT", "MINUS", "JOIN", "INNER", "LEFT", "RIGHT", "FULL", "CROSS", "OUTER", "ON", "USING", "AND", "OR", "WHEN", "THEN", "ELSE", "END", "ROWS", "RANGE", "PRECEDING", "FOLLOWING", "ASC", "DESC", "NULLS"} {
 		if p.peek(s) {

@@ -278,11 +278,6 @@ func pgStatementCapabilities(node *pg.Node) (bool, bool) {
 	return rows, write
 }
 
-func Split(dialect Dialect, document string) ([]Statement, error) {
-	a, e := Analyze(dialect, document)
-	return a.Statements, e
-}
-
 // TiDB recognizes every versioned comment. Masking only in the parser input
 // aligns its behavior with the server version while retaining byte positions.
 // Strings and normal comments are skipped by the editor lexer.

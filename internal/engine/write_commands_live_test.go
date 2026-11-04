@@ -17,7 +17,7 @@ import (
 // Explicit write tests only create uniquely named, disposable CHEN_W_* tables.
 // They never update existing tables. Their only DROP targets the exact object
 // successfully created by this test, and cleanup also runs on assertion failure.
-// CHEN_WRITE_BACKENDS=/private/backends.yml go test -tags ibmdb ./internal/engine -run TestWriteCommandsLive -v
+// CHEN_WRITE_BACKENDS=/private/backends.yml go test ./internal/engine -run TestWriteCommandsLive -v
 func TestWriteCommandsLive(t *testing.T) {
 	path := os.Getenv("CHEN_WRITE_BACKENDS")
 	if path == "" {

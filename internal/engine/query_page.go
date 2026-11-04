@@ -196,9 +196,6 @@ func queryPageContext(ctx context.Context, c *console, d string) (string, error)
 	b, _ := json.Marshal(values)
 	return string(b), nil
 }
-func (v *Server) captureQuerySource(s *session, c *console, e *execution, opts sqlservice.AnalyzeOptions) {
-	v.captureQuerySQLSource(s, c, e, opts, e.sql)
-}
 func (v *Server) captureQuerySQLSource(s *session, c *console, e *execution, opts sqlservice.AnalyzeOptions, statementSQL string) {
 	p := &queryPagePlan{original: statementSQL, options: opts, view: QueryPage{Mode: "cache", MaxPageSize: min(1000, v.opts.MaxRows), MaxOffset: browseMaxOffset}}
 	e.querySource = p

@@ -75,10 +75,6 @@ func overviewExtraSource(d Dialect, b *catalogBinder, database string, broadSegm
 	return `SELECT o.dbname,o.schemaname,o.objectname,o.objectkind,o.objecttype,o.objectcomment,` + fields + `,` + properties + ` FROM (` + base + `) o` + join, nil
 }
 
-func overviewExtraSQL(d Dialect, r OverviewRequest, broadSegments ...bool) (catalogQuery, error) {
-	return overviewExtraSQLWithClickHouse(d, r, nil, broadSegments...)
-}
-
 func overviewExtraSQLWithClickHouse(d Dialect, r OverviewRequest, clickHouse *clickHouseCapabilities, broadSegments ...bool) (catalogQuery, error) {
 	switch r.Section {
 	case "tables", "views", "indexes", "statistics", "properties":
