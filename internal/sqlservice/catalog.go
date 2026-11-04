@@ -193,7 +193,7 @@ func ColumnRows(ctx context.Context, conn *sql.Conn, dialect Dialect, req Catalo
 	if systemCatalogSchema(req.Schema, dialect) || (IsMySQLDialect(dialect) || dialect == ClickHouse) && req.Schema != req.Database {
 		return items, ErrCatalogForbidden
 	}
-	ctx, cancel := context.WithTimeout(ctx, catalogTimeout)
+	ctx, cancel := MetadataContext(ctx, dialect)
 	defer cancel()
 	if err := catalogDatabaseAccess(ctx, conn, dialect, req.Database); err != nil {
 		return items, err

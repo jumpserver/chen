@@ -38,6 +38,13 @@ func connectionContext(ctx context.Context, conn *sql.Conn, dialect string, conf
 
 func initializeConsole(ctx context.Context, conn *sql.Conn, cfg jumpserver.ConnectionConfig, requested sqlservice.Context) (sqlservice.Context, int64, error) {
 	var err error
+	if cfg.Dialect == "dameng" && cfg.Database == "" {
+		// Dameng's catalog uses the login schema as its database label when
+		// Core omits a database. A pooled console may have changed CURRENT_SCHEMA.
+		if err = conn.QueryRowContext(ctx, "SELECT SYS_CONTEXT('USERENV','SESSION_USER') FROM DUAL").Scan(&cfg.Database); err != nil {
+			return requested, 0, err
+		}
+	}
 	if requested.Database == "" {
 		requested.Database = cfg.Database
 	}
@@ -49,7 +56,16 @@ func initializeConsole(ctx context.Context, conn *sql.Conn, cfg jumpserver.Conne
 		case jumpserver.IsMySQLDialect(cfg.Dialect) || cfg.Dialect == "sqlserver" || cfg.Dialect == "clickhouse":
 			_, err = conn.ExecContext(ctx, "USE "+quoteDatabaseIdentifier(requested.Database, cfg.Dialect))
 		case cfg.Dialect != "postgresql" && requested.Database != cfg.Database:
-			return requested, 0, unsupportedContext(cfg.Dialect)
+			// Catalogs return the server's canonical name, which need not equal
+			// the configured alias (Db2 folds names; Dameng may omit a database).
+			// Verify against this connection before treating it as a switch.
+			current, contextErr := connectionContext(ctx, conn, cfg.Dialect, sqlservice.Context{Database: cfg.Database, Schema: cfg.Schema})
+			if contextErr != nil {
+				return requested, 0, contextErr
+			}
+			if requested.Database != current.Database {
+				return requested, 0, unsupportedContext(cfg.Dialect)
+			}
 		}
 	}
 	if err == nil && requested.Schema != "" {
