@@ -8,7 +8,6 @@ services:
       args:
         CHEN_BASE_IMAGE: ${CHEN_BASE_IMAGE:-jumpserver/chen-base:20261103_075444}
         VERSION: ${VERSION:-dev}
-        WITH_DB2: ${WITH_DB2:-0}
     environment:
       CORE_HOST: ${CORE_HOST:-http://host.docker.internal:8080}
       BOOTSTRAP_TOKEN: ${BOOTSTRAP_TOKEN:-}

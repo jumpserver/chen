@@ -1,5 +1,23 @@
 # Go 数据库工作区：兼容性与验收
 
+## 2026-11-04：Db2 驱动切换
+
+Db2 改用固定提交的 `github.com/go-db2/go-db2` 纯 Go DRDA 驱动，标准
+amd64/arm64 构建均包含它。IBM CLI、`ibmdb` 编译标签和 `-db2` 镜像变体已移除。
+TLS 直接接受 Core/single 配置提供的 CA、服务器名与客户端证书；无需原生证书目录。
+固定提交的运行时源码保存在 `third_party/go-db2`，包含混合 LOB、空 LOB 和前导零二进制数据的协议修复，详见其 `CHEN_PATCH.md`。
+
+取消通过中断连接结束本地等待；仅收到原操作的服务器取消 SQLSTATE 时才确认取消，
+已发送而未确认的操作保持 unknown，控制台失效后需显式重建，不自动重放。
+事务所有权由连接适配器记录，结果类型、精确数值、LOB、多结果集和保存点须对新驱动
+重新验收。估算计划仍由 Db2 LUW 服务端生成，沿用 EXPLAIN 表读取和计划图归一化。
+
+本次在独立 Db2 LUW 11.5.8 测试实例验证了精确 DECIMAL、中文/emoji、混合 CLOB/DBCLOB/BLOB、NULL/空值、前导零二进制、多查询块读取、参数化读写、commit/rollback 可见性、保存点、HTTP 结构化估算计划及辅助记录回滚、context 中断与连接失效。测试仅使用常量、系统目录和准确清理的独立临时测试表。
+Linux amd64/arm64 的 Db2 驱动均通过 `CGO_ENABLED=0` 编译；完整镜像、TLS 实库、其他 Db2 版本及真实 Core/Wisp 组合尚未逐项验收。
+
+下文 IBM CLI 的实测结果属于旧驱动历史证据，不代表纯 Go 驱动已经通过相同验收。
+
+
 2026-10-26：旧版 Chen 的九类数据库入口已接入 Go 后端与 Luna Monaco，并完成本轮真实实例回归。
 本页前期记录覆盖只读工作区；随后已加入与 Java dev 对齐的网格写入、CSV 导入和结构修改，当前功能及限制见[写入说明](writes.md)。下列只读历史记录不代表写入测试。
 
@@ -82,20 +100,16 @@ Oracle与Dameng新增原生空BLOB/CLOB、NULL LOB、非空二进制、中文emo
 go test -race ./...
 go vet ./...
 
-# 全九库构建；以下目录需有对应平台的 IBM 官方 CLI。
-CGO_CFLAGS="-I$PWD/data/drivers/ibmdb/clidriver/include" \
-CGO_LDFLAGS="-L$PWD/data/drivers/ibmdb/clidriver/lib -Wl,-rpath,$PWD/data/drivers/ibmdb/clidriver/lib" \
-go build -tags ibmdb -o data/bin/chen-go ./cmd/chen-go
+# 标准构建默认包含 Db2，无需 IBM CLI 或编译标签。
+go build -o data/bin/chen-go ./cmd/chen-go
 
 # 私有 YAML 必须是 0600；不得把密码放命令行或测试报告。
 CHEN_READONLY_BACKENDS=/private/path/backends.yml \
-CGO_CFLAGS="-I$PWD/data/drivers/ibmdb/clidriver/include" \
-CGO_LDFLAGS="-L$PWD/data/drivers/ibmdb/clidriver/lib -Wl,-rpath,$PWD/data/drivers/ibmdb/clidriver/lib" \
-go test -tags ibmdb ./internal/engine -run '^TestReadonly(DatabaseMatrix|DriverCancellation|HTTPCancellation|ClickHouseServerCancellation|ClickHouseAutomaticCancellation)$' -v -count=1
+go test ./internal/engine -run '^TestReadonly(DatabaseMatrix|DriverCancellation|HTTPCancellation|ClickHouseServerCancellation|ClickHouseAutomaticCancellation)$' -v -count=1
 ```
 
 可用 `CHEN_READONLY_SELECTOR` 只验收一个 selector。测试日志只记录检查项和结果，不输出连接凭据或业务记录。
-默认 `Dockerfile` 不打包 IBM CLI；Db2 部署需要与运行平台对应的 CLI 和带 `ibmdb` 标签的构建，正式镜像通过 `make image-ee WITH_DB2=1 PLATFORM=linux/amd64` 构建。
+默认 `Dockerfile` 和标准镜像均内置纯 Go Db2 驱动，amd64/arm64 使用相同构建入口。
 
 ## 解析与传输边界
 

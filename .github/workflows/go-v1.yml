@@ -49,18 +49,12 @@ jobs:
         include:
           - runner: ubuntu-24.04
             platform: linux/amd64
-            db2: '0'
           - runner: ubuntu-24.04-arm
             platform: linux/arm64
-            db2: '0'
-          - runner: ubuntu-24.04
-            platform: linux/amd64
-            db2: '1'
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
     env:
       PLATFORM: ${{ matrix.platform }}
-      WITH_DB2: ${{ matrix.db2 }}
       VERSION: ci
     steps:
       - uses: actions/checkout@v4
@@ -71,7 +65,5 @@ jobs:
         run: make image-ee
       - name: Check CE/EE health metadata, managed startup failures and single database sessions
         run: |
-          suffix=''
-          if [ "$WITH_DB2" = 1 ]; then suffix='-db2'; fi
-          ./scripts/smoke-image.sh "jumpserver/chen:ci${suffix}-ce" "$PLATFORM" "$WITH_DB2"
-          ./scripts/smoke-image.sh "jumpserver/chen:ci${suffix}-ee" "$PLATFORM" "$WITH_DB2"
+          ./scripts/smoke-image.sh "jumpserver/chen:ci-ce" "$PLATFORM"
+          ./scripts/smoke-image.sh "jumpserver/chen:ci-ee" "$PLATFORM"

@@ -28,7 +28,7 @@ class WorkflowTests(unittest.TestCase):
         self.assertNotIn("pull_request_target", workflow)
         credential_check = workflow.index("- name: Check publication credentials")
         self.assertLess(credential_check, workflow.index("- name: Build standard"))
-        self.assertLess(credential_check, workflow.index("- name: Build Db2"))
+        self.assertNotIn("WITH_DB2", workflow)
         block = workflow[credential_check:workflow.index("- name: Set up QEMU")]
         self.assertIn("if: env.PUBLISH == 'true' && steps.source.outputs.build == 'true'", block)
         self.assertIn("GH_TOKEN: ${{ secrets.PRIVATE_TOKEN }}", block)
@@ -116,7 +116,7 @@ class UpdateBaseImageTests(unittest.TestCase):
             self.assertEqual(re.search(pattern, (self.root / name).read_text())[1], TAG)
         self.assertEqual((self.root / "unrelated.txt").read_text(), "Do not change\n")
         self.assertEqual(self.git("ls-files", "private-local-file"), "")
-        self.assertIn("$(BASE_VERSION)$(VARIANT)", (self.root / "Makefile").read_text())
+        self.assertIn("$(BASE_VERSION)", (self.root / "Makefile").read_text())
         self.assertTrue(release.is_writeback_commit(self.root))
 
     def test_protected_branch_uses_pr_without_changing_source(self):

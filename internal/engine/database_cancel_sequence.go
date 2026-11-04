@@ -1,6 +1,6 @@
 package engine
 
-// Read only while no native call is in flight on this serialized console.
+// Read original DRDA cancellation diagnostics only on the serialized console.
 func db2CancellationCheckpoint(c *console) uint64 {
 	var sequence uint64
 	if c == nil || c.conn == nil {

@@ -93,11 +93,7 @@ func extraDatabase(c jumpserver.ConnectionConfig, t *tls.Config) (*sql.DB, error
 }
 
 func supportedProtocols() []string {
-	protocols := []string{"mysql", "mariadb", "postgresql", "sqlserver", "oracle", "dameng", "clickhouse", "oceanbase", "oceanbase-mysql", "oceanbase-oracle"}
-	if db2Available {
-		protocols = append(protocols, "db2")
-	}
-	return protocols
+	return []string{"mysql", "mariadb", "postgresql", "sqlserver", "oracle", "dameng", "clickhouse", "oceanbase", "oceanbase-mysql", "oceanbase-oracle", "db2"}
 }
 
 func quoteDatabaseIdentifier(name, dialect string) string {

@@ -230,10 +230,8 @@ func (s *session) viewLocked() SessionView {
 	}
 	p := s.grant.Permissions
 	mode := ""
-	if s.grant.Config.Dialect == "dameng" {
+	if s.grant.Config.Dialect == "dameng" || s.grant.Config.Dialect == "db2" {
 		mode = "connection"
-	} else if s.grant.Config.Dialect == "db2" && db2Available {
-		mode = "statement_reconnect"
 	}
 	return SessionView{s.id, s.grant.Config.Dialect, s.grant.AssetName, s.grant.AccountName, Permissions{p.Copy, p.Paste, p.Upload, p.Download}, s.grant.ExpiresAt, state, supportsActiveCancellation(s.grant.Config.Dialect), reason, mode}
 }

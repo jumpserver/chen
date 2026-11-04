@@ -4,7 +4,7 @@
 
 The primary `Dockerfile-base` contains Go 1.26.3, its target-architecture C
 compiler, and Wisp v0.2.15. `Dockerfile` compiles Chen with CGO and copies only the
-runtime executable, Wisp and optional IBM CLI into Debian bookworm-slim.
+runtime executable and Wisp into Debian bookworm-slim.
 `Dockerfile-ee` retains the existing thin CE extension (ping/telnet). Java, Maven,
 Node.js and the source tree do not enter the final runtime image.
 
@@ -24,9 +24,8 @@ The default base is pinned consistently in `Dockerfile`, `Makefile` and
 
 Like Magnus, the Build and Push Base Image workflow runs on base-related changes
 in PRs targeting `dev` or `v*`, or manually with an existing source branch. One job
-publishes `jumpserver/chen-base:<UTC YYYYMMDD_HHMMSS>` for amd64/arm64, then
-`<timestamp>-db2` for amd64. An existing tag is rejected. Only after both builds
-and pushes succeed does it commit the three default references back to the source
+publishes `jumpserver/chen-base:<UTC YYYYMMDD_HHMMSS>` for amd64/arm64. An existing
+tag is rejected. Only after the multi-architecture build and push succeed does it commit the three default references back to the source
 PR/branch. The workflow recognizes that exact generated three-file delta and
 skips its own rebuild (PR path filters include the whole PR diff). Application CI
 still validates the updated defaults.
@@ -34,10 +33,10 @@ still validates the updated defaults.
 Manual builds of `dev`, version branches or other protected branches create a
 `pr@<source>@build_chen_base_<timestamp>` branch and PR instead of pushing directly
 to the protected branch. A source branch that advances during the build is not
-overwritten; rebuild its latest revision. Fork PRs only build both variants, with
+overwritten; rebuild its latest revision. Fork PRs only build both architectures, with
 no registry login, publication or writeback. Like Magnus, publication requires
 `PRIVATE_TOKEN` with repository push/PR permissions so the existing generic PR
-handler and subsequent CI can run. A missing token fails before either image is
+handler and subsequent CI can run. A missing token fails before the image is
 published. There is no `GITHUB_TOKEN` fallback: bot-token pushes would not trigger
 the application checks on the updated commit.
 
@@ -55,37 +54,23 @@ a branch update.
 Source builds and release packaging use the primary `Dockerfile` and
 `docker-compose.yml` entry points.
 
-## Db2 variant
+## Db2 in the standard build
 
-```sh
-make image-ee VERSION=dev WITH_DB2=1 PLATFORM=linux/amd64
-```
+Db2 uses the pinned `github.com/go-db2/go-db2` pure Go DRDA driver and is included
+in the standard amd64 and arm64 builds. The base, application image and native
+release archive need no IBM CLI, `ibmdb` tag, `WITH_DB2` switch or `-db2` variant.
+The existing standard image names and `make build/image/image-ee/package`
+commands apply to every supported database.
 
-This produces `jumpserver/chen-base:<BASE_VERSION>-db2` and
-`jumpserver/chen:dev-db2-ce` / `dev-db2-ee`. Both base and application stages must
-receive `WITH_DB2=1`. A mismatched base fails while checking the CLI headers.
-The runtime includes the entire `clidriver` directory under
-`/opt/chen-deps/clidriver`, not only `libdb2.so`; metadata, messages and supporting
-libraries remain available. No customer Db2 Connect license is included.
-The runtime and Linux archive wrapper use `C.UTF-8`. IBM CLI derives its client
-code page from the locale; a plain `C` locale replaced Chinese and emoji values
-with substitution characters during the actual Linux image test. Keep the
-client locale UTF-8 when invoking the binary directly.
-
-IBM CLI 12.1.2 is downloaded only in the base build and SHA-256 checked.
-`DB2_CLI_URL` may point to a reachable mirror of that exact archive; the checksum
-is still enforced. `APT_MIRROR` configures Debian package downloads while their
-signatures remain verified. The
-observed [official 12.1.2 distribution directory](https://public.dhe.ibm.com/ibmdl/export/pub/software/data/db2/drivers/odbc_cli/v12.1.2/)
-contains Linux x64, ppc64le and s390x64 packages, but no Linux arm64 package.
-The standard arm64 image therefore omits Db2 and reports this in capabilities.
-A successful macOS ARM64 Db2 test does not establish Linux ARM64 compatibility.
-See [IBM's native-driver installation instructions](https://github.com/ibmdb/go_ibm_db/blob/master/INSTALL.md)
-for platform libraries and Db2 Connect licensing when connecting to z/OS/iSeries.
-
-Db2 cancellation and TLS retain the explicit limitations in
-[database-compatibility.md](database-compatibility.md). Including the driver in an
-image does not remove those protocol limitations.
+TLS uses the same Core/single-mode CA, server name and client certificate
+configuration as the other database drivers. Context cancellation interrupts the
+connection; it does not prove the server rolled back a dispatched statement.
+Chen reports an unconfirmed dispatched outcome as unknown and invalidates the
+console. Estimated plans still use Db2 LUW's own EXPLAIN tables and optimizer.
+Historical IBM CLI results do not establish acceptance of the new driver.
+The pinned runtime source and LOB framing corrections are recorded in
+`third_party/go-db2/CHEN_PATCH.md`; database compatibility records distinguish
+the new driver checks from earlier native-driver acceptance.
 
 ## Runtime and existing installations
 
@@ -316,7 +301,7 @@ The opt-in real database matrix uses an explicitly supplied private backend file
 ```sh
 CHEN_READONLY_BACKENDS=/absolute/private/backends.yml \
   go test ./internal/engine -run TestReadonlyDatabaseMatrix -count=1 -v
-# For Db2, use the platform CLI and -tags ibmdb as documented in its driver patch.
+# Db2 is included by default; no native client or build tag is required.
 ```
 
 Managed acceptance is independently reproducible against an isolated Core/Wisp
@@ -330,17 +315,16 @@ CHEN_MANAGED_FIXTURE=/absolute/private/fixture.json \
 Fixtures are not committed. A local/mock/HTTP pass is not evidence of a gateway,
 production database, or packaged image pass. Record versions and architectures
 for each actual run. The CI workflow builds and smoke-tests CE/EE on native amd64
-and arm64 plus the amd64 Db2 variant. Tagged native releases include separate
-standard amd64/arm64 and amd64 Db2 archives. Live external database and Core checks need
+and arm64, with Db2 included in both. Tagged native releases include the standard
+amd64/arm64 archives. Live external database and Core checks need
 explicit private fixtures and are not silently substituted with mocks.
 
 ## Native releases
 
 `make package CHEN_IMAGE=... VERSION=... PLATFORM=linux/amd64` exports the exact
 built image into `build/chen-<version>-linux-<arch>.tar.gz` with SHA-256. The archive
-uses an additional `-db2` version suffix when `WITH_DB2=1`, so it does not overwrite
-the standard architecture archive. The archive
-contains its binary, Wisp, native dependencies, license, configuration example,
+uses standard version and architecture naming for every database driver. The archive
+contains its binary, Wisp, license, configuration example,
 and a relocatable start wrapper. It requires a glibc environment compatible with
 Debian bookworm, plus the documented platform libraries. Run `./start.sh single
 --backends ... --web-dir ...` or `./start.sh managed` after unpacking. Luna static

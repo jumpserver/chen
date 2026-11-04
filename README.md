@@ -66,21 +66,13 @@ make run
 make dev-up
 ```
 
-The standard image is supported on Linux amd64 and arm64. Db2 needs the IBM CLI
-and is an explicit Linux amd64 variant:
+The standard image supports Linux amd64 and arm64, including Db2. Db2 uses
+`github.com/go-db2/go-db2`, a pure Go DRDA driver pinned in `go.mod`. No IBM CLI,
+Db2-specific build tag, native runtime or separate image variant is required.
+Chen still needs CGO for PostgreSQL SQL parsing.
 
-```sh
-make image-ee VERSION=dev WITH_DB2=1 PLATFORM=linux/amd64
-```
-
-Standard builds do not advertise Db2. The Db2 variant verifies a pinned IBM CLI
-archive and includes its native runtime. Linux arm64 cannot be treated as Db2
-capable without an official matching CLI distribution. See
-[build, release and integration acceptance](docs/build.md) and
+See [build, release and integration acceptance](docs/build.md) and
 [database compatibility](docs/database-compatibility.md) for limits and evidence.
-
-Database drivers are Go modules. The optional Db2 variant also requires IBM's
-native CLI; its build and runtime requirements are documented above.
 
 ## Development and integration
 

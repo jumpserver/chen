@@ -111,18 +111,6 @@ func editTransactionState(ctx context.Context, c *console, dialect string) (edit
 					state = editTxActive
 				}
 			}
-		case typ.PkgPath() == "github.com/ibmdb/go_ibm_db":
-			// IBM CLI starts in SQL_AUTOCOMMIT_ON; its only transition to OFF
-			// is Begin, which installs tx before returning. SQL text cannot set
-			// the connection attribute. A live Tx remains user-owned.
-			tx := rv.FieldByName("tx")
-			if tx.IsValid() && tx.Kind() == reflect.Pointer {
-				if tx.IsNil() {
-					state = editTxIdle
-				} else {
-					state = editTxActive
-				}
-			}
 		}
 		return nil
 	})
