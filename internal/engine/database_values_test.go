@@ -54,32 +54,27 @@ func TestAdditionalDriverValuesPreservePrecisionAndBinary(t *testing.T) {
 	}
 }
 
-func TestUnsupportedActiveCancellationIsNotFalselyAcknowledged(t *testing.T) {
-	for _, dialect := range []string{"db2"} {
-		for _, status := range []string{"queued", "running"} {
-			t.Run(dialect+"/"+status, func(t *testing.T) {
-				v, s, _, e := executionFixture(t, dialect, "SELECT 1", &executionDriverState{})
-				e.view.Status = status
-				if s.view().CanCancel {
-					t.Fatal("unsupported driver advertised active cancellation")
+func TestDb2ActiveCancellationUsesConnectionMode(t *testing.T) {
+	for _, status := range []string{"queued", "running"} {
+		t.Run(status, func(t *testing.T) {
+			v, s, _, e := executionFixture(t, "db2", "SELECT 1", &executionDriverState{})
+			e.view.Status = status
+			if !s.view().CanCancel || s.view().CancellationMode != "connection" {
+				t.Fatal("Db2 connection cancellation unavailable")
+			}
+			w := httptest.NewRecorder()
+			v.Handler().ServeHTTP(w, engineRequest("POST", "/chen/api/v1/executions/"+e.view.ID+"/cancel", "", "token"))
+			if w.Code != 202 {
+				t.Fatalf("cancel was not requested: %d", w.Code)
+			}
+			select {
+			case <-e.cancelDone:
+				if e.ctx.Err() == nil {
+					t.Fatal("cancellation context remained active")
 				}
-				w := httptest.NewRecorder()
-				v.Handler().ServeHTTP(w, engineRequest("POST", "/chen/api/v1/executions/"+e.view.ID+"/cancel", "", "token"))
-				if status == "running" {
-					if w.Code != 409 || e.cancelRequested.Load() || e.ctx.Err() != nil {
-						t.Fatalf("running cancel misrepresented: code=%d", w.Code)
-					}
-				} else {
-					if w.Code != 202 || e.ctx.Err() == nil {
-						t.Fatalf("queued work was not withdrawn: code=%d", w.Code)
-					}
-					select {
-					case <-e.cancelDone:
-					case <-time.After(time.Second):
-						t.Fatal("queued cancellation did not finish")
-					}
-				}
-			})
-		}
+			case <-time.After(time.Second):
+				t.Fatal("cancellation did not finish")
+			}
+		})
 	}
 }

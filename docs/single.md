@@ -1,6 +1,6 @@
 # Chen single：从配置文件直接连接数据库
 
-`single` 独立运行 Go 后端和 Luna Monaco 工作区，不创建 Wisp 客户端，不调用 Core API。数据库地址、账号、密码和 TLS 配置只从本地 YAML 读取，浏览器 URL 只指定 `selector`。支持旧版数据库家族；Db2 需要 IBM CLI 与 `ibmdb` 构建标签，详见[数据库兼容性及实测](database-compatibility.md)。
+`single` 独立运行 Go 后端和 Luna Monaco 工作区，不创建 Wisp 客户端，不调用 Core API。数据库地址、账号、密码和 TLS 配置只从本地 YAML 读取，浏览器 URL 只指定 `selector`。支持旧版数据库家族；Db2 使用内置的纯 Go DRDA 驱动，无需额外客户端或构建标签，详见[数据库兼容性及实测](database-compatibility.md)。
 
 ## 构建和启动
 

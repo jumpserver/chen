@@ -12,13 +12,8 @@ jobs:
         include:
           - runner: ubuntu-24.04
             platform: linux/amd64
-            db2: '0'
           - runner: ubuntu-24.04-arm
             platform: linux/arm64
-            db2: '0'
-          - runner: ubuntu-24.04
-            platform: linux/amd64
-            db2: '1'
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
     steps:
@@ -30,13 +25,10 @@ jobs:
         env:
           VERSION: ${{ github.ref_name }}
           PLATFORM: ${{ matrix.platform }}
-          WITH_DB2: ${{ matrix.db2 }}
         run: |
           make test vet image
-          suffix=''
-          if [ "$WITH_DB2" = 1 ]; then suffix='-db2'; fi
-          image="jumpserver/chen:${VERSION}${suffix}-ce"
-          ./scripts/smoke-image.sh "$image" "$PLATFORM" "$WITH_DB2"
+          image="jumpserver/chen:${VERSION}-ce"
+          ./scripts/smoke-image.sh "$image" "$PLATFORM"
           make package CHEN_IMAGE="$image"
       - uses: softprops/action-gh-release@v2
         with:

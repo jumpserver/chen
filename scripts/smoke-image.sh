@@ -3,7 +3,6 @@
 set -euo pipefail
 image=${1:?image required}
 platform=${2:-linux/$(docker info --format '{{.Architecture}}')}
-expected_db2=${3:-0}
 root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 work=$(mktemp -d)
 chmod 700 "$work"
@@ -73,7 +72,7 @@ PY
 unset password
 docker start "$chen" >/dev/null
 address=$(docker port "$chen" 8082/tcp)
-python3 "$root/scripts/smoke-http.py" "http://$address" "$expected_db2"
+python3 "$root/scripts/smoke-http.py" "http://$address" "1"
 docker exec "$chen" chen-go healthcheck
 docker exec "$chen" chen-go readycheck
 docker exec "$chen" chen-go --version

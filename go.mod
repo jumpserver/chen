@@ -7,8 +7,8 @@ require (
 	github.com/ClickHouse/clickhouse-go/v2 v2.49.0
 	github.com/bytebase/omni v0.0.0-20261028061125-c1e38b7dfe51
 	github.com/dlclark/regexp2 v1.11.4
+	github.com/go-db2/go-db2 v0.0.0-20261103115748-31eae67a759d
 	github.com/go-sql-driver/mysql v1.9.3
-	github.com/ibmdb/go_ibm_db v0.5.4
 	github.com/jackc/pgx/v5 v5.9.2
 	github.com/jumpserver/wisp v0.2.15
 	github.com/microsoft/go-mssqldb v1.11.2
@@ -100,12 +100,12 @@ require (
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 )
 
-// Fixed IBM v0.5.4 source with Go 1.26-safe CLI result buffers.
-replace github.com/ibmdb/go_ibm_db => ./third_party/go_ibm_db
-
 replace github.com/sijms/go-ora/v2 => ./third_party/go-ora
 
 // v1.8.23 with immutable shared error templates for concurrent connections.
 replace gitee.com/chunanyong/dm => ./third_party/dm
 
 replace github.com/bytebase/omni => github.com/Zxc4wonder/omni v0.0.0-20261028061125-c1e38b7dfe51
+
+// Pinned DRDA source with Db2 LUW LOB framing fixes; see CHEN_PATCH.md.
+replace github.com/go-db2/go-db2 => ./third_party/go-db2

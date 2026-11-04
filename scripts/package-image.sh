@@ -17,7 +17,6 @@ for file in chen-go wisp wisp.version; do docker cp "$container:/usr/local/bin/$
 docker cp "$container:/opt/chen/entrypoint.sh" "$staging/$name/entrypoint.sh"
 docker cp "$container:/opt/chen/conf" "$staging/$name/conf"
 docker cp "$container:/opt/chen/licenses" "$staging/$name/licenses"
-docker cp "$container:/opt/chen-deps" "$staging/$name/native"
 cp "$root/LICENSE" "$root/README.md" "$staging/$name/"
 cp "$root/docs/build.md" "$staging/$name/BUILD.md"
 cat > "$staging/$name/start.sh" <<'START'
@@ -29,8 +28,7 @@ export CHEN_STATE_DIR=${CHEN_STATE_DIR:-"$root/data/go"}
 port=8082
 if [[ ${1:-managed} == single || ${1:-managed} == standalone ]]; then port=8083; fi
 export CHEN_HTTP_ADDR=${CHEN_HTTP_ADDR:-127.0.0.1:$port}
-export LD_LIBRARY_PATH="$root/native/clidriver/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-# The IBM CLI derives its narrow-character code page from the process locale.
+# Use a consistent UTF-8 locale for command output.
 export LANG=C.UTF-8 LC_ALL=C.UTF-8
 exec "$root/entrypoint.sh" "$@"
 START

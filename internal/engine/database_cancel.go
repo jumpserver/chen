@@ -11,10 +11,8 @@ import (
 
 func supportsActiveCancellation(dialect string) bool {
 	switch dialect {
-	case "mysql", "mariadb", "postgresql", "sqlserver", "oracle", "clickhouse", "oceanbase-mysql", "oceanbase-oracle", "dameng":
+	case "mysql", "mariadb", "postgresql", "sqlserver", "oracle", "clickhouse", "oceanbase-mysql", "oceanbase-oracle", "dameng", "db2":
 		return true
-	case "db2":
-		return db2Available
 	default:
 		return false
 	}

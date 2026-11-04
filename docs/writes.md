@@ -40,4 +40,4 @@ CHEN_WRITE_BACKENDS=/private/backends.yml go test ./internal/engine -run 'Test(W
 CHEN_WRITE_MANAGED=1 CHEN_MANAGED_FIXTURE=/private/fixture.json go test ./internal/engine -run '^TestGridEditsManagedLive$' -count=1 -v
 ```
 
-Db2 实库测试需要 IBM CLI 和 `-tags ibmdb`，见[构建说明](build.md)。Core/Wisp 写入验收使用隔离本机环境，包含拒绝、待审无写入、批准、告警确认、暂停取消、上传权限、真实 Core 命令审计和会话录像。
+Db2 默认使用纯 Go DRDA 驱动，无需 IBM CLI 或构建标签；更换驱动后的实库写入、保存点及类型兼容须重新验收，见[构建说明](build.md)。Core/Wisp 写入验收使用隔离本机环境，包含拒绝、待审无写入、批准、告警确认、暂停取消、上传权限、真实 Core 命令审计和会话录像。

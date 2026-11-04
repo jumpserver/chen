@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Update only Chen's three base defaults after both image variants are published."""
+"""Update only Chen's three base defaults after the multi-architecture image is published."""
 
 import argparse
 import difflib
@@ -111,8 +111,8 @@ def update(root, tag, branch, source_sha, repository, dry_run=False):
         else:
             print(run("gh", "pr", "create", "--repo", repository, "--head", destination, "--base", branch,
                       "--title", f"perf: update Chen base image to {tag}",
-                      "--body", "Publish the standard amd64/arm64 and Db2 amd64 base images before updating "
-                      "the Dockerfile, Makefile and Compose defaults. Both variants completed successfully "
+                      "--body", "Publish the standard amd64/arm64 base image before updating "
+                      "the Dockerfile, Makefile and Compose defaults. Both architectures completed successfully "
                       f"for source commit {source_sha}.", cwd=root))
 
 
