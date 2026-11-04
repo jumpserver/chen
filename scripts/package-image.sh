@@ -18,7 +18,6 @@ docker cp "$container:/opt/chen/entrypoint.sh" "$staging/$name/entrypoint.sh"
 docker cp "$container:/opt/chen/conf" "$staging/$name/conf"
 docker cp "$container:/opt/chen/licenses" "$staging/$name/licenses"
 cp "$root/LICENSE" "$root/README.md" "$staging/$name/"
-cp "$root/docs/build.md" "$staging/$name/BUILD.md"
 cat > "$staging/$name/start.sh" <<'START'
 #!/usr/bin/env bash
 set -euo pipefail
