@@ -32,7 +32,7 @@ location ^~ /chen/api/v1/ {
 }
 ```
 
-Luna构建时按已验收范围设置`NUXT_PUBLIC_CHEN_GO_V1_PROTOCOLS=mysql,mariadb,postgresql,oracle,sqlserver,dameng,clickhouse,oceanbase`；Db2 默认内置，也应加入 `db2`；无需 IBM CLI 或专用构建。默认启用已支持的 Go 协议；显式设置空值才保留旧入口。该列表不是运行中自动探测或降级开关。开发代理目标按Luna V1 README设置。浏览器请求使用同源API，不把会话Token放URL。
+Luna 数据库工作区统一连接 Go 后端，已移除 Java 工作区及 `NUXT_PUBLIC_CHEN_GO_V1_PROTOCOLS` 选择开关。协议和操作能力以 Go API 返回为准；Db2 默认内置，无需 IBM CLI 或专用构建。开发代理目标按 Luna V1 README 设置。浏览器请求使用同源 API，不把会话 Token 放 URL。
 
 ## 连接与执行
 
