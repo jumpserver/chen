@@ -29,6 +29,9 @@ func analyzeSelectDocument(d Dialect, document string, options AnalyzeOptions) (
 			if t.kind != 'i' || t.quoted {
 				continue
 			}
+			if clickHouseSystemQualifier(d, statement, i) {
+				continue
+			}
 			if t.is("SELECT") {
 				hasSelect = true
 			}

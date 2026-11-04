@@ -16,8 +16,9 @@ type catalogQuery struct {
 }
 
 type catalogBinder struct {
-	dialect Dialect
-	args    []any
+	dialect    Dialect
+	args       []any
+	clickHouse *clickHouseCapabilities
 }
 
 func (b *catalogBinder) bind(value any) string {
@@ -96,10 +97,14 @@ FROM SYSCAT.TABLES t WHERE t.TYPE IN ('T','V','S','N') AND t.TABSCHEMA NOT LIKE 
 	case ClickHouse:
 		// Local system tables apply SHOW TABLES visibility. Do not replace this
 		// with cluster()/remote(), which can have different visibility semantics.
+		comment := "NULL"
+		if b.clickHouse != nil && b.clickHouse.tableComment == CapabilitySupported {
+			comment = "comment"
+		}
 		return `SELECT database AS dbname, database AS schemaname, name AS objectname,
 if(engine IN ('View','MaterializedView','LiveView','WindowView'), 'view', 'table') AS objectkind,
 if(engine = 'MaterializedView', 'materialized_view', if(engine IN ('View','LiveView','WindowView'), 'view', 'table')) AS objecttype,
-comment AS objectcomment FROM system.tables WHERE is_temporary = 0 AND database = ` + b.bind(database), nil
+` + comment + ` AS objectcomment FROM system.tables WHERE is_temporary = 0 AND database = ` + b.bind(database), nil
 	}
 	return "", ErrUnsupportedDialect
 }
@@ -174,8 +179,11 @@ func extraSchemaQuery(d Dialect, database, after string, limit int) (catalogQuer
 	return b.orderedPage(query, catalogLimit(limit)+1), nil
 }
 
-func extraObjectQuery(d Dialect, req CatalogObjectRequest, prefix bool, limit int) (catalogQuery, error) {
+func extraObjectQuery(d Dialect, req CatalogObjectRequest, prefix bool, limit int, clickHouse ...*clickHouseCapabilities) (catalogQuery, error) {
 	b := &catalogBinder{dialect: d}
+	if d == ClickHouse && len(clickHouse) > 0 {
+		b.clickHouse = clickHouse[0]
+	}
 	source, err := extraObjectSource(d, b, req.Database)
 	if err != nil {
 		return catalogQuery{}, err
