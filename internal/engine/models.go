@@ -61,6 +61,7 @@ type ConsoleView struct {
 }
 type StatementResult struct {
 	ResultID     string `json:"result_id,omitempty"`
+	SourceSQL    string `json:"source_sql,omitempty"`
 	RowsAffected string `json:"rows_affected,omitempty"`
 }
 type ExecutionView struct {

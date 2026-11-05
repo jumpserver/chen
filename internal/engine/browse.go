@@ -534,7 +534,7 @@ func (v *Server) collectBrowseAppend(s *session, e *execution, rows *sql.Rows) e
 	published = true
 	v.update(s, e, func(x *ExecutionView) {
 		x.ResultIDs = append(x.ResultIDs, merged.ID)
-		x.StatementResults = append(x.StatementResults, StatementResult{ResultID: merged.ID})
+		x.StatementResults = append(x.StatementResults, StatementResult{ResultID: merged.ID, SourceSQL: merged.SourceSQL})
 	})
 	return nil
 }

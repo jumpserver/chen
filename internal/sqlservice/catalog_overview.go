@@ -375,6 +375,7 @@ func overviewSQL(d Dialect, r OverviewRequest) (string, []any) {
 	if r.Section == "statistics" {
 		if d == PostgreSQL {
 			return `SELECT COUNT(*) FILTER(WHERE c.relkind IN ('r','p','f'))::text AS tables, COUNT(*) FILTER(WHERE c.relkind IN ('v','m'))::text AS views,
+ COALESCE(SUM((SELECT COUNT(*) FROM pg_catalog.pg_index i WHERE i.indrelid=c.oid)),0)::text AS indexes,
  SUM(CASE WHEN c.relkind IN ('r','m') AND c.reltuples>=0 THEN FLOOR(c.reltuples)::numeric END)::text AS estimated_rows,
  COUNT(*) FILTER(WHERE c.relkind IN ('p','f') OR c.relkind IN ('r','m') AND c.reltuples<0)::text AS estimated_rows_unknown,
  SUM(CASE WHEN c.relkind IN ('r','m') THEN pg_catalog.pg_table_size(c.oid)::numeric END)::text AS data_bytes,
@@ -385,6 +386,7 @@ func overviewSQL(d Dialect, r OverviewRequest) (string, []any) {
  COUNT(*) FILTER(WHERE c.relkind IN ('p','f'))::text AS total_bytes_unknown` + overviewPGFrom + ` AND c.relkind IN ('r','p','m','f','v')`, []any{r.Database, r.Schema}
 		}
 		return `SELECT CAST(COALESCE(SUM(t.TABLE_TYPE='BASE TABLE'),0) AS CHAR) AS tables, CAST(COALESCE(SUM(t.TABLE_TYPE='VIEW'),0) AS CHAR) AS views,
+ CAST(COALESCE(SUM((SELECT COUNT(DISTINCT BINARY s.INDEX_NAME) FROM information_schema.STATISTICS s WHERE BINARY s.TABLE_SCHEMA=BINARY t.TABLE_SCHEMA AND BINARY s.TABLE_NAME=BINARY t.TABLE_NAME)),0) AS CHAR) AS indexes,
  CAST(SUM(CASE WHEN t.TABLE_TYPE='BASE TABLE' THEN t.TABLE_ROWS END) AS CHAR) AS estimated_rows, CAST(COALESCE(SUM(t.TABLE_TYPE='BASE TABLE' AND t.TABLE_ROWS IS NULL),0) AS CHAR) AS estimated_rows_unknown,
  CAST(SUM(CASE WHEN t.TABLE_TYPE='BASE TABLE' THEN t.DATA_LENGTH END) AS CHAR) AS data_bytes, CAST(SUM(CASE WHEN t.TABLE_TYPE='BASE TABLE' THEN t.INDEX_LENGTH END) AS CHAR) AS index_bytes, CAST(SUM(CASE WHEN t.TABLE_TYPE='BASE TABLE' THEN t.DATA_LENGTH+t.INDEX_LENGTH END) AS CHAR) AS total_bytes,
  CAST(COALESCE(SUM(t.TABLE_TYPE='BASE TABLE' AND t.DATA_LENGTH IS NULL),0) AS CHAR) AS data_bytes_unknown,
@@ -394,7 +396,8 @@ func overviewSQL(d Dialect, r OverviewRequest) (string, []any) {
 	if r.Section == "indexes" {
 		if d == PostgreSQL {
 			return `SELECT pg_catalog.current_database(),n.nspname,c.relname,CASE WHEN c.relkind='m' THEN 'view' ELSE 'table' END,CASE c.relkind WHEN 'm' THEN 'materialized_view' WHEN 'p' THEN 'partitioned_table' ELSE 'table' END,
- ix.relname,i.indisunique::text,am.amname,CASE WHEN pg_catalog.has_table_privilege(c.oid,'SELECT,INSERT,UPDATE,REFERENCES') THEN LEFT(pg_catalog.pg_get_indexdef(ix.oid),16385) END,NULL::text,NULL::text,'0',NULL::text,NULL::text
+ ix.relname,i.indisunique::text,am.amname,CASE WHEN pg_catalog.has_table_privilege(c.oid,'SELECT,INSERT,UPDATE,REFERENCES') THEN LEFT(pg_catalog.pg_get_indexdef(ix.oid),16385) END,
+ CASE WHEN pg_catalog.has_table_privilege(c.oid,'SELECT,INSERT,UPDATE,REFERENCES') THEN (SELECT string_agg(pg_catalog.pg_get_indexdef(ix.oid,k,true),', ' ORDER BY k) FROM generate_series(1,i.indnatts) k) END,NULL::text,'0',NULL::text,NULL::text
  FROM pg_catalog.pg_index i JOIN pg_catalog.pg_class ix ON ix.oid=i.indexrelid JOIN pg_catalog.pg_am am ON am.oid=ix.relam` + strings.Replace(overviewPGFrom, " FROM pg_catalog.pg_class c", " JOIN pg_catalog.pg_class c ON c.oid=i.indrelid", 1) + `
  AND (c.relname ILIKE $3 ESCAPE '!' OR ix.relname ILIKE $3 ESCAPE '!')
  AND ($4='' OR (n.nspname COLLATE pg_catalog."C",c.relname COLLATE pg_catalog."C",ix.relname COLLATE pg_catalog."C") ` + op + ` ($4 COLLATE pg_catalog."C",$5 COLLATE pg_catalog."C",$6 COLLATE pg_catalog."C"))
