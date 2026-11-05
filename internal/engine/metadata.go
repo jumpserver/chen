@@ -15,15 +15,17 @@ import (
 )
 
 type editorStatement struct {
-	ByteSpan        sqlanalysis.Span      `json:"byte_span"`
-	Features        []sqlanalysis.Feature `json:"features,omitempty"`
-	SourceCandidate bool                  `json:"source_candidate"`
-	Diagnostics     []editorDiagnostic    `json:"diagnostics,omitempty"`
-	From            int                   `json:"from"`
-	To              int                   `json:"to"`
-	Kind            string                `json:"kind"`
-	MayWrite        bool                  `json:"may_write"`
-	ReturnsRows     bool                  `json:"returns_rows"`
+	ByteSpan           sqlanalysis.Span      `json:"byte_span"`
+	Features           []sqlanalysis.Feature `json:"features,omitempty"`
+	SourceCandidate    bool                  `json:"source_candidate"`
+	Diagnostics        []editorDiagnostic    `json:"diagnostics,omitempty"`
+	From               int                   `json:"from"`
+	To                 int                   `json:"to"`
+	Kind               string                `json:"kind"`
+	MayWrite           bool                  `json:"may_write"`
+	ReturnsRows        bool                  `json:"returns_rows"`
+	ImplicitCommit     bool                  `json:"implicit_commit,omitempty"`
+	TransactionControl bool                  `json:"transaction_control,omitempty"`
 }
 
 type editorAnalysis struct {
@@ -77,13 +79,16 @@ func (v *Server) analyzeDocument(w http.ResponseWriter, r *http.Request) {
 		response.Diagnostics = append(response.Diagnostics, editorDiagnosticFor(req.Document, d))
 	}
 	for _, statement := range analysis.Statements {
+		implicit, control := sqlservice.ManualTransactionRisk(sqlservice.Dialect(s.grant.Config.Dialect), statement)
 		response.Statements = append(response.Statements, editorStatement{
-			ByteSpan:    sqlanalysis.Span{Start: statement.Start, End: statement.End, Known: true},
-			From:        len(utf16.Encode([]rune(req.Document[:statement.Start]))),
-			To:          len(utf16.Encode([]rune(req.Document[:statement.End]))),
-			Kind:        statement.Kind,
-			MayWrite:    statement.MayWrite,
-			ReturnsRows: statement.ReturnsRows,
+			ByteSpan:           sqlanalysis.Span{Start: statement.Start, End: statement.End, Known: true},
+			From:               len(utf16.Encode([]rune(req.Document[:statement.Start]))),
+			To:                 len(utf16.Encode([]rune(req.Document[:statement.End]))),
+			Kind:               statement.Kind,
+			MayWrite:           statement.MayWrite,
+			ReturnsRows:        statement.ReturnsRows,
+			ImplicitCommit:     implicit,
+			TransactionControl: control,
 		})
 		if statement.Facts != nil {
 			view := &response.Statements[len(response.Statements)-1]

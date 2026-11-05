@@ -39,13 +39,17 @@ func (v *Server) submit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req struct {
-		PlanMode        string `json:"plan_mode"`
-		Format          string `json:"format"`
-		SQL             string `json:"sql"`
-		RequestID       string `json:"request_id"`
-		DocumentVersion int    `json:"document_version"`
-		SubmitReview    bool   `json:"submit_review"`
-		ConfirmWarnings bool   `json:"confirm_warnings"`
+		TransactionAction     string `json:"transaction_action"`
+		TransactionOnPending  string `json:"transaction_on_pending"`
+		TransactionRevision   uint64 `json:"transaction_revision"`
+		ConfirmImplicitCommit bool   `json:"confirm_implicit_commit"`
+		PlanMode              string `json:"plan_mode"`
+		Format                string `json:"format"`
+		SQL                   string `json:"sql"`
+		RequestID             string `json:"request_id"`
+		DocumentVersion       int    `json:"document_version"`
+		SubmitReview          bool   `json:"submit_review"`
+		ConfirmWarnings       bool   `json:"confirm_warnings"`
 	}
 	if !decode(w, r, &req) {
 		return
@@ -60,6 +64,17 @@ func (v *Server) submit(w http.ResponseWriter, r *http.Request) {
 	}
 	if isExport && (req.Format != "csv" && req.Format != "xlsx") {
 		fail(w, 400, "invalid_export_format", "Choose CSV or XLSX")
+		return
+	}
+	if req.TransactionAction != "" {
+		command, valid := transactionCommand(req.TransactionAction, req.TransactionOnPending)
+		if !valid || req.SQL != "" || req.PlanMode != "" || isExport || browse != nil || queryPage != nil || req.ConfirmImplicitCommit || req.TransactionRevision == 0 {
+			fail(w, 400, "invalid_transaction_action", "Invalid transaction action")
+			return
+		}
+		req.SQL = command
+	} else if req.TransactionOnPending != "" {
+		fail(w, 400, "invalid_transaction_action", "Transaction resolution requires a mode action")
 		return
 	}
 	if strings.TrimSpace(req.SQL) == "" || len(req.SQL) > sqlservice.MaxDocumentBytes {
@@ -81,7 +96,7 @@ func (v *Server) submit(w http.ResponseWriter, r *http.Request) {
 	}
 	if old := c.requests[req.RequestID]; old != nil {
 		s.mu.Unlock()
-		if (old.queryPage != nil) != (queryPage != nil) || (queryPage != nil && old.queryPage.fingerprint != queryPage.fingerprint) || old.planMode != req.PlanMode || old.sql != req.SQL || old.submitReview != req.SubmitReview || old.confirmWarnings != req.ConfirmWarnings || (old.export != nil) != isExport || (old.export != nil && old.export.format != req.Format) || (old.browse != nil) != (browse != nil) || old.edit != nil || (browse != nil && browse.plan != nil && (old.browse == nil || old.browse.plan == nil || old.browse.plan.fingerprint != browse.plan.fingerprint)) {
+		if old.transactionAction != req.TransactionAction || old.transactionOnPending != req.TransactionOnPending || old.transactionRevision != req.TransactionRevision || old.confirmImplicitCommit != req.ConfirmImplicitCommit || (old.queryPage != nil) != (queryPage != nil) || (queryPage != nil && old.queryPage.fingerprint != queryPage.fingerprint) || old.planMode != req.PlanMode || old.sql != req.SQL || old.submitReview != req.SubmitReview || old.confirmWarnings != req.ConfirmWarnings || (old.export != nil) != isExport || (old.export != nil && old.export.format != req.Format) || (old.browse != nil) != (browse != nil) || old.edit != nil || (browse != nil && browse.plan != nil && (old.browse == nil || old.browse.plan == nil || old.browse.plan.fingerprint != browse.plan.fingerprint)) {
 			fail(w, 409, "idempotency_conflict", "Request ID already belongs to different SQL")
 			return
 		}
@@ -95,6 +110,10 @@ func (v *Server) submit(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithCancel(c.ctx)
 	e := &execution{view: ExecutionView{ID: newID("exe_"), ConsoleID: c.id, Status: "queued", ResultIDs: []string{}, StatementResults: []StatementResult{}, AuditStatus: "pending"}, sql: req.SQL, documentVersion: req.DocumentVersion, ctx: ctx, cancel: cancel, cancelDone: make(chan struct{}), submitReview: req.SubmitReview, confirmWarnings: req.ConfirmWarnings}
+	e.transactionAction, e.transactionOnPending, e.transactionRevision, e.confirmImplicitCommit = req.TransactionAction, req.TransactionOnPending, req.TransactionRevision, req.ConfirmImplicitCommit
+	if req.TransactionAction != "" && c.transaction.Load() != nil {
+		e.view.Transaction = &TransactionOutcome{TransactionView: *c.transaction.Load(), Action: req.TransactionAction}
+	}
 	e.planMode = req.PlanMode
 	if e.planMode != "" {
 		e.view.Plan = &PlanIdentity{RequestID: req.RequestID, Mode: e.planMode, Dialect: s.grant.Config.Dialect}
@@ -195,6 +214,11 @@ func (v *Server) cancelExecutionWithResponse(w http.ResponseWriter, r *http.Requ
 		fail(w, 409, "cancel_unsupported", "The installed database driver cannot cancel an active query")
 		return
 	}
+	if e.transactionAction != "" && e.view.Status != "queued" && e.view.Status != "waiting_review" {
+		e.mu.Unlock()
+		fail(w, 409, "transaction_cancel_unsupported", "Transaction boundaries cannot be canceled")
+		return
+	}
 	wasQueued := e.view.Status == "queued" || e.view.Status == "waiting_review"
 	e.cancelRequested.Store(true)
 	e.view.Status = "cancel_requested"
@@ -225,10 +249,30 @@ func (v *Server) cancelExecutionWithResponse(w http.ResponseWriter, r *http.Requ
 }
 func (v *Server) worker(s *session, c *console) {
 	defer s.workers.Done()
+	timer := time.NewTimer(time.Hour)
+	timer.Stop()
+	defer timer.Stop()
+	var idle <-chan time.Time
 	for {
 		select {
 		case e := <-c.queue:
+			timer.Stop()
+			// A queued commit and the timeout can become ready together. Check
+			// the actual deadline before accepting work on an expired transaction.
+			if idle != nil {
+				v.expireManualTransaction(s, c)
+			}
+			idle = nil
 			v.run(s, c, e)
+			c.mu.Lock()
+			if c.manualTx != nil && !c.lost.Load() && !c.closed.Load() && v.opts.TransactionIdleTimeout > 0 {
+				timer.Reset(time.Until(c.transactionActivity.Add(v.opts.TransactionIdleTimeout)))
+				idle = timer.C
+			}
+			c.mu.Unlock()
+		case <-idle:
+			idle = nil
+			v.expireManualTransaction(s, c)
 		case <-c.ctx.Done():
 			for {
 				select {
@@ -256,6 +300,7 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		return
 	}
 	c.mu.Lock()
+	userSQLStarted := false
 	var db2CancelCheckpoint uint64
 	if s.grant.Config.Dialect == "db2" {
 		db2CancelCheckpoint = db2CancellationCheckpoint(c)
@@ -274,16 +319,27 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		defer cancel()
 		cancelBackend(ctx, s, c, e)
 	})
-	defer func() {
-		// Stop the callback before normal completion cancels e.ctx. Join a
-		// running KILL before releasing the connection to any next execution.
+	databaseCancelJoined := false
+	joinDatabaseCancel := func() {
+		if databaseCancelJoined {
+			return
+		}
+		databaseCancelJoined = true
 		if !stopDatabaseCancel() {
 			<-databaseCancelDone
 		}
+	}
+	defer func() {
+		// Stop the callback before normal completion cancels e.ctx. Join a
+		// running KILL before releasing the connection to any next execution.
+		joinDatabaseCancel()
 		e.stopDeadline()
 		e.cancel()
 		if e.cancelRequested.Load() {
 			<-e.cancelDone
+		}
+		if userSQLStarted && c.manualTx != nil {
+			c.transactionActivity = time.Now()
 		}
 		c.mu.Unlock()
 	}()
@@ -308,6 +364,9 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		}
 		view := e.snapshot()
 		audit.Output = fmt.Sprintf("execution_id=%s state=%s completed_statements=%d result_sets=%d", view.ID, view.Status, completedStatements, len(view.ResultIDs))
+		if view.Transaction != nil {
+			audit.Output += fmt.Sprintf(" transaction_mode=%t transaction_state=%s transaction_outcome=%s prior_committed=%t", view.Transaction.Manual, view.Transaction.State, view.Transaction.Outcome, view.Transaction.PriorCommitted)
+		}
 		if e.queryPage != nil {
 			audit.Output += queryPageAudit(e.queryPage)
 		}
@@ -354,8 +413,7 @@ func (v *Server) run(s *session, c *console, e *execution) {
 			ping, done := context.WithTimeout(context.Background(), time.Second)
 			defer done()
 			if c.conn.PingContext(ping) != nil {
-				c.lost.Store(true)
-				s.emit("console.updated", ConsoleView{c.id, c.context.Database, c.context.Schema, "lost"})
+				invalidateEditConnection(s, c)
 			}
 		}
 	}()
@@ -387,7 +445,23 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		} else if e.ctx.Err() != nil || e.cancelRequested.Load() {
 			status = "canceled"
 		}
-		if completedStatements > 0 {
+		rolledBack := false
+		if c.manual && e.transactionAction == "" && userSQLStarted && c.manualTx != nil {
+			joinDatabaseCancel()
+			if e.cancelRequested.Load() {
+				<-e.cancelDone
+			}
+			if err := v.finishManualTransaction(s, c, e, false); err != nil {
+				status = "unknown"
+				api = &APIError{"transaction_outcome_unknown", err.Error()}
+			} else {
+				rolledBack = true
+				if status == "unknown" {
+					status = "failed"
+				}
+			}
+		}
+		if completedStatements > 0 && !rolledBack {
 			message := fmt.Sprintf("%d earlier statement(s) completed and may already have taken effect. Do not automatically repeat the whole script. ", completedStatements)
 			if status == "unknown" {
 				api = &APIError{"execution_unknown", message + api.Message}
@@ -399,7 +473,19 @@ func (v *Server) run(s *session, c *console, e *execution) {
 				api = &APIError{code, message + api.Message}
 			}
 		}
-		v.update(s, e, func(x *ExecutionView) { x.Status = status; x.Error = api })
+		if api.Code == "transaction_outcome_unknown" {
+			status = "unknown"
+		}
+		v.update(s, e, func(x *ExecutionView) {
+			x.Status = status
+			x.Error = api
+			if current := c.transaction.Load(); current != nil {
+				if x.Transaction == nil {
+					x.Transaction = &TransactionOutcome{Action: e.transactionAction}
+				}
+				x.Transaction.TransactionView = *current
+			}
+		})
 		if (s.grant.Config.Dialect == "dameng" || s.grant.Config.Dialect == "db2") && databaseTouched.Load() && (e.ctx.Err() != nil || e.cancelRequested.Load() || confirmedCancel) {
 			invalidateEditConnection(s, c)
 		}
@@ -420,6 +506,24 @@ func (v *Server) run(s *session, c *console, e *execution) {
 	defer s.grant.SetBusy(false)
 	if err := v.journal(s, e, "accepted"); err != nil {
 		failure(err, &APIError{"audit_persistence_failed", "Execution intent could not be recorded; SQL was not sent"})
+		return
+	}
+	if e.transactionAction != "" {
+		if current := c.transaction.Load(); current == nil || current.Revision != e.transactionRevision {
+			failure(errors.New("transaction_changed"), &APIError{"transaction_changed", "Transaction state changed; review it before retrying"})
+			return
+		}
+		v.update(s, e, func(x *ExecutionView) { x.Status = "running"; x.StartedAt = &start })
+		if err := v.transactionAction(s, c, e, &audit); err != nil {
+			api := safeDatabaseError(err)
+			var typed *APIError
+			if errors.As(err, &typed) {
+				api = typed
+			}
+			failure(err, api)
+			return
+		}
+		v.update(s, e, func(x *ExecutionView) { x.Status = "succeeded"; x.StartedAt = &start })
 		return
 	}
 	if jumpserver.IsMySQLWire(s.grant.Config.Dialect) {
@@ -518,9 +622,31 @@ func (v *Server) run(s *session, c *console, e *execution) {
 			return
 		}
 	}
+	implicitCommit := false
+	if c.manual && e.planMode == "" {
+		for _, statement := range analysis.Statements {
+			risk, control := sqlservice.ManualTransactionRisk(sqlservice.Dialect(s.grant.Config.Dialect), statement)
+			if control {
+				failure(errors.New("transaction_control_sql"), &APIError{"transaction_control_sql", "Use the toolbar to change transactions; transaction and session-control SQL is unavailable in manual mode"})
+				return
+			}
+			implicitCommit = implicitCommit || risk
+		}
+		if implicitCommit && !e.confirmImplicitCommit {
+			failure(errors.New("implicit_commit_confirmation_required"), &APIError{"implicit_commit_confirmation_required", "This SQL may commit the current transaction and cannot be rolled back; confirmation is required"})
+			return
+		}
+		if implicitCommit && (c.transaction.Load() == nil || c.transaction.Load().Revision != e.transactionRevision) {
+			failure(errors.New("transaction_changed"), &APIError{"transaction_changed", "Transaction state changed; review the SQL and confirm again"})
+			return
+		}
+	}
 	// Validate the complete script and each original statement before sending any
 	// statement, including generated and multi-statement SQL.
 	commands := append([]string{e.sql, runSQL}, statementSQL(analysis.Statements)...)
+	if implicitCommit {
+		commands = append(commands, "COMMIT")
+	}
 	if e.planMode != "" {
 		commands = append(commands, planAuthorizationSQL(s.grant.Config.Dialect, runSQL)...)
 	}
@@ -617,6 +743,34 @@ func (v *Server) run(s *session, c *console, e *execution) {
 				}
 			}
 		}
+		if c.manual && e.planMode == "" {
+			risk, control := sqlservice.ManualTransactionRisk(sqlservice.Dialect(s.grant.Config.Dialect), statement)
+			if control || (risk && !e.confirmImplicitCommit) {
+				failure(errors.New("transaction_changed"), &APIError{"transaction_changed", "SQL transaction behavior changed; submit again"})
+				return
+			}
+			if risk {
+				pending := c.manualTx != nil
+				if err := v.finishManualTransaction(s, c, e, true); err != nil {
+					failure(err, &APIError{"transaction_outcome_unknown", err.Error()})
+					return
+				}
+				v.publishTransaction(s, c, e, "implicit_commit")
+				if pending {
+					v.update(s, e, func(x *ExecutionView) { x.Transaction.PriorCommitted = true })
+				}
+			} else {
+				if err := sqlservice.CheckTransactionTables(e.ctx, c.conn, sqlservice.Dialect(s.grant.Config.Dialect), statement, current); err != nil {
+					failure(err, &APIError{"transaction_table_unsupported", "Manual writes require verifiable transactional base tables"})
+					return
+				}
+				if err := v.beginManualTransaction(s, c, e); err != nil {
+					failure(err, safeDatabaseError(err))
+					return
+				}
+			}
+		}
+		userSQLStarted = true
 		currentInFlight = true
 		databaseTouched.Store(true)
 		if e.planMode != "" {
@@ -684,8 +838,36 @@ func (v *Server) run(s *session, c *console, e *execution) {
 				x.StatementResults = append(x.StatementResults, StatementResult{RowsAffected: strconv.FormatInt(affected, 10)})
 			})
 		}
+		if c.manual && e.planMode == "" {
+			risk, _ := sqlservice.ManualTransactionRisk(sqlservice.Dialect(s.grant.Config.Dialect), statement)
+			if risk {
+				state, probeErr := editTransactionState(e.ctx, c, s.grant.Config.Dialect)
+				if probeErr != nil || state != editTxIdle {
+					invalidateEditConnection(s, c)
+					v.publishTransaction(s, c, e, "unknown")
+					failure(errors.New("transaction_outcome_unknown"), &APIError{"transaction_outcome_unknown", "SQL left an unverified transaction state; reconnect and verify the data"})
+					return
+				}
+			}
+		}
 		currentInFlight = false
 		completedStatements++
+		// Some MySQL statements (notably a lone SLEEP) return a normal result
+		// after KILL QUERY. A requested cancellation still rolls back the owned
+		// manual transaction before we report completion.
+		if c.manualTx != nil && (e.cancelRequested.Load() || e.ctx.Err() != nil) {
+			failure(context.Canceled, &APIError{"query_canceled", "Query cancellation requested"})
+			return
+		}
+	}
+	if c.manual && e.planMode == "" {
+		outcome := ""
+		if tx := e.snapshot().Transaction; tx != nil {
+			outcome = tx.Outcome
+		}
+		// Every successful submission changes the confirmation snapshot, even
+		// when it reused the same open transaction.
+		v.publishTransaction(s, c, e, outcome)
 	}
 	v.update(s, e, func(x *ExecutionView) { x.Status = "succeeded" })
 }

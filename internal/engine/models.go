@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"database/sql"
+	"database/sql/driver"
 	"encoding/hex"
 	"os"
 	"sync"
@@ -27,6 +28,8 @@ type Options struct {
 	MaxRows        int
 	MaxResultBytes int
 	QueryTimeout   time.Duration
+	// Zero uses the five-minute default; a negative value disables idle rollback.
+	TransactionIdleTimeout time.Duration
 }
 type APIError struct {
 	Code    string `json:"code"`
@@ -54,10 +57,11 @@ type SessionView struct {
 	CancellationMode string      `json:"cancellation_mode,omitempty"`
 }
 type ConsoleView struct {
-	ID       string `json:"id"`
-	Database string `json:"database"`
-	Schema   string `json:"schema"`
-	State    string `json:"state"`
+	Transaction *TransactionView `json:"transaction,omitempty"`
+	ID          string           `json:"id"`
+	Database    string           `json:"database"`
+	Schema      string           `json:"schema"`
+	State       string           `json:"state"`
 }
 type StatementResult struct {
 	ResultID     string `json:"result_id,omitempty"`
@@ -65,6 +69,7 @@ type StatementResult struct {
 	RowsAffected string `json:"rows_affected,omitempty"`
 }
 type ExecutionView struct {
+	Transaction      *TransactionOutcome      `json:"transaction,omitempty"`
 	QueryCount       *QueryCount              `json:"query_count,omitempty"`
 	BrowseCount      *BrowseCount             `json:"browse_count,omitempty"`
 	Plan             *PlanIdentity            `json:"plan,omitempty"`
@@ -120,39 +125,47 @@ type Event struct {
 }
 
 type execution struct {
-	queryPage       *queryPagePlan // immutable submitted operation
-	querySource     *queryPagePlan // worker-owned source snapshot
-	planMode        string         // immutable intent; original SQL stays in sql
-	planSQL         string         // guarded by mu; omitted from small SSE snapshots
-	planResult      *ExecutionPlan // guarded by mu, immutable after publication
-	edit            *editPlan      // immutable plan, consumed under console lock
-	browse          *editBrowse
-	resultAnalysis  *sqlanalysis.Statement
-	resultSQL       string     // worker-owned original SQL for result provenance
-	export          *exportJob // immutable after queue publication
-	mu              sync.RWMutex
-	view            ExecutionView
-	sql             string
-	documentVersion int // immutable editor version bound at submission
-	ctx             context.Context
-	cancel          context.CancelFunc
-	cancelDone      chan struct{}
-	cancelOnce      sync.Once
-	cancelRequested atomic.Bool
-	deadlineExpired atomic.Bool
-	submitReview    bool
-	confirmWarnings bool
-	deadlineTimer   *time.Timer
-	deadlineAt      time.Time
-	remaining       time.Duration
-	deadlinePaused  bool
-	policyWarnings  map[string]jumpserver.AuthorizationDecision // worker-owned; original SQL -> matched policy
+	transactionAction     string
+	transactionOnPending  string
+	transactionRevision   uint64
+	confirmImplicitCommit bool
+	queryPage             *queryPagePlan // immutable submitted operation
+	querySource           *queryPagePlan // worker-owned source snapshot
+	planMode              string         // immutable intent; original SQL stays in sql
+	planSQL               string         // guarded by mu; omitted from small SSE snapshots
+	planResult            *ExecutionPlan // guarded by mu, immutable after publication
+	edit                  *editPlan      // immutable plan, consumed under console lock
+	browse                *editBrowse
+	resultAnalysis        *sqlanalysis.Statement
+	resultSQL             string     // worker-owned original SQL for result provenance
+	export                *exportJob // immutable after queue publication
+	mu                    sync.RWMutex
+	view                  ExecutionView
+	sql                   string
+	documentVersion       int // immutable editor version bound at submission
+	ctx                   context.Context
+	cancel                context.CancelFunc
+	cancelDone            chan struct{}
+	cancelOnce            sync.Once
+	cancelRequested       atomic.Bool
+	deadlineExpired       atomic.Bool
+	submitReview          bool
+	confirmWarnings       bool
+	deadlineTimer         *time.Timer
+	deadlineAt            time.Time
+	remaining             time.Duration
+	deadlinePaused        bool
+	policyWarnings        map[string]jumpserver.AuthorizationDecision // worker-owned; original SQL -> matched policy
 }
 
 func (e *execution) snapshot() ExecutionView {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 	v := e.view
+	if v.Transaction != nil {
+		transaction := *v.Transaction
+		v.Transaction = &transaction
+	}
 	if v.Plan != nil {
 		identity := *v.Plan
 		v.Plan = &identity
@@ -175,19 +188,23 @@ func terminal(s string) bool {
 }
 
 type console struct {
-	id             string
-	conn           *sql.Conn
-	context        sqlservice.Context
-	mu             sync.Mutex // physical connection: execution, metadata and context are mutually exclusive
-	queue          chan *execution
-	ctx            context.Context
-	cancel         context.CancelFunc
-	lost           atomic.Bool
-	closed         atomic.Bool
-	requests       map[string]*execution // protected by session.mu
-	backendID      int64
-	ownedDB        *sql.DB
-	catalogAuditAt map[string]time.Time // protected by console.mu
+	manual              bool      // protected by mu
+	manualTx            driver.Tx // worker-owned on the pinned physical connection
+	transaction         atomic.Pointer[TransactionView]
+	transactionActivity time.Time // last completed SQL/grid execution, protected by mu
+	id                  string
+	conn                *sql.Conn
+	context             sqlservice.Context
+	mu                  sync.Mutex // physical connection: execution, metadata and context are mutually exclusive
+	queue               chan *execution
+	ctx                 context.Context
+	cancel              context.CancelFunc
+	lost                atomic.Bool
+	closed              atomic.Bool
+	requests            map[string]*execution // protected by session.mu
+	backendID           int64
+	ownedDB             *sql.DB
+	catalogAuditAt      map[string]time.Time // protected by console.mu
 }
 type session struct {
 	editPlans      map[string]*editPlan // protected by mu; bounded, never client-owned SQL

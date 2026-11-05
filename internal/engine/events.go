@@ -46,13 +46,7 @@ func (v *Server) events(w http.ResponseWriter, r *http.Request) {
 		}
 		consoles := []ConsoleView{}
 		for _, c := range s.consoles {
-			state := "ready"
-			if c.closed.Load() {
-				state = "closed"
-			} else if c.lost.Load() {
-				state = "lost"
-			}
-			consoles = append(consoles, ConsoleView{c.id, c.context.Database, c.context.Schema, state})
+			consoles = append(consoles, c.view())
 		}
 		sort.Slice(consoles, func(i, j int) bool { return consoles[i].ID < consoles[j].ID })
 		sort.Slice(executions, func(i, j int) bool { return executions[i].ID < executions[j].ID })

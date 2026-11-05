@@ -35,6 +35,9 @@ func New(provider jumpserver.Provider, opts Options) *Server {
 	if opts.QueryTimeout <= 0 {
 		opts.QueryTimeout = time.Minute
 	}
+	if opts.TransactionIdleTimeout == 0 {
+		opts.TransactionIdleTimeout = 5 * time.Minute
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	v := &Server{provider: provider, opts: opts, sessions: make(map[[32]byte]*session), creations: make(map[[32]byte]*creation), ctx: ctx, cancel: cancel, shutdownDone: make(chan struct{}), catalogSlots: make(chan struct{}, 16), exportSlots: make(chan struct{}, 4), downloads: make(map[[32]byte]downloadTicket)}
 	v.exportDir, v.exportLock, v.exportInitErr = openExportStore(opts.StateDir)
@@ -574,7 +577,7 @@ func (v *Server) closeSession(s *session, reason string) {
 	s.emit("session.closed", map[string]string{"reason": reason})
 	s.cancel()
 	for _, c := range cs {
-		v.closeConsole(c)
+		v.closeConsole(s, c)
 	}
 	go func() {
 		defer v.cleanup.Done()
@@ -731,12 +734,13 @@ func (v *Server) createConsole(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.workers.Add(1)
+	c.transaction.Store(&TransactionView{Supported: supportsManualTransaction(s.grant.Config.Dialect), State: "idle", Revision: 1, IdleTimeoutSeconds: v.transactionIdleSeconds()})
 	s.consoles[c.id] = c
 	s.mu.Unlock()
 	ok = true
 	s.grant.Touch()
 	go v.worker(s, c)
-	writeJSON(w, 201, ConsoleView{c.id, req.Database, req.Schema, "ready"})
+	writeJSON(w, 201, c.view())
 }
 func (v *Server) findConsole(w http.ResponseWriter, r *http.Request, s *session) *console {
 	s.mu.Lock()
@@ -757,15 +761,18 @@ func (v *Server) findConsole(w http.ResponseWriter, r *http.Request, s *session)
 	}
 	return c
 }
-func (v *Server) closeConsole(c *console) {
+func (v *Server) closeConsole(s *session, c *console) {
 	if c.closed.Swap(true) {
 		return
 	}
+	s.workers.Add(1)
 	c.cancel()
 	go func() {
+		defer s.workers.Done()
 		c.mu.Lock()
 		defer c.mu.Unlock()
 		if c.conn != nil {
+			v.closeManualTransaction(s, c)
 			_ = c.conn.Close()
 		}
 		if c.ownedDB != nil {
@@ -782,11 +789,10 @@ func (v *Server) deleteConsole(w http.ResponseWriter, r *http.Request) {
 	c := s.consoles[r.PathValue("cid")]
 	if c != nil {
 		delete(s.consoles, c.id)
+		// Register cleanup before session shutdown can wait on the workers.
+		v.closeConsole(s, c)
 	}
 	s.mu.Unlock()
-	if c != nil {
-		v.closeConsole(c)
-	}
 	w.WriteHeader(204)
 }
 func positiveInt(value string, def, max int) int {
