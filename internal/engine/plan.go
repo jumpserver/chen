@@ -239,7 +239,7 @@ func (v *Server) runEstimatedPlan(s *session, c *console, e *execution, command,
 			}
 			if cleanupErr != nil {
 				c.lost.Store(true)
-				s.emit("console.updated", ConsoleView{c.id, c.context.Database, c.context.Schema, "lost"})
+				s.emit("console.updated", c.view())
 				err = &APIError{"plan_connection_lost", "Plan savepoint cleanup failed; transaction state is unknown. Reconnect before continuing"}
 			} else if p != nil {
 				p.Effects.TransactionState = "PARTICIPATED"

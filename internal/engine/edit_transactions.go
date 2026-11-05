@@ -160,6 +160,9 @@ func (b *editBoundary) restoreOracleTransaction() {
 
 func beginEditBoundary(ctx context.Context, c *console, dialect string) (*editBoundary, error) {
 	state, err := editTransactionState(ctx, c, dialect)
+	if err == nil && c.manualTx != nil && state != editTxFailed {
+		state = editTxActive
+	}
 	if err != nil {
 		return nil, editError("transaction_probe_failed", "Cannot verify transaction state; reconnect before saving")
 	}
@@ -233,9 +236,15 @@ func (b *editBoundary) rollback(ctx context.Context) error {
 }
 func invalidateEditConnection(s *session, c *console) {
 	c.lost.Store(true)
+	if current := c.transaction.Load(); current != nil {
+		view := *current
+		view.State = "unknown"
+		view.Revision++
+		c.transaction.Store(&view)
+	}
 	_ = c.conn.Raw(func(any) error { return driver.ErrBadConn })
 	_ = c.conn.Close()
-	s.emit("console.updated", ConsoleView{c.id, c.context.Database, c.context.Schema, "lost"})
+	s.emit("console.updated", c.view())
 }
 func editSafeFailure(err error) *APIError {
 	var api *APIError

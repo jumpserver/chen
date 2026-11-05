@@ -26,14 +26,25 @@ func (v *Server) runEdits(s *session, c *console, e *execution) {
 		defer stop()
 		cancelBackend(ctx, s, c, e)
 	})
-	defer func() {
+	cancelJoined := false
+	joinCancel := func() {
+		if cancelJoined {
+			return
+		}
+		cancelJoined = true
 		if !stopCancel() {
 			<-cancelDone
 		}
+	}
+	defer func() {
+		joinCancel()
 		e.stopDeadline()
 		e.cancel()
 		if e.cancelRequested.Load() {
 			<-e.cancelDone
+		}
+		if touched.Load() && c.manualTx != nil {
+			c.transactionActivity = time.Now()
 		}
 		c.mu.Unlock()
 	}()
@@ -48,6 +59,9 @@ func (v *Server) runEdits(s *session, c *console, e *execution) {
 			outcome = view.Edit.Outcome
 		}
 		audit.Output = fmt.Sprintf("execution_id=%s edit_plan=%s state=%s outcome=%s", view.ID, e.edit.id, view.Status, outcome)
+		if view.Transaction != nil {
+			audit.Output += fmt.Sprintf(" transaction_mode=%t transaction_state=%s transaction_outcome=%s", view.Transaction.Manual, view.Transaction.State, view.Transaction.Outcome)
+		}
 		if view.Error != nil {
 			audit.Error = audit.Output + "; " + view.Error.Message
 		}
@@ -74,9 +88,22 @@ func (v *Server) runEdits(s *session, c *console, e *execution) {
 		}
 	}()
 	failEdit := func(err error) {
+		if c.manual && touched.Load() && c.manualTx != nil {
+			joinCancel()
+			if e.cancelRequested.Load() {
+				<-e.cancelDone
+			}
+			if cleanupErr := v.finishManualTransaction(s, c, e, false); cleanupErr != nil {
+				err = cleanupErr
+			}
+		}
 		status := "failed"
 		if e.ctx.Err() != nil || e.cancelRequested.Load() {
 			status = "canceled"
+		}
+		if api := editSafeFailure(err); api.Code == "transaction_outcome_unknown" {
+			status = "unknown"
+			v.update(s, e, func(x *ExecutionView) { x.Edit.Outcome = "unknown"; x.Edit.RefreshRequired = true })
 		}
 		v.update(s, e, func(x *ExecutionView) { x.Status = status; x.Error = editSafeFailure(err) })
 	}
@@ -147,6 +174,13 @@ func (v *Server) runEdits(s *session, c *console, e *execution) {
 	}
 	started := time.Now()
 	v.update(s, e, func(x *ExecutionView) { x.Status = "running"; x.StartedAt = &started })
+	if err := v.beginManualTransaction(s, c, e); err != nil {
+		failEdit(err)
+		return
+	}
+	if c.manual {
+		touched.Store(true)
+	}
 	boundary, err := beginEditBoundary(e.ctx, c, s.grant.Config.Dialect)
 	if err != nil {
 		failEdit(err)
@@ -154,6 +188,15 @@ func (v *Server) runEdits(s *session, c *console, e *execution) {
 	}
 	touched.Store(true)
 	rollback := func(cause error) {
+		if c.manual {
+			// A manual-mode error rolls back the entire user transaction, not
+			// just the grid savepoint. A doomed SQL Server transaction can no
+			// longer roll back to a savepoint but can still roll back in full.
+			boundary.restoreOracleTransaction()
+			v.update(s, e, func(x *ExecutionView) { x.Edit.Outcome = "rolled_back" })
+			failEdit(cause)
+			return
+		}
 		cleanup, done := context.WithTimeout(context.Background(), 5*time.Second)
 		rollbackErr := boundary.rollback(cleanup)
 		done()
@@ -227,6 +270,9 @@ func (v *Server) runEdits(s *session, c *console, e *execution) {
 	s.mu.Lock()
 	result.editStale = true
 	s.mu.Unlock()
+	if c.manual {
+		v.publishTransaction(s, c, e, "")
+	}
 	v.update(s, e, func(x *ExecutionView) {
 		x.Status = "succeeded"
 		x.Edit.ChangesApplied = true

@@ -41,7 +41,7 @@ func main() {
 type options struct {
 	listen, wisp, state, origins, ca, serverName, backends, webDir string
 	single, plaintext, insecureBackends                            bool
-	timeout, startupTimeout                                        time.Duration
+	timeout, startupTimeout, transactionIdleTimeout                time.Duration
 	rows, bytes                                                    int
 }
 
@@ -51,7 +51,7 @@ func parseOptions(args []string) (options, error) {
 		o.single = true
 		args = args[1:]
 	}
-	var startupTimeout string
+	var startupTimeout, transactionIdleTimeout string
 	flags := flag.NewFlagSet("chen-go [single]", flag.ContinueOnError)
 	flags.StringVar(&startupTimeout, "startup-timeout", env("CHEN_STARTUP_TIMEOUT", "120s"), "Maximum wait for Wisp initialization (managed mode only)")
 	flags.BoolVar(&o.single, "single", o.single, "Run independently using a local backend file; no Core or Wisp")
@@ -67,6 +67,7 @@ func parseOptions(args []string) (options, error) {
 	flags.BoolVar(&o.insecureBackends, "allow-insecure-backend-file", false, "Allow group/other permissions on the backend file")
 	flags.StringVar(&o.webDir, "web-dir", "", "Single mode Luna static output directory (pnpm generate:chen)")
 	flags.DurationVar(&o.timeout, "query-timeout", time.Minute, "Maximum queued plus running time per execution")
+	flags.StringVar(&transactionIdleTimeout, "transaction-idle-timeout", env("CHEN_TRANSACTION_IDLE_TIMEOUT", "5m"), "Roll back an idle manual transaction after this duration; 0 disables")
 	flags.IntVar(&o.rows, "max-rows", 10000, "Maximum retained rows per result set")
 	flags.IntVar(&o.bytes, "max-result-bytes", 16<<20, "Maximum retained row data bytes per session")
 	if err := flags.Parse(args); err != nil {
@@ -74,6 +75,14 @@ func parseOptions(args []string) (options, error) {
 	}
 	if flags.NArg() != 0 {
 		return o, errors.New("unexpected command argument")
+	}
+	var idleErr error
+	o.transactionIdleTimeout, idleErr = time.ParseDuration(transactionIdleTimeout)
+	if idleErr != nil || o.transactionIdleTimeout < 0 {
+		return o, errors.New("invalid_transaction_idle_timeout")
+	}
+	if o.transactionIdleTimeout == 0 {
+		o.transactionIdleTimeout = -1
 	}
 	if !o.single {
 		var err error
@@ -160,7 +169,7 @@ func run() error {
 			trusted = append(trusted, s)
 		}
 	}
-	app := engine.New(provider, engine.Options{SingleMode: o.single, StateDir: o.state, AllowedOrigins: trusted, QueryTimeout: o.timeout, MaxRows: o.rows, MaxResultBytes: o.bytes})
+	app := engine.New(provider, engine.Options{SingleMode: o.single, StateDir: o.state, AllowedOrigins: trusted, QueryTimeout: o.timeout, TransactionIdleTimeout: o.transactionIdleTimeout, MaxRows: o.rows, MaxResultBytes: o.bytes})
 	handler, closeWeb, err := webHandler(app.Handler(), o)
 	if err != nil {
 		app.Close()
