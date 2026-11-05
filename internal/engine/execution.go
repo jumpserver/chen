@@ -795,7 +795,7 @@ func (v *Server) collectResults(s *session, e *execution, rows *sql.Rows) error 
 			s.mu.Unlock()
 			v.update(s, e, func(x *ExecutionView) {
 				x.ResultIDs = append(x.ResultIDs, result.ID)
-				x.StatementResults = append(x.StatementResults, StatementResult{ResultID: result.ID})
+				x.StatementResults = append(x.StatementResults, StatementResult{ResultID: result.ID, SourceSQL: result.SourceSQL})
 			})
 		}
 	}()
