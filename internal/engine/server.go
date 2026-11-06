@@ -362,7 +362,7 @@ func (v *Server) createSession(w http.ResponseWriter, r *http.Request) {
 				cleanup, stop := context.WithTimeout(context.Background(), 10*time.Second)
 				_ = v.provider.Close(cleanup, g)
 				stop()
-				failure := &APIError{"connection_failed", "Database connection could not be established"}
+				failure := safeConnectionError(err, "Database connection could not be established")
 				if errors.Is(err, jumpserver.ErrAuditDisk) {
 					failure = &APIError{"audit_persistence_failed", "Audit storage is unavailable; SQL was not sent"}
 				}
@@ -393,7 +393,7 @@ func (v *Server) createSession(w http.ResponseWriter, r *http.Request) {
 		switch api.Code {
 		case "session_closed":
 			status = 410
-		case "connection_failed", "token_exchange_failed":
+		case "connection_failed", "database_tls_error", "token_exchange_failed":
 			status = 502
 		case "server_stopping", "audit_persistence_failed", "session_control_not_ready", "session_control_unavailable":
 			status = 503
@@ -707,7 +707,8 @@ func (v *Server) createConsole(w http.ResponseWriter, r *http.Request) {
 		if owned != nil {
 			_ = owned.Close()
 		}
-		fail(w, 502, "connection_failed", "Unable to open console connection")
+		diagnostic := safeConnectionError(err, "Unable to open console connection")
+		fail(w, 502, diagnostic.Code, diagnostic.Message)
 		return
 	}
 	ok := false

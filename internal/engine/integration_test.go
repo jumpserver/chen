@@ -401,7 +401,22 @@ func TestBrowserFixture(t *testing.T) {
 	if dialect != "mysql" && dialect != "postgresql" {
 		t.Fatal("CHEN_BROWSER_DIALECT must be mysql or postgresql")
 	}
-	cfg := integrationDatabase(t, dialect)
+	var cfg jumpserver.ConnectionConfig
+	if selector := os.Getenv("CHEN_BROWSER_TLS_SELECTOR"); selector != "" {
+		for _, b := range readonlyBackends(t) {
+			if b.Selector == selector {
+				cfg = readonlyDriverConfig(b)
+			}
+		}
+		// This opt-in path creates a table, so never accept arbitrary backend
+		// configurations or remote/user databases as browser test fixtures.
+		ip := net.ParseIP(cfg.Host)
+		if ip == nil || !ip.IsLoopback() || cfg.Database != "tls_test" || cfg.Dialect != dialect || !cfg.TLS.Enabled {
+			t.Fatal("TLS browser fixture must be the isolated loopback tls_test database")
+		}
+	} else {
+		cfg = integrationDatabase(t, dialect)
+	}
 	db, err := openDatabase(cfg, 1)
 	if err != nil {
 		t.Fatal("browser fixture database configuration failed")
@@ -410,6 +425,7 @@ func TestBrowserFixture(t *testing.T) {
 	if _, err = db.Exec("CREATE TABLE chen_browser_items (id BIGINT PRIMARY KEY, name VARCHAR(100), note VARCHAR(100))"); err != nil {
 		t.Fatal("browser fixture schema failed")
 	}
+	defer db.Exec("DROP TABLE chen_browser_items")
 	if _, err = db.Exec("INSERT INTO chen_browser_items VALUES (9007199254740993, '数据库工作台', NULL)"); err != nil {
 		t.Fatal("browser fixture seed failed")
 	}
