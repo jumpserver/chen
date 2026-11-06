@@ -5,8 +5,10 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"database/sql"
+	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"strconv"
@@ -41,10 +43,7 @@ func makeTLS(c jumpserver.ConnectionConfig) (*tls.Config, error) {
 		t.ServerName = c.Host
 	}
 	if c.TLS.CACert != "" {
-		pool, err := x509.SystemCertPool()
-		if err != nil {
-			pool = x509.NewCertPool()
-		}
+		pool := x509.NewCertPool()
 		if !pool.AppendCertsFromPEM([]byte(c.TLS.CACert)) {
 			return nil, errors.New("invalid database CA certificate")
 		}
@@ -59,7 +58,7 @@ func makeTLS(c jumpserver.ConnectionConfig) (*tls.Config, error) {
 	// libpq require guarantees encryption; a supplied root CA also verifies the
 	// chain, without hostname validation. verify-full uses Go's normal hostname
 	// and chain verification. No plaintext fallback is configured.
-	if mode == "verify-ca" || (mode == "require" && c.TLS.CACert != "") {
+	if mode == "verify-ca" || ((mode == "require" || mode == "prefer" || mode == "allow") && c.TLS.CACert != "") {
 		t.InsecureSkipVerify = true
 		t.VerifyConnection = func(state tls.ConnectionState) error {
 			if len(state.PeerCertificates) == 0 {
@@ -87,7 +86,7 @@ func makeTLS(c jumpserver.ConnectionConfig) (*tls.Config, error) {
 func openDatabase(c jumpserver.ConnectionConfig, max int) (*sql.DB, error) {
 	t, err := makeTLS(c)
 	if err != nil {
-		return nil, err
+		return nil, databaseTLSError{err}
 	}
 	var db *sql.DB
 	switch strings.ToLower(c.Dialect) {
@@ -128,7 +127,7 @@ func openDatabase(c jumpserver.ConnectionConfig, max int) (*sql.DB, error) {
 		}
 		cfg.TLSConfig = t
 		cfg.Fallbacks = nil
-		configurePostgresTLSFallback(cfg, c, t)
+		configurePostgresTransport(cfg, c, t)
 		cfg.SSLNegotiation = "postgres"
 		cfg.ConnectTimeout = 10 * time.Second
 		cfg.RuntimeParams = map[string]string{"application_name": "Chen Go"}
@@ -149,23 +148,102 @@ func openDatabase(c jumpserver.ConnectionConfig, max int) (*sql.DB, error) {
 	return db, nil
 }
 
-// Only an explicit Core/local sslmode=prefer or allow permits a plaintext
-// alternative. All other modes retain their single encrypted/plaintext path.
-func configurePostgresTLSFallback(cfg *pgx.ConnConfig, c jumpserver.ConnectionConfig, t *tls.Config) {
+// Negotiate in DialFunc so pgx cancellation uses the same protected transport.
+// pgx's generic TLS fallback retries certificate failures in plaintext, and its
+// default CancelRequest opens a plain socket even for a TLS-authenticated session.
+func configurePostgresTransport(cfg *pgx.ConnConfig, c jumpserver.ConnectionConfig, t *tls.Config) {
 	if !c.TLS.Enabled || t == nil {
 		return
 	}
-	switch strings.ToLower(strings.TrimSpace(c.TLS.Mode)) {
-	case "prefer":
-		cfg.Fallbacks = []*pgconn.FallbackConfig{{Host: c.Host, Port: uint16(c.Port)}}
-	case "allow":
+	mode := strings.ToLower(strings.TrimSpace(c.TLS.Mode))
+	if mode == "allow" {
+		// Legacy standalone-only plaintext-first mode; not an asset UI choice.
 		cfg.TLSConfig = nil
 		cfg.Fallbacks = []*pgconn.FallbackConfig{{Host: c.Host, Port: uint16(c.Port), TLSConfig: t}}
+		return
+	}
+	dial := cfg.DialFunc
+	cfg.TLSConfig, cfg.Fallbacks = nil, nil
+	cfg.DialFunc = func(ctx context.Context, network, address string) (net.Conn, error) {
+		conn, err := dial(ctx, network, address)
+		if err != nil {
+			return nil, err
+		}
+		secure, err := postgresTLSConnection(ctx, conn, t, mode == "prefer")
+		if err != nil {
+			conn.Close()
+			return nil, databaseTLSError{err}
+		}
+		return secure, nil
 	}
 }
+
+func postgresTLSConnection(ctx context.Context, conn net.Conn, cfg *tls.Config, prefer bool) (net.Conn, error) {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	deadline, _ := ctx.Deadline()
+	if err := conn.SetDeadline(deadline); err != nil {
+		return nil, err
+	}
+	stopped := make(chan struct{})
+	stop := context.AfterFunc(ctx, func() { _ = conn.SetDeadline(time.Now()); close(stopped) })
+	defer func() {
+		if !stop() {
+			<-stopped
+		}
+		_ = conn.SetDeadline(time.Time{})
+	}()
+	request := make([]byte, 8)
+	binary.BigEndian.PutUint32(request[:4], 8)
+	binary.BigEndian.PutUint32(request[4:], 80877103)
+	for len(request) > 0 {
+		n, err := conn.Write(request)
+		if err != nil {
+			return nil, err
+		}
+		if n == 0 {
+			return nil, io.ErrShortWrite
+		}
+		request = request[n:]
+	}
+	var reply [1]byte
+	if _, err := io.ReadFull(conn, reply[:]); err != nil {
+		return nil, err
+	}
+	if reply[0] == 'N' && prefer {
+		return conn, nil
+	}
+	if reply[0] != 'S' {
+		return nil, errors.New("PostgreSQL backend refused TLS")
+	}
+	secure := tls.Client(conn, cfg)
+	if err := secure.HandshakeContext(ctx); err != nil {
+		return nil, err
+	}
+	return secure, nil
+}
+
+type databaseTLSError struct{ error }
+
+func safeConnectionError(err error, message string) *APIError {
+	if diagnostic := safeDatabaseError(err); diagnostic != nil && diagnostic.Code == "database_tls_error" {
+		return diagnostic
+	}
+	return &APIError{"connection_failed", message}
+}
+
 func safeDatabaseError(err error) *APIError {
 	if err == nil {
 		return nil
+	}
+	var configError databaseTLSError
+	var verificationError *tls.CertificateVerificationError
+	var hostnameError x509.HostnameError
+	var authorityError x509.UnknownAuthorityError
+	var invalidCertificate x509.CertificateInvalidError
+	if errors.As(err, &configError) || errors.As(err, &verificationError) || errors.As(err, &hostnameError) ||
+		errors.As(err, &authorityError) || errors.As(err, &invalidCertificate) {
+		return &APIError{"database_tls_error", "Database TLS failed; check the asset SSL mode, CA, certificate hostname/expiry and client certificate/key."}
 	}
 	// Driver errors are useful SQL diagnostics; connection strings and network
 	// errors are never reflected. SQL text is already owned by this session.

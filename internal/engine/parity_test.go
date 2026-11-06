@@ -117,16 +117,16 @@ func TestParityPostgresTLSPreferencesAreExplicit(t *testing.T) {
 		cfg, _ := pgx.ParseConfig("sslmode=disable")
 		cfg.TLSConfig = tls
 		cfg.Fallbacks = nil
-		configurePostgresTLSFallback(cfg, c, tls)
-		want := mode == "prefer" || mode == "allow"
+		configurePostgresTransport(cfg, c, tls)
+		want := mode == "allow"
 		if (len(cfg.Fallbacks) == 1) != want {
 			t.Fatal("unexpected fallback", mode)
 		}
 		if mode == "allow" && (cfg.TLSConfig != nil || cfg.Fallbacks[0].TLSConfig == nil) {
 			t.Fatal("allow order reversed")
 		}
-		if mode == "prefer" && (cfg.TLSConfig == nil || cfg.Fallbacks[0].TLSConfig != nil) {
-			t.Fatal("prefer order reversed")
+		if mode != "allow" && (cfg.TLSConfig != nil || cfg.DialFunc == nil) {
+			t.Fatal("TLS negotiation and cancellation must share a verified dialer")
 		}
 	}
 }

@@ -36,7 +36,7 @@ func readonlyBackends(t *testing.T) []standalone.BackendConfig {
 	return selected
 }
 func readonlyDriverConfig(b standalone.BackendConfig) jumpserver.ConnectionConfig {
-	return jumpserver.ConnectionConfig{Dialect: b.Protocol, Host: b.Host, Port: b.Port, User: b.User, Password: b.Password, Database: b.Database, Schema: b.Schema, Transport: b.Transport, TLS: jumpserver.TLSConfig{Enabled: b.UseSSL, InsecureSkipVerify: b.AllowInvalidCert}}
+	return jumpserver.ConnectionConfig{Dialect: b.Protocol, Host: b.Host, Port: b.Port, User: b.User, Password: b.Password, Database: b.Database, Schema: b.Schema, Transport: b.Transport, TLS: jumpserver.TLSConfig{Enabled: b.UseSSL, InsecureSkipVerify: b.AllowInvalidCert, CACert: b.CACert, ClientCert: b.ClientCert, ClientKey: b.ClientKey, ServerName: b.ServerName, Mode: b.SSLMode}}
 }
 func readonlySafeError(b standalone.BackendConfig, err error) string {
 	if err == nil {
