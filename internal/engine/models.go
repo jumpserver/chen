@@ -194,8 +194,9 @@ type console struct {
 	transactionActivity time.Time // last completed SQL/grid execution, protected by mu
 	id                  string
 	conn                *sql.Conn
-	context             sqlservice.Context
-	mu                  sync.Mutex // physical connection: execution, metadata and context are mutually exclusive
+	context             sqlservice.Context                 // initial connection context
+	selectedContext     atomic.Pointer[sqlservice.Context] // published for SSE and AI readers
+	mu                  sync.Mutex                         // physical connection: execution, metadata and context are mutually exclusive
 	queue               chan *execution
 	ctx                 context.Context
 	cancel              context.CancelFunc

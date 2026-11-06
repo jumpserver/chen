@@ -346,7 +346,8 @@ func (v *Server) run(s *session, c *console, e *execution) {
 	if e.planMode != "" {
 		e.mu.Lock()
 		identity := *e.view.Plan
-		identity.Database, identity.Schema = c.context.Database, c.context.Schema
+		scope := c.currentContext()
+		identity.Database, identity.Schema = scope.Database, scope.Schema
 		e.view.Plan = &identity
 		e.mu.Unlock()
 	}
@@ -852,6 +853,16 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		}
 		currentInFlight = false
 		completedStatements++
+		// Read the actual scope on the pinned connection, including transaction rollback
+		// of a PostgreSQL search_path. Never publish the name requested by the client.
+		if sqlservice.ChangesConsoleContext(sqlservice.Dialect(s.grant.Config.Dialect), statement) {
+			scope, err := liveContext(e.ctx, c, s.grant.Config.Dialect)
+			if err != nil {
+				failure(err, safeDatabaseError(err))
+				return
+			}
+			c.publishContext(s, scope)
+		}
 		// Some MySQL statements (notably a lone SLEEP) return a normal result
 		// after KILL QUERY. A requested cancellation still rolls back the owned
 		// manual transaction before we report completion.

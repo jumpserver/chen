@@ -224,7 +224,8 @@ func resolveAIEditor(s *session, raw json.RawMessage) (aiEditorContext, error) {
 	if c == nil || c.closed.Load() || c.lost.Load() || e.NodeKey != c.id || e.WorkspaceTabKind != "query" {
 		return e, errors.New("An active SQL query console is required")
 	}
-	if e.Database != c.context.Database || e.Schema != c.context.Schema || e.Dialect != s.grant.Config.Dialect {
+	scope := c.currentContext()
+	if e.Database != scope.Database || e.Schema != scope.Schema || e.Dialect != s.grant.Config.Dialect {
 		return e, errors.New("SQL editor scope changed; refresh the editor context")
 	}
 	if e.Revision < 0 || len(e.DocumentSQL) > aiMaxSQL || e.SelectionFrom < 0 || e.SelectionTo < e.SelectionFrom {

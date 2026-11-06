@@ -52,7 +52,8 @@ func (c *console) view() ConsoleView {
 	} else if c.lost.Load() {
 		state = "lost"
 	}
-	return ConsoleView{ID: c.id, Database: c.context.Database, Schema: c.context.Schema, State: state, Transaction: c.transaction.Load()}
+	scope := c.currentContext()
+	return ConsoleView{ID: c.id, Database: scope.Database, Schema: scope.Schema, State: state, Transaction: c.transaction.Load()}
 }
 
 func (v *Server) publishTransaction(s *session, c *console, e *execution, outcome string) {

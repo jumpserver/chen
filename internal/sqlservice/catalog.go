@@ -389,3 +389,38 @@ func catalogLimit(limit int) int {
 	}
 	return limit
 }
+
+// ConsoleContextNames lists the namespaces the connected principal can select.
+// The object tree remains scoped to its configured database.
+func ConsoleContextNames(ctx context.Context, conn *sql.Conn, d Dialect, database, after string, limit int) ([]string, error) {
+	names := []string{}
+	limit = catalogLimit(limit)
+	var query string
+	switch {
+	case IsMySQLDialect(d):
+		query = "SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE BINARY SCHEMA_NAME > BINARY ? ORDER BY BINARY SCHEMA_NAME LIMIT ?"
+	case d == ClickHouse:
+		query = "SELECT name FROM system.databases WHERE name > ? ORDER BY name LIMIT ?"
+	case d == SQLServer:
+		query = "SELECT TOP (@p2) name FROM sys.databases WHERE HAS_DBACCESS(name) = 1 AND name COLLATE Latin1_General_BIN2 > @p1 ORDER BY name COLLATE Latin1_General_BIN2"
+	default:
+		schemas, err := SchemaRows(ctx, conn, d, database, after, limit)
+		for _, schema := range schemas {
+			names = append(names, schema.Name)
+		}
+		return names, err
+	}
+	rows, err := conn.QueryContext(ctx, query, after, limit+1)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		names = append(names, name)
+	}
+	return names, rows.Err()
+}

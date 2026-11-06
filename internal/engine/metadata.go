@@ -145,7 +145,7 @@ func (v *Server) auditCatalog(ctx context.Context, s *session, c *console, kind 
 }
 
 // Read live context: USE and SET search_path from user SQL must also affect
-// completion. The console's opening context is immutable for race-free snapshots.
+// completion. Only the database can confirm the active scope.
 func liveContext(ctx context.Context, c *console, dialect string) (sqlservice.Context, error) {
 	return connectionContext(ctx, c.conn, dialect, c.context)
 }

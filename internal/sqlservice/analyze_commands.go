@@ -15,6 +15,11 @@ func analyzeCommandDocument(d Dialect, document string, options AnalyzeOptions) 
 		if err != nil {
 			return "", false, false, err
 		}
+		// OceanBase Oracle uses this session statement to switch the console schema.
+		if d == OceanBaseOracle && len(ts) == 6 && commandIs(ts[0], "ALTER") && commandIs(ts[1], "SESSION") &&
+			commandIs(ts[2], "SET") && commandIs(ts[3], "CURRENT_SCHEMA") && ts[4].kind == '=' && ts[5].ident() {
+			return "session", false, false, nil
+		}
 		if err := validateCommandBoundaries(d, document, ts, kind, at); err != nil {
 			return "", false, false, err
 		}
@@ -96,6 +101,41 @@ func analyzeCommandDocument(d Dialect, document string, options AnalyzeOptions) 
 		}
 		return strings.ToLower(kind), rows, write, nil
 	})
+}
+
+// ChangesConsoleContext restricts readback to namespace commands. In particular,
+// a probe after BEGIN or SET TRANSACTION could establish a premature PG snapshot.
+func ChangesConsoleContext(d Dialect, stmt Statement) bool {
+	if stmt.Kind == "use" {
+		return true
+	}
+	switch stmt.Kind {
+	case "session", "variableset", "set", "transaction", "ddl", "alter", "discard":
+	default:
+		return false
+	}
+	var head [3]token
+	i := 0
+	for _, t := range lex(stmt.SQL, d) {
+		if t.kind == 'c' {
+			continue
+		}
+		head[i] = t
+		i++
+		if i == len(head) {
+			break
+		}
+	}
+	switch {
+	case commandIs(head[0], "USE"), commandIs(head[0], "ALTER") && commandIs(head[1], "SESSION"):
+		return true
+	case commandIs(head[0], "SET"):
+		return commandIs(head[1], "SCHEMA", "SEARCH_PATH", "ROLE") ||
+			commandIs(head[1], "CURRENT", "LOCAL", "SESSION") && commandIs(head[2], "SCHEMA", "SEARCH_PATH", "ROLE", "AUTHORIZATION")
+	case d == PostgreSQL:
+		return commandIs(head[0], "COMMIT", "END", "ROLLBACK", "ABORT", "DISCARD", "RESET")
+	}
+	return false
 }
 
 func commandIs(t token, choices ...string) bool {
