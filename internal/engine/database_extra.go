@@ -28,6 +28,7 @@ func extraDatabase(c jumpserver.ConnectionConfig, t *tls.Config) (*sql.DB, error
 		cfg.Passwd = c.Password
 		cfg.DBName = c.Database
 		cfg.ParseTime = false
+		cfg.ClientFoundRows = c.Dialect == "oceanbase-mysql"
 		cfg.Timeout = 10 * time.Second
 		cfg.ReadTimeout = 2 * time.Minute
 		cfg.WriteTimeout = 15 * time.Second

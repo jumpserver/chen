@@ -147,7 +147,6 @@ func AnalyzeEditableQuery(d Dialect, document string, opts AnalyzeOptions) (Edit
 	if next < len(ts) && !editTailStart(ts[next]) {
 		return fail("unsupported table source")
 	}
-	seenColumns, seenLabels := map[string]bool{}, map[string]bool{}
 	for start := projectionStart; start < from; {
 		end := start
 		for end < from && ts[end].kind != ',' {
@@ -189,11 +188,8 @@ func AnalyzeEditableQuery(d Dialect, document string, opts AnalyzeOptions) (Edit
 		if consumed != len(item) {
 			return fail("projection expression")
 		}
-		key, label := editNameKey(col.Name, d), editNameKey(col.Label, d)
-		if seenColumns[key] || seenLabels[label] {
-			return fail("ambiguous projection")
-		}
-		seenColumns[key], seenLabels[label] = true, true
+		// Ordinals identify result columns even when labels repeat. Resolve
+		// duplicate source columns against canonical table metadata before editing.
 		out.Columns = append(out.Columns, col)
 		if end+1 == from {
 			return fail("empty trailing projection")

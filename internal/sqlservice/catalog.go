@@ -177,7 +177,46 @@ ORDER BY n.nspname COLLATE pg_catalog."C", c.relname COLLATE pg_catalog."C" LIMI
 }
 
 func ColumnRows(ctx context.Context, conn *sql.Conn, dialect Dialect, req CatalogColumnRequest) ([]CatalogColumn, error) {
+	return columnRows(ctx, conn, dialect, req, false)
+}
+
+// Table operations need the complete definition, not the first directory page.
+// The caller has checked access and owns one deadline for all metadata reads.
+func tableColumnRows(ctx context.Context, conn *sql.Conn, dialect Dialect, req CatalogColumnRequest) ([]CatalogColumn, error) {
+	req.AfterOrdinal, req.Limit = 0, MaxCatalogPageSize
+	columns := []CatalogColumn{}
+	seen := map[string]bool{}
+	for {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		page, err := columnRows(ctx, conn, dialect, req, true)
+		if err != nil {
+			return nil, err
+		}
+		for _, column := range page {
+			if column.Ordinal <= req.AfterOrdinal || column.Name == "" || seen[column.Name] {
+				return nil, fmt.Errorf("column metadata changed while reading the table")
+			}
+			seen[column.Name] = true
+			// Ordinals may have gaps after dropped or inaccessible columns.
+			req.AfterOrdinal = column.Ordinal
+			columns = append(columns, column)
+		}
+		if len(page) <= MaxCatalogPageSize {
+			return columns, ctx.Err()
+		}
+	}
+}
+
+// accessChecked only reuses database/object checks from this operation on this
+// connection. Input validation and the metadata deadline still apply; no
+// authorization is cached across requests.
+func columnRows(ctx context.Context, conn *sql.Conn, dialect Dialect, req CatalogColumnRequest, accessChecked bool) ([]CatalogColumn, error) {
 	items := []CatalogColumn{}
+	if IsMySQLDialect(dialect) && req.Schema != "" {
+		req.Database = req.Schema
+	}
 	if err := validateCatalogInput(conn, dialect, req.Database, req.Schema, req.Table); err != nil {
 		return items, err
 	}
@@ -190,16 +229,18 @@ func ColumnRows(ctx context.Context, conn *sql.Conn, dialect Dialect, req Catalo
 	if req.Schema == "" {
 		return items, fmt.Errorf("catalog schema is required")
 	}
-	if systemCatalogSchema(req.Schema, dialect) || (IsMySQLDialect(dialect) || dialect == ClickHouse) && req.Schema != req.Database {
+	if systemCatalogSchema(req.Schema, dialect) || dialect == ClickHouse && req.Schema != req.Database {
 		return items, ErrCatalogForbidden
 	}
 	ctx, cancel := MetadataContext(ctx, dialect)
 	defer cancel()
-	if err := catalogDatabaseAccess(ctx, conn, dialect, req.Database); err != nil {
-		return items, err
-	}
-	if err := catalogObjectAccess(ctx, conn, dialect, req.Schema, req.Table); err != nil {
-		return items, err
+	if !accessChecked {
+		if err := catalogDatabaseAccess(ctx, conn, dialect, req.Database); err != nil {
+			return items, err
+		}
+		if err := catalogObjectAccess(ctx, conn, dialect, req.Schema, req.Table); err != nil {
+			return items, err
+		}
 	}
 	var rows *sql.Rows
 	var err error

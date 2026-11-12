@@ -11,8 +11,8 @@ import (
 	"github.com/jumpserver/chen/internal/jumpserver"
 )
 
-// A grid save is atomic, unlike a normal SQL script. Never route it through run's
-// sequential auto-commit statements or replay it after an uncertain commit.
+// Grid saves use a transaction or savepoint when supported by the table.
+// Never replay a save after an uncertain commit or a nontransactional failure.
 func (v *Server) runEdits(s *session, c *console, e *execution) {
 	c.mu.Lock()
 	var touched atomic.Bool
@@ -101,7 +101,7 @@ func (v *Server) runEdits(s *session, c *console, e *execution) {
 		if e.ctx.Err() != nil || e.cancelRequested.Load() {
 			status = "canceled"
 		}
-		if api := editSafeFailure(err); api.Code == "transaction_outcome_unknown" {
+		if api := editSafeFailure(err); api.Code == "transaction_outcome_unknown" || api.Code == "edit_nontransactional_failed" {
 			status = "unknown"
 			v.update(s, e, func(x *ExecutionView) { x.Edit.Outcome = "unknown"; x.Edit.RefreshRequired = true })
 		}
@@ -187,13 +187,37 @@ func (v *Server) runEdits(s *session, c *console, e *execution) {
 		return
 	}
 	touched.Store(true)
+	attempted := false
+	applied := 0
+	markNontransactionalFailure := func() {
+		s.mu.Lock()
+		result.editStale = true
+		s.mu.Unlock()
+		v.update(s, e, func(x *ExecutionView) {
+			x.Status = "unknown"
+			x.Error = editError("edit_nontransactional_failed", "The save failed on a nontransactional table. Some changes may already be saved; refresh and verify the data before saving again.")
+			x.Edit.Outcome = "unknown"
+			x.Edit.AffectedRows = applied
+			x.Edit.DatabaseCommitted = applied > 0
+			x.Edit.RefreshRequired = true
+		})
+	}
 	rollback := func(cause error) {
+		// A successful ROLLBACK does not undo changes to a nontransactional
+		// table. Do not report those changes as rolled back.
+		nontransactional := attempted && !resolved.table.Transactional
+		if nontransactional {
+			cause = editError("edit_nontransactional_failed", "The save failed on a nontransactional table. Some changes may already be saved; refresh and verify the data before saving again.")
+			defer markNontransactionalFailure()
+		}
 		if c.manual {
 			// A manual-mode error rolls back the entire user transaction, not
 			// just the grid savepoint. A doomed SQL Server transaction can no
 			// longer roll back to a savepoint but can still roll back in full.
 			boundary.restoreOracleTransaction()
-			v.update(s, e, func(x *ExecutionView) { x.Edit.Outcome = "rolled_back" })
+			if !nontransactional {
+				v.update(s, e, func(x *ExecutionView) { x.Edit.Outcome = "rolled_back" })
+			}
 			failEdit(cause)
 			return
 		}
@@ -210,7 +234,9 @@ func (v *Server) runEdits(s *session, c *console, e *execution) {
 			})
 			return
 		}
-		v.update(s, e, func(x *ExecutionView) { x.Edit.Outcome = "rolled_back" })
+		if !nontransactional {
+			v.update(s, e, func(x *ExecutionView) { x.Edit.Outcome = "rolled_back" })
+		}
 		failEdit(cause)
 	}
 	for _, command := range p.commands {
@@ -231,6 +257,7 @@ func (v *Server) runEdits(s *session, c *console, e *execution) {
 				}
 			}
 		}
+		attempted = true
 		result, execErr := boundary.exec(e.ctx, command.sql, command.args...)
 		if execErr != nil {
 			rollback(execErr)
@@ -238,9 +265,10 @@ func (v *Server) runEdits(s *session, c *console, e *execution) {
 		}
 		count, countErr := result.RowsAffected()
 		if countErr != nil || count != 1 {
-			rollback(editError("edit_conflict", "The original row values no longer match or cannot be verified. This entire save was rolled back; refresh the table or use SQL for values requiring native types"))
+			rollback(editError("edit_conflict", "The primary-key row was not found, or the operation did not affect exactly one row. This save was rolled back; refresh the data and try again."))
 			return
 		}
+		applied++
 	}
 	if e.ctx.Err() != nil || e.cancelRequested.Load() {
 		rollback(editError("edit_canceled", "Save was canceled and its changes were rolled back"))
@@ -276,11 +304,11 @@ func (v *Server) runEdits(s *session, c *console, e *execution) {
 	v.update(s, e, func(x *ExecutionView) {
 		x.Status = "succeeded"
 		x.Edit.ChangesApplied = true
-		x.Edit.DatabaseCommitted = boundary.tx != nil
+		x.Edit.DatabaseCommitted = boundary.tx != nil || !resolved.table.Transactional
 		x.Edit.AffectedRows = p.count
 		x.Edit.RefreshRequired = true
 		x.Edit.Outcome = "staged"
-		if boundary.tx != nil {
+		if x.Edit.DatabaseCommitted {
 			x.Edit.Outcome = "committed"
 		}
 		x.StatementResults = append(x.StatementResults, StatementResult{RowsAffected: fmt.Sprint(p.count)})

@@ -172,11 +172,11 @@ func (v *Server) resolveResultSource(ctx context.Context, s *session, c *console
 	if err != nil {
 		return x, errors.New("Database context is unavailable")
 	}
-	if r.editSourceBound && r.editDatabase != "" && r.editDatabase != scope.Database {
-		return x, errors.New("Switch back to this result's database or refresh the table before editing")
-	}
-	table, err := sqlservice.LoadCopyTable(ctx, c.conn, d, scope, source.Schema, source.Table)
+	table, err := loadResultSourceTable(ctx, s, c, r, scope, source)
 	if err != nil {
+		if c.lost.Load() {
+			return x, err
+		}
 		if errors.Is(err, sqlservice.ErrEditColumnFlagsUnknown) {
 			return x, sqlservice.ErrEditColumnFlagsUnknown
 		}
@@ -196,7 +196,7 @@ func (v *Server) resolveResultSource(ctx context.Context, s *session, c *console
 	if !source.Star && len(source.Columns) != len(r.Columns) {
 		return x, errors.New("The source of every result column must be known")
 	}
-	seen := map[string]bool{}
+	sourceCounts := map[string]int{}
 	for i := range r.Columns {
 		name := ""
 		if source.Star {
@@ -224,7 +224,7 @@ func (v *Server) resolveResultSource(ctx context.Context, s *session, c *console
 		if field != nil {
 			name = field.Name
 		}
-		if field == nil || seen[name] {
+		if field == nil {
 			return x, errors.New("Result columns are ambiguous or no longer match the table")
 		}
 		// The returned labels must agree with the proven projection. In
@@ -240,21 +240,12 @@ func (v *Server) resolveResultSource(ctx context.Context, s *session, c *console
 		if !labelMatches {
 			return x, errors.New("Result column labels no longer match the source; refresh before editing")
 		}
-		seen[name] = true
+		sourceCounts[name]++
 		x.columns = append(x.columns, *field)
-		_, masked := v.provider.Mask(s.grant, field.Name, r.Columns[i].Name, nil)
-		for _, row := range r.masked {
-			if i < len(row) && row[i] {
-				masked = true
-				break
-			}
-		}
 		cv := editColumnView{Index: i, Name: r.Columns[i].Name, DataType: field.DataType, Nullable: field.Nullable, PrimaryKey: field.PrimaryKey, Generated: field.Generated || field.Identity, HasDefault: field.HasDefault, DefaultValue: field.Default}
-		cv.Editable = field.Supported && !field.PrimaryKey && !cv.Generated && !masked
-		cv.Insertable = mode == "table" && field.Supported && !cv.Generated && !masked
+		cv.Editable = field.Supported && !field.PrimaryKey && !cv.Generated
+		cv.Insertable = mode == "table" && field.Supported && !cv.Generated
 		switch {
-		case masked:
-			cv.Reason = "Masked columns cannot be edited"
 		case field.PrimaryKey:
 			cv.Reason = "Primary keys cannot be changed"
 		case cv.Generated:
@@ -267,7 +258,47 @@ func (v *Server) resolveResultSource(ctx context.Context, s *session, c *console
 			x.pk = i
 		}
 	}
+	ambiguousPrimaryKey := false
+	for i, field := range x.columns {
+		if sourceCounts[field.Name] > 1 {
+			x.view.Columns[i].Editable = false
+			x.view.Columns[i].Insertable = false
+			x.view.Columns[i].Reason = "This source column occurs more than once in the result"
+			ambiguousPrimaryKey = ambiguousPrimaryKey || field.PrimaryKey
+		}
+	}
+	if ambiguousPrimaryKey {
+		// Keep the complete ordinal mapping available for source masking even
+		// when the duplicated key prevents writing or copying this result.
+		return x, errors.New("The primary key must occur exactly once in the result")
+	}
 	return x, nil
+}
+
+// Results retain their qualified source when USE changes the console context.
+// SQL Server catalogs are database-local, so inspect the source database under
+// the console lock and restore the user's context before returning.
+func loadResultSourceTable(ctx context.Context, s *session, c *console, r *Result, scope sqlservice.Context, source sqlservice.EditableSource) (sqlservice.EditTable, error) {
+	d := sqlservice.Dialect(s.grant.Config.Dialect)
+	if d != sqlservice.SQLServer || !r.editSourceBound || r.editDatabase == "" || r.editDatabase == scope.Database {
+		return sqlservice.LoadCopyTable(ctx, c.conn, d, scope, source.Schema, source.Table)
+	}
+	current := scope.Database
+	var table sqlservice.EditTable
+	_, err := c.conn.ExecContext(ctx, "USE "+quoteDatabaseIdentifier(r.editDatabase, string(d)))
+	if err == nil {
+		scope.Database = r.editDatabase
+		table, err = sqlservice.LoadCopyTable(ctx, c.conn, d, scope, source.Schema, source.Table)
+	}
+	// Even a failed USE may have reached the server before cancellation or a
+	// lost response. Restore after every attempt, or discard the connection.
+	restore, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if _, restoreErr := c.conn.ExecContext(restore, "USE "+quoteDatabaseIdentifier(current, string(d))); restoreErr != nil {
+		invalidateEditConnection(s, c)
+		return sqlservice.EditTable{}, errors.New("Database context could not be restored; reconnect before editing")
+	}
+	return table, err
 }
 
 func (v *Server) resolveEdit(ctx context.Context, s *session, c *console, r *Result) (*editResolved, error) {
@@ -462,6 +493,14 @@ func editQualified(schema, table, dialect string) string {
 	}
 	return quoteDatabaseIdentifier(schema, dialect) + "." + quoteDatabaseIdentifier(table, dialect)
 }
+func editQualifiedTable(table sqlservice.EditTable, dialect string) string {
+	target := editQualified(table.Schema, table.Table, dialect)
+	if dialect == "sqlserver" && table.Database != "" {
+		return quoteDatabaseIdentifier(table.Database, dialect) + "." + target
+	}
+	return target
+}
+
 func editPlaceholder(d string, n int) string {
 	switch d {
 	case "postgresql":

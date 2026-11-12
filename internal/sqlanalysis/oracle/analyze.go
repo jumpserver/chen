@@ -311,14 +311,11 @@ func (r reader) statement(node ast.StmtNode, loc a.Span) (a.Statement, error) {
 	s.SourceCandidate = s.Kind == a.Select && s.ReturnsRows && !s.MayWrite && len(s.Tables) == 1 && s.Tables[0].Name.Name != "" && len(s.Projections) > 0 && len(s.Features) == 0
 	if s.SourceCandidate {
 		t := s.Tables[0]
-		seenCol, seenLabel := map[string]bool{}, map[string]bool{}
 		for _, p := range s.Projections {
-			if !p.Direct || p.Star && len(s.Projections) != 1 || !ownerMatches(p.Qualifier, t) || (!p.Star && (seenCol[p.Column.Name] || seenLabel[p.Label.Name])) {
+			if !p.Direct || p.Star && len(s.Projections) != 1 || !ownerMatches(p.Qualifier, t) {
 				s.SourceCandidate = false
 				break
 			}
-			seenCol[p.Column.Name] = true
-			seenLabel[p.Label.Name] = true
 		}
 	}
 	if functionUnknown {

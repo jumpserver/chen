@@ -979,7 +979,7 @@ func (v *Server) collectResults(s *session, e *execution, rows *sql.Rows) error 
 	var collected []*Result
 	defer func() {
 		rows.Close()
-		if e.resultSQL != "" && e.queryPage == nil {
+		if e.resultSQL != "" {
 			v.bindResultEditSource(s, e, collected)
 		}
 		for _, result := range collected {
@@ -1013,9 +1013,11 @@ func (v *Server) collectResults(s *session, e *execution, rows *sql.Rows) error 
 			p.view.HasMore = result.Browse.HasMore
 			result.querySource = &p
 			result.sourceSQL = p.original
+			// The page wrapper only selects a window of the original projection.
+			// Resolve and freeze that original source before publishing rows, using
+			// the same column, primary-key and masking checks as the initial query.
+			result.sourceAnalysis = nil
 			result.Browse = nil
-			result.editSourceBound = true
-			result.editSourceError = p.view.ReadOnlyReason
 		}
 		result.SourceSQL = result.sourceSQL
 		if result.querySource != nil {

@@ -27,7 +27,7 @@ func TestEditPlanParametersAndMaskedPredicates(t *testing.T) {
 		t.Fatal(err)
 	}
 	c := p.commands[0]
-	if strings.Contains(c.sql, payload) || len(c.args) != 3 || c.args[0] != payload || c.args[1] != "9007199254740993" || c.args[2] != "old" {
+	if strings.Contains(c.sql, payload) || len(c.args) != 2 || c.args[0] != payload || c.args[1] != "9007199254740993" {
 		t.Fatalf("parameterization lost: %s %+v", c.sql, c.args)
 	}
 	if strings.Contains(p.previewSQL, "9007199254740993") || strings.Contains(p.previewSQL, "protected-original") || !strings.Contains(p.previewSQL, "[MASKED]") {
@@ -36,8 +36,8 @@ func TestEditPlanParametersAndMaskedPredicates(t *testing.T) {
 	if !strings.Contains(c.policySQL, "9007199254740993") {
 		t.Fatal("policy no longer evaluates exact generated write")
 	}
-	if !strings.Contains(c.sql, `"title" = $3`) {
-		t.Fatal("optimistic original-value predicate missing")
+	if !strings.HasSuffix(c.sql, ` WHERE "id" = $2`) {
+		t.Fatal("update must locate the row by its primary key")
 	}
 }
 func TestEditPlanRejectsInvalidChanges(t *testing.T) {

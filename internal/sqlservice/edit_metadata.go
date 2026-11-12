@@ -24,24 +24,29 @@ type EditColumn struct {
 }
 
 type EditTable struct {
-	View       bool         `json:"-"`
-	Database   string       `json:"database"`
-	Schema     string       `json:"schema"`
-	Table      string       `json:"table"`
-	Columns    []EditColumn `json:"columns"`
-	PrimaryKey []string     `json:"primary_key"`
+	View bool `json:"-"`
+	// LoadEditTable establishes this capability; read-only browsing does not.
+	Transactional bool         `json:"transactional"`
+	Database      string       `json:"database"`
+	Schema        string       `json:"schema"`
+	Table         string       `json:"table"`
+	Columns       []EditColumn `json:"columns"`
+	PrimaryKey    []string     `json:"primary_key"`
 }
 
 // LoadEditTable reads the authenticated connection's visible metadata. Missing
-// metadata, views and nontransactional tables fail closed; no user-table query
-// is used as an alternate discovery path. The 200-column bound must never turn
-// a partial table definition into permission to insert an incomplete row.
+// metadata and views fail closed; no user-table query is used as an alternate
+// discovery path. Read every column page before deriving
+// write permissions so a partial definition cannot omit required insert values.
 func LoadEditTable(ctx context.Context, conn *sql.Conn, d Dialect, scope Context, schema, table string) (EditTable, error) {
 	out := EditTable{Database: scope.Database, Schema: schema, Table: table}
 	if d == ClickHouse || !supported(d) {
 		return out, fmt.Errorf("%w: transactional grid editing is unavailable", ErrNotEditable)
 	}
-	if err := validateCatalogInput(conn, d, scope.Database, schema, table); err != nil {
+	if IsMySQLDialect(d) && schema != "" {
+		out.Database = schema
+	}
+	if err := validateCatalogInput(conn, d, out.Database, schema, table); err != nil {
 		return out, err
 	}
 	if table == "" {
@@ -49,15 +54,12 @@ func LoadEditTable(ctx context.Context, conn *sql.Conn, d Dialect, scope Context
 	}
 	ctx, cancel := MetadataContext(ctx, d)
 	defer cancel()
-	if err := catalogDatabaseAccess(ctx, conn, d, scope.Database); err != nil {
+	if err := catalogDatabaseAccess(ctx, conn, d, out.Database); err != nil {
 		return out, err
 	}
 	if IsMySQLDialect(d) {
 		if schema == "" {
-			schema = scope.Database
-		}
-		if schema != scope.Database {
-			return out, ErrCatalogForbidden
+			schema = out.Database
 		}
 	} else if d == PostgreSQL && schema == "" {
 		// Resolve against the actual search_path (which user SQL can change),
@@ -102,7 +104,7 @@ func LoadEditTable(ctx context.Context, conn *sql.Conn, d Dialect, scope Context
 		}
 		out.Table = table
 	}
-	r := CatalogColumnRequest{Database: scope.Database, Schema: schema, Table: table, Limit: MaxCatalogPageSize}
+	r := CatalogColumnRequest{Database: out.Database, Schema: schema, Table: table, Limit: MaxCatalogPageSize}
 	base, err := editBaseTableQuery(d, r)
 	if err != nil {
 		return out, err
@@ -112,13 +114,20 @@ func LoadEditTable(ctx context.Context, conn *sql.Conn, d Dialect, scope Context
 		return out, fmt.Errorf("read editable table kind: %w", err)
 	}
 	if !editBaseTableKind(d, kind) {
-		return out, fmt.Errorf("%w: a transactional base table is required", ErrNotEditable)
+		return out, fmt.Errorf("%w: a base table is required", ErrNotEditable)
 	}
-	cols, err := ColumnRows(ctx, conn, d, r)
+	out.Transactional = true
+	if IsMySQLDialect(d) {
+		out.Transactional, err = editMySQLTransactional(ctx, conn, kind)
+		if err != nil {
+			return out, err
+		}
+	}
+	cols, err := tableColumnRows(ctx, conn, d, r)
 	if err != nil {
 		return out, err
 	}
-	if len(cols) == 0 || len(cols) > MaxCatalogPageSize {
+	if len(cols) == 0 {
 		return out, fmt.Errorf("%w: incomplete column metadata", ErrNotEditable)
 	}
 	flagsQuery, err := editColumnFlagsQuery(d, r)
@@ -129,6 +138,10 @@ func LoadEditTable(ctx context.Context, conn *sql.Conn, d Dialect, scope Context
 	if err != nil {
 		return out, fmt.Errorf("read generated column metadata: %w", err)
 	}
+	visibleColumns := make(map[string]bool, len(cols))
+	for _, col := range cols {
+		visibleColumns[editNameKey(col.Name, d)] = true
+	}
 	flags := map[string]EditColumn{}
 	for rows.Next() {
 		var col EditColumn
@@ -136,24 +149,25 @@ func LoadEditTable(ctx context.Context, conn *sql.Conn, d Dialect, scope Context
 		if err = rows.Scan(&col.Name, &generated, &identity, &col.HasDefault); err != nil {
 			break
 		}
+		if d == DB2 {
+			col.Name = strings.TrimRight(col.Name, " ")
+		}
+		key := editNameKey(col.Name, d)
+		// Some flag catalogs also expose hidden/system columns. They do not
+		// belong to the visible table definition and cannot grant write access.
+		if !visibleColumns[key] {
+			continue
+		}
 		if !generated.Valid || !identity.Valid {
 			err = ErrEditColumnFlagsUnknown
 			break
 		}
 		col.Generated, col.Identity = generated.Bool, identity.Bool
-		if d == DB2 {
-			col.Name = strings.TrimRight(col.Name, " ")
-		}
-		key := editNameKey(col.Name, d)
 		if _, duplicate := flags[key]; duplicate {
 			err = fmt.Errorf("ambiguous column metadata")
 			break
 		}
 		flags[key] = col
-		if len(flags) > MaxCatalogPageSize {
-			err = fmt.Errorf("column metadata exceeds editing limit")
-			break
-		}
 	}
 	if err == nil {
 		err = rows.Err()
@@ -196,14 +210,14 @@ func LoadEditTable(ctx context.Context, conn *sql.Conn, d Dialect, scope Context
 			name = strings.TrimRight(name, " ")
 		}
 		if verifyKeySize {
-			if ordinal != len(out.PrimaryKey)+1 || keySize < ordinal || keySize > MaxCatalogPageSize || constraint == "" || (keyConstraint != "" && (keyConstraint != constraint || expectedKeySize != keySize)) {
+			if ordinal != len(out.PrimaryKey)+1 || keySize < ordinal || keySize > len(out.Columns) || constraint == "" || (keyConstraint != "" && (keyConstraint != constraint || expectedKeySize != keySize)) {
 				err = fmt.Errorf("primary key metadata is incomplete or ambiguous")
 				break
 			}
 			expectedKeySize, keyConstraint = keySize, constraint
 		}
-		if len(out.PrimaryKey) >= MaxCatalogPageSize {
-			err = fmt.Errorf("primary key metadata exceeds bounds")
+		if len(out.PrimaryKey) >= len(out.Columns) {
+			err = fmt.Errorf("primary key metadata exceeds the table definition")
 			break
 		}
 		found := false
@@ -267,9 +281,30 @@ func editMySQLCanonicalTable(ctx context.Context, conn *sql.Conn, schema, table 
 	return name, nil
 }
 
+func editMySQLTransactional(ctx context.Context, conn *sql.Conn, engine string) (bool, error) {
+	if strings.EqualFold(engine, "InnoDB") {
+		return true, nil
+	}
+	var transactions sql.NullString
+	err := conn.QueryRowContext(ctx, `SELECT TRANSACTIONS FROM information_schema.ENGINES WHERE ENGINE=?`, engine).Scan(&transactions)
+	if err != nil {
+		return false, fmt.Errorf("read storage engine transaction support: %w", err)
+	}
+	if transactions.Valid {
+		switch strings.ToUpper(strings.TrimSpace(transactions.String)) {
+		case "YES":
+			return true, nil
+		case "NO":
+			return false, nil
+		}
+	}
+	return false, fmt.Errorf("storage engine transaction support is unavailable")
+}
+
 func editBaseTableKind(d Dialect, kind string) bool {
 	if IsMySQLDialect(d) {
-		return strings.EqualFold(kind, "InnoDB")
+		// The metadata query itself restricts TABLE_TYPE to BASE TABLE.
+		return !strings.EqualFold(kind, "VIEW")
 	}
 	if d == PostgreSQL {
 		return kind == "r" || kind == "p"
@@ -333,17 +368,24 @@ func editColumnFlagsQuery(d Dialect, r CatalogColumnRequest) (catalogQuery, erro
 	return catalogQuery{SQL: q, Args: b.args}, nil
 }
 
+// EditTypeName removes the catalog type's modifier or member list. ENUM/SET
+// members may contain parentheses, so the final ')' closes that list.
+func EditTypeName(dataType string) string {
+	t := strings.ToLower(strings.TrimSpace(dataType))
+	if i := strings.IndexByte(t, '('); i >= 0 {
+		end := strings.LastIndexByte(t, ')')
+		if end < i {
+			return ""
+		}
+		t = t[:i] + t[end+1:]
+	}
+	return strings.Join(strings.Fields(t), " ")
+}
+
 // EditTypeSupported is intentionally narrower than result display. Binary,
 // arrays, spatial/user-defined types and LOB locators need explicit codecs.
 func EditTypeSupported(d Dialect, dataType string) bool {
-	t := strings.ToLower(strings.TrimSpace(dataType))
-	if i := strings.IndexByte(t, '('); i >= 0 {
-		end := strings.IndexByte(t[i:], ')')
-		if end < 0 {
-			return false
-		}
-		t = strings.TrimSpace(t[:i] + t[i+end+1:])
-	}
+	t := EditTypeName(dataType)
 	if strings.HasSuffix(t, " unsigned") && IsMySQLDialect(d) {
 		t = strings.TrimSuffix(t, " unsigned")
 	}
@@ -355,6 +397,10 @@ func EditTypeSupported(d Dialect, dataType string) bool {
 		return true
 	case "char", "character", "varchar", "character varying", "varchar2", "nvarchar", "nvarchar2", "nchar", "text", "ntext", "tinytext", "mediumtext", "longtext", "graphic", "vargraphic", "long varchar":
 		return true
+	case "enum", "set":
+		return IsMySQLDialect(d)
+	case "money", "smallmoney":
+		return d == SQLServer
 	case "date", "time", "time without time zone", "timestamp", "timestamp without time zone", "datetime", "datetime2", "smalldatetime":
 		return true
 	case "timestamp with time zone":

@@ -280,10 +280,6 @@ func TestCatalogRejectsScopeAndInputBeforeQueries(t *testing.T) {
 			return e
 		},
 		func() error {
-			_, e := ColumnRows(context.Background(), conn, MySQL, CatalogColumnRequest{Database: "allowed", Schema: "other", Table: "t"})
-			return e
-		},
-		func() error {
 			_, e := ObjectRows(context.Background(), conn, PostgreSQL, CatalogObjectRequest{Database: "db", Schema: "pg_catalog"})
 			return e
 		},

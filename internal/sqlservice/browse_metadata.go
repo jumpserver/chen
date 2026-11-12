@@ -16,7 +16,10 @@ func LoadBrowseTable(ctx context.Context, conn *sql.Conn, d Dialect, scope Conte
 	if !supported(d) {
 		return out, ErrUnsupportedDialect
 	}
-	if err := validateCatalogInput(conn, d, scope.Database, schema, table); err != nil {
+	if IsMySQLDialect(d) && schema != "" {
+		out.Database = schema
+	}
+	if err := validateCatalogInput(conn, d, out.Database, schema, table); err != nil {
 		return out, err
 	}
 	if table == "" {
@@ -24,14 +27,14 @@ func LoadBrowseTable(ctx context.Context, conn *sql.Conn, d Dialect, scope Conte
 	}
 	ctx, cancel := MetadataContext(ctx, d)
 	defer cancel()
-	if err := catalogDatabaseAccess(ctx, conn, d, scope.Database); err != nil {
+	if err := catalogDatabaseAccess(ctx, conn, d, out.Database); err != nil {
 		return out, err
 	}
 	if IsMySQLDialect(d) || d == ClickHouse {
 		if schema == "" {
 			schema = scope.Database
 		}
-		if schema != scope.Database {
+		if d == ClickHouse && schema != scope.Database {
 			return out, ErrCatalogForbidden
 		}
 	} else if schema == "" {
@@ -65,19 +68,19 @@ func LoadBrowseTable(ctx context.Context, conn *sql.Conn, d Dialect, scope Conte
 		}
 	}
 	out.Schema, out.Table = schema, table
-	r := CatalogColumnRequest{Database: scope.Database, Schema: schema, Table: table, Limit: MaxCatalogPageSize}
+	r := CatalogColumnRequest{Database: out.Database, Schema: schema, Table: table, Limit: MaxCatalogPageSize}
 	// View reads require explicit reexecution confirmation at the HTTP layer.
 	isView, err := BrowseRelationIsView(ctx, conn, d, r)
 	if err != nil {
 		return out, err
 	}
 	out.View = isView
-	cols, err := ColumnRows(ctx, conn, d, r)
+	cols, err := tableColumnRows(ctx, conn, d, r)
 	if err != nil {
 		return out, err
 	}
-	if len(cols) == 0 || len(cols) > MaxCatalogPageSize {
-		return out, fmt.Errorf("complete browse column metadata exceeds its limit")
+	if len(cols) == 0 {
+		return out, fmt.Errorf("browse column metadata is unavailable")
 	}
 	for _, c := range cols {
 		out.Columns = append(out.Columns, EditColumn{Name: c.Name, DataType: c.DataType, Nullable: c.Nullable, Supported: EditTypeSupported(d, c.DataType)})
@@ -128,7 +131,7 @@ func BrowseRelationIsView(ctx context.Context, conn *sql.Conn, d Dialect, r Cata
 		return false, err
 	}
 	view := kind == "VIEW" || d == PostgreSQL && (kind == "v" || kind == "m")
-	if !view && (IsMySQLDialect(d) && kind == "" || !IsMySQLDialect(d) && !editBaseTableKind(d, kind)) {
+	if !view && !editBaseTableKind(d, kind) {
 		return false, ErrCatalogNotFound
 	}
 	return view, nil
@@ -184,7 +187,7 @@ func browseUniqueKey(ctx context.Context, conn *sql.Conn, d Dialect, table EditT
 			k = &key{count: total}
 			keys[name] = k
 		}
-		if name == "" || total < 1 || total > MaxCatalogPageSize || k.count != total || ordinal != len(k.columns)+1 || !column.Valid {
+		if name == "" || total < 1 || total > len(table.Columns) || k.count != total || ordinal != len(k.columns)+1 || !column.Valid {
 			k.invalid = true
 		}
 		col := column.String
