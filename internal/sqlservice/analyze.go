@@ -35,7 +35,7 @@ func AnalyzeWithOptions(dialect Dialect, document string, options AnalyzeOptions
 	if !supported(dialect) {
 		return result, ErrUnsupportedDialect
 	}
-	if len(document) > MaxDocumentBytes {
+	if DocumentExceedsLimit(document) {
 		return result, ErrDocumentTooLarge
 	}
 	if dialect == Oracle {
@@ -123,6 +123,9 @@ func AnalyzeWithOptions(dialect Dialect, document string, options AnalyzeOptions
 	p.SetSQLMode(sqlMode)
 	nodes, _, err := p.ParseSQL(input)
 	if err != nil {
+		if routines, routineErr := analyzeMySQLRoutines(document, input, sqlMode, p); routineErr == nil {
+			return routines, nil
+		}
 		// MariaDB and OceanBase extend the MySQL grammar. The bounded scanner
 		// preserves per-statement policy checks for their ordinary DML/DDL.
 		if dialect == MariaDB || dialect == OceanBaseMySQL {

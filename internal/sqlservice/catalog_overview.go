@@ -55,8 +55,8 @@ func overviewText(value, source string) OverviewValue {
 }
 
 // CatalogOverviewRows performs section-level system catalog queries, never
-// business COUNT or per-object inspection. Scope is the connection's fixed DB;
-// an empty PG schema explicitly means all visible non-system schemas.
+// business COUNT or per-object inspection. MySQL can inspect any database visible
+// to the account; an empty PG schema means all visible schemas.
 func CatalogOverviewRows(ctx context.Context, conn *sql.Conn, d Dialect, req OverviewRequest) (result CatalogOverview, err error) {
 	defer func() {
 		if overviewPermissionDenied(err) {
@@ -70,7 +70,7 @@ func CatalogOverviewRows(ctx context.Context, conn *sql.Conn, d Dialect, req Ove
 	if req.Sort != "name_asc" && req.Sort != "name_desc" {
 		return result, fmt.Errorf("invalid overview sort")
 	}
-	if systemCatalogSchema(req.Schema, d) || (IsMySQLDialect(d) || d == ClickHouse) && req.Schema != "" && req.Schema != req.Database {
+	if (IsMySQLDialect(d) || d == ClickHouse) && req.Schema != "" && req.Schema != req.Database {
 		return result, ErrCatalogForbidden
 	}
 	if err := catalogDatabaseAccess(ctx, conn, d, req.Database); err != nil {
@@ -355,9 +355,7 @@ func overviewSource(d Dialect, section, key string) string {
 
 const overviewPGFrom = ` FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace
  WHERE pg_catalog.current_database()=$1 AND ($2='' OR n.nspname=$2)
- AND n.nspname NOT LIKE 'pg!_%' ESCAPE '!' AND n.nspname<>'information_schema'
- AND pg_catalog.has_schema_privilege(n.oid,'USAGE')
- AND (pg_catalog.has_table_privilege(c.oid,'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER') OR pg_catalog.has_any_column_privilege(c.oid,'SELECT,INSERT,UPDATE,REFERENCES'))`
+ AND n.nspname IN (SELECT schema_name FROM information_schema.schemata)`
 const overviewMyFrom = ` FROM information_schema.TABLES t WHERE BINARY t.TABLE_SCHEMA=BINARY ? AND t.TABLE_TYPE IN ('BASE TABLE','VIEW')`
 
 func overviewSQL(d Dialect, r OverviewRequest) (string, []any) {
@@ -396,8 +394,8 @@ func overviewSQL(d Dialect, r OverviewRequest) (string, []any) {
 	if r.Section == "indexes" {
 		if d == PostgreSQL {
 			return `SELECT pg_catalog.current_database(),n.nspname,c.relname,CASE WHEN c.relkind='m' THEN 'view' ELSE 'table' END,CASE c.relkind WHEN 'm' THEN 'materialized_view' WHEN 'p' THEN 'partitioned_table' ELSE 'table' END,
- ix.relname,i.indisunique::text,am.amname,CASE WHEN pg_catalog.has_table_privilege(c.oid,'SELECT,INSERT,UPDATE,REFERENCES') THEN LEFT(pg_catalog.pg_get_indexdef(ix.oid),16385) END,
- CASE WHEN pg_catalog.has_table_privilege(c.oid,'SELECT,INSERT,UPDATE,REFERENCES') THEN (SELECT string_agg(pg_catalog.pg_get_indexdef(ix.oid,k,true),', ' ORDER BY k) FROM generate_series(1,i.indnatts) k) END,NULL::text,'0',NULL::text,NULL::text
+ ix.relname,i.indisunique::text,am.amname,LEFT(pg_catalog.pg_get_indexdef(ix.oid),16385),
+ (SELECT string_agg(pg_catalog.pg_get_indexdef(ix.oid,k,true),', ' ORDER BY k) FROM generate_series(1,i.indnatts) k),NULL::text,'0',NULL::text,NULL::text
  FROM pg_catalog.pg_index i JOIN pg_catalog.pg_class ix ON ix.oid=i.indexrelid JOIN pg_catalog.pg_am am ON am.oid=ix.relam` + strings.Replace(overviewPGFrom, " FROM pg_catalog.pg_class c", " JOIN pg_catalog.pg_class c ON c.oid=i.indrelid", 1) + `
  AND (c.relname ILIKE $3 ESCAPE '!' OR ix.relname ILIKE $3 ESCAPE '!')
  AND ($4='' OR (n.nspname COLLATE pg_catalog."C",c.relname COLLATE pg_catalog."C",ix.relname COLLATE pg_catalog."C") ` + op + ` ($4 COLLATE pg_catalog."C",$5 COLLATE pg_catalog."C",$6 COLLATE pg_catalog."C"))

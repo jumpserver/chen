@@ -13,6 +13,8 @@ import (
 	"unicode/utf8"
 )
 
+var mysqlCopyTemporal = regexp.MustCompile(`^(?:[0-9]{4}-[0-9]{2}-[0-9]{2}(?: [0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]{1,6})?)?|-?[0-9]{1,3}:[0-9]{2}:[0-9]{2}(?:\.[0-9]{1,6})?)$`)
+
 var copyTypeParameters = regexp.MustCompile(`\([0-9 ,]+\)`)
 
 // This is a closed set of literal codecs, not the parameterized write-back
@@ -146,10 +148,8 @@ func copySQLLiteral(dialect, dataType string, value any) (string, error) {
 			kind = "text"
 		case "raw":
 			kind = "binary"
-		case "timestamp":
+		case "date", "timestamp":
 			kind = "temporal"
-		case "date":
-			return "", errors.New("Oracle DATE copying is unavailable because cached DATE values do not retain the time of day")
 		}
 	default:
 		return "", errors.New("SQL copying is not supported for this dialect")
@@ -230,8 +230,8 @@ func copySQLLiteral(dialect, dataType string, value any) (string, error) {
 			return "X'" + h + "'", nil
 		}
 	case "temporal":
-		if dialect == "oceanbase-oracle" {
-			return copyOBOracleTemporalLiteral(t, text)
+		if dialect == "oracle" || dialect == "oceanbase-oracle" {
+			return copyOracleTemporalLiteral(t, text)
 		}
 		return copyTemporalLiteral(dialect, t, text)
 	case "uuid":
@@ -336,6 +336,15 @@ func copyUnicodeText(text string) string {
 }
 
 func copyTemporalLiteral(dialect, t, text string) (string, error) {
+	if dialect == "mysql" || dialect == "mariadb" || dialect == "oceanbase-mysql" {
+		// MySQL TIME is a duration, including negative values and hours above
+		// 23. Preserve valid zero dates and local DATETIME values as returned.
+		// Numeric server formats contain no SQL quoting or escape characters.
+		if !mysqlCopyTemporal.MatchString(text) {
+			return "", errors.New("The cached MySQL temporal value is invalid")
+		}
+		return "'" + text + "'", nil
+	}
 	// Only complete ISO values are accepted. BC/infinity, zero dates, named zones,
 	// intervals and dialect-specific text require separate codecs.
 	if dialect == "db2" || dialect == "clickhouse" {
@@ -350,6 +359,10 @@ func copyTemporalLiteral(dialect, t, text string) (string, error) {
 		}
 	}
 	date := t == "date" || t == "date32"
+	if dialect == "dameng" && date && len(text) > len("2006-01-02") {
+		// Oracle-compatible DM DATE values can retain a time of day.
+		date = false
+	}
 	clock := t == "time" || t == "time without time zone"
 	zone := t == "timestamptz" || t == "timestamp with time zone" || t == "datetimeoffset" || dialect == "clickhouse" && !date
 	layouts := []string{time.RFC3339Nano, "2006-01-02 15:04:05.999999999Z07:00", "2006-01-02 15:04:05.999999999-07:00", "2006-01-02 15:04:05.999999999"}
@@ -439,9 +452,9 @@ func copyTemporalLiteral(dialect, t, text string) (string, error) {
 
 // Require all date/time components; DATE output formatted by NLS may already
 // have lost the time of day. Explicit numeric format models avoid NLS defaults.
-func copyOBOracleTemporalLiteral(t, text string) (string, error) {
+func copyOracleTemporalLiteral(t, text string) (string, error) {
 	if dot := strings.IndexByte(text, '.'); dot >= 0 && len(text)-dot-1 > 9 {
-		return "", errors.New("OB Oracle temporal precision exceeds nine fractional digits")
+		return "", errors.New("Oracle temporal precision exceeds nine fractional digits")
 	}
 	var parsed time.Time
 	var err error
@@ -452,11 +465,11 @@ func copyOBOracleTemporalLiteral(t, text string) (string, error) {
 		}
 	}
 	if err != nil || parsed.Year() < 1 || parsed.Year() > 9999 {
-		return "", errors.New("OB Oracle temporal copying requires a complete ISO date and time; NLS text or date-only values cannot prove the original time of day")
+		return "", errors.New("Oracle temporal copying requires a complete ISO date and time; NLS text or date-only values cannot prove the original time of day")
 	}
 	if t == "date" {
 		if parsed.Nanosecond() != 0 {
-			return "", errors.New("OB Oracle DATE cannot represent fractional seconds")
+			return "", errors.New("Oracle DATE cannot represent fractional seconds")
 		}
 		return "TO_DATE('" + parsed.Format("2006-01-02 15:04:05") + "', 'YYYY-MM-DD HH24:MI:SS')", nil
 	}

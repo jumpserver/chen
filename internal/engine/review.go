@@ -1,15 +1,20 @@
 package engine
 
 import (
+	"context"
 	"errors"
 	"time"
 
 	"github.com/jumpserver/chen/internal/jumpserver"
+	"github.com/jumpserver/wisp/protobuf-go/protobuf"
 )
 
 // The SQL deadline includes queueing and database work, but an operator waiting
 // for a reviewer gets the separate, bounded approval deadline from the provider.
 func (e *execution) startDeadline(d time.Duration) {
+	if d <= 0 {
+		return
+	}
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.deadlineAt = time.Now().Add(d)
@@ -51,8 +56,8 @@ func (e *execution) stopDeadline() {
 func (v *Server) authorizeExecution(s *session, e *execution, commands []string, audit *jumpserver.AuditRecord) error {
 	var required, warningRequired *jumpserver.PolicyError
 	reviews := map[string]string{}
-	// Preflight every original statement before creating any ticket. A reject
-	// later in a script must prevent both execution and unnecessary approvals.
+	// Preflight the current statement and its generated commands, or the whole
+	// grid edit plan. Ordinary scripts call this separately for each statement.
 	for _, command := range commands {
 		if err := v.provider.Authorize(e.ctx, s.grant, command); err != nil {
 			var policy *jumpserver.PolicyError
@@ -74,11 +79,32 @@ func (v *Server) authorizeExecution(s *session, e *execution, commands []string,
 			reviews[command] = policy.ACLID + "\x00" + policy.GroupID
 		}
 	}
-	if warningRequired != nil && !e.confirmWarnings {
-		return warningRequired
+	// The legacy grid save preview is already the user's batch confirmation;
+	// NotifyWarning records its risk there, while query consoles prompt per SQL.
+	confirmWarnings, submitReview := e.confirmWarnings || e.edit != nil, e.submitReview
+	if warningRequired != nil && !confirmWarnings {
+		if err := v.waitExecutionConfirmation(s, e, "warning", audit.SQL); err != nil {
+			var policy *jumpserver.PolicyError
+			if errors.As(err, &policy) {
+				policy.ACLID, policy.GroupID = warningRequired.ACLID, warningRequired.GroupID
+			}
+			return err
+		}
+		confirmWarnings = true
 	}
-	if required != nil && !e.submitReview {
-		return required
+	if required != nil && !submitReview {
+		if err := v.waitExecutionConfirmation(s, e, "review", audit.SQL); err != nil {
+			if errors.Is(err, context.Canceled) {
+				err = &jumpserver.PolicyError{Code: "command_review_canceled"}
+			}
+			var policy *jumpserver.PolicyError
+			if errors.As(err, &policy) {
+				policy.ACLID, policy.GroupID = required.ACLID, required.GroupID
+				policy.RiskLevel = int32(protobuf.RiskLevel_ReviewCancel)
+			}
+			return err
+		}
+		submitReview = true
 	}
 	authorizer, ok := v.provider.(jumpserver.CommandAuthorizer)
 	if !ok {
@@ -94,6 +120,11 @@ func (v *Server) authorizeExecution(s *session, e *execution, commands []string,
 	e.policyWarnings = make(map[string]jumpserver.AuthorizationDecision)
 	approved := map[string]bool{}
 	seen := map[string]bool{}
+	var affectedRows *int64
+	if e.edit != nil {
+		count := int64(len(e.edit.commands))
+		affectedRows = &count
+	}
 	for _, command := range commands {
 		key := reviews[command]
 		if seen[command] || key != "" && approved[key] {
@@ -101,8 +132,19 @@ func (v *Server) authorizeExecution(s *session, e *execution, commands []string,
 		}
 		seen[command] = true
 		decision, err := authorizer.AuthorizeCommand(e.ctx, s.grant, jumpserver.AuthorizationRequest{
-			SQL: command, BatchSQL: e.sql, SubmitReview: e.submitReview, ConfirmWarnings: e.confirmWarnings,
+			SQL: command, BatchSQL: audit.SQL, AffectedRows: affectedRows, SubmitReview: submitReview, ConfirmWarnings: confirmWarnings,
 			OnReview: func(review jumpserver.ReviewStatus) {
+				review.SQL = command
+				if e.edit != nil {
+					// Grid identities can contain masked primary-key values. The
+					// user's review panel receives the same masked SQL as preview.
+					for _, change := range e.edit.commands {
+						if change.policySQL == command {
+							review.SQL = change.previewSQL
+							break
+						}
+					}
+				}
 				if review.State == "pending" {
 					e.pauseDeadline()
 				}

@@ -53,10 +53,9 @@ func extraCatalogDialect(d Dialect) bool {
 	return d == SQLServer || d == Oracle || d == Dameng || d == DB2 || d == ClickHouse || d == OceanBaseOracle
 }
 
-// Db2's SYSCAT is public by default, so reading it without privilege filtering
-// would reveal other accounts' objects. Resolve effective users/groups/roles
-// with server routines, including DATAACCESS authority. If those routines are
-// unavailable to the account, the request fails rather than broadening scope.
+// Db2 catalog visibility does not grant data access. Grid editing retains its
+// stricter admission check using effective users/groups/roles and DATAACCESS.
+// If these routines are unavailable, editing fails rather than broadening scope.
 const db2Principals = `(SELECT CURRENT USER AS AUTHID, 'U' AS AUTHTYPE FROM SYSIBM.SYSDUMMY1
 UNION SELECT 'PUBLIC', 'G' FROM SYSIBM.SYSDUMMY1
 UNION SELECT "GROUP", 'G' FROM TABLE(SYSPROC.AUTH_LIST_GROUPS_FOR_AUTHID(CURRENT USER)) AS G
@@ -68,7 +67,7 @@ WHERE a.TABSCHEMA = t.TABSCHEMA AND a.TABNAME = t.TABNAME AND (a.SELECTAUTH IN (
 OR EXISTS (SELECT 1 FROM TABLE(SYSPROC.AUTH_LIST_AUTHORITIES_FOR_AUTHID(CURRENT USER, 'U')) AS a
 WHERE a.AUTHORITY = 'DATAACCESS' AND 'Y' IN (a.D_USER,a.D_GROUP,a.D_PUBLIC,a.ROLE_USER,a.ROLE_GROUP,a.ROLE_PUBLIC,a.D_ROLE)))`
 
-func extraObjectSource(d Dialect, b *catalogBinder, database string) (string, error) {
+func extraObjectSource(d Dialect, b *catalogBinder, database string, editable ...bool) (string, error) {
 	switch d {
 	case SQLServer:
 		return `SELECT DB_NAME() AS dbname, s.name AS schemaname, o.name AS objectname,
@@ -77,7 +76,7 @@ CASE WHEN o.type = 'V' THEN 'view' ELSE 'table' END AS objecttype,
 COALESCE(CONVERT(nvarchar(4000), ep.value), '') AS objectcomment
 FROM sys.objects o JOIN sys.schemas s ON s.schema_id = o.schema_id
 LEFT JOIN sys.extended_properties ep ON ep.class = 1 AND ep.major_id = o.object_id AND ep.minor_id = 0 AND ep.name = 'MS_Description'
-WHERE o.type IN ('U','V') AND o.is_ms_shipped = 0 AND s.name NOT IN ('sys','INFORMATION_SCHEMA')`, nil
+WHERE o.type IN ('U','V')`, nil
 	case Oracle, Dameng, OceanBaseOracle:
 		// ALL_TABLES/ALL_VIEWS can push an owner predicate into the dictionary.
 		// ALL_OBJECTS plus a correlated materialized-view lookup is much more
@@ -86,14 +85,17 @@ WHERE o.type IN ('U','V') AND o.is_ms_shipped = 0 AND s.name NOT IN ('sys','INFO
 o.OBJECT_KIND AS objectkind, o.OBJECT_KIND AS objecttype, c.COMMENTS AS objectcomment
 FROM (SELECT OWNER, TABLE_NAME AS OBJECT_NAME, 'table' AS OBJECT_KIND FROM ALL_TABLES
 UNION ALL SELECT OWNER, VIEW_NAME AS OBJECT_NAME, 'view' AS OBJECT_KIND FROM ALL_VIEWS) o
-LEFT JOIN ALL_TAB_COMMENTS c ON c.OWNER = o.OWNER AND c.TABLE_NAME = o.OBJECT_NAME
-WHERE o.OWNER NOT IN ('SYS','SYSTEM','CTXSYS','MDSYS','XDB','DBSNMP','OUTLN')` + oracleApplicationOwner(d, "o.OWNER"), nil
+LEFT JOIN ALL_TAB_COMMENTS c ON c.OWNER = o.OWNER AND c.TABLE_NAME = o.OBJECT_NAME`, nil
 	case DB2:
+		filter := ""
+		if len(editable) > 0 && editable[0] {
+			filter = " AND " + db2TableVisible
+		}
 		return `SELECT RTRIM(CURRENT SERVER) AS dbname, RTRIM(t.TABSCHEMA) AS schemaname, RTRIM(t.TABNAME) AS objectname,
 CASE WHEN t.TYPE = 'V' THEN 'view' ELSE 'table' END AS objectkind,
 CASE WHEN t.TYPE = 'V' THEN 'view' WHEN t.TYPE = 'S' THEN 'materialized_view' WHEN t.TYPE = 'N' THEN 'foreign_table' ELSE 'table' END AS objecttype,
 COALESCE(t.REMARKS, '') AS objectcomment
-FROM SYSCAT.TABLES t WHERE t.TYPE IN ('T','V','S','N') AND t.TABSCHEMA NOT LIKE 'SYS%' AND ` + db2TableVisible, nil
+FROM SYSCAT.TABLES t WHERE t.TYPE IN ('T','V','S','N')` + filter, nil
 	case ClickHouse:
 		// Local system tables apply SHOW TABLES visibility. Do not replace this
 		// with cluster()/remote(), which can have different visibility semantics.
@@ -131,47 +133,24 @@ func oracleApplicationOwner(d Dialect, owner string) string {
 func extraSchemaQuery(d Dialect, database, after string, limit int) (catalogQuery, error) {
 	b := &catalogBinder{dialect: d}
 	var source string
-	if IsOracleDialect(d) {
-		// Schema discovery needs owners only. ALL_OBJECTS + comments and a
-		// correlated materialized-view lookup can scan the whole dictionary
-		// before returning a single owner on heavily granted Oracle accounts.
-		source = "SELECT " + b.bind(database) + " AS dbname, OWNER AS schemaname FROM (SELECT OWNER FROM ALL_TABLES UNION SELECT OWNER FROM ALL_VIEWS)"
-	} else {
-		var err error
-		source, err = extraObjectSource(d, b, database)
-		if err != nil {
-			return catalogQuery{}, err
-		}
-	}
-	// Keep the current schema visible even when it has no objects. Other
-	// schemas are discovered exclusively through accessible table metadata.
-	current := ""
+	// Read schema catalogs directly, as the Java resource browser does. Empty
+	// schemas and system schemas remain visible; object reads still use native
+	// visibility checks, and editing keeps its separate system-schema guard.
 	switch d {
 	case SQLServer:
-		current = "SELECT DB_NAME() AS dbname, COALESCE(SCHEMA_NAME(), 'dbo') AS schemaname"
-	case Oracle, Dameng, OceanBaseOracle:
-		current = "SELECT " + b.bind(database) + " AS dbname, SYS_CONTEXT('USERENV','CURRENT_SCHEMA') AS schemaname FROM DUAL"
+		source = "SELECT DB_NAME() AS dbname, SCHEMA_NAME AS schemaname FROM INFORMATION_SCHEMA.SCHEMATA"
+	case Oracle, OceanBaseOracle:
+		source = "SELECT " + b.bind(database) + " AS dbname, USERNAME AS schemaname FROM ALL_USERS"
+	case Dameng:
+		source = "SELECT " + b.bind(database) + " AS dbname, NAME AS schemaname FROM SYSOBJECTS WHERE TYPE$ = 'SCH'"
 	case DB2:
-		current = "SELECT RTRIM(CURRENT SERVER) AS dbname, RTRIM(CURRENT SCHEMA) AS schemaname FROM SYSIBM.SYSDUMMY1"
+		source = "SELECT RTRIM(CURRENT SERVER) AS dbname, RTRIM(SCHEMANAME) AS schemaname FROM SYSCAT.SCHEMATA"
 	case ClickHouse:
-		current = "SELECT currentDatabase() AS dbname, currentDatabase() AS schemaname"
+		source = "SELECT currentDatabase() AS dbname, currentDatabase() AS schemaname"
+	default:
+		return catalogQuery{}, ErrUnsupportedDialect
 	}
-	union := " UNION "
-	if d == ClickHouse {
-		// Bare UNION depends on union_default_mode, whose default is empty.
-		union = " UNION DISTINCT "
-	}
-	query := "SELECT dbname, schemaname FROM (SELECT DISTINCT dbname, schemaname FROM (" + source + ") objects" + union + current + ") schemas WHERE 1 = 1"
-	if d == SQLServer {
-		query += " AND schemaname NOT IN ('sys', 'INFORMATION_SCHEMA')"
-	} else if IsOracleDialect(d) {
-		query += " AND schemaname NOT IN ('SYS', 'SYSTEM', 'CTXSYS', 'MDSYS', 'XDB', 'DBSNMP', 'OUTLN')"
-		query += oracleApplicationOwner(d, "schemaname")
-	} else if d == DB2 {
-		query += " AND schemaname NOT LIKE 'SYS%'"
-	} else if d == ClickHouse {
-		query += " AND schemaname NOT IN ('system', 'information_schema', 'INFORMATION_SCHEMA')"
-	}
+	query := "SELECT dbname, schemaname FROM (" + source + ") schemas WHERE 1 = 1"
 	if after != "" {
 		query += " AND " + extraOrder(d, "schemaname") + " > " + extraOrder(d, b.bind(after))
 	}
@@ -241,7 +220,7 @@ c.is_nullable, COALESCE(CONVERT(nvarchar(4000),ep.value), ''), c.column_id
 FROM sys.columns c JOIN sys.objects o ON o.object_id = c.object_id JOIN sys.schemas s ON s.schema_id = o.schema_id
 JOIN sys.types t ON t.user_type_id = c.user_type_id
 LEFT JOIN sys.extended_properties ep ON ep.class = 1 AND ep.major_id = c.object_id AND ep.minor_id = c.column_id AND ep.name = 'MS_Description'
-WHERE o.type IN ('U','V') AND o.is_ms_shipped = 0 AND s.name = ` + b.bind(req.Schema) + " AND o.name = " + b.bind(req.Table) + " AND c.column_id > " + b.bind(req.AfterOrdinal) + " ORDER BY c.column_id"
+WHERE o.type IN ('U','V') AND s.name = ` + b.bind(req.Schema) + " AND o.name = " + b.bind(req.Table) + " AND c.column_id > " + b.bind(req.AfterOrdinal) + " ORDER BY c.column_id"
 	case Oracle, Dameng, OceanBaseOracle:
 		query = `SELECT ` + b.bind(req.Database) + `, c.OWNER, c.TABLE_NAME, c.COLUMN_NAME, c.DATA_TYPE,
 CASE WHEN c.NULLABLE = 'Y' THEN 1 ELSE 0 END, cc.COMMENTS, c.COLUMN_ID, c.DATA_LENGTH, c.DATA_PRECISION, c.DATA_SCALE, c.CHAR_LENGTH, c.CHAR_USED
@@ -251,7 +230,7 @@ WHERE c.OWNER = ` + b.bind(req.Schema) + " AND c.TABLE_NAME = " + b.bind(req.Tab
 		query = `SELECT RTRIM(CURRENT SERVER), RTRIM(c.TABSCHEMA), RTRIM(c.TABNAME), RTRIM(c.COLNAME), c.TYPENAME,
 CASE WHEN c.NULLS = 'Y' THEN 1 ELSE 0 END, COALESCE(c.REMARKS, ''), c.COLNO + 1, c.LENGTH, c.LENGTH, c.SCALE, c.STRINGUNITSLENGTH, c.TYPESTRINGUNITS
 FROM SYSCAT.COLUMNS c JOIN SYSCAT.TABLES t ON t.TABSCHEMA = c.TABSCHEMA AND t.TABNAME = c.TABNAME
-WHERE c.TABSCHEMA = ` + b.bind(req.Schema) + " AND c.TABNAME = " + b.bind(req.Table) + " AND c.COLNO + 1 > " + b.bind(req.AfterOrdinal) + " AND " + db2TableVisible + " ORDER BY c.COLNO"
+WHERE c.TABSCHEMA = ` + b.bind(req.Schema) + " AND c.TABNAME = " + b.bind(req.Table) + " AND c.COLNO + 1 > " + b.bind(req.AfterOrdinal) + " ORDER BY c.COLNO"
 	case ClickHouse:
 		query = `SELECT database, database, table, name, type,
 (startsWith(type, 'Nullable(') OR startsWith(type, 'LowCardinality(Nullable(')), comment, position
@@ -299,9 +278,9 @@ func extraCatalogDatabaseAccess(ctx context.Context, conn *sql.Conn, dialect Dia
 	return nil
 }
 
-func extraCatalogObjectAccess(ctx context.Context, conn *sql.Conn, d Dialect, schema, table string) error {
+func extraCatalogObjectAccess(ctx context.Context, conn *sql.Conn, d Dialect, schema, table string, editable bool) error {
 	b := &catalogBinder{dialect: d}
-	source, err := extraObjectSource(d, b, schema)
+	source, err := extraObjectSource(d, b, schema, editable)
 	if err != nil {
 		return err
 	}

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf16"
@@ -76,8 +77,73 @@ func normalizeTypedEditValue(dialect string, field sqlservice.EditColumn, value 
 	if value == nil {
 		return nil, nil
 	}
+	if text, ok := value.(string); ok {
+		typeName := strings.TrimSuffix(editBaseType(field.DataType), " UNSIGNED")
+		bits := 0
+		switch typeName {
+		case "TINYINT":
+			bits = 8
+		case "SMALLINT", "INT2", "SMALLSERIAL":
+			bits = 16
+		case "MEDIUMINT":
+			bits = 24
+		case "INT", "INTEGER", "INT4", "SERIAL":
+			bits = 32
+		case "BIGINT", "INT8", "BIGSERIAL":
+			bits = 64
+		}
+		if bits > 0 {
+			integer, err := exactEditInteger(text)
+			if err == nil {
+				if strings.HasSuffix(editBaseType(field.DataType), " UNSIGNED") || dialect == "sqlserver" && typeName == "TINYINT" {
+					_, err = strconv.ParseUint(integer, 10, bits)
+				} else {
+					_, err = strconv.ParseInt(integer, 10, bits)
+				}
+			}
+			if err != nil {
+				return nil, errors.New("Enter a whole number within the column's range")
+			}
+			return integer, nil
+		}
+	}
 	if editOracleTimezone(dialect, field) {
 		return editTimestampTZValue(value)
+	}
+	if sqlservice.IsOracleDialect(sqlservice.Dialect(dialect)) && (editBaseType(field.DataType) == "DATE" || editBaseType(field.DataType) == "TIMESTAMP") {
+		var calendar time.Time
+		valid := false
+		switch v := value.(type) {
+		case time.Time:
+			calendar = v
+			valid = true
+		case string:
+			if editTimestampTZExcessPrecision.MatchString(v) {
+				return nil, errors.New("Timestamp supports at most 9 fractional-second digits")
+			}
+			for _, layout := range []string{"2006-01-02 15:04:05.999999999", "2006-01-02T15:04:05.999999999", "2006-01-02"} {
+				parsed, err := time.Parse(layout, strings.TrimSpace(v))
+				if err == nil {
+					calendar = parsed
+					valid = true
+					break
+				}
+			}
+			if !valid && editBaseType(field.DataType) == "TIMESTAMP" {
+				if parsed, err := time.Parse(time.RFC3339Nano, strings.TrimSpace(v)); err == nil {
+					// Java's Timestamp.from preserves the instant, then JDBC uses
+					// the process local zone for an unzoned timestamp bind.
+					calendar, valid = parsed.In(time.Local), true
+				}
+			}
+		}
+		if !valid || calendar.Year() < 1 || calendar.Year() > 9999 {
+			return nil, errors.New("Enter an ISO date or date and time")
+		}
+		if editBaseType(field.DataType) == "DATE" {
+			return calendar.Format("2006-01-02 15:04:05"), nil
+		}
+		return calendar.Format("2006-01-02 15:04:05.000000000"), nil
 	}
 	if editOracleJSON(dialect, field) {
 		text, ok := value.(string)
@@ -133,6 +199,14 @@ func editTypedExpression(dialect string, field sqlservice.EditColumn, expression
 	}
 	if editOracleTimezone(dialect, field) {
 		return "TO_TIMESTAMP_TZ(" + expression + ", " + editTimestampTZFormat + ")"
+	}
+	if sqlservice.IsOracleDialect(sqlservice.Dialect(dialect)) {
+		switch editBaseType(field.DataType) {
+		case "DATE":
+			return "TO_DATE(" + expression + ", 'YYYY-MM-DD HH24:MI:SS')"
+		case "TIMESTAMP":
+			return "TO_TIMESTAMP(" + expression + ", 'YYYY-MM-DD HH24:MI:SS.FF9')"
+		}
 	}
 	return expression
 }

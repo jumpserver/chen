@@ -30,7 +30,7 @@ func analyzeVendorQueryPage(d Dialect, document string, options AnalyzeOptions, 
 	default:
 		return nil, ErrUnsupportedDialect
 	}
-	if len(document) > MaxDocumentBytes || strings.ContainsRune(document, 0) || !utf8.ValidString(document) {
+	if DocumentExceedsLimit(document) || strings.ContainsRune(document, 0) || !utf8.ValidString(document) {
 		return nil, bad
 	}
 	tokens := []token{}

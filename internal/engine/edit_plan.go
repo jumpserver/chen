@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -15,7 +17,7 @@ import (
 )
 
 var editNumber = regexp.MustCompile(`^[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?$`)
-var editInteger = regexp.MustCompile(`^[+-]?[0-9]+$`)
+var editIntegerParts = regexp.MustCompile(`^([+-]?)([0-9]*)(?:\.([0-9]*))?(?:[eE]([+-]?[0-9]+))?$`)
 
 // Only values are parameters. All identifiers and primary key predicates originate
 // from authenticated result provenance plus the current server catalog.
@@ -34,7 +36,12 @@ func buildEditPlan(dialect, cid string, r *Result, x *editResolved, req editPrev
 	}
 	seenRows := map[string]bool{}
 	target := editQualifiedTable(x.table, dialect)
-	for _, change := range req.Changes {
+	// Preserve Java's operation order. Deletions can free a primary/unique
+	// key that an insertion in the same save reuses.
+	changes := slices.Clone(req.Changes)
+	rank := map[string]int{"delete": 0, "update": 1, "insert": 2}
+	slices.SortStableFunc(changes, func(a, b editChange) int { return rank[a.Op] - rank[b.Op] })
+	for _, change := range changes {
 		if change.Op != "insert" && change.Op != "update" && change.Op != "delete" {
 			return nil, errors.New("Unknown row operation")
 		}
@@ -161,9 +168,6 @@ func buildEditPlan(dialect, cid string, r *Result, x *editResolved, req editPrev
 		lines = append(lines, cmd.previewSQL+";")
 	}
 	p.previewSQL = strings.Join(lines, "\n")
-	if len(p.previewSQL) > sqlservice.MaxDocumentBytes {
-		return nil, errors.New("The edit batch exceeds 2 MiB; save fewer changes")
-	}
 	return p, nil
 }
 func convertEditValue(field sqlservice.EditColumn, value *string) (any, error) {
@@ -181,18 +185,20 @@ func convertEditValue(field sqlservice.EditColumn, value *string) (any, error) {
 	v := *value
 	if strings.Contains(t, "BOOL") || t == "BIT" {
 		switch strings.ToLower(strings.TrimSpace(v)) {
-		case "true", "1":
+		case "true", "t", "1", "yes", "y":
 			return true, nil
-		case "false", "0":
+		case "false", "f", "0", "no", "n":
 			return false, nil
 		default:
 			return nil, errors.New("Enter true, false, 1 or 0")
 		}
 	}
 	if strings.Contains(t, "INT") && !strings.Contains(t, "INTERVAL") {
-		if !editInteger.MatchString(v) {
+		integer, err := exactEditInteger(v)
+		if err != nil {
 			return nil, errors.New("Enter a whole number without separators")
 		}
+		v = integer
 	}
 	if strings.Contains(t, "DECIMAL") || strings.Contains(t, "NUMERIC") || strings.Contains(t, "NUMBER") || strings.Contains(t, "FLOAT") || strings.Contains(t, "DOUBLE") || t == "REAL" || t == "MONEY" || t == "SMALLMONEY" {
 		if !editNumber.MatchString(v) {
@@ -202,5 +208,52 @@ func convertEditValue(field sqlservice.EditColumn, value *string) (any, error) {
 	if strings.Contains(t, "JSON") && !json.Valid([]byte(v)) {
 		return nil, errors.New("Enter valid JSON")
 	}
+	if strings.Contains(t, "FLOAT") || strings.Contains(t, "DOUBLE") || t == "REAL" {
+		n, err := strconv.ParseFloat(strings.TrimSpace(v), 64)
+		if err != nil || math.IsInf(n, 0) || math.IsNaN(n) {
+			return nil, errors.New("Enter a finite number")
+		}
+	}
 	return v, nil
+}
+
+// Java accepts exact integral decimal/exponent input and rejects overflow.
+// Normalize without floating-point rounding or allocating an exponent-sized
+// integer: no supported SQL integer has more than 20 decimal digits.
+func exactEditInteger(value string) (string, error) {
+	parts := editIntegerParts.FindStringSubmatch(value)
+	if parts == nil || parts[2] == "" && parts[3] == "" {
+		return "", errors.New("invalid integer")
+	}
+	digits := strings.TrimLeft(parts[2]+parts[3], "0")
+	if digits == "" {
+		return "0", nil
+	}
+	exponent := 0
+	if parts[4] != "" {
+		var err error
+		exponent, err = strconv.Atoi(parts[4])
+		if err != nil || exponent > len(value)+20 || exponent < -len(value)-20 {
+			return "", errors.New("integer out of range")
+		}
+	}
+	scale := exponent - len(parts[3])
+	if scale < 0 {
+		if -scale >= len(digits) || strings.Trim(digits[len(digits)+scale:], "0") != "" {
+			return "", errors.New("fractional integer")
+		}
+		digits = digits[:len(digits)+scale]
+	} else {
+		if len(digits)+scale > 20 {
+			return "", errors.New("integer out of range")
+		}
+		digits += strings.Repeat("0", scale)
+	}
+	if len(digits) > 20 {
+		return "", errors.New("integer out of range")
+	}
+	if parts[1] == "-" {
+		digits = "-" + digits
+	}
+	return digits, nil
 }

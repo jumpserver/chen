@@ -13,19 +13,42 @@ import (
 type Dialect string
 
 const (
-	MySQL              Dialect = "mysql"
-	PostgreSQL         Dialect = "postgresql"
-	MariaDB            Dialect = "mariadb"
-	SQLServer          Dialect = "sqlserver"
-	Oracle             Dialect = "oracle"
-	Dameng             Dialect = "dameng"
-	DB2                Dialect = "db2"
-	ClickHouse         Dialect = "clickhouse"
-	OceanBaseMySQL     Dialect = "oceanbase-mysql"
-	OceanBaseOracle    Dialect = "oceanbase-oracle"
-	MaxDocumentBytes           = 2 << 20
-	MaxCompletionItems         = 200
+	MySQL                Dialect = "mysql"
+	PostgreSQL           Dialect = "postgresql"
+	MariaDB              Dialect = "mariadb"
+	SQLServer            Dialect = "sqlserver"
+	Oracle               Dialect = "oracle"
+	Dameng               Dialect = "dameng"
+	DB2                  Dialect = "db2"
+	ClickHouse           Dialect = "clickhouse"
+	OceanBaseMySQL       Dialect = "oceanbase-mysql"
+	OceanBaseOracle      Dialect = "oceanbase-oracle"
+	MaxDocumentCodeUnits         = 4 << 20 // Java: 1,024 chunks of 4,096 UTF-16 code units.
+	MaxDocumentBytes             = 3 * MaxDocumentCodeUnits
+	MaxCompletionItems           = 200
 )
+
+// DocumentExceedsLimit preserves the Java chunk transport's text capacity for
+// both ASCII and multibyte SQL. UTF-8 bytes alone would reject valid CJK scripts.
+func DocumentExceedsLimit(document string) bool {
+	if len(document) <= MaxDocumentCodeUnits {
+		return false
+	}
+	if len(document) > MaxDocumentBytes {
+		return true
+	}
+	units := 0
+	for _, r := range document {
+		units++
+		if r > 0xffff {
+			units++
+		}
+		if units > MaxDocumentCodeUnits {
+			return true
+		}
+	}
+	return false
+}
 
 // These families describe SQL syntax, not the wire protocol. In particular an
 // OceanBase Oracle tenant must not be opened with an Oracle database driver.
@@ -50,7 +73,7 @@ func supported(d Dialect) bool {
 
 var (
 	ErrUnsupportedDialect = errors.New("unsupported SQL dialect")
-	ErrDocumentTooLarge   = errors.New("SQL document exceeds 2 MiB")
+	ErrDocumentTooLarge   = errors.New("SQL document exceeds 4,194,304 UTF-16 code units")
 )
 
 type Context struct {

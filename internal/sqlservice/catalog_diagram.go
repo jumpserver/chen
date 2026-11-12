@@ -76,7 +76,7 @@ func CatalogDiagramRows(ctx context.Context, conn *sql.Conn, d Dialect, r Diagra
 	if d == PostgreSQL {
 		result.Source = "pg_catalog"
 	}
-	if systemCatalogSchema(r.Schema, d) || (IsMySQLDialect(d) || d == ClickHouse) && r.Schema != "" && r.Schema != r.Database {
+	if (IsMySQLDialect(d) || d == ClickHouse) && r.Schema != "" && r.Schema != r.Database {
 		return result, ErrCatalogForbidden
 	}
 	if err := catalogDatabaseAccess(ctx, conn, d, r.Database); err != nil {
@@ -264,23 +264,21 @@ func diagramSQL(d Dialect, r DiagramRequest) (string, []any) {
 		return `SELECT TABLE_SCHEMA,TABLE_NAME,'table' FROM information_schema.TABLES WHERE BINARY TABLE_SCHEMA=BINARY ? AND TABLE_TYPE='BASE TABLE' AND (BINARY TABLE_SCHEMA,BINARY TABLE_NAME)>(BINARY ?,BINARY ?) ORDER BY BINARY TABLE_SCHEMA,BINARY TABLE_NAME LIMIT ?`, []any{r.Database, r.AfterSchema, r.AfterName, r.Limit + 1}
 	}
 	if d == PostgreSQL {
-		// Redact inaccessible target identities and individual columns. Constraint
-		// names belong only to visible source tables; hidden sources never enter p.
+		// Keep source and target schemas within the native visible-schema list.
+		// Constraint/column metadata does not require SELECT on business tables.
 		scope := `($2='' OR n.nspname=$2)`
 		if r.Direction == "incoming" {
-			scope = `nr.nspname=$2 AND tr.relname=$3 AND pg_catalog.has_schema_privilege(nr.oid,'USAGE')`
+			scope = `nr.nspname=$2 AND tr.relname=$3 AND nr.nspname IN (SELECT schema_name FROM information_schema.schemata)`
 		}
 		return `WITH p AS (SELECT k.*,n.nspname AS source_schema,c.relname AS source_table,nr.nspname AS target_schema,tr.relname AS target_table,
-   (pg_catalog.has_schema_privilege(nr.oid,'USAGE') AND nr.nspname NOT LIKE 'pg!_%' ESCAPE '!' AND nr.nspname<>'information_schema' AND (pg_catalog.has_table_privilege(tr.oid,'SELECT,INSERT,UPDATE,REFERENCES') OR pg_catalog.has_any_column_privilege(tr.oid,'SELECT,INSERT,UPDATE,REFERENCES'))) AS target_visible
+   (nr.nspname IN (SELECT schema_name FROM information_schema.schemata)) AS target_visible
    FROM pg_catalog.pg_constraint k JOIN pg_catalog.pg_class c ON c.oid=k.conrelid JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace JOIN pg_catalog.pg_class tr ON tr.oid=k.confrelid JOIN pg_catalog.pg_namespace nr ON nr.oid=tr.relnamespace
    WHERE pg_catalog.current_database()=$1 AND k.contype='f' AND ` + scope + ` AND ($3::text IS NOT NULL)
-   AND n.nspname NOT LIKE 'pg!_%' ESCAPE '!' AND n.nspname<>'information_schema' AND pg_catalog.has_schema_privilege(n.oid,'USAGE')
-   AND (pg_catalog.has_table_privilege(c.oid,'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER') OR pg_catalog.has_any_column_privilege(c.oid,'SELECT,INSERT,UPDATE,REFERENCES'))
+   AND n.nspname IN (SELECT schema_name FROM information_schema.schemata)
    AND (n.nspname COLLATE pg_catalog."C",c.relname COLLATE pg_catalog."C",k.conname COLLATE pg_catalog."C") > ($4 COLLATE pg_catalog."C",$5 COLLATE pg_catalog."C",$6 COLLATE pg_catalog."C")
    ORDER BY n.nspname COLLATE pg_catalog."C",c.relname COLLATE pg_catalog."C",k.conname COLLATE pg_catalog."C" LIMIT $7)
   SELECT p.source_schema,p.source_table,p.conname,CASE WHEN p.target_visible THEN p.target_schema END,CASE WHEN p.target_visible THEN p.target_table END,p.target_visible,u.ord,cardinality(p.conkey),
-   CASE WHEN pg_catalog.has_column_privilege(p.conrelid,u.a,'SELECT,INSERT,UPDATE,REFERENCES') THEN a.attname END,
-   CASE WHEN p.target_visible AND pg_catalog.has_column_privilege(p.confrelid,u.b,'SELECT,INSERT,UPDATE,REFERENCES') THEN b.attname END
+   a.attname, CASE WHEN p.target_visible THEN b.attname END
   FROM p CROSS JOIN LATERAL unnest(p.conkey,p.confkey) WITH ORDINALITY u(a,b,ord)
   LEFT JOIN pg_catalog.pg_attribute a ON a.attrelid=p.conrelid AND a.attnum=u.a LEFT JOIN pg_catalog.pg_attribute b ON b.attrelid=p.confrelid AND b.attnum=u.b
   WHERE u.ord<=64 ORDER BY p.source_schema COLLATE pg_catalog."C",p.source_table COLLATE pg_catalog."C",p.conname COLLATE pg_catalog."C",u.ord`, []any{r.Database, r.Schema, r.Table, r.AfterSchema, r.AfterTable, r.AfterName, r.Limit + 1}

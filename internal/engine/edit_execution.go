@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"sync/atomic"
 	"time"
 
@@ -129,8 +128,7 @@ func (v *Server) runEdits(s *session, c *console, e *execution) {
 	for _, command := range e.edit.commands {
 		policy = append(policy, command.policySQL)
 	}
-	commands := append([]string{strings.Join(policy, ";\n")}, policy...)
-	if err := v.authorizeExecution(s, e, commands, &audit); err != nil {
+	if err := v.authorizeExecution(s, e, policy, &audit); err != nil {
 		var pe *jumpserver.PolicyError
 		if errors.As(err, &pe) {
 			audit.RiskLevel, audit.ACLID, audit.GroupID = pe.RiskLevel, pe.ACLID, pe.GroupID
@@ -248,13 +246,11 @@ func (v *Server) runEdits(s *session, c *console, e *execution) {
 			rollback(editError("session_unavailable", "Session changed; this save was rolled back"))
 			return
 		}
-		for _, key := range []string{commands[0], command.policySQL} {
-			if warning, ok := e.policyWarnings[key]; ok {
-				warningKey := warning.ACLID + ":" + warning.GroupID
-				triggeredWarnings[warningKey] = jumpserver.AuditRecord{ID: e.view.ID + ":warning:" + warningKey, SQL: e.sql, RiskLevel: warning.RiskLevel, ACLID: warning.ACLID, GroupID: warning.GroupID}
-				if warning.RiskLevel > audit.RiskLevel {
-					audit.RiskLevel, audit.ACLID, audit.GroupID = warning.RiskLevel, warning.ACLID, warning.GroupID
-				}
+		if warning, ok := e.policyWarnings[command.policySQL]; ok {
+			warningKey := warning.ACLID + ":" + warning.GroupID
+			triggeredWarnings[warningKey] = jumpserver.AuditRecord{ID: e.view.ID + ":warning:" + warningKey, SQL: e.sql, RiskLevel: warning.RiskLevel, ACLID: warning.ACLID, GroupID: warning.GroupID}
+			if warning.RiskLevel > audit.RiskLevel {
+				audit.RiskLevel, audit.ACLID, audit.GroupID = warning.RiskLevel, warning.ACLID, warning.GroupID
 			}
 		}
 		attempted = true

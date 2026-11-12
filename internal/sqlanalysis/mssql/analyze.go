@@ -305,7 +305,7 @@ func (r reader) statement(node ast.Node, loc a.Span) (a.Statement, error) {
 			}
 			tb := r.table(n)
 			s.Tables = append(s.Tables, tb)
-			if n.Server != "" || n.Database != "" || strings.HasPrefix(n.Object, "#") || strings.HasPrefix(n.Object, "@") {
+			if n.Server != "" || strings.HasPrefix(n.Object, "#") || strings.HasPrefix(n.Object, "@") {
 				add(&s, a.SpecialObject)
 			}
 			if n.Temporal != nil || nonempty(n.Hints) {
@@ -390,7 +390,11 @@ func ownerMatches(q []a.Identifier, t a.Table) bool {
 	if len(q) == 1 {
 		return q[0].Name == owner
 	}
-	return len(q) == 2 && t.Alias.Name == "" && q[0].Name == t.Schema.Name && q[1].Name == t.Name.Name
+	if t.Alias.Name != "" {
+		return false
+	}
+	return len(q) == 2 && q[0].Name == t.Schema.Name && q[1].Name == t.Name.Name ||
+		len(q) == 3 && q[0].Name == t.Database.Name && q[1].Name == t.Schema.Name && q[2].Name == t.Name.Name
 }
 func (r reader) projections(s *a.Statement, n *ast.SelectStmt) {
 	if n.TargetList == nil {

@@ -3,6 +3,7 @@ package engine
 import (
 	"net/http"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/jumpserver/chen/internal/sqlservice"
 )
@@ -29,7 +30,7 @@ func (v *Server) consoleContexts(w http.ResponseWriter, r *http.Request) {
 	}
 	defer done()
 	after := r.URL.Query().Get("after")
-	if len(after) > 256 || strings.ContainsRune(after, 0) {
+	if !utf8.ValidString(after) || utf8.RuneCountInString(after) > 256 || strings.ContainsRune(after, 0) {
 		fail(w, 400, "invalid_catalog_request", "Invalid context cursor")
 		return
 	}

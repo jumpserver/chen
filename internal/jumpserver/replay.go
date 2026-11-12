@@ -16,8 +16,8 @@ import (
 	"github.com/jumpserver/wisp/protobuf-go/protobuf"
 )
 
-// Replay contains the SQL and the same redacted status summary as command
-// audit. Query result cells are not copied into a second, unmasked store.
+// Replay contains the SQL and the masked result content supplied by the
+// execution owner. Command audit retains its separate status summary.
 type replayStore struct {
 	dir string
 	mu  sync.Mutex

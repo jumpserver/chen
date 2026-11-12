@@ -3,11 +3,20 @@ package engine
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"errors"
 
 	"github.com/jumpserver/chen/internal/jumpserver"
 	"github.com/jumpserver/chen/internal/sqlservice"
 )
+
+func closeConsoleConnection(conn *sql.Conn) {
+	// Java Chen gives each query a fresh physical connection. Driver pool
+	// resets do not consistently restore USE, search_path, CURRENT_SCHEMA or
+	// other session settings, so closed consoles must never be reused.
+	_ = conn.Raw(func(any) error { return driver.ErrBadConn })
+	_ = conn.Close()
+}
 
 func connectionContext(ctx context.Context, conn *sql.Conn, dialect string, configured sqlservice.Context) (sqlservice.Context, error) {
 	current := configured

@@ -49,9 +49,13 @@ func inspectTable(ctx context.Context, conn *sql.Conn, d Dialect, req CatalogCol
 	if err != nil {
 		return result, err
 	}
-	if len(columns) > 200 {
-		columns = columns[:200]
-		result.Truncated = true
+	for page := columns; len(page) > MaxCatalogPageSize; {
+		req.AfterOrdinal = page[len(page)-1].Ordinal
+		page, err = ColumnRows(ctx, conn, d, req)
+		if err != nil {
+			return result, err
+		}
+		columns = append(columns, page...)
 	}
 	result.Columns = columns
 	result.ColumnOrdinals = make(map[string]int, len(columns))
@@ -63,22 +67,15 @@ func inspectTable(ctx context.Context, conn *sql.Conn, d Dialect, req CatalogCol
 	}
 	ddl := MetadataSection{Supported: ddlSupported(d), Source: ddlSource(d), Deferred: true}
 	if d == PostgreSQL {
-		var fullAccess bool
 		var relationKind string
-		err := conn.QueryRowContext(ctx, `SELECT
-pg_catalog.has_table_privilege(t.oid, 'SELECT,INSERT,UPDATE,REFERENCES'), t.relkind::text
+		err := conn.QueryRowContext(ctx, `SELECT t.relkind::text
 FROM pg_catalog.pg_class t JOIN pg_catalog.pg_namespace n ON n.oid=t.relnamespace
-WHERE n.nspname=$1 AND t.relname=$2`, req.Schema, req.Table).Scan(&fullAccess, &relationKind)
+WHERE n.nspname=$1 AND t.relname=$2`, req.Schema, req.Table).Scan(&relationKind)
 		if err != nil {
 			return result, fmt.Errorf("check definition visibility: %w", err)
 		}
-		if !fullAccess {
-			result.ColumnsRestricted = true
-			ddl = MetadataSection{Supported: false, Source: "restricted", Error: "DDL requires table-level column access"}
-		} else if relationKind == "v" || relationKind == "m" {
+		if relationKind == "v" || relationKind == "m" {
 			ddl.Source = "native_view_query"
-		} else if result.Truncated {
-			ddl = MetadataSection{Supported: false, Source: "reconstructed_columns", Truncated: true, Error: "Column preview exceeds the 200-column display limit"}
 		}
 	}
 	result.Sections["ddl"] = ddl
@@ -129,18 +126,25 @@ WHERE n.nspname=$1 AND t.relname=$2`, req.Schema, req.Table).Scan(&fullAccess, &
 			if err = rows.Scan(dest...); err != nil {
 				break
 			}
-			if len(section.Items) >= 200 {
-				section.Truncated = true
-				break
-			}
 			item := map[string]any{}
 			for i, n := range names {
 				switch value := vals[i].(type) {
 				case []byte:
 					item[n] = string(value)
+				case goora.Clob, goora.NClob, interface {
+					GetLength() (int64, error)
+					ReadString(int, int) (string, error)
+				}:
+					item[n], err = metadataText(value)
 				default:
 					item[n] = value
 				}
+				if err != nil {
+					break
+				}
+			}
+			if err != nil {
+				break
 			}
 			section.Items = append(section.Items, item)
 		}
@@ -207,18 +211,20 @@ func inspectionQuery(d Dialect, r CatalogColumnRequest, kind string, keySize ...
 			q = `SELECT 'PRIMARY', name, position FROM system.columns WHERE database=` + a + ` AND table=` + c + ` AND is_in_primary_key=1 ORDER BY position`
 		}
 	case "indexes":
-		names = []string{"name", "column", "ordinal", "unique"}
+		names = []string{"name", "column", "ordinal", "unique", "method", "sort_order", "included", "protected"}
 		switch {
 		case IsMySQLDialect(d):
-			q = `SELECT INDEX_NAME,COLUMN_NAME,SEQ_IN_INDEX,CASE WHEN NON_UNIQUE=0 THEN 1 ELSE 0 END FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=` + a + ` AND TABLE_NAME=` + c + ` ORDER BY INDEX_NAME,SEQ_IN_INDEX`
+			q = `SELECT i.INDEX_NAME,i.COLUMN_NAME,i.SEQ_IN_INDEX,CASE WHEN i.NON_UNIQUE=0 THEN 1 ELSE 0 END,i.INDEX_TYPE,CASE i.COLLATION WHEN 'A' THEN 'ASC' WHEN 'D' THEN 'DESC' END,0,CASE WHEN EXISTS (SELECT 1 FROM information_schema.TABLE_CONSTRAINTS k WHERE k.TABLE_SCHEMA=i.TABLE_SCHEMA AND k.TABLE_NAME=i.TABLE_NAME AND k.CONSTRAINT_NAME=i.INDEX_NAME) THEN 1 ELSE 0 END FROM information_schema.STATISTICS i WHERE i.TABLE_SCHEMA=` + a + ` AND i.TABLE_NAME=` + c + ` ORDER BY i.INDEX_NAME,i.SEQ_IN_INDEX`
 		case d == PostgreSQL:
-			q = `SELECT ci.relname,pg_catalog.pg_get_indexdef(i.indexrelid,u.ord::integer,true),u.ord,CASE WHEN i.indisunique THEN 1 ELSE 0 END FROM pg_catalog.pg_index i JOIN pg_catalog.pg_class t ON t.oid=i.indrelid JOIN pg_catalog.pg_namespace n ON n.oid=t.relnamespace JOIN pg_catalog.pg_class ci ON ci.oid=i.indexrelid CROSS JOIN LATERAL unnest(i.indkey) WITH ORDINALITY u(attnum,ord) WHERE n.nspname=` + a + ` AND t.relname=` + c + ` ORDER BY ci.relname,u.ord`
+			names = append(names, "definition")
+			q = `SELECT ci.relname,pg_catalog.pg_get_indexdef(i.indexrelid,u.ord::integer,true),u.ord,CASE WHEN i.indisunique THEN 1 ELSE 0 END,am.amname,CASE WHEN (i.indoption[(u.ord-1)::integer] & 1)=1 THEN 'DESC' ELSE 'ASC' END,CASE WHEN u.ord>COALESCE((to_jsonb(i)->>'indnkeyatts')::integer,i.indnatts) THEN 1 ELSE 0 END,CASE WHEN EXISTS (SELECT 1 FROM pg_catalog.pg_constraint k WHERE k.conindid=i.indexrelid AND k.contype IN ('p','u','x')) THEN 1 ELSE 0 END,pg_catalog.pg_get_indexdef(i.indexrelid) FROM pg_catalog.pg_index i JOIN pg_catalog.pg_class t ON t.oid=i.indrelid JOIN pg_catalog.pg_namespace n ON n.oid=t.relnamespace JOIN pg_catalog.pg_class ci ON ci.oid=i.indexrelid JOIN pg_catalog.pg_am am ON am.oid=ci.relam CROSS JOIN LATERAL unnest(i.indkey) WITH ORDINALITY u(attnum,ord) WHERE n.nspname=` + a + ` AND t.relname=` + c + ` ORDER BY ci.relname,u.ord`
 		case d == SQLServer:
-			q = `SELECT i.name,c.name,ic.key_ordinal,CONVERT(int,i.is_unique) FROM sys.indexes i JOIN sys.objects t ON t.object_id=i.object_id JOIN sys.schemas s ON s.schema_id=t.schema_id JOIN sys.index_columns ic ON ic.object_id=t.object_id AND ic.index_id=i.index_id JOIN sys.columns c ON c.object_id=t.object_id AND c.column_id=ic.column_id WHERE s.name=` + a + ` AND t.name=` + c + ` AND i.index_id>0 ORDER BY i.name,ic.index_column_id`
+			q = `SELECT i.name,c.name,ic.key_ordinal,CONVERT(int,i.is_unique),i.type_desc,CASE WHEN ic.is_included_column=1 THEN NULL WHEN ic.is_descending_key=1 THEN 'DESC' ELSE 'ASC' END,CONVERT(int,ic.is_included_column),CASE WHEN i.is_primary_key=1 OR i.is_unique_constraint=1 THEN 1 ELSE 0 END FROM sys.indexes i JOIN sys.objects t ON t.object_id=i.object_id JOIN sys.schemas s ON s.schema_id=t.schema_id LEFT JOIN sys.index_columns ic ON ic.object_id=t.object_id AND ic.index_id=i.index_id LEFT JOIN sys.columns c ON c.object_id=t.object_id AND c.column_id=ic.column_id WHERE s.name=` + a + ` AND t.name=` + c + ` AND i.index_id>0 AND i.is_hypothetical=0 ORDER BY i.name,ic.index_column_id`
 		case IsOracleDialect(d):
-			q = `SELECT i.INDEX_NAME,k.COLUMN_NAME,k.COLUMN_POSITION,CASE WHEN i.UNIQUENESS='UNIQUE' THEN 1 ELSE 0 END FROM ALL_INDEXES i JOIN ALL_IND_COLUMNS k ON k.INDEX_OWNER=i.OWNER AND k.INDEX_NAME=i.INDEX_NAME WHERE i.TABLE_OWNER=` + a + ` AND i.TABLE_NAME=` + c + ` ORDER BY i.INDEX_NAME,k.COLUMN_POSITION`
+			names = append(names, "expression")
+			q = `SELECT i.INDEX_NAME,k.COLUMN_NAME,k.COLUMN_POSITION,CASE WHEN i.UNIQUENESS='UNIQUE' THEN 1 ELSE 0 END,i.INDEX_TYPE,k.DESCEND,0,CASE WHEN EXISTS (SELECT 1 FROM ALL_CONSTRAINTS z WHERE z.OWNER=i.TABLE_OWNER AND z.TABLE_NAME=i.TABLE_NAME AND z.INDEX_NAME=i.INDEX_NAME AND z.CONSTRAINT_TYPE IN ('P','U')) THEN 1 ELSE 0 END,e.COLUMN_EXPRESSION FROM ALL_INDEXES i JOIN ALL_IND_COLUMNS k ON k.INDEX_OWNER=i.OWNER AND k.INDEX_NAME=i.INDEX_NAME AND k.TABLE_OWNER=i.TABLE_OWNER LEFT JOIN ALL_IND_EXPRESSIONS e ON e.INDEX_OWNER=k.INDEX_OWNER AND e.INDEX_NAME=k.INDEX_NAME AND e.TABLE_OWNER=k.TABLE_OWNER AND e.COLUMN_POSITION=k.COLUMN_POSITION WHERE i.TABLE_OWNER=` + a + ` AND i.TABLE_NAME=` + c + ` ORDER BY i.INDEX_NAME,k.COLUMN_POSITION`
 		case d == DB2:
-			q = `SELECT i.INDNAME,k.COLNAME,k.COLSEQ,CASE WHEN i.UNIQUERULE IN ('P','U') THEN 1 ELSE 0 END FROM SYSCAT.INDEXES i JOIN SYSCAT.INDEXCOLUSE k ON k.INDSCHEMA=i.INDSCHEMA AND k.INDNAME=i.INDNAME WHERE i.TABSCHEMA=` + a + ` AND i.TABNAME=` + c + ` ORDER BY i.INDNAME,k.COLSEQ`
+			q = `SELECT RTRIM(i.INDNAME),RTRIM(k.COLNAME),k.COLSEQ,CASE WHEN i.UNIQUERULE IN ('P','U') THEN 1 ELSE 0 END,RTRIM(i.INDEXTYPE),CASE k.COLORDER WHEN 'A' THEN 'ASC' WHEN 'D' THEN 'DESC' END,CASE WHEN k.COLORDER='I' THEN 1 ELSE 0 END,CASE WHEN i.UNIQUERULE='P' OR EXISTS (SELECT 1 FROM SYSCAT.CONSTDEP z WHERE z.TABSCHEMA=i.TABSCHEMA AND z.TABNAME=i.TABNAME AND z.BSCHEMA=i.INDSCHEMA AND z.BNAME=i.INDNAME AND z.BTYPE='I') THEN 1 ELSE 0 END FROM SYSCAT.INDEXES i JOIN SYSCAT.INDEXCOLUSE k ON k.INDSCHEMA=i.INDSCHEMA AND k.INDNAME=i.INDNAME WHERE i.TABSCHEMA=` + a + ` AND i.TABNAME=` + c + ` ORDER BY i.INDNAME,k.COLSEQ`
 		}
 	case "foreign_keys":
 		names = []string{"name", "column", "referenced_schema", "referenced_table", "referenced_column", "ordinal", "column_count"}
@@ -262,15 +268,18 @@ func inspectionQuery(d Dialect, r CatalogColumnRequest, kind string, keySize ...
 		}
 	}
 
-	if d == PostgreSQL {
-		// PostgreSQL catalogs are broadly readable. The workspace still follows
-		// the column scope used by ColumnRows, including composite metadata and
-		// generated/default expressions that depend on inaccessible columns.
+	if d == PostgreSQL && len(keySize) > 1 && keySize[1] {
+		// Editing retains its column-grant boundary. Read-only inspection uses
+		// native catalogs independently of data privileges.
 		guard := postgresInspectionGuard(kind)
 		if guard != "" {
 			if pos := strings.LastIndex(q, " ORDER BY "); pos >= 0 {
 				q = q[:pos] + " AND (" + guard + ")" + q[pos:]
 			}
+		}
+	} else if d == PostgreSQL && kind == "foreign_keys" {
+		if pos := strings.LastIndex(q, " ORDER BY "); pos >= 0 {
+			q = q[:pos] + " AND nr.nspname IN (SELECT schema_name FROM information_schema.schemata)" + q[pos:]
 		}
 	}
 	return catalogQuery{q, b.args}, names, true
@@ -337,7 +346,7 @@ func inspectionDDL(ctx context.Context, conn *sql.Conn, d Dialect, r CatalogColu
 		if section.Text == "" {
 			section.Error = "DDL is unavailable for this object"
 		}
-		return boundedDDL(section)
+		return section
 	case d == Oracle:
 		var views int
 		if err := conn.QueryRowContext(ctx, "SELECT COUNT(*) FROM ALL_VIEWS WHERE OWNER=:1 AND VIEW_NAME=:2", r.Schema, r.Table).Scan(&views); err != nil {
@@ -358,8 +367,7 @@ func inspectionDDL(ctx context.Context, conn *sql.Conn, d Dialect, r CatalogColu
 			section.Source = "native_view_query"
 			q = `SELECT pg_catalog.pg_get_viewdef(t.oid,true)
 FROM pg_catalog.pg_class t JOIN pg_catalog.pg_namespace n ON n.oid=t.relnamespace
-WHERE n.nspname=$1 AND t.relname=$2 AND t.relkind IN ('v','m')
-AND pg_catalog.has_table_privilege(t.oid, 'SELECT,INSERT,UPDATE,REFERENCES')`
+WHERE n.nspname=$1 AND t.relname=$2 AND t.relkind IN ('v','m')`
 			args = []any{r.Schema, r.Table}
 			break
 		}
@@ -384,7 +392,7 @@ AND pg_catalog.has_table_privilege(t.oid, 'SELECT,INSERT,UPDATE,REFERENCES')`
 			lines = append(lines, "  "+line)
 		}
 		section.Text = "-- Column definition preview; constraints, indexes, identity/generated-column, storage and partition options are not included.\nCREATE TABLE " + quoteIdentifier(r.Schema, d, '"') + "." + quoteIdentifier(r.Table, d, '"') + " (\n" + strings.Join(lines, ",\n") + "\n);"
-		return boundedDDL(section)
+		return section
 	default:
 		return MetadataSection{Supported: false}
 	}
@@ -397,21 +405,17 @@ AND pg_catalog.has_table_privilege(t.oid, 'SELECT,INSERT,UPDATE,REFERENCES')`
 	for rows.Next() {
 		var value any
 		if err := rows.Scan(&value); err != nil {
+			section.Text = ""
 			section.Error = "Unable to read DDL"
 			break
 		}
 		text, err := metadataText(value)
 		if err != nil {
-			section.Error = "DDL exceeds the display limit or cannot be decoded"
+			section.Text = ""
+			section.Error = "Unable to read complete DDL"
 			break
 		}
 		section.Text += text
-		if len(section.Text) > 128<<10 {
-			section.Text = ""
-			section.Truncated = true
-			section.Error = "DDL exceeds the 128 KiB display limit"
-			break
-		}
 	}
 	if rows.Err() != nil {
 		section.Text = ""
@@ -420,15 +424,7 @@ AND pg_catalog.has_table_privilege(t.oid, 'SELECT,INSERT,UPDATE,REFERENCES')`
 	if section.Source == "native_view_query" && section.Text != "" {
 		section.Text = "-- Native view SELECT definition; this is not a CREATE statement.\n" + section.Text
 	}
-	return boundedDDL(section)
-}
-func boundedDDL(s MetadataSection) MetadataSection {
-	if len(s.Text) > 128<<10 {
-		s.Text = ""
-		s.Error = "DDL exceeds the 128 KiB display limit"
-		s.Truncated = true
-	}
-	return s
+	return section
 }
 
 // Driver LOB locators must be consumed while their connection is still pinned.
@@ -452,8 +448,8 @@ func metadataText(value any) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		if n > 128<<10 || n < 0 {
-			return "", errors.New("DDL too large")
+		if n < 0 || uint64(n) > uint64(^uint(0)>>1) {
+			return "", errors.New("Invalid DDL length")
 		}
 		if n == 0 {
 			return "", nil

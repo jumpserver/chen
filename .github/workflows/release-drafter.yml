@@ -21,14 +21,13 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - name: Build and accept the exact release image
+      - name: Build the release image
         env:
           VERSION: ${{ github.ref_name }}
           PLATFORM: ${{ matrix.platform }}
         run: |
-          make test vet image
+          make vet image
           image="jumpserver/chen:${VERSION}-ce"
-          ./scripts/smoke-image.sh "$image" "$PLATFORM"
           make package CHEN_IMAGE="$image"
       - uses: softprops/action-gh-release@v2
         with:

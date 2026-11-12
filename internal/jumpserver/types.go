@@ -30,6 +30,7 @@ type CommandAuthorizer interface {
 }
 
 type AuthorizationRequest struct {
+	AffectedRows    *int64 // nil for a console-owned query; grid plans know their change count
 	SQL             string
 	BatchSQL        string
 	SubmitReview    bool
@@ -45,6 +46,7 @@ type AuthorizationDecision struct {
 }
 
 type ReviewStatus struct {
+	SQL       string    `json:"sql,omitempty"`
 	State     string    `json:"state"`
 	TicketURL string    `json:"ticket_url,omitempty"`
 	Reviewers []string  `json:"reviewers,omitempty"`
@@ -209,15 +211,18 @@ func (g *Grant) SetBusy(busy bool) {
 }
 
 type AuditRecord struct {
-	ID         string
-	SQL        string
-	Output     string
-	Error      string
-	StartedAt  time.Time
-	FinishedAt time.Time
-	RiskLevel  int32
-	ACLID      string
-	GroupID    string
+	ID     string
+	SQL    string
+	Output string
+	// ReplayOutput contains only the result values already masked for display.
+	// Command audit keeps its summary while session replay retains the result.
+	ReplayOutput string
+	Error        string
+	StartedAt    time.Time
+	FinishedAt   time.Time
+	RiskLevel    int32
+	ACLID        string
+	GroupID      string
 	// The execution owner has classified this record, including normal risk.
 	// Do not infer a warning again from SQL that may never have been sent.
 	RiskClassified bool

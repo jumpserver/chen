@@ -369,9 +369,12 @@ func buildCopiedSQL(dialect string, r *Result, x *editResolved, req copySQLReque
 			line = "UPDATE " + target + " SET " + strings.Join(assignments, ", ") + " WHERE " + strings.Join(where, " AND ") + ";\n"
 		}
 		if sql.Len()+len(line) > sqlservice.MaxDocumentBytes {
-			return out, errors.New("Copied SQL exceeds the 2 MiB limit; select fewer cells")
+			return out, errors.New("Copied SQL exceeds the SQL document limit; select fewer cells")
 		}
 		sql.WriteString(line)
+	}
+	if sqlservice.DocumentExceedsLimit(sql.String()) {
+		return out, errors.New("Copied SQL exceeds the SQL document limit; select fewer cells")
 	}
 	out.SQL = strings.TrimSuffix(sql.String(), "\n")
 	return out, nil

@@ -61,7 +61,11 @@ func extraDatabase(c jumpserver.ConnectionConfig, t *tls.Config) (*sql.DB, error
 		if database == "" {
 			database = "default"
 		}
-		return clickhouse.OpenDB(&clickhouse.Options{Addr: []string{net.JoinHostPort(c.Host, strconv.Itoa(c.Port))}, Auth: clickhouse.Auth{Database: database, Username: c.User, Password: c.Password}, TLS: t, Protocol: protocol, DialTimeout: 10 * time.Second, ReadTimeout: 2 * time.Minute, ClientInfo: clickhouse.ClientInfo{Products: []struct{ Name, Version string }{{Name: "chen", Version: "go"}}}}), nil
+		options := &clickhouse.Options{Addr: []string{net.JoinHostPort(c.Host, strconv.Itoa(c.Port))}, Auth: clickhouse.Auth{Database: database, Username: c.User, Password: c.Password}, TLS: t, Protocol: protocol, DialTimeout: 10 * time.Second, ReadTimeout: 2 * time.Minute, ClientInfo: clickhouse.ClientInfo{Products: []struct{ Name, Version string }{{Name: "chen", Version: "go"}}}}
+		if protocol == clickhouse.HTTP {
+			return sql.OpenDB(&clickHouseHTTPConnector{options: *options}), nil
+		}
+		return clickhouse.OpenDB(options), nil
 	case "oracle":
 		options := oracleConnectionOptions(c)
 		if t != nil {
@@ -99,7 +103,9 @@ func supportedProtocols() []string {
 
 func quoteDatabaseIdentifier(name, dialect string) string {
 	switch {
-	case jumpserver.IsMySQLDialect(dialect) || dialect == "clickhouse":
+	case dialect == "clickhouse":
+		return "`" + strings.ReplaceAll(strings.ReplaceAll(name, "\\", "\\\\"), "`", "``") + "`"
+	case jumpserver.IsMySQLDialect(dialect):
 		return "`" + strings.ReplaceAll(name, "`", "``") + "`"
 	case dialect == "sqlserver":
 		return "[" + strings.ReplaceAll(name, "]", "]]") + "]"

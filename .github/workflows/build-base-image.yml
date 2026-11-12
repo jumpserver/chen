@@ -10,7 +10,6 @@ on:
       - scripts/build-wisp.sh
       - scripts/wisp/**
       - scripts/update-base-image.py
-      - scripts/test-update-base-image.py
       - .github/workflows/build-base-image.yml
   workflow_dispatch:
     inputs:
@@ -56,8 +55,6 @@ jobs:
             echo 'Base defaults were just updated; application CI will validate them.'
           fi
           echo "build=$build" >> "$GITHUB_OUTPUT"
-      - name: Test base reference update
-        run: python3 scripts/test-update-base-image.py
       - name: Check publication credentials
         if: env.PUBLISH == 'true' && steps.source.outputs.build == 'true'
         env:

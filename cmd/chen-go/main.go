@@ -66,10 +66,10 @@ func parseOptions(args []string) (options, error) {
 	flags.StringVar(&o.backends, "b", "", "Alias for --backends")
 	flags.BoolVar(&o.insecureBackends, "allow-insecure-backend-file", false, "Allow group/other permissions on the backend file")
 	flags.StringVar(&o.webDir, "web-dir", "", "Single mode Luna static output directory (pnpm generate:chen)")
-	flags.DurationVar(&o.timeout, "query-timeout", time.Minute, "Maximum queued plus running time per execution")
+	flags.DurationVar(&o.timeout, "query-timeout", 0, "Maximum queued plus running time per execution; 0 disables")
 	flags.StringVar(&transactionIdleTimeout, "transaction-idle-timeout", env("CHEN_TRANSACTION_IDLE_TIMEOUT", "5m"), "Roll back an idle manual transaction after this duration; 0 disables")
 	flags.IntVar(&o.rows, "max-rows", 10000, "Maximum retained rows per result set")
-	flags.IntVar(&o.bytes, "max-result-bytes", 16<<20, "Maximum retained row data bytes per session")
+	flags.IntVar(&o.bytes, "max-result-bytes", 0, "Maximum retained row data bytes per session; 0 disables")
 	if err := flags.Parse(args); err != nil {
 		return o, err
 	}
@@ -91,7 +91,7 @@ func parseOptions(args []string) (options, error) {
 			return o, errors.New("invalid_startup_timeout")
 		}
 	}
-	if o.timeout <= 0 || o.rows <= 0 || o.bytes <= 0 {
+	if o.timeout < 0 || o.rows <= 0 || o.bytes < 0 {
 		return o, errors.New("invalid resource limits")
 	}
 	if !o.single && (o.backends != "" || o.insecureBackends || o.webDir != "") {

@@ -23,10 +23,11 @@ type Options struct {
 	SingleMode     bool
 	StateDir       string
 	AllowedOrigins []string
+	// Session, console and byte quotas are optional; positive values enable them.
 	MaxSessions    int
 	MaxConsoles    int
-	MaxRows        int
 	MaxResultBytes int
+	MaxRows        int
 	QueryTimeout   time.Duration
 	// Zero uses the five-minute default; a negative value disables idle rollback.
 	TransactionIdleTimeout time.Duration
@@ -69,6 +70,8 @@ type StatementResult struct {
 	RowsAffected string `json:"rows_affected,omitempty"`
 }
 type ExecutionView struct {
+	Revision         uint64                   `json:"revision"`
+	Confirmation     *ExecutionConfirmation   `json:"confirmation,omitempty"`
 	Transaction      *TransactionOutcome      `json:"transaction,omitempty"`
 	QueryCount       *QueryCount              `json:"query_count,omitempty"`
 	BrowseCount      *BrowseCount             `json:"browse_count,omitempty"`
@@ -125,6 +128,12 @@ type Event struct {
 }
 
 type execution struct {
+	restoreReadContext    func() error    // worker-owned; restore before publishing source-bound reads
+	consoleMode           bool            // raw console boundaries; ordinary query parsing is unchanged
+	confirmationDecisions map[string]bool // protected by mu; immutable identities survive retries
+	confirmationResponse  chan bool       // protected by mu; one response per pending confirmation
+	replayOutput          string          // worker-owned, contains displayed masked values only
+	auditRows             int             // worker-owned current statement result count
 	transactionAction     string
 	transactionOnPending  string
 	transactionRevision   uint64
@@ -162,6 +171,10 @@ func (e *execution) snapshot() ExecutionView {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 	v := e.view
+	if v.Confirmation != nil {
+		confirmation := *v.Confirmation
+		v.Confirmation = &confirmation
+	}
 	if v.Transaction != nil {
 		transaction := *v.Transaction
 		v.Transaction = &transaction

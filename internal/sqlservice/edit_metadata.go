@@ -86,11 +86,8 @@ func LoadEditTable(ctx context.Context, conn *sql.Conn, d Dialect, scope Context
 			schema = resolved
 		}
 	}
-	if systemCatalogSchema(schema, d) {
-		return out, ErrCatalogForbidden
-	}
 	out.Schema = schema
-	if err := catalogObjectAccess(ctx, conn, d, schema, table); err != nil {
+	if err := catalogEditableObjectAccess(ctx, conn, d, schema, table); err != nil {
 		if !IsMySQLDialect(d) || !errors.Is(err, ErrCatalogNotFound) {
 			return out, err
 		}
@@ -123,7 +120,7 @@ func LoadEditTable(ctx context.Context, conn *sql.Conn, d Dialect, scope Context
 			return out, err
 		}
 	}
-	cols, err := tableColumnRows(ctx, conn, d, r)
+	cols, err := tableColumnRows(ctx, conn, d, r, true)
 	if err != nil {
 		return out, err
 	}
@@ -186,7 +183,7 @@ func LoadEditTable(ctx context.Context, conn *sql.Conn, d Dialect, scope Context
 		out.Columns = append(out.Columns, item)
 	}
 	verifyKeySize := d == MariaDB || d == OceanBaseMySQL
-	pk, _, ok := inspectionQuery(d, r, "primary_key", verifyKeySize)
+	pk, _, ok := inspectionQuery(d, r, "primary_key", verifyKeySize, true)
 	if !ok {
 		return out, fmt.Errorf("%w: primary key metadata is unavailable", ErrNotEditable)
 	}
@@ -395,7 +392,7 @@ func EditTypeSupported(d Dialect, dataType string) bool {
 	switch t {
 	case "tinyint", "smallint", "mediumint", "int", "integer", "bigint", "int2", "int4", "int8", "smallserial", "serial", "bigserial", "decimal", "numeric", "number", "dec", "real", "float", "double", "double precision", "float4", "float8", "binary_float", "binary_double":
 		return true
-	case "char", "character", "varchar", "character varying", "varchar2", "nvarchar", "nvarchar2", "nchar", "text", "ntext", "tinytext", "mediumtext", "longtext", "graphic", "vargraphic", "long varchar":
+	case "char", "character", "bpchar", "varchar", "character varying", "varchar2", "nvarchar", "nvarchar2", "longnvarchar", "nchar", "text", "ntext", "tinytext", "mediumtext", "longtext", "graphic", "vargraphic", "long varchar":
 		return true
 	case "enum", "set":
 		return IsMySQLDialect(d)

@@ -125,7 +125,9 @@ func openDatabase(c jumpserver.ConnectionConfig, max int) (*sql.DB, error) {
 		cfg.Password = c.Password
 		cfg.Database = c.Database
 		if cfg.Database == "" {
-			cfg.Database = "postgres"
+			// Match the PostgreSQL JDBC default used by Java Chen: an omitted
+			// database selects the authenticated user's database.
+			cfg.Database = cfg.User
 		}
 		cfg.TLSConfig = t
 		cfg.Fallbacks = nil

@@ -47,7 +47,7 @@ func extraMetadata(ctx context.Context, conn *sql.Conn, d Dialect, req MetadataR
 			return items, err
 		}
 	}
-	if systemCatalogSchema(schema, d) || d == ClickHouse && schema != req.Context.Database {
+	if d == ClickHouse && schema != req.Context.Database {
 		return items, ErrCatalogForbidden
 	}
 	var clickHouse *clickHouseCapabilities
@@ -106,7 +106,7 @@ func extraColumns(ctx context.Context, conn *sql.Conn, d Dialect, req ColumnRequ
 			return items, err
 		}
 	}
-	if systemCatalogSchema(schema, d) || d == ClickHouse && schema != req.Context.Database {
+	if d == ClickHouse && schema != req.Context.Database {
 		return items, ErrCatalogForbidden
 	}
 	if err := catalogObjectAccess(ctx, conn, d, schema, req.Table); err != nil {

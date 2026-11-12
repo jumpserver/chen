@@ -48,7 +48,7 @@ func CompletionWithCatalog(ctx context.Context, dialect Dialect, req CompletionR
 	if !supported(dialect) {
 		return out, ErrUnsupportedDialect
 	}
-	if len(req.Document) > MaxDocumentBytes {
+	if DocumentExceedsLimit(req.Document) {
 		return out, ErrDocumentTooLarge
 	}
 	if !utf8.ValidString(req.Document) {
