@@ -54,10 +54,9 @@ type downloadTicket struct {
 	job     *exportJob
 	expires time.Time
 }
-type exportRequestContextKey struct{}
 
 func (v *Server) submitExport(w http.ResponseWriter, r *http.Request) {
-	v.submit(w, r.WithContext(context.WithValue(r.Context(), exportRequestContextKey{}, true)))
+	v.submitExecution(w, r, executionIntent{export: true}, nil)
 }
 func (v *Server) newExportLocked(s *session, format, mode string, e *execution) (*exportJob, error) {
 	if v.exportInitErr != nil {

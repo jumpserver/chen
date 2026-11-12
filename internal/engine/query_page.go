@@ -1,13 +1,11 @@
 package engine
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"regexp"
 	"strings"
@@ -56,7 +54,6 @@ type queryPagePlan struct {
 	action, sourceResultID, fingerprint string
 	generated                           string
 }
-type queryPageKey struct{}
 
 func (v *Server) queryPage(w http.ResponseWriter, r *http.Request) {
 	var req queryPageRequest
@@ -171,14 +168,12 @@ func (v *Server) queryPage(w http.ResponseWriter, r *http.Request) {
 	case "export":
 		p.generated = p.original
 	}
-	body, _ := json.Marshal(map[string]any{"sql": p.original, "request_id": req.RequestID, "submit_review": req.SubmitReview, "confirm_warnings": req.ConfirmWarnings, "format": req.Format})
-	next := context.WithValue(r.Context(), queryPageKey{}, &p)
-	if p.action == "export" {
-		next = context.WithValue(next, exportRequestContextKey{}, true)
-	}
-	r = r.Clone(next)
-	r.Body = io.NopCloser(bytes.NewReader(body))
-	v.submit(w, r)
+	v.submitExecution(w, r, executionIntent{
+		export: p.action == "export", queryPage: &p,
+	}, &executionRequest{
+		SQL: p.original, RequestID: req.RequestID, Format: req.Format,
+		SubmitReview: req.SubmitReview, ConfirmWarnings: req.ConfirmWarnings,
+	})
 }
 
 // This snapshot is taken on the same physical connection, under the worker lock.

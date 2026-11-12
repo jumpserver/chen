@@ -1,13 +1,11 @@
 package engine
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"regexp"
 	"slices"
@@ -153,14 +151,13 @@ func (v *Server) browseTable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	p.fingerprint = string(fingerprint)
-	body, _ := json.Marshal(map[string]any{"sql": p.policySQL, "request_id": req.RequestID, "submit_review": req.SubmitReview, "confirm_warnings": req.ConfirmWarnings, "format": req.Format})
-	next := context.WithValue(r.Context(), editBrowseKey{}, &editBrowse{Schema: p.view.Schema, Table: p.view.Table, plan: p})
-	if req.Action == "export" {
-		next = context.WithValue(next, exportRequestContextKey{}, true)
-	}
-	r = r.Clone(next)
-	r.Body = io.NopCloser(bytes.NewReader(body))
-	v.submit(w, r)
+	v.submitExecution(w, r, executionIntent{
+		export: req.Action == "export",
+		browse: &editBrowse{Schema: p.view.Schema, Table: p.view.Table, plan: p},
+	}, &executionRequest{
+		SQL: p.policySQL, RequestID: req.RequestID, Format: req.Format,
+		SubmitReview: req.SubmitReview, ConfirmWarnings: req.ConfirmWarnings,
+	})
 }
 
 func (v *Server) resolveBrowse(ctx context.Context, s *session, c *console, req browseRequest) (*browsePlan, error) {
