@@ -185,13 +185,16 @@ func writeJSON(w http.ResponseWriter, status int, value any) {
 func fail(w http.ResponseWriter, status int, code, message string) {
 	writeJSON(w, status, map[string]any{"error": APIError{code, message}})
 }
+
+const maxJSONRequestBytes = 6*sqlservice.MaxDocumentCodeUnits + 8192
+
 func decode(w http.ResponseWriter, r *http.Request, target any) bool {
 	mediaType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
 	if err != nil || mediaType != "application/json" {
 		fail(w, 415, "json_required", "JSON request required")
 		return false
 	}
-	r.Body = http.MaxBytesReader(w, r.Body, 6*sqlservice.MaxDocumentCodeUnits+8192)
+	r.Body = http.MaxBytesReader(w, r.Body, maxJSONRequestBytes)
 	d := json.NewDecoder(r.Body)
 	d.DisallowUnknownFields()
 	if err := d.Decode(target); err != nil {

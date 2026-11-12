@@ -147,7 +147,7 @@ func (c *overviewMyCapabilities) value(key string, value sql.NullString, section
 	return overviewValue(value, state, source)
 }
 
-func (c *overviewMyCapabilities) adaptSQL(query string) string {
+func (c *overviewMyCapabilities) adaptQuery(query catalogQuery, section string) catalogQuery {
 	// Replacements are fixed catalog identifiers, never request text. Identity
 	// and ordering columns were required by the probe; optional facts become NULL.
 	pairs := []string{}
@@ -166,11 +166,15 @@ func (c *overviewMyCapabilities) adaptSQL(query string) string {
 			pairs = append(pairs, name, "NULL")
 		}
 	}
-	query = strings.NewReplacer(pairs...).Replace(query)
+	query.SQL = strings.NewReplacer(pairs...).Replace(query.SQL)
 	if c.dialect == MariaDB {
-		query = strings.ReplaceAll(query, "t.TABLE_TYPE IN ('BASE TABLE','VIEW')", "t.TABLE_TYPE IN ('BASE TABLE','SYSTEM VERSIONED','VIEW')")
-		query = strings.ReplaceAll(query, "t.TABLE_TYPE='BASE TABLE'", "t.TABLE_TYPE IN ('BASE TABLE','SYSTEM VERSIONED')")
-		query = strings.ReplaceAll(query, "t.TABLE_TYPE=?", "(t.TABLE_TYPE=? OR (?='BASE TABLE' AND t.TABLE_TYPE='SYSTEM VERSIONED'))")
+		query.SQL = strings.ReplaceAll(query.SQL, "t.TABLE_TYPE IN ('BASE TABLE','VIEW')", "t.TABLE_TYPE IN ('BASE TABLE','SYSTEM VERSIONED','VIEW')")
+		query.SQL = strings.ReplaceAll(query.SQL, "t.TABLE_TYPE='BASE TABLE'", "t.TABLE_TYPE IN ('BASE TABLE','SYSTEM VERSIONED')")
+		query.SQL = strings.ReplaceAll(query.SQL, "t.TABLE_TYPE=?", "(t.TABLE_TYPE=? OR (?='BASE TABLE' AND t.TABLE_TYPE='SYSTEM VERSIONED'))")
+		if section == "tables" || section == "views" {
+			// Bind the table kind twice for the system-versioned table predicate.
+			query.Args = append([]any{query.Args[0], query.Args[1], query.Args[1]}, query.Args[2:]...)
+		}
 	}
 	return query
 }

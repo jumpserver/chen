@@ -22,7 +22,6 @@ type EditOutcome struct {
 	AffectedRows      int    `json:"affected_rows"`
 	RefreshRequired   bool   `json:"refresh_required"`
 }
-type editBrowseKey struct{}
 type editBrowse struct {
 	Schema, Table string
 	plan          *browsePlan

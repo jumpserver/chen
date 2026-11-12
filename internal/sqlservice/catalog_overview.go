@@ -130,11 +130,8 @@ func CatalogOverviewRows(ctx context.Context, conn *sql.Conn, d Dialect, req Ove
 		query, args = q.SQL, q.Args
 	}
 	if capabilities != nil {
-		query = capabilities.adaptSQL(query)
-		if d == MariaDB && (req.Section == "tables" || req.Section == "views") {
-			// The MariaDB predicate also includes system-versioned tables.
-			args = append([]any{args[0], args[1], args[1]}, args[2:]...)
-		}
+		q := capabilities.adaptQuery(catalogQuery{SQL: query, Args: args}, req.Section)
+		query, args = q.SQL, q.Args
 	}
 	if query == "" {
 		result.State = "unsupported"
