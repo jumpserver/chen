@@ -66,7 +66,10 @@ func vendorQueryPageContext(ctx context.Context, c *console, d string) (string, 
 	case "oracle", "dameng", "oceanbase-oracle":
 		settings = "SELECT PARAMETER,COALESCE(VALUE,'') FROM NLS_SESSION_PARAMETERS ORDER BY PARAMETER"
 	case "clickhouse":
-		settings = "SELECT name,value FROM system.settings WHERE changed ORDER BY name"
+		// clickhouse-go derives max_execution_time from each request's context
+		// deadline. Admission and execution have different deadlines; this query
+		// budget is not a change to the console's session semantics.
+		settings = "SELECT name,value FROM system.settings WHERE changed AND name != 'max_execution_time' ORDER BY name"
 	}
 	if settings != "" {
 		rows, err = c.conn.QueryContext(ctx, settings)
