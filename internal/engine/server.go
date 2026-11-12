@@ -714,7 +714,7 @@ func (v *Server) createConsole(w http.ResponseWriter, r *http.Request) {
 	ok := false
 	defer func() {
 		if !ok {
-			_ = conn.Close()
+			closeConsoleConnection(conn, s.grant.Config.Dialect)
 			if owned != nil {
 				_ = owned.Close()
 			}
@@ -775,7 +775,7 @@ func (v *Server) closeConsole(s *session, c *console) {
 		defer c.mu.Unlock()
 		if c.conn != nil {
 			v.closeManualTransaction(s, c)
-			_ = c.conn.Close()
+			closeConsoleConnection(c.conn, s.grant.Config.Dialect)
 		}
 		if c.ownedDB != nil {
 			_ = c.ownedDB.Close()

@@ -121,7 +121,11 @@ func TestCatalogSchemaKeyset(t *testing.T) {
 		t.Run(string(dialect), func(t *testing.T) {
 			database := "db' name"
 			after := "after' 中文"
-			conn, script := scriptedCatalogConn(t, catalogBool(true), catalogStep{rows: [][]driver.Value{{database, "schema"}, {database, "中文"}}})
+			steps := []catalogStep{{rows: [][]driver.Value{{database, "schema"}, {database, "中文"}}}}
+			if !IsMySQLDialect(dialect) {
+				steps = append([]catalogStep{catalogBool(true)}, steps...)
+			}
+			conn, script := scriptedCatalogConn(t, steps...)
 			got, err := SchemaRows(context.Background(), conn, dialect, database, after, 1)
 			if err != nil {
 				t.Fatal(err)
@@ -129,18 +133,18 @@ func TestCatalogSchemaKeyset(t *testing.T) {
 			if len(got) != 2 {
 				t.Fatal("schema limit+1 was trimmed before the HTTP cursor layer")
 			}
-			if len(script.calls) != 2 {
-				t.Fatal("database authorization was not checked")
+			if len(script.calls) != len(steps) {
+				t.Fatal("unexpected schema discovery queries")
 			}
-			call := script.calls[1]
+			call := script.calls[len(script.calls)-1]
 			assertCatalogParameters(t, call, database, after)
-			if !hasCatalogArgument(call, database) || !hasCatalogArgument(call, after) || !hasCatalogArgument(call, int64(2)) {
+			if !hasCatalogArgument(call, after) || !hasCatalogArgument(call, int64(2)) {
 				t.Fatalf("keyset parameters missing: %+v", call.args)
 			}
-			if dialect == MySQL && !strings.Contains(call.sql, "ORDER BY BINARY SCHEMA_NAME") {
-				t.Fatal("MySQL schema ordering is not binary")
+			if IsMySQLDialect(dialect) && (!strings.Contains(call.sql, "ORDER BY BINARY SCHEMA_NAME") || hasCatalogArgument(call, database)) {
+				t.Fatal("MySQL discovery is not account-wide with binary ordering")
 			}
-			if dialect == PostgreSQL && (!strings.Contains(call.sql, `COLLATE pg_catalog."C"`) || !strings.Contains(call.sql, "has_schema_privilege") || !strings.Contains(call.sql, "pg!_%")) {
+			if dialect == PostgreSQL && (!hasCatalogArgument(call, database) || !strings.Contains(call.sql, `COLLATE pg_catalog."C"`) || !strings.Contains(call.sql, "has_schema_privilege") || !strings.Contains(call.sql, "pg!_%")) {
 				t.Fatal("PostgreSQL schema scope or deterministic order missing")
 			}
 		})
@@ -317,12 +321,12 @@ func TestCatalogDeadlineCancellationAndLimit(t *testing.T) {
 	}
 	for _, limit := range []int{-1, 0, MaxCatalogPageSize + 1} {
 		t.Run(fmt.Sprint(limit), func(t *testing.T) {
-			conn, script := scriptedCatalogConn(t, catalogBool(true), catalogStep{columns: 2})
+			conn, script := scriptedCatalogConn(t, catalogStep{columns: 2})
 			_, err := SchemaRows(context.Background(), conn, MySQL, "db", "", limit)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if !hasCatalogArgument(script.calls[1], int64(MaxCatalogPageSize+1)) {
+			if !hasCatalogArgument(script.calls[0], int64(MaxCatalogPageSize+1)) {
 				t.Fatal("catalog result page is not bounded")
 			}
 		})

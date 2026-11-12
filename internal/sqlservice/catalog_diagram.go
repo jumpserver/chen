@@ -76,7 +76,7 @@ func CatalogDiagramRows(ctx context.Context, conn *sql.Conn, d Dialect, r Diagra
 	if d == PostgreSQL {
 		result.Source = "pg_catalog"
 	}
-	if systemCatalogSchema(r.Schema, d) || (IsMySQLDialect(d) || d == ClickHouse) && r.Schema != "" && r.Schema != r.Database {
+	if !IsMySQLDialect(d) && systemCatalogSchema(r.Schema, d) || (IsMySQLDialect(d) || d == ClickHouse) && r.Schema != "" && r.Schema != r.Database {
 		return result, ErrCatalogForbidden
 	}
 	if err := catalogDatabaseAccess(ctx, conn, d, r.Database); err != nil {

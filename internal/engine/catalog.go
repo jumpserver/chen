@@ -279,12 +279,28 @@ func (v *Server) beginCatalogAccess(w http.ResponseWriter, r *http.Request, oper
 		catalogError(w, r, s, err)
 		return nil
 	}
+	// MySQL's configured database is an initial selection, not an authorization
+	// boundary. Catalog SQL checks the connected account's visibility of the
+	// requested database without issuing USE on the independent catalog pool.
+	mysqlTree := editor == nil && jumpserver.IsMySQLDialect(s.grant.Config.Dialect)
+	if mysqlTree && operation != "schemas" {
+		if scope.database != "" {
+			database = scope.database
+			if scope.schema != "" && scope.schema != database {
+				finish()
+				fail(w, 403, "catalog_forbidden", "Catalog schema does not match requested database")
+				return nil
+			}
+		} else if scope.schema != "" {
+			database = scope.schema
+		}
+	}
 	if (operation == "overview" || operation == "diagram") && scope.database != database {
 		finish()
 		fail(w, 403, "catalog_forbidden", "Catalog database does not match authorized session")
 		return nil
 	}
-	if database == "" {
+	if database == "" && !(mysqlTree && operation == "schemas") {
 		finish()
 		fail(w, 409, "catalog_database_required", "Configure a database before browsing its catalog")
 		return nil
@@ -295,9 +311,9 @@ func (v *Server) beginCatalogAccess(w http.ResponseWriter, r *http.Request, oper
 			fail(w, 409, "catalog_scope_changed", "SQL editor scope changed; reopen the query in the current database and schema")
 			return nil
 		}
-	} else {
-		// Only the independent tree connection is bound to the grant database.
-		// AI may use a console opened in another verified database.
+	} else if !mysqlTree {
+		// Other dialects retain their connection-bound catalog. AI always uses
+		// the console's verified live scope instead of the independent tree pool.
 		resource.mu.Lock()
 		if resource.database == "" {
 			resource.database = database

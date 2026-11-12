@@ -55,8 +55,8 @@ func overviewText(value, source string) OverviewValue {
 }
 
 // CatalogOverviewRows performs section-level system catalog queries, never
-// business COUNT or per-object inspection. Scope is the connection's fixed DB;
-// an empty PG schema explicitly means all visible non-system schemas.
+// business COUNT or per-object inspection. MySQL can inspect any database visible
+// to the account; an empty PG schema means all visible non-system schemas.
 func CatalogOverviewRows(ctx context.Context, conn *sql.Conn, d Dialect, req OverviewRequest) (result CatalogOverview, err error) {
 	defer func() {
 		if overviewPermissionDenied(err) {
@@ -70,7 +70,7 @@ func CatalogOverviewRows(ctx context.Context, conn *sql.Conn, d Dialect, req Ove
 	if req.Sort != "name_asc" && req.Sort != "name_desc" {
 		return result, fmt.Errorf("invalid overview sort")
 	}
-	if systemCatalogSchema(req.Schema, d) || (IsMySQLDialect(d) || d == ClickHouse) && req.Schema != "" && req.Schema != req.Database {
+	if !IsMySQLDialect(d) && systemCatalogSchema(req.Schema, d) || (IsMySQLDialect(d) || d == ClickHouse) && req.Schema != "" && req.Schema != req.Database {
 		return result, ErrCatalogForbidden
 	}
 	if err := catalogDatabaseAccess(ctx, conn, d, req.Database); err != nil {

@@ -136,18 +136,26 @@ func TestClickHouseLikeEscaping(t *testing.T) {
 	}
 }
 
-func TestMySQLFamilyCompletionCannotCrossAuthorizedDatabase(t *testing.T) {
+func TestMySQLFamilyCompletionUsesExplicitVisibleDatabase(t *testing.T) {
 	for _, d := range []Dialect{MySQL, MariaDB, OceanBaseMySQL} {
 		t.Run(string(d), func(t *testing.T) {
-			r := &recordingConnector{}
+			target := "other'; --"
+			r := &recordingConnector{values: [][]driver.Value{{target, target, "t", "BASE TABLE", ""}}}
 			conn := catalogConnection(t, r)
-			_, err := Metadata(context.Background(), conn, d, MetadataRequest{Context: Context{Database: "authorized", Schema: "other"}})
-			if !errors.Is(err, ErrCatalogForbidden) || r.query != "" {
-				t.Fatalf("cross database relations not rejected: %v", err)
+			items, err := Metadata(context.Background(), conn, d, MetadataRequest{Context: Context{Database: "initial", Schema: target}})
+			if err != nil || len(items) != 1 || items[0].Database != target {
+				t.Fatalf("explicit database relations failed: %+v %v", items, err)
 			}
-			_, err = Columns(context.Background(), conn, d, ColumnRequest{Context: Context{Database: "authorized"}, Schema: "other", Table: "t"})
-			if !errors.Is(err, ErrCatalogForbidden) || r.query != "" {
-				t.Fatalf("cross database columns not rejected: %v", err)
+			if strings.Contains(r.query, target) || r.args[0].Value != target || !strings.Contains(r.query, "information_schema.TABLES") {
+				t.Fatal("relation lookup did not bind the target on the same account catalog")
+			}
+			r.values = [][]driver.Value{{"id", "bigint", false, ""}}
+			columns, err := Columns(context.Background(), conn, d, ColumnRequest{Context: Context{Database: "initial", Schema: "initial"}, Schema: target, Table: "t"})
+			if err != nil || len(columns) != 1 || columns[0].Name != "id" {
+				t.Fatalf("explicit database columns failed: %+v %v", columns, err)
+			}
+			if strings.Contains(r.query, target) || r.args[0].Value != target || !strings.Contains(r.query, "information_schema.COLUMNS") {
+				t.Fatal("column lookup did not bind the explicit database")
 			}
 		})
 	}

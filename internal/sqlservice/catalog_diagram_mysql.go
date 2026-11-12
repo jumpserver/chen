@@ -21,12 +21,8 @@ var diagramOBVersion = regexp.MustCompile(`(?i)OceanBase`)
 // Probe on the same authorized connection for each page, independently of
 // overview. A fingerprint is meaningful only within the diagram cursor scope.
 func probeDiagramMyContract(ctx context.Context, conn *sql.Conn, d Dialect, database string) (contract, source, reason string, columnPrivileges bool, err error) {
-	var version, current, mode, casing string
-	if err = conn.QueryRowContext(ctx, "SELECT VERSION(), DATABASE(), @@lower_case_table_names").Scan(&version, &current, &casing); err != nil {
-		return
-	}
-	if current != database {
-		err = ErrCatalogForbidden
+	var version, mode, casing string
+	if err = conn.QueryRowContext(ctx, "SELECT VERSION(), @@lower_case_table_names").Scan(&version, &casing); err != nil {
 		return
 	}
 	if len(version) > 256 || !validOverviewText(version) {

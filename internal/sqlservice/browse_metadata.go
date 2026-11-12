@@ -51,7 +51,7 @@ func LoadBrowseTable(ctx context.Context, conn *sql.Conn, d Dialect, scope Conte
 			}
 		}
 	}
-	if systemCatalogSchema(schema, d) {
+	if !IsMySQLDialect(d) && systemCatalogSchema(schema, d) {
 		return out, ErrCatalogForbidden
 	}
 	if err := catalogObjectAccess(ctx, conn, d, schema, table); err != nil {
@@ -140,7 +140,7 @@ func browseViewQuery(d Dialect, r CatalogColumnRequest) (catalogQuery, bool) {
 	q := ""
 	switch {
 	case IsMySQLDialect(d):
-		q = `SELECT 'VIEW' FROM information_schema.TABLES WHERE TABLE_SCHEMA=` + s + ` AND TABLE_NAME=` + t + ` AND TABLE_TYPE='VIEW'`
+		q = `SELECT 'VIEW' FROM information_schema.TABLES WHERE TABLE_SCHEMA=` + s + ` AND TABLE_NAME=` + t + ` AND TABLE_TYPE IN ('VIEW','SYSTEM VIEW')`
 	case d == SQLServer:
 		q = `SELECT 'VIEW' FROM sys.views v JOIN sys.schemas s ON s.schema_id=v.schema_id WHERE s.name=` + s + ` AND v.name=` + t
 	case IsOracleDialect(d):

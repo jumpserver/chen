@@ -48,9 +48,6 @@ func Metadata(ctx context.Context, conn *sql.Conn, dialect Dialect, req Metadata
 		if database == "" {
 			database = req.Context.Database
 		}
-		if req.Context.Database != "" && database != req.Context.Database {
-			return items, ErrCatalogForbidden
-		}
 		rows, err = conn.QueryContext(ctx, `SELECT TABLE_SCHEMA, TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE, COALESCE(TABLE_COMMENT, '')
 FROM information_schema.TABLES
 WHERE TABLE_SCHEMA = COALESCE(NULLIF(?, ''), DATABASE()) AND TABLE_NAME LIKE ? ESCAPE '!'
@@ -109,9 +106,6 @@ func Columns(ctx context.Context, conn *sql.Conn, dialect Dialect, req ColumnReq
 		}
 		if database == "" {
 			database = req.Context.Database
-		}
-		if req.Context.Database != "" && database != req.Context.Database {
-			return items, ErrCatalogForbidden
 		}
 		rows, err = conn.QueryContext(ctx, `SELECT COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE = 'YES', COALESCE(COLUMN_COMMENT, '')
 FROM information_schema.COLUMNS

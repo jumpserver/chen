@@ -3,11 +3,22 @@ package engine
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"errors"
 
 	"github.com/jumpserver/chen/internal/jumpserver"
 	"github.com/jumpserver/chen/internal/sqlservice"
 )
+
+func closeConsoleConnection(conn *sql.Conn, dialect string) {
+	if jumpserver.IsMySQLDialect(dialect) {
+		// MySQL's pool reset does not clear USE or other session settings. In
+		// particular, an empty default database cannot be restored with USE.
+		// A new query must start on a fresh connection, as in Java Chen.
+		_ = conn.Raw(func(any) error { return driver.ErrBadConn })
+	}
+	_ = conn.Close()
+}
 
 func connectionContext(ctx context.Context, conn *sql.Conn, dialect string, configured sqlservice.Context) (sqlservice.Context, error) {
 	current := configured
