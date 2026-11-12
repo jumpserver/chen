@@ -99,6 +99,8 @@ func openDatabase(c jumpserver.ConnectionConfig, max int) (*sql.DB, error) {
 		cfg.DBName = c.Database
 		// Keep MySQL date/time text, including zero dates and timezone-free DATETIME.
 		cfg.ParseTime = false
+		// Match JDBC's matched-row counts, including updates to the same value.
+		cfg.ClientFoundRows = true
 		cfg.Loc = time.UTC
 		cfg.Timeout = 10 * time.Second
 		cfg.ReadTimeout = 2 * time.Minute

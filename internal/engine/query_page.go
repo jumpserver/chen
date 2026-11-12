@@ -131,7 +131,7 @@ func (v *Server) queryPage(w http.ResponseWriter, r *http.Request) {
 		p.view.PageSize = min(200, v.opts.MaxRows)
 	}
 	p.view.HasMore = nil
-	p.view.ReadOnlyReason = "Database query pages are read-only because wrapped query provenance is not an editable table mapping"
+	p.view.ReadOnlyReason = ""
 	p.columns = len(source.Columns)
 	switch p.action {
 	case "page":

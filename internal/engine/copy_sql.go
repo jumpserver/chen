@@ -149,7 +149,7 @@ func (v *Server) copyResultSQL(w http.ResponseWriter, req *http.Request) {
 // This is verification, not a fallback
 // source/metadata discovery path, and never supplies values to the generated SQL.
 func (v *Server) confirmCopyInsertColumns(ctx context.Context, s *session, c *console, table sqlservice.EditTable) error {
-	query := "SELECT * FROM " + editQualified(table.Schema, table.Table, s.grant.Config.Dialect) + " WHERE 1=0"
+	query := "SELECT * FROM " + editQualifiedTable(table, s.grant.Config.Dialect) + " WHERE 1=0"
 	if err := v.provider.Authorize(ctx, s.grant, query); err != nil {
 		return errors.New("Complete INSERT column metadata cannot be confirmed because the metadata query is not authorized")
 	}
@@ -274,6 +274,9 @@ func buildCopiedSQL(dialect string, r *Result, x *editResolved, req copySQLReque
 			out.Notes = append(out.Notes, fmt.Sprintf("Primary key %s is used only in WHERE", field.Name))
 			continue
 		}
+		if present[field.Name] {
+			return out, fmt.Errorf("Select only one result column for source column %s", field.Name)
+		}
 		indexes = append(indexes, index)
 		present[field.Name] = true
 	}
@@ -303,8 +306,10 @@ func buildCopiedSQL(dialect string, r *Result, x *editResolved, req copySQLReque
 			found := -1
 			for i, field := range x.columns {
 				if field.Name == name {
+					if found >= 0 {
+						return out, fmt.Errorf("UPDATE SQL requires primary-key column %s exactly once in the result", name)
+					}
 					found = i
-					break
 				}
 			}
 			if found < 0 {
@@ -313,7 +318,7 @@ func buildCopiedSQL(dialect string, r *Result, x *editResolved, req copySQLReque
 			keys = append(keys, found)
 		}
 	}
-	target := editQualified(x.table.Schema, x.table.Table, dialect)
+	target := editQualifiedTable(x.table, dialect)
 	var sql strings.Builder
 	for _, row := range req.Rows {
 		if row >= len(r.original) || len(r.original[row]) != len(x.columns) {

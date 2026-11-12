@@ -17,7 +17,7 @@ import (
 var editNumber = regexp.MustCompile(`^[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?$`)
 var editInteger = regexp.MustCompile(`^[+-]?[0-9]+$`)
 
-// Only values are parameters. All identifiers and original predicates originate
+// Only values are parameters. All identifiers and primary key predicates originate
 // from authenticated result provenance plus the current server catalog.
 func buildEditPlan(dialect, cid string, r *Result, x *editResolved, req editPreviewRequest) (*editPlan, error) {
 	if len(req.Changes) == 0 || len(req.Changes) > 500 {
@@ -33,7 +33,7 @@ func buildEditPlan(dialect, cid string, r *Result, x *editResolved, req editPrev
 		refs[ref] = i
 	}
 	seenRows := map[string]bool{}
-	target := editQualified(x.table.Schema, x.table.Table, dialect)
+	target := editQualifiedTable(x.table, dialect)
 	for _, change := range req.Changes {
 		if change.Op != "insert" && change.Op != "update" && change.Op != "delete" {
 			return nil, errors.New("Unknown row operation")
@@ -124,46 +124,21 @@ func buildEditPlan(dialect, cid string, r *Result, x *editResolved, req editPrev
 			}
 			p.inserts++
 		} else {
-			where, policyWhere, previewWhere := []string{}, []string{}, []string{}
-			compare := []int{x.pk}
-			if change.Op == "update" {
-				compare = append(compare, indexes...)
-			} else {
-				for i, col := range x.columns {
-					if i != x.pk && col.Supported {
-						compare = append(compare, i)
-					}
-				}
+			field := x.columns[x.pk]
+			name := quoteDatabaseIdentifier(field.Name, dialect)
+			value, err := normalizeTypedEditValue(dialect, field, r.original[row][x.pk])
+			if err != nil {
+				return nil, fmt.Errorf("Column %s primary key value: %s", field.Name, err)
 			}
-			for _, index := range compare {
-				field := x.columns[index]
-				name := quoteDatabaseIdentifier(field.Name, dialect)
-				value := r.original[row][index]
-				if value == nil {
-					where = append(where, name+" IS NULL")
-					policyWhere = append(policyWhere, name+" IS NULL")
-					previewWhere = append(previewWhere, name+" IS NULL")
-					continue
-				}
-				// PostgreSQL json (unlike jsonb) has no equality operator. Comparing
-				// its unchanged textual representation retains optimistic protection.
-				if dialect == "postgresql" && strings.EqualFold(field.DataType, "json") {
-					name = "CAST(" + name + " AS text)"
-				}
-				value, err := normalizeTypedEditValue(dialect, field, value)
-				if err != nil {
-					return nil, fmt.Errorf("Column %s original value: %s", field.Name, err)
-				}
-				cmd.args = append(cmd.args, editDriverBindValue(dialect, field, value))
-				where = append(where, editTypedEquality(dialect, field, name, editPlaceholder(dialect, len(cmd.args))))
-				policyValue := value
-				if dialect == "oracle" && editOracleJSON(dialect, field) {
-					policyValue = editASCIIJSON(value.(string))
-				}
-				policyWhere = append(policyWhere, editTypedEquality(dialect, field, name, editMaskSQL(dialect, policyValue, false)))
-				masked := row < len(r.masked) && index < len(r.masked[row]) && r.masked[row][index]
-				previewWhere = append(previewWhere, editTypedEquality(dialect, field, name, editMaskSQL(dialect, policyValue, masked)))
+			cmd.args = append(cmd.args, editDriverBindValue(dialect, field, value))
+			where := editTypedEquality(dialect, field, name, editPlaceholder(dialect, len(cmd.args)))
+			policyValue := value
+			if dialect == "oracle" && editOracleJSON(dialect, field) {
+				policyValue = editASCIIJSON(value.(string))
 			}
+			policyWhere := editTypedEquality(dialect, field, name, editMaskSQL(dialect, policyValue, false))
+			masked := row < len(r.masked) && x.pk < len(r.masked[row]) && r.masked[row][x.pk]
+			previewWhere := editTypedEquality(dialect, field, name, editMaskSQL(dialect, policyValue, masked))
 			if change.Op == "update" {
 				cmd.sql = "UPDATE " + target + " SET " + strings.Join(assign, ", ")
 				cmd.policySQL = "UPDATE " + target + " SET " + strings.Join(policyAssign, ", ")
@@ -175,9 +150,9 @@ func buildEditPlan(dialect, cid string, r *Result, x *editResolved, req editPrev
 				cmd.previewSQL = cmd.sql
 				p.deletes++
 			}
-			cmd.sql += " WHERE " + strings.Join(where, " AND ")
-			cmd.policySQL += " WHERE " + strings.Join(policyWhere, " AND ")
-			cmd.previewSQL += " WHERE " + strings.Join(previewWhere, " AND ")
+			cmd.sql += " WHERE " + where
+			cmd.policySQL += " WHERE " + policyWhere
+			cmd.previewSQL += " WHERE " + previewWhere
 		}
 		p.commands = append(p.commands, cmd)
 	}
@@ -201,7 +176,8 @@ func convertEditValue(field sqlservice.EditColumn, value *string) (any, error) {
 	if !utf8.ValidString(*value) || strings.ContainsRune(*value, 0) {
 		return nil, errors.New("Value must be valid text without NUL")
 	}
-	t := strings.ToUpper(field.DataType)
+	// Classify the type, not ENUM/SET member text such as 'INT' or 'JSON'.
+	t := editBaseType(field.DataType)
 	v := *value
 	if strings.Contains(t, "BOOL") || t == "BIT" {
 		switch strings.ToLower(strings.TrimSpace(v)) {
@@ -218,7 +194,7 @@ func convertEditValue(field sqlservice.EditColumn, value *string) (any, error) {
 			return nil, errors.New("Enter a whole number without separators")
 		}
 	}
-	if strings.Contains(t, "DECIMAL") || strings.Contains(t, "NUMERIC") || strings.Contains(t, "NUMBER") || strings.Contains(t, "FLOAT") || strings.Contains(t, "DOUBLE") || t == "REAL" {
+	if strings.Contains(t, "DECIMAL") || strings.Contains(t, "NUMERIC") || strings.Contains(t, "NUMBER") || strings.Contains(t, "FLOAT") || strings.Contains(t, "DOUBLE") || t == "REAL" || t == "MONEY" || t == "SMALLMONEY" {
 		if !editNumber.MatchString(v) {
 			return nil, errors.New("Enter a valid number without separators")
 		}

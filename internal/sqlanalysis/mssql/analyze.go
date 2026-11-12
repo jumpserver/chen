@@ -356,14 +356,11 @@ func (r reader) statement(node ast.Node, loc a.Span) (a.Statement, error) {
 	s.SourceCandidate = s.Kind == a.Select && s.ReturnsRows && !s.MayWrite && len(s.Tables) == 1 && s.Tables[0].Name.Name != "" && len(s.Projections) > 0 && len(s.Features) == 0
 	if s.SourceCandidate {
 		tb := s.Tables[0]
-		cols, labels := map[string]bool{}, map[string]bool{}
 		for _, p := range s.Projections {
-			if !p.Direct || p.Star && len(s.Projections) != 1 || !ownerMatches(p.Qualifier, tb) || (!p.Star && (cols[p.Column.Name] || labels[p.Label.Name])) {
+			if !p.Direct || p.Star && len(s.Projections) != 1 || !ownerMatches(p.Qualifier, tb) {
 				s.SourceCandidate = false
 				break
 			}
-			cols[p.Column.Name] = true
-			labels[p.Label.Name] = true
 		}
 	}
 	if functionUnknown {

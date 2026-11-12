@@ -126,19 +126,23 @@ func TestGridEditsLive(t *testing.T) {
 			if err := observer.QueryRow("SELECT " + title + " FROM " + table).Scan(&got); err != nil || got != "中文🙂 saved" {
 				t.Fatal("grid update was not committed exactly")
 			}
-			// A concurrent external change causes the entire save to roll back.
+			// Java-compatible updates locate by primary key, including after an
+			// external edit of a non-key column.
 			r, m = browse()
 			p = preview(r, []editChange{{Op: "insert", Values: map[string]*string{"0": editString("2"), "1": editString("must rollback")}}, {Op: "update", RowRef: m.RowRefs[0], Values: map[string]*string{"1": editString("stale overwrite")}}})
 			if _, err := observer.Exec("UPDATE " + table + " SET " + title + "='external' WHERE " + id + "=9007199254740993"); err != nil {
 				t.Fatal("owned table concurrent update failed")
 			}
-			failed := apply(p, "failed")
-			if failed.Error == nil || failed.Error.Code != "edit_conflict" || failed.Edit == nil || failed.Edit.Outcome != "rolled_back" {
-				t.Fatalf("optimistic conflict outcome wrong: %+v", failed)
+			apply(p, "succeeded")
+			if err := observer.QueryRow("SELECT " + title + " FROM " + table + " WHERE " + id + "=9007199254740993").Scan(&got); err != nil || got != "stale overwrite" {
+				t.Fatal("primary-key update failed after external non-key change")
 			}
 			var count int
-			if err := observer.QueryRow("SELECT COUNT(*) FROM " + table).Scan(&count); err != nil || count != 1 {
-				t.Fatal("failed batch left a partial insert")
+			if err := observer.QueryRow("SELECT COUNT(*) FROM " + table).Scan(&count); err != nil || count != 2 {
+				t.Fatal("primary-key update batch did not retain its insert")
+			}
+			if _, err := observer.Exec("DELETE FROM " + table + " WHERE " + id + "=2"); err != nil {
+				t.Fatal("owned fixture row cleanup failed")
 			}
 			// The original exact BIGINT is never passed back by the browser.
 			r, m = browse()
@@ -151,7 +155,7 @@ func TestGridEditsLive(t *testing.T) {
 			// successful first update, independent of conflict-check ordering.
 			r, m = browse()
 			p = preview(r, []editChange{{Op: "update", RowRef: m.RowRefs[0], Values: map[string]*string{"1": editString("must revert")}}, {Op: "insert", Values: map[string]*string{"0": editString("3"), "1": editString("duplicate")}}})
-			failed = apply(p, "failed")
+			failed := apply(p, "failed")
 			if failed.Edit == nil || failed.Edit.Outcome != "rolled_back" {
 				t.Fatal("constraint batch did not roll back")
 			}
@@ -196,7 +200,7 @@ func TestGridEditsLive(t *testing.T) {
 					t.Fatal("user rollback did not restore edited row")
 				}
 			}
-			t.Log("grid preview/parameterized update/insert/delete, exact PK, atomic optimistic conflict, idempotency and supported user transaction passed")
+			t.Log("grid preview/parameterized update/insert/delete, exact PK, concurrent non-key overwrite, atomic constraint rollback, idempotency and supported user transaction passed")
 		})
 	}
 }

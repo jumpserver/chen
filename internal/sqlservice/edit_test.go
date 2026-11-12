@@ -43,7 +43,6 @@ func TestEditableSourceRejectsAmbiguousOrComputedRows(t *testing.T) {
 		`WITH u AS (SELECT * FROM users) SELECT * FROM u`, `SELECT DISTINCT id FROM users`,
 		`SELECT id FROM users GROUP BY id`, `SELECT id FROM users UNION SELECT id FROM other`,
 		`SELECT id, count(*) FROM users`, `SELECT id+1 FROM users`, `SELECT id::text FROM users`,
-		`SELECT id, id AS other_id FROM users`, `SELECT id AS x, name AS x FROM users`,
 		`SELECT *, id FROM users`, `SELECT x.id FROM users u`, `SELECT x.* FROM users u`,
 		`SELECT * FROM users FOR UPDATE`,
 		`SELECT id FROM users; SELECT id FROM other`, `UPDATE users SET name='x' RETURNING id`,
@@ -66,7 +65,7 @@ func TestEditableSourceRejectsAmbiguousOrComputedRows(t *testing.T) {
 func editablePGSteps(flags catalogStep) []catalogStep {
 	allowed := catalogStep{rows: [][]driver.Value{{true, true, true}}}
 	return []catalogStep{
-		catalogBool(true), allowed, {rows: [][]driver.Value{{"r"}}}, catalogBool(true), allowed,
+		catalogBool(true), allowed, {rows: [][]driver.Value{{"r"}}},
 		{rows: [][]driver.Value{{"db", "public", "users", "id", "bigint", false, "", int64(1)}, {"db", "public", "users", "name", "text", true, "", int64(2)}, {"db", "public", "users", "computed", "integer", true, "", int64(3)}}},
 		flags, {rows: [][]driver.Value{{"users_pk", "id", int64(1)}}},
 	}
@@ -94,7 +93,7 @@ func TestLoadEditTableKeepsIdentityGeneratedAndNullableDistinct(t *testing.T) {
 	for _, call := range script.calls {
 		assertCatalogParameters(t, call)
 	}
-	if strings.Contains(script.calls[2].sql, "?") || strings.Contains(script.calls[6].sql, "?") {
+	if strings.Contains(script.calls[2].sql, "?") || strings.Contains(script.calls[4].sql, "?") {
 		t.Fatal("PostgreSQL metadata uses invalid bind markers")
 	}
 }
@@ -108,7 +107,7 @@ func TestLoadEditTableMissingGeneratedMetadataFailsClosed(t *testing.T) {
 	}
 }
 
-func TestLoadEditTableRejectsViewsAndNontransactionalTables(t *testing.T) {
+func TestLoadEditTableRejectsViews(t *testing.T) {
 	for _, d := range []Dialect{PostgreSQL, MySQL} {
 		t.Run(string(d), func(t *testing.T) {
 			object := catalogStep{rows: [][]driver.Value{{true, true, true}}}
@@ -116,13 +115,13 @@ func TestLoadEditTableRejectsViewsAndNontransactionalTables(t *testing.T) {
 			schema := "public"
 			if d == MySQL {
 				object = catalogBool(true)
-				kind = "MyISAM"
+				kind = "VIEW"
 				schema = "db"
 			}
 			conn, script := scriptedCatalogConn(t, catalogBool(true), object, catalogStep{rows: [][]driver.Value{{kind}}})
 			_, err := LoadEditTable(context.Background(), conn, d, Context{Database: "db"}, schema, "users")
 			if !errors.Is(err, ErrNotEditable) || len(script.calls) != 3 {
-				t.Fatalf("nontransactional/view accepted: %v", err)
+				t.Fatalf("view accepted: %v", err)
 			}
 		})
 	}

@@ -3,7 +3,6 @@ package engine
 import (
 	"encoding/json"
 	"errors"
-	"io"
 	"regexp"
 	"strings"
 	"time"
@@ -19,13 +18,7 @@ var editTimestampTZExcessPrecision = regexp.MustCompile(`[.,][0-9]{10,}`)
 const editTimestampTZFormat = `'YYYY-MM-DD"T"HH24:MI:SS.FF9TZH:TZM'`
 
 func editBaseType(t string) string {
-	t = strings.ToUpper(strings.TrimSpace(t))
-	if start := strings.IndexByte(t, '('); start >= 0 {
-		if end := strings.IndexByte(t[start:], ')'); end >= 0 {
-			t = t[:start] + t[start+end+1:]
-		}
-	}
-	return strings.Join(strings.Fields(t), " ")
+	return strings.ToUpper(sqlservice.EditTypeName(t))
 }
 
 func editOracleTimezone(dialect string, field sqlservice.EditColumn) bool {
@@ -91,16 +84,6 @@ func normalizeTypedEditValue(dialect string, field sqlservice.EditColumn, value 
 		if !ok || !utf8.ValidString(text) || !json.Valid([]byte(text)) {
 			return nil, errors.New("JSON must be complete UTF-8 text")
 		}
-		// JSON_EQUAL ignores object member order. Duplicate member names have
-		// ambiguous equality semantics, so they cannot protect an optimistic edit.
-		decoder := json.NewDecoder(strings.NewReader(text))
-		decoder.UseNumber()
-		if err := editUniqueJSONValue(decoder, 0); err != nil {
-			return nil, err
-		}
-		if _, err := decoder.Token(); err != io.EOF {
-			return nil, errors.New("JSON must contain one complete value")
-		}
 		return text, nil
 	}
 	return value, nil
@@ -159,40 +142,4 @@ func editTypedEquality(dialect string, field sqlservice.EditColumn, column, expr
 		return "JSON_EQUAL(" + column + ", " + editTypedExpression(dialect, field, expression) + " ERROR ON ERROR)"
 	}
 	return column + " = " + editTypedExpression(dialect, field, expression)
-}
-
-func editUniqueJSONValue(decoder *json.Decoder, depth int) error {
-	if depth > 1000 {
-		return errors.New("JSON nesting exceeds the supported edit bound")
-	}
-	token, err := decoder.Token()
-	if err != nil {
-		return errors.New("JSON must contain one complete value")
-	}
-	delim, container := token.(json.Delim)
-	if !container {
-		return nil
-	}
-	if delim != '{' && delim != '[' {
-		return errors.New("JSON must contain one complete value")
-	}
-	names := map[string]bool{}
-	for decoder.More() {
-		if delim == '{' {
-			key, err := decoder.Token()
-			name, ok := key.(string)
-			if err != nil || !ok {
-				return errors.New("JSON object keys must be strings")
-			}
-			if names[name] {
-				return errors.New("JSON with duplicate object member names cannot protect an optimistic edit")
-			}
-			names[name] = true
-		}
-		if err := editUniqueJSONValue(decoder, depth+1); err != nil {
-			return err
-		}
-	}
-	_, err = decoder.Token()
-	return err
 }
