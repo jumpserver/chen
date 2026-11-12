@@ -209,27 +209,6 @@ func (v *Server) beginCatalogAccess(w http.ResponseWriter, r *http.Request, oper
 	resource := s.catalog
 	s.catalogOps.Add(1)
 	s.mu.Unlock()
-	finish := func() { s.catalogOps.Done() }
-	select {
-	case v.catalogSlots <- struct{}{}:
-	default:
-		finish()
-		w.Header().Set("Retry-After", "1")
-		fail(w, 429, "catalog_busy", "Catalog request capacity reached")
-		return nil
-	}
-	globalFinish := finish
-	finish = func() { <-v.catalogSlots; globalFinish() }
-	select {
-	case resource.slots <- struct{}{}:
-	default:
-		finish()
-		w.Header().Set("Retry-After", "1")
-		fail(w, 429, "catalog_busy", "Too many catalog requests for this session")
-		return nil
-	}
-	globalAndLocalFinish := finish
-	finish = func() { <-resource.slots; globalAndLocalFinish() }
 	timeout := 3 * time.Second
 	if operation == "inspect" || operation == "ai" || operation == "overview" || operation == "diagram" {
 		timeout = 12 * time.Second
@@ -241,8 +220,28 @@ func (v *Server) beginCatalogAccess(w http.ResponseWriter, r *http.Request, oper
 	stop := context.AfterFunc(s.ctx, cancel)
 	s.grant.SetBusy(true)
 	s.grant.Touch()
+	finish := func() { stop(); cancel(); s.grant.SetBusy(false); s.catalogOps.Done() }
+	// A short burst of metadata reads waits within the request deadline instead
+	// of failing while another tab is loading. Take the session slot first so
+	// one session's waiting requests cannot occupy the entire global budget.
+	select {
+	case resource.slots <- struct{}{}:
+	case <-ctx.Done():
+		finish()
+		catalogError(w, r, s, ctx.Err())
+		return nil
+	}
 	baseFinish := finish
-	finish = func() { stop(); cancel(); s.grant.SetBusy(false); baseFinish() }
+	finish = func() { <-resource.slots; baseFinish() }
+	select {
+	case v.catalogSlots <- struct{}{}:
+	case <-ctx.Done():
+		finish()
+		catalogError(w, r, s, ctx.Err())
+		return nil
+	}
+	localFinish := finish
+	finish = func() { <-v.catalogSlots; localFinish() }
 	if err := s.grant.Check(); err != nil {
 		finish()
 		fail(w, 403, "session_unavailable", err.Error())

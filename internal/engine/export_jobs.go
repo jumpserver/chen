@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime"
 	"net/http"
 	"os"
 	"strings"
@@ -21,6 +22,7 @@ type ExportView struct {
 	ExecutionID string           `json:"execution_id,omitempty"`
 	ConsoleID   string           `json:"console_id,omitempty"`
 	Format      string           `json:"format"`
+	Filename    string           `json:"filename"`
 	Mode        string           `json:"mode"`
 	Status      string           `json:"status"`
 	Rows        int64            `json:"rows"`
@@ -36,7 +38,8 @@ type exportJob struct {
 	expiryTimer                                                     *time.Timer
 	stopSessionWatch                                                func() bool
 	mu                                                              sync.Mutex
-	id, format, mode, resultID, path, status                        string
+	id, format, mode, resultID, path, status, filename, namePrefix  string
+	createdAt                                                       time.Time
 	session                                                         *session
 	server                                                          *Server
 	execution                                                       *execution
@@ -72,6 +75,20 @@ func (v *Server) newExportLocked(s *session, format, mode string, e *execution) 
 	}
 	ctx, cancel := context.WithCancel(s.ctx)
 	j := &exportJob{id: newID("exp_"), format: format, mode: mode, session: s, server: v, execution: e, ctx: ctx, cancel: cancel, status: "queued"}
+	j.createdAt = time.Now()
+	j.filename = exportFilename("query", format, j.createdAt)
+	if e != nil {
+		if e.browse != nil && e.browse.plan != nil {
+			j.namePrefix = exportSourcePrefix(s.grant.Config.Dialect, e.browse, nil, nil)
+		} else if e.queryPage != nil {
+			if result := s.results[e.queryPage.sourceResultID]; result != nil {
+				j.namePrefix = resultExportPrefix(s.grant.Config.Dialect, result)
+			}
+		}
+		if j.namePrefix != "" {
+			j.filename = exportFilename(j.namePrefix, format, j.createdAt)
+		}
+	}
 	if format == "xlsx" {
 		j.limitRows = (1 << 20) - 1 // One worksheet row is used for column headers.
 	}
@@ -87,6 +104,7 @@ func (v *Server) newExportLocked(s *session, format, mode string, e *execution) 
 func (j *exportJob) snapshot() ExportView {
 	j.mu.Lock()
 	view := ExportView{ID: j.id, Format: j.format, Mode: j.mode, Status: j.status, Rows: j.rows, Bytes: j.bytes, Ready: j.prepared && j.approved && !j.expired && !j.deleteRequested && j.path != "" && j.ctx.Err() == nil, Truncated: j.truncated, Error: j.err, ExpiresAt: j.expiresAt, Limits: map[string]int64{"max_rows": j.limitRows, "max_bytes": j.limitBytes, "max_cell_chars": exportMaxCellChars, "max_duration_seconds": int64(j.server.opts.QueryTimeout / time.Second)}}
+	view.Filename = j.filename
 	if j.format != "xlsx" {
 		view.Limits["max_cell_chars"] = 0
 	}
@@ -309,6 +327,13 @@ func (j *exportJob) produce(ctx context.Context, columns []Column, next func() (
 func (v *Server) collectExport(s *session, c *console, e *execution, rows *sql.Rows) (err error) {
 	defer rows.Close()
 	j := e.export
+	prefix := j.namePrefix
+	if prefix == "" {
+		prefix = executionExportPrefix(s, e)
+	}
+	j.mu.Lock()
+	j.filename = exportFilename(prefix, j.format, j.createdAt)
+	j.mu.Unlock()
 	defer func() {
 		if err != nil {
 			j.fail(err)
@@ -430,6 +455,7 @@ func (v *Server) createCachedExport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	j.resultID = result.ID
+	j.filename = exportFilename(resultExportPrefix(s.grant.Config.Dialect, result), j.format, j.createdAt)
 	j.cachedRows = request.Rows
 	j.truncated = result.Truncated
 	s.exportRequests[request.RequestID] = j
@@ -616,6 +642,7 @@ func (v *Server) downloadExport(w http.ResponseWriter, r *http.Request) {
 	}
 	j.mu.Lock()
 	path := j.path
+	filename := j.filename
 	j.mu.Unlock()
 	f, err := os.Open(path)
 	if err != nil {
@@ -633,7 +660,7 @@ func (v *Server) downloadExport(w http.ResponseWriter, r *http.Request) {
 		contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 	}
 	w.Header().Set("Content-Type", contentType)
-	w.Header().Set("Content-Disposition", `attachment; filename="chen-export.`+j.format+`"`)
+	w.Header().Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": filename}))
 	w.Header().Set("Content-Length", fmt.Sprint(stat.Size()))
 	w.Header().Set("Referrer-Policy", "no-referrer")
 	w.Header().Set("X-Chen-Result-Truncated", fmt.Sprint(j.truncated))
