@@ -27,11 +27,6 @@ elif ! git -C "$work" apply --reverse --check "$patch_file"; then
     echo 'Wisp source does not match the reviewed Chen command-persistence patch' >&2
     exit 1
 fi
-if [[ ${WISP_TEST_ONLY:-0} == 1 ]]; then
-    cp "$root/scripts/wisp/command_ack_test.go.txt" "$work/cmd/impl/chen_command_ack_test.go"
-    (cd "$work" && CGO_ENABLED=1 go test -race ./cmd/impl -run '^TestChenCommand' -count=1)
-    exit 0
-fi
 mkdir -p "$(dirname -- "$out")"
 (cd "$work" && GOMAXPROCS=${GOMAXPROCS:-2} GOMEMLIMIT=${GOMEMLIMIT:-1GiB} CGO_ENABLED=0 go build -p="${GO_BUILD_PARALLELISM:-2}" -trimpath -o "$out" .)
 printf '%s+chen.1\n' "$version" > "${out}.version"

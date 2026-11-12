@@ -70,10 +70,6 @@ func (v *Server) analyzeDocument(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	if len(analysis.Statements) > 100 {
-		fail(w, 400, "statement_limit", "A script must contain at most 100 statements")
-		return
-	}
 	response := editorAnalysis{Version: req.Version, Statements: []editorStatement{}, Syntax: analysis.Syntax, Compatibility: analysis.Compatibility}
 	for _, d := range analysis.Diagnostics {
 		response.Diagnostics = append(response.Diagnostics, editorDiagnosticFor(req.Document, d))

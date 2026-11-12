@@ -9,8 +9,8 @@ import (
 )
 
 // Oracle before 12c has no ORACLE_MAINTAINED flag. A retry removes only that
-// optional classification filter: ALL_* authorization, explicit system-owner
-// exclusions, caller scope, keyset bounds and bind arguments remain unchanged.
+// optional edit classification filter. ALL_* authorization, the edit path's
+// explicit system-owner guard, caller scope and bind arguments stay unchanged.
 func queryCatalogRows(ctx context.Context, conn *sql.Conn, d Dialect, query string, args ...any) (*sql.Rows, error) {
 	rows, err := conn.QueryContext(ctx, query, args...)
 	if err == nil || d != Oracle || !strings.Contains(query, "ORACLE_MAINTAINED") {

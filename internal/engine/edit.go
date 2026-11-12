@@ -107,15 +107,22 @@ func (v *Server) editConsole(w http.ResponseWriter, r *http.Request) (*session, 
 		case <-time.After(10 * time.Millisecond):
 		}
 	}
-	if s.grant.Check() != nil || c.closed.Load() || c.lost.Load() {
+	if ctx.Err() != nil || s.grant.Check() != nil || c.closed.Load() || c.lost.Load() {
 		c.mu.Unlock()
 		stop()
 		cancel()
 		fail(w, 409, "session_unavailable", "Session or console is unavailable")
 		return nil, nil, nil, nil
 	}
+	stop()
+	cancel()
+	// Canceling a panel's HTTP request must not cancel a metadata query on
+	// the console's physical connection: several drivers close that socket,
+	// losing its transaction and session state. Only the lock wait follows
+	// the browser request; acquired metadata work finishes within this bound.
+	ctx, cancel = context.WithTimeout(c.ctx, 5*time.Second)
 	s.grant.SetBusy(true)
-	return s, c, ctx, func() { stop(); cancel(); s.grant.SetBusy(false); c.mu.Unlock() }
+	return s, c, ctx, func() { cancel(); s.grant.SetBusy(false); c.mu.Unlock() }
 }
 
 func (v *Server) editResult(s *session, c *console, rid string) (*Result, error) {
@@ -186,6 +193,7 @@ func (v *Server) resolveResultSource(ctx context.Context, s *session, c *console
 	x.view.Schema = table.Schema
 	x.view.Table = table.Table
 	if !r.editSourceBound {
+		source.Database = table.Database
 		source.Schema, source.Table = table.Schema, table.Table
 		r.editSource = &source
 		r.editDatabase = table.Database
@@ -280,14 +288,18 @@ func (v *Server) resolveResultSource(ctx context.Context, s *session, c *console
 // the console lock and restore the user's context before returning.
 func loadResultSourceTable(ctx context.Context, s *session, c *console, r *Result, scope sqlservice.Context, source sqlservice.EditableSource) (sqlservice.EditTable, error) {
 	d := sqlservice.Dialect(s.grant.Config.Dialect)
-	if d != sqlservice.SQLServer || !r.editSourceBound || r.editDatabase == "" || r.editDatabase == scope.Database {
+	database := source.Database
+	if r.editSourceBound {
+		database = r.editDatabase
+	}
+	if d != sqlservice.SQLServer || database == "" || database == scope.Database {
 		return sqlservice.LoadCopyTable(ctx, c.conn, d, scope, source.Schema, source.Table)
 	}
 	current := scope.Database
 	var table sqlservice.EditTable
-	_, err := c.conn.ExecContext(ctx, "USE "+quoteDatabaseIdentifier(r.editDatabase, string(d)))
+	_, err := c.conn.ExecContext(ctx, "USE "+quoteDatabaseIdentifier(database, string(d)))
 	if err == nil {
-		scope.Database = r.editDatabase
+		scope.Database = database
 		table, err = sqlservice.LoadCopyTable(ctx, c.conn, d, scope, source.Schema, source.Table)
 	}
 	// Even a failed USE may have reached the server before cancellation or a
@@ -463,9 +475,9 @@ func (v *Server) applyEdits(w http.ResponseWriter, r *http.Request) {
 		fail(w, 409, "session_unavailable", "Session or console is unavailable")
 		return
 	}
-	if len(s.executions) >= 256 {
+	if s.activeExecutionCountLocked() >= 256 {
 		s.mu.Unlock()
-		fail(w, 429, "execution_limit", "Open a new session to continue")
+		fail(w, 429, "execution_limit", "Too many active executions; wait for pending work to finish")
 		return
 	}
 	ctx, cancel := context.WithCancel(c.ctx)
@@ -585,7 +597,7 @@ func (v *Server) applyEditSourceMask(s *session, result *Result, columns []sqlse
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.resultBytes -= result.memoryBytes
-	if s.resultBytes+memory > v.opts.MaxResultBytes {
+	if v.opts.MaxResultBytes > 0 && s.resultBytes+memory > v.opts.MaxResultBytes {
 		result.memoryBytes = 0
 		result.Rows = [][]any{}
 		result.original = nil

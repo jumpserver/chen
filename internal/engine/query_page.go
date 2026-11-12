@@ -100,8 +100,12 @@ func (v *Server) queryPage(w http.ResponseWriter, r *http.Request) {
 	if c == nil {
 		return
 	}
-	if source == nil || source.consoleID != c.id || source.querySource == nil || !source.querySource.view.Supported {
+	if source == nil || source.consoleID != c.id || source.querySource == nil {
 		fail(w, 400, "query_page_unavailable", "Choose a supported result from this console; database paging cannot replace its SQL")
+		return
+	}
+	if !source.querySource.view.Supported && !(req.Action == "refresh" && source.querySource.context != "" && source.editSourceBound && source.editSource != nil && source.editSourceError == "") {
+		fail(w, 400, "query_page_unavailable", "This result has no verified query source to refresh")
 		return
 	}
 	if source.querySource.view.RequiresReexecution && !req.ConfirmReexecution {
@@ -111,7 +115,7 @@ func (v *Server) queryPage(w http.ResponseWriter, r *http.Request) {
 	if req.Action == "" {
 		req.Action = "page"
 	}
-	if req.Action != "page" && req.Action != "count" && req.Action != "export" {
+	if req.Action != "page" && req.Action != "refresh" && req.Action != "count" && req.Action != "export" {
 		fail(w, 400, "invalid_query_page", "Unknown query paging action")
 		return
 	}
@@ -128,12 +132,18 @@ func (v *Server) queryPage(w http.ResponseWriter, r *http.Request) {
 		p.view.PageSize = req.PageSize
 	}
 	if p.view.PageSize == 0 {
-		p.view.PageSize = min(200, v.opts.MaxRows)
+		p.view.PageSize = min(50, v.opts.MaxRows)
 	}
 	p.view.HasMore = nil
 	p.view.ReadOnlyReason = ""
 	p.columns = len(source.Columns)
 	switch p.action {
+	case "refresh":
+		// Refresh cached results through their captured source and context. In
+		// particular, never replay the surrounding editor script after a save.
+		p.view.Mode = "cache"
+		p.view.Offset = 0
+		p.generated = p.original
 	case "page":
 		names := make([]string, len(source.Columns))
 		for i, column := range source.Columns {
@@ -216,6 +226,13 @@ func (v *Server) captureQuerySQLSource(s *session, c *console, e *execution, opt
 		q, err = sqlservice.AnalyzeQueryPageForReexecution(sqlservice.Dialect(s.grant.Config.Dialect), statementSQL, opts)
 		if err != nil {
 			p.view.Reason = reason
+			// Paging and cached refresh have different requirements. A direct
+			// editable SELECT can still be refreshed without a page wrapper.
+			// Freeze its context now; the handler also requires the result's
+			// later metadata/provenance binding to have succeeded.
+			if _, editErr := sqlservice.AnalyzeEditableQuery(sqlservice.Dialect(s.grant.Config.Dialect), statementSQL, opts); editErr == nil {
+				p.context, _ = queryPageContext(e.ctx, c, s.grant.Config.Dialect)
+			}
 			return
 		}
 		p.view.RequiresReexecution = true
@@ -230,13 +247,15 @@ func (v *Server) captureQuerySQLSource(s *session, c *console, e *execution, opt
 	p.view.ScopeID = newID("qpage_")
 	p.view.Ordered = q.Ordered
 }
-func validateQueryPage(ctx context.Context, c *console, d string, p *queryPagePlan, opts sqlservice.AnalyzeOptions) error {
-	current, err := queryPageContext(ctx, c, d)
-	if err != nil {
-		return err
-	}
-	if current != p.context || opts != p.options {
+func validateQueryPage(ctx context.Context, c *console, d string, p *queryPagePlan, opts sqlservice.AnalyzeOptions, contextVerified bool) error {
+	// The worker already verified (and, when needed, selected) this complete
+	// fingerprint. Do not probe it twice on every ordinary page/refresh.
+	if !contextVerified || opts != p.options {
 		return errors.New("Query context changed; run the original SQL again before enabling database paging")
+	}
+	if p.action == "refresh" && !p.view.Supported {
+		_, err := sqlservice.AnalyzeEditableQuery(sqlservice.Dialect(d), p.original, opts)
+		return err
 	}
 	if p.view.RequiresReexecution {
 		if !p.reexecutionConfirmed {
@@ -272,6 +291,9 @@ func (v *Server) collectQueryCount(s *session, e *execution, rows *sql.Rows) err
 		return err
 	}
 	if err := rows.Close(); err != nil {
+		return err
+	}
+	if err := e.restoreSourceReadContext(); err != nil {
 		return err
 	}
 	v.update(s, e, func(x *ExecutionView) {

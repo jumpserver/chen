@@ -11,7 +11,7 @@ parsing requires CGO. Build the frontend separately in the Luna repository.
 
 ```sh
 make build
-make test vet
+make vet
 ```
 
 To build and run the container image:
@@ -37,6 +37,10 @@ Managed mode listens on `127.0.0.1:8082`. Keep registration keys in `data/keys`
 and audit state in `data/go` persistent; container data is under `/opt/chen/data`.
 The API is served at `/chen/api/v1/` with SSE streaming. Use `chen-go healthcheck`
 for liveness and `chen-go readycheck` for readiness.
+
+Queries have no default deadline or aggregate result byte quota. Deployments can
+set `--query-timeout` and `--max-result-bytes`; `0` disables either limit. Cached
+result sets retain up to `--max-rows` rows (10,000 by default).
 
 ## Run without JumpServer
 

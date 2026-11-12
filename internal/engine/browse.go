@@ -17,7 +17,9 @@ import (
 	"github.com/jumpserver/chen/internal/sqlservice"
 )
 
-const browseMaxOffset = 1000000
+// Java stores the row count/page in signed 32-bit integers. Leave room for
+// fetching the extra row used to detect the next page.
+const browseMaxOffset = (1 << 31) - 1001
 
 type browseOrder struct {
 	Column string `json:"column"`
@@ -71,6 +73,7 @@ type BrowseCount struct {
 	Total          string `json:"total"`
 }
 type browsePlan struct {
+	context                                                          string // captured session semantics for source-bound reads
 	reexecutionConfirmed                                             bool
 	fetchSize                                                        int // final append may be smaller than the selected batch size
 	view                                                             BrowsePage
@@ -178,9 +181,6 @@ func (v *Server) resolveBrowse(ctx context.Context, s *session, c *console, req 
 		if !previous.view.Supported {
 			return nil, errors.New("This result supports cached browsing only: " + previous.view.Reason)
 		}
-		if scope.Database != previous.view.Database {
-			return nil, errors.New("Database changed; reopen this table")
-		}
 		if req.Where != "" || req.Filter != nil || len(req.Sort) != 0 || req.Schema != "" || req.Table != "" {
 			return nil, errors.New("A result-bound request cannot replace its filter or target")
 		}
@@ -209,6 +209,9 @@ func (v *Server) resolveBrowse(ctx context.Context, s *session, c *console, req 
 		if err != nil {
 			return nil, err
 		}
+		// An unavailable fingerprint does not remove legacy initial browsing;
+		// it simply cannot authorize a later temporary namespace switch.
+		p.context, _ = queryPageContext(ctx, c, d)
 		version, reason, err := browseVendorContext(ctx, c, d, p.options)
 		if err != nil {
 			return nil, err
@@ -225,7 +228,7 @@ func (v *Server) resolveBrowse(ctx context.Context, s *session, c *console, req 
 			return nil, &APIError{"query_reexecution_confirmation_required", "This operation reads a view; confirm its SQL before continuing"}
 		}
 		if p.view.PageSize == 0 {
-			p.view.PageSize = min(200, p.view.MaxPageSize)
+			p.view.PageSize = min(50, p.view.MaxPageSize)
 		}
 		if !p.view.Supported {
 			if p.view.Where != "" || p.view.Filter != nil || len(p.view.Sort) > 0 || p.view.Offset != 0 {
@@ -483,10 +486,13 @@ func (v *Server) collectBrowseAppend(s *session, e *execution, rows *sql.Rows) e
 	if err != nil {
 		return err
 	}
-	batch, err := v.readRows(s, rows, p)
+	batch, err := v.readRowsWithMask(s, rows, func(labels []string) []string {
+		return e.resultMaskColumns(s.grant.Config.Dialect, labels)
+	}, p)
 	if err != nil {
 		return err
 	}
+	appendResultReplay(e, batch)
 	published := false
 	defer func() {
 		if !published {
@@ -508,6 +514,9 @@ func (v *Server) collectBrowseAppend(s *session, e *execution, rows *sql.Rows) e
 	batch.consoleID, batch.sourceSQL, batch.browse = e.view.ConsoleID, e.resultSQL, e.browse
 	batch.sourceAnalysis = e.resultAnalysis
 	v.bindResultEditSource(s, e, []*Result{batch})
+	if err := e.restoreSourceReadContext(); err != nil {
+		return err
+	}
 	// Publish a new snapshot under the same ID. Existing readers and cached
 	// exports keep immutable prefix slices; cells and opaque row refs never move.
 	merged := *previous
@@ -529,6 +538,10 @@ func (v *Server) collectBrowseAppend(s *session, e *execution, rows *sql.Rows) e
 		merged.Truncated = true
 	}
 	s.mu.Lock()
+	if s.results[merged.ID] != previous {
+		s.mu.Unlock()
+		return errors.New("Browse result was released or changed; restart continuous scrolling")
+	}
 	s.results[merged.ID] = &merged
 	s.mu.Unlock()
 	published = true

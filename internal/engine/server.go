@@ -14,26 +14,15 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/jumpserver/chen/internal/jumpserver"
 	"github.com/jumpserver/chen/internal/sqlservice"
 )
 
 func New(provider jumpserver.Provider, opts Options) *Server {
-	if opts.MaxSessions <= 0 {
-		opts.MaxSessions = 100
-	}
-	if opts.MaxConsoles <= 0 {
-		opts.MaxConsoles = 8
-	}
 	if opts.MaxRows <= 0 {
 		opts.MaxRows = 10000
-	}
-	if opts.MaxResultBytes <= 0 {
-		opts.MaxResultBytes = 16 << 20
-	}
-	if opts.QueryTimeout <= 0 {
-		opts.QueryTimeout = time.Minute
 	}
 	if opts.TransactionIdleTimeout == 0 {
 		opts.TransactionIdleTimeout = 5 * time.Minute
@@ -60,6 +49,7 @@ func (v *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /chen/api/v1/sessions/{sid}/events", v.events)
 	mux.HandleFunc("GET /chen/api/v1/sessions/{sid}/ai/manifest", v.aiManifestHTTP)
 	mux.HandleFunc("POST /chen/api/v1/sessions/{sid}/ai/messages", v.aiMessages)
+	mux.HandleFunc("GET /chen/api/v1/sessions/{sid}/catalog/databases", v.catalogDatabases)
 	mux.HandleFunc("GET /chen/api/v1/sessions/{sid}/catalog/schemas", v.catalogSchemas)
 	mux.HandleFunc("GET /chen/api/v1/sessions/{sid}/catalog/objects", v.catalogObjects)
 	mux.HandleFunc("GET /chen/api/v1/sessions/{sid}/catalog/columns", v.catalogColumns)
@@ -85,7 +75,9 @@ func (v *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /chen/api/v1/executions/{eid}", v.executionStatus)
 	mux.HandleFunc("GET /chen/api/v1/executions/{eid}/plan", v.executionPlan)
 	mux.HandleFunc("POST /chen/api/v1/executions/{eid}/cancel", v.cancelExecution)
+	mux.HandleFunc("POST /chen/api/v1/executions/{eid}/confirm", v.confirmExecution)
 	mux.HandleFunc("GET /chen/api/v1/results/{rid}/rows", v.resultRows)
+	mux.HandleFunc("DELETE /chen/api/v1/results/{rid}", v.deleteResult)
 	mux.HandleFunc("POST /chen/api/v1/consoles/{cid}/query-page", v.queryPage)
 	mux.HandleFunc("POST /chen/api/v1/consoles/{cid}/explain", v.prepareExplain)
 	mux.HandleFunc("GET /chen/api/v1/consoles/{cid}/contexts", v.consoleContexts)
@@ -199,7 +191,7 @@ func decode(w http.ResponseWriter, r *http.Request, target any) bool {
 		fail(w, 415, "json_required", "JSON request required")
 		return false
 	}
-	r.Body = http.MaxBytesReader(w, r.Body, sqlservice.MaxDocumentBytes+8192)
+	r.Body = http.MaxBytesReader(w, r.Body, 6*sqlservice.MaxDocumentCodeUnits+8192)
 	d := json.NewDecoder(r.Body)
 	d.DisallowUnknownFields()
 	if err := d.Decode(target); err != nil {
@@ -313,7 +305,7 @@ func (v *Server) createSession(w http.ResponseWriter, r *http.Request) {
 				pending++
 			}
 		}
-		if len(v.sessions)+pending >= v.opts.MaxSessions || len(v.creations) >= 1024 {
+		if v.opts.MaxSessions > 0 && len(v.sessions)+pending >= v.opts.MaxSessions {
 			v.mu.Unlock()
 			fail(w, 429, "session_limit", "Session capacity reached")
 			return
@@ -342,7 +334,11 @@ func (v *Server) createSession(w http.ResponseWriter, r *http.Request) {
 				}
 				return
 			}
-			db, err := openDatabase(g.Config, v.opts.MaxConsoles+2)
+			poolSize := 0
+			if v.opts.MaxConsoles > 0 {
+				poolSize = v.opts.MaxConsoles + 2
+			}
+			db, err := openDatabase(g.Config, poolSize)
 			if err == nil {
 				err = db.PingContext(ctx)
 			}
@@ -661,7 +657,9 @@ func (v *Server) deleteSession(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(204)
 	}
 }
-func validIdentifier(s string) bool { return len(s) <= 128 && !strings.ContainsRune(s, 0) }
+func validIdentifier(s string) bool {
+	return utf8.ValidString(s) && utf8.RuneCountInString(s) <= 128 && !strings.ContainsRune(s, 0)
+}
 func (v *Server) createConsole(w http.ResponseWriter, r *http.Request) {
 	s := v.auth(w, r, false)
 	if s == nil {
@@ -681,7 +679,7 @@ func (v *Server) createConsole(w http.ResponseWriter, r *http.Request) {
 		fail(w, 410, "session_closed", "Session is closed")
 		return
 	}
-	if len(s.consoles) >= v.opts.MaxConsoles {
+	if v.opts.MaxConsoles > 0 && len(s.consoles) >= v.opts.MaxConsoles {
 		s.mu.Unlock()
 		fail(w, 429, "console_limit", "Console capacity reached")
 		return
@@ -714,7 +712,7 @@ func (v *Server) createConsole(w http.ResponseWriter, r *http.Request) {
 	ok := false
 	defer func() {
 		if !ok {
-			_ = conn.Close()
+			closeConsoleConnection(conn)
 			if owned != nil {
 				_ = owned.Close()
 			}
@@ -729,7 +727,7 @@ func (v *Server) createConsole(w http.ResponseWriter, r *http.Request) {
 	cctx, ccancel := context.WithCancel(s.ctx)
 	c := &console{id: newID("con_"), conn: conn, context: req, queue: make(chan *execution, 8), ctx: cctx, cancel: ccancel, requests: map[string]*execution{}, backendID: backend, ownedDB: owned, catalogAuditAt: map[string]time.Time{}}
 	s.mu.Lock()
-	if s.closed || s.ctx.Err() != nil || s.grant.Check() != nil || len(s.consoles) >= v.opts.MaxConsoles {
+	if s.closed || s.ctx.Err() != nil || s.grant.Check() != nil || (v.opts.MaxConsoles > 0 && len(s.consoles) >= v.opts.MaxConsoles) {
 		s.mu.Unlock()
 		ccancel()
 		fail(w, 409, "session_unavailable", "Session changed while opening console")
@@ -775,7 +773,7 @@ func (v *Server) closeConsole(s *session, c *console) {
 		defer c.mu.Unlock()
 		if c.conn != nil {
 			v.closeManualTransaction(s, c)
-			_ = c.conn.Close()
+			closeConsoleConnection(c.conn)
 		}
 		if c.ownedDB != nil {
 			_ = c.ownedDB.Close()

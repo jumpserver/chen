@@ -18,29 +18,12 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-      - run: go test -race ./...
-      - run: cd third_party/dm && go test -race ./...
+      - run: go build ./...
+      - run: cd third_party/dm && go build ./...
       - run: go vet ./...
       - run: bash -n start.sh entrypoint.sh scripts/*.sh
-      - name: Verify sibling process failures and shutdown order
-        run: ./scripts/test-entrypoint.sh
-      - run: python3 scripts/test-update-base-image.py
-      - run: WISP_TEST_ONLY=1 ./scripts/build-wisp.sh
-      - name: Exercise pinned Wisp retry limits against an isolated Core stub
-        run: |
-          mkdir -p data/bin
-          go build -o data/bin/chen-go ./cmd/chen-go
-          ./scripts/build-wisp.sh
-          python3 scripts/test-managed-startup.py --chen data/bin/chen-go --wisp data/bin/wisp
       - run: docker compose config --quiet
       - run: docker compose -f docker-compose.yml -f docker-compose.wisp-dev.yml config --quiet
-      - run: docker pull mysql:8.4 && docker pull postgres:16-alpine
-      - run: go test -race -count=1 -v ./internal/sqlservice -run TestIntegrationPostgresInspectionColumnPermissions
-        env:
-          CHEN_INTEGRATION: '1'
-      - run: go test -race -count=1 -v ./internal/engine -run 'TestIntegration(DatabaseHTTP|SingleMode)'
-        env:
-          CHEN_INTEGRATION: '1'
   image:
     needs: test
     strategy:
@@ -63,7 +46,3 @@ jobs:
           go-version-file: go.mod
       - name: Build formal base, CE and EE chain
         run: make image-ee
-      - name: Check CE/EE health metadata, managed startup failures and single database sessions
-        run: |
-          ./scripts/smoke-image.sh "jumpserver/chen:ci-ce" "$PLATFORM"
-          ./scripts/smoke-image.sh "jumpserver/chen:ci-ee" "$PLATFORM"

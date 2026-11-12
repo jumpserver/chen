@@ -65,7 +65,7 @@ func (v *Server) runSQLServerPlan(s *session, c *console, e *execution, command,
 		if e.cancelRequested.Load() {
 			<-e.cancelDone
 		}
-		cleanup, stop := context.WithTimeout(context.Background(), 3*time.Second)
+		cleanup, stop := context.WithTimeout(context.Background(), 5*time.Second)
 		defer stop()
 		_, restoreErr := c.conn.ExecContext(cleanup, showplanOffSQL)
 		if restoreErr == nil {
@@ -246,7 +246,7 @@ func (v *Server) runAuxiliaryPlan(s *session, c *console, e *execution, command,
 		if e.cancelRequested.Load() {
 			<-e.cancelDone
 		}
-		cleanup, stop := context.WithTimeout(context.Background(), 3*time.Second)
+		cleanup, stop := context.WithTimeout(context.Background(), 5*time.Second)
 		defer stop()
 		if cleanupErr := boundary.rollback(cleanup); cleanupErr != nil {
 			invalidateEditConnection(s, c)

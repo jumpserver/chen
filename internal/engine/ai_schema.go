@@ -100,34 +100,56 @@ func aiSchemaResult(req *catalogRequest, e aiEditorContext, tool, query string, 
 	}
 	wanted := map[string]bool{}
 	for _, table := range tables {
-		wanted[table] = true
+		wanted[strings.ToLower(table)] = true
 	}
 	chosen := []sqlservice.CatalogObject{}
 	for _, o := range objects {
-		if wanted[o.Name] || len(tables) == 0 && (query == "*" || strings.Contains(strings.ToLower(o.Name), strings.ToLower(query))) {
+		if wanted[strings.ToLower(o.Name)] || query != "" && (query == "*" || strings.Contains(strings.ToLower(o.Name), strings.ToLower(query))) {
 			chosen = append(chosen, o)
-			delete(wanted, o.Name)
+			delete(wanted, strings.ToLower(o.Name))
 		}
 	}
-	for table := range wanted {
+	for _, table := range tables {
+		if !wanted[strings.ToLower(table)] {
+			continue
+		}
 		matches, err := sqlservice.ObjectRows(req.ctx, req.conn, d, sqlservice.CatalogObjectRequest{Database: req.database, Schema: e.Schema, Query: table, Limit: 100})
 		if err != nil {
 			return nil, errors.New("Unable to inspect authorized schema")
 		}
 		for _, o := range matches {
-			if o.Name == table {
+			if strings.EqualFold(o.Name, table) {
 				chosen = append(chosen, o)
-				delete(wanted, table)
+				delete(wanted, strings.ToLower(table))
 				break
 			}
 		}
 	}
-	if len(wanted) > 0 {
-		return nil, errors.New("A requested table is unavailable in the verified schema")
+	missing := []string{}
+	for _, table := range tables {
+		if wanted[strings.ToLower(table)] {
+			missing = append(missing, table)
+		}
 	}
-	truncated := len(chosen) > 8 || len(objects) > 100
-	if len(chosen) > 8 {
-		chosen = chosen[:8]
+	// Explicitly requested relations take priority over name-search additions.
+	explicit := map[string]bool{}
+	for _, table := range tables {
+		explicit[strings.ToLower(table)] = true
+	}
+	sort.SliceStable(chosen, func(i, j int) bool {
+		return explicit[strings.ToLower(chosen[i].Name)] && !explicit[strings.ToLower(chosen[j].Name)]
+	})
+	maximum := 8
+	discovery := query == "*"
+	if discovery {
+		maximum = 100
+	}
+	truncated := len(chosen) > maximum || len(objects) > 100
+	if len(chosen) > maximum {
+		chosen = chosen[:maximum]
+	}
+	if discovery {
+		return map[string]any{"kind": "schema_inspection", "tables": chosen, "discovery": true, "truncated": truncated, "scope": map[string]string{"database": req.database, "schema": e.Schema}, "business_rows_read": false}, nil
 	}
 	inspections := []sqlservice.TableInspection{}
 	for _, o := range chosen {
@@ -149,5 +171,102 @@ func aiSchemaResult(req *catalogRequest, e aiEditorContext, tool, query string, 
 		}
 		inspections = append(inspections, item)
 	}
-	return map[string]any{"kind": "schema_inspection", "tables": inspections, "truncated": truncated, "scope": map[string]string{"database": req.database, "schema": e.Schema}, "business_rows_read": false}, nil
+	return map[string]any{"kind": "schema_inspection", "tables": inspections, "missingTables": missing, "truncated": truncated, "scope": map[string]string{"database": req.database, "schema": e.Schema}, "business_rows_read": false}, nil
+}
+
+func aiTableName(e aiEditorContext, input string) (string, error) {
+	var parts []string
+	var part strings.Builder
+	var quote rune
+	chars := []rune(strings.TrimSpace(input))
+	appendPart := func() bool {
+		name := strings.TrimSpace(part.String())
+		if name == "" {
+			return false
+		}
+		parts = append(parts, name)
+		part.Reset()
+		return true
+	}
+	for i := 0; i < len(chars); i++ {
+		c := chars[i]
+		if quote != 0 {
+			if c == quote {
+				if i+1 < len(chars) && chars[i+1] == quote {
+					part.WriteRune(c)
+					i++
+				} else {
+					quote = 0
+				}
+			} else {
+				part.WriteRune(c)
+			}
+		} else if c == '"' || c == '`' || c == '[' {
+			quote = c
+			if c == '[' {
+				quote = ']'
+			}
+		} else if c == '.' {
+			if !appendPart() {
+				return "", errors.New("Invalid table identifier")
+			}
+		} else {
+			part.WriteRune(c)
+		}
+	}
+	if quote != 0 || !appendPart() || len(parts) > 3 {
+		return "", errors.New("Invalid table identifier")
+	}
+	if len(parts) >= 2 {
+		qualifier := parts[len(parts)-2]
+		if !strings.EqualFold(qualifier, e.Schema) && !strings.EqualFold(qualifier, e.Database) {
+			return "", errors.New("Table inspection must stay in the active schema")
+		}
+	}
+	if len(parts) == 3 && !strings.EqualFold(parts[0], e.Database) {
+		return "", errors.New("Table inspection must stay in the active database")
+	}
+	return parts[len(parts)-1], nil
+}
+
+// Keep the Java assistant's metadata scope rules. These govern AI disclosure,
+// not which system databases the ordinary resource tree may display.
+func validateAISchemaScope(e aiEditorContext) error {
+	normalize := func(value string) string {
+		value = strings.TrimSpace(value)
+		if len(value) >= 2 && (value[0] == '"' && value[len(value)-1] == '"' || value[0] == '`' && value[len(value)-1] == '`' || value[0] == '[' && value[len(value)-1] == ']') {
+			value = value[1 : len(value)-1]
+		}
+		return strings.ToLower(value)
+	}
+	database, schema := normalize(e.Database), normalize(e.Schema)
+	d := sqlservice.Dialect(e.Dialect)
+	if schema == "" && !sqlservice.IsMySQLDialect(d) {
+		return errors.New("Schema inspection requires an active schema")
+	}
+	if database == "" && (sqlservice.IsMySQLDialect(d) || d == sqlservice.SQLServer || d == sqlservice.ClickHouse) {
+		return errors.New("Schema inspection requires an active database")
+	}
+	blocked := database == "information_schema" || schema == "information_schema"
+	contains := func(values string, value string) bool { return strings.Contains("|"+values+"|", "|"+value+"|") }
+	switch {
+	case sqlservice.IsMySQLDialect(d):
+		blocked = blocked || contains("mysql|performance_schema|sys", database)
+	case d == sqlservice.PostgreSQL:
+		blocked = blocked || contains("pg_catalog|pg_toast", schema) || strings.HasPrefix(schema, "pg_temp_") || strings.HasPrefix(schema, "pg_toast_temp_")
+	case d == sqlservice.SQLServer:
+		blocked = blocked || contains("master|model|msdb|tempdb", database) || schema == "sys"
+	case d == sqlservice.Dameng:
+		blocked = blocked || contains("sys|system|sysauditor", schema)
+	case sqlservice.IsOracleDialect(d):
+		blocked = blocked || contains("sys|system|xdb|mdsys|ctxsys|audsys", schema)
+	case d == sqlservice.DB2:
+		blocked = blocked || contains("sysibm|syscat|sysstat|sysfun|sysproc|systools", schema)
+	case d == sqlservice.ClickHouse:
+		blocked = blocked || database == "system" || schema == "system"
+	}
+	if blocked {
+		return errors.New("AI table metadata is unavailable in the protected system scope")
+	}
+	return nil
 }

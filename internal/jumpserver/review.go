@@ -3,19 +3,14 @@ package jumpserver
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/url"
 	"strings"
 	"time"
-	"unicode/utf8"
 
 	"github.com/jumpserver/wisp/protobuf-go/protobuf"
 	"google.golang.org/protobuf/proto"
 )
-
-// Core's CommandFilterACL.create_command_review_ticket stores only the first
-// 4090 Unicode characters. Reject overlong batches instead of approving a prefix
-// and then executing an unreviewed suffix.
-const MaxReviewCharacters = 4090
 
 func (p *WispProvider) AuthorizeCommand(ctx context.Context, g *Grant, request AuthorizationRequest) (AuthorizationDecision, error) {
 	decision := AuthorizationDecision{}
@@ -51,13 +46,18 @@ func (p *WispProvider) AuthorizeCommand(ctx context.Context, g *Grant, request A
 	if batch == "" {
 		batch = request.SQL
 	}
-	if !utf8.ValidString(batch) || utf8.RuneCountInString(batch) > MaxReviewCharacters {
-		return decision, decision.policyError("command_review_sql_too_long")
-	}
 	if !request.SubmitReview {
 		return decision, err
 	}
-	return p.waitCommandReview(ctx, g, decision, batch, request.OnReview)
+	command := batch
+	if batch != request.SQL {
+		command = fmt.Sprintf("Batch SQL:\n%s\n\nReview-triggering SQL:\n%s", batch, request.SQL)
+	}
+	affected := "unknown"
+	if request.AffectedRows != nil {
+		affected = fmt.Sprint(*request.AffectedRows)
+	}
+	return p.waitCommandReview(ctx, g, decision, "Affected rows: "+affected+"\n"+command, request.OnReview)
 }
 
 func (d AuthorizationDecision) policyError(code string) error {

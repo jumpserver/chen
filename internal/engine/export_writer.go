@@ -15,8 +15,6 @@ import (
 	"unicode/utf8"
 )
 
-const exportMaxRows = 1000000
-const exportMaxBytes = 128 << 20
 const exportMaxCellChars = 32767
 
 type exportRowWriter interface {

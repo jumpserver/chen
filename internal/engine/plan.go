@@ -12,8 +12,8 @@ import (
 	"unicode/utf8"
 )
 
-const planMaxBytes = 1024 * 1024
-const planMaxNodes = 2048
+const planMaxBytes = 2_000_000
+const planMaxNodes = 5_000
 const planMaxDepth = 64
 
 type PlanIdentity struct {
@@ -70,6 +70,7 @@ type PlanEffects struct {
 	ConnectionDisposition string `json:"connectionDisposition"`
 }
 type ExecutionPlan struct {
+	memoryBytes      int
 	ExecutionID      string           `json:"executionId"`
 	ConsoleID        string           `json:"consoleId"`
 	RequestID        string           `json:"requestId"`
@@ -229,7 +230,7 @@ func (v *Server) runEstimatedPlan(s *session, c *console, e *execution, command,
 			if e.cancelRequested.Load() {
 				<-e.cancelDone
 			}
-			ctx, stop := context.WithTimeout(context.Background(), 3*time.Second)
+			ctx, stop := context.WithTimeout(context.Background(), 5*time.Second)
 			defer stop()
 			var cleanupErr error
 			if err != nil {
@@ -282,14 +283,14 @@ func (v *Server) runEstimatedPlan(s *session, c *console, e *execution, command,
 }
 
 func (v *Server) reservePlan(s *session, p *ExecutionPlan, reserved int) {
-	// As for ordinary results, the session byte quota bounds variable result data.
-	// Fixed execution metadata is separately bounded by the 256-execution limit.
+	// An explicitly configured session byte quota also bounds plan data.
+	// Fixed execution identities remain available for idempotent request recovery.
 	size := func() int { nodes, _ := json.Marshal(p.Roots); return len(p.RawText) + max(0, len(nodes)-2) }
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.resultBytes -= reserved
 	available := max(0, v.opts.MaxResultBytes-s.resultBytes)
-	if size() > available {
+	if v.opts.MaxResultBytes > 0 && size() > available {
 		p.Roots = []*PlanNode{}
 		p.Capabilities.Structured = false
 		p.Capabilities.Hierarchy = false
@@ -299,7 +300,8 @@ func (v *Server) reservePlan(s *session, p *ExecutionPlan, reserved int) {
 		p.warn("plan_memory_limit", "Plan output reached the session memory limit")
 	}
 	p.Capabilities.Raw = p.RawText != ""
-	s.resultBytes += size()
+	p.memoryBytes = size()
+	s.resultBytes += p.memoryBytes
 }
 
 func planPrefix(s string, limit int) string {

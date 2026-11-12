@@ -39,6 +39,7 @@ func (v *Server) submit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req struct {
+		ConsoleMode           bool   `json:"console_mode"`
 		TransactionAction     string `json:"transaction_action"`
 		TransactionOnPending  string `json:"transaction_on_pending"`
 		TransactionRevision   uint64 `json:"transaction_revision"`
@@ -52,6 +53,10 @@ func (v *Server) submit(w http.ResponseWriter, r *http.Request) {
 		ConfirmWarnings       bool   `json:"confirm_warnings"`
 	}
 	if !decode(w, r, &req) {
+		return
+	}
+	if req.ConsoleMode && (req.PlanMode != "" || req.TransactionAction != "" || isExport || browse != nil || queryPage != nil) {
+		fail(w, 400, "invalid_console_mode", "Raw console mode requires an ordinary execution request")
 		return
 	}
 	if req.PlanMode != "" && (req.PlanMode != "ESTIMATED" || isExport || browse != nil || queryPage != nil) {
@@ -77,7 +82,7 @@ func (v *Server) submit(w http.ResponseWriter, r *http.Request) {
 		fail(w, 400, "invalid_transaction_action", "Transaction resolution requires a mode action")
 		return
 	}
-	if strings.TrimSpace(req.SQL) == "" || len(req.SQL) > sqlservice.MaxDocumentBytes {
+	if strings.TrimSpace(req.SQL) == "" || sqlservice.DocumentExceedsLimit(req.SQL) {
 		fail(w, 400, "invalid_sql", "SQL is empty or too large")
 		return
 	}
@@ -96,20 +101,21 @@ func (v *Server) submit(w http.ResponseWriter, r *http.Request) {
 	}
 	if old := c.requests[req.RequestID]; old != nil {
 		s.mu.Unlock()
-		if old.transactionAction != req.TransactionAction || old.transactionOnPending != req.TransactionOnPending || old.transactionRevision != req.TransactionRevision || old.confirmImplicitCommit != req.ConfirmImplicitCommit || (old.queryPage != nil) != (queryPage != nil) || (queryPage != nil && old.queryPage.fingerprint != queryPage.fingerprint) || old.planMode != req.PlanMode || old.sql != req.SQL || old.submitReview != req.SubmitReview || old.confirmWarnings != req.ConfirmWarnings || (old.export != nil) != isExport || (old.export != nil && old.export.format != req.Format) || (old.browse != nil) != (browse != nil) || old.edit != nil || (browse != nil && browse.plan != nil && (old.browse == nil || old.browse.plan == nil || old.browse.plan.fingerprint != browse.plan.fingerprint)) {
+		if old.consoleMode != req.ConsoleMode || old.transactionAction != req.TransactionAction || old.transactionOnPending != req.TransactionOnPending || old.transactionRevision != req.TransactionRevision || old.confirmImplicitCommit != req.ConfirmImplicitCommit || (old.queryPage != nil) != (queryPage != nil) || (queryPage != nil && old.queryPage.fingerprint != queryPage.fingerprint) || old.planMode != req.PlanMode || old.sql != req.SQL || old.submitReview != req.SubmitReview || old.confirmWarnings != req.ConfirmWarnings || (old.export != nil) != isExport || (old.export != nil && old.export.format != req.Format) || (old.browse != nil) != (browse != nil) || old.edit != nil || (browse != nil && browse.plan != nil && (old.browse == nil || old.browse.plan == nil || old.browse.plan.fingerprint != browse.plan.fingerprint)) {
 			fail(w, 409, "idempotency_conflict", "Request ID already belongs to different SQL")
 			return
 		}
 		writeJSON(w, 202, old.snapshot())
 		return
 	}
-	if len(s.executions) >= 256 {
+	if s.activeExecutionCountLocked() >= 256 {
 		s.mu.Unlock()
-		fail(w, 429, "execution_limit", "Session execution history limit reached; open a new session")
+		fail(w, 429, "execution_limit", "Too many active executions; wait for pending work to finish")
 		return
 	}
 	ctx, cancel := context.WithCancel(c.ctx)
 	e := &execution{view: ExecutionView{ID: newID("exe_"), ConsoleID: c.id, Status: "queued", ResultIDs: []string{}, StatementResults: []StatementResult{}, AuditStatus: "pending"}, sql: req.SQL, documentVersion: req.DocumentVersion, ctx: ctx, cancel: cancel, cancelDone: make(chan struct{}), submitReview: req.SubmitReview, confirmWarnings: req.ConfirmWarnings}
+	e.consoleMode = req.ConsoleMode
 	e.transactionAction, e.transactionOnPending, e.transactionRevision, e.confirmImplicitCommit = req.TransactionAction, req.TransactionOnPending, req.TransactionRevision, req.ConfirmImplicitCommit
 	if req.TransactionAction != "" && c.transaction.Load() != nil {
 		e.view.Transaction = &TransactionOutcome{TransactionView: *c.transaction.Load(), Action: req.TransactionAction}
@@ -133,10 +139,8 @@ func (v *Server) submit(w http.ResponseWriter, r *http.Request) {
 		}
 		e.export = j
 		e.view.ExportID = j.id
-		e.startDeadline(10 * time.Minute)
-	} else {
-		e.startDeadline(v.opts.QueryTimeout)
 	}
+	e.startDeadline(v.opts.QueryTimeout)
 	select {
 	case c.queue <- e:
 		s.executions[e.view.ID] = e
@@ -249,6 +253,7 @@ func (v *Server) cancelExecutionWithResponse(w http.ResponseWriter, r *http.Requ
 }
 func (v *Server) worker(s *session, c *console) {
 	defer s.workers.Done()
+	defer s.releaseClosedConsoleResults(c)
 	timer := time.NewTimer(time.Hour)
 	timer.Stop()
 	defer timer.Stop()
@@ -288,6 +293,7 @@ func (v *Server) worker(s *session, c *console) {
 func (v *Server) update(s *session, e *execution, fn func(*ExecutionView)) {
 	e.mu.Lock()
 	fn(&e.view)
+	e.view.Revision++
 	e.mu.Unlock()
 	s.emit("execution.updated", e.snapshot())
 	if e.export != nil {
@@ -301,6 +307,7 @@ func (v *Server) run(s *session, c *console, e *execution) {
 	}
 	c.mu.Lock()
 	userSQLStarted := false
+	sourceStartedTransaction := false
 	var db2CancelCheckpoint uint64
 	if s.grant.Config.Dialect == "db2" {
 		db2CancelCheckpoint = db2CancellationCheckpoint(c)
@@ -358,13 +365,25 @@ func (v *Server) run(s *session, c *console, e *execution) {
 	completedStatements := 0
 	confirmedCancel := false
 	triggeredWarnings := map[string]jumpserver.AuditRecord{}
-	defer func() {
-		audit.FinishedAt = time.Now()
-		if runErr != nil {
-			audit.Error = runErr.Error()
+	auditStatus := "recorded"
+	auditPending := true
+	finishAudit := func(succeeded bool) error {
+		if !auditPending {
+			return nil
 		}
+		auditPending = false
+		defer func() { e.replayOutput, e.auditRows = "", 0 }()
+		audit.FinishedAt = time.Now()
 		view := e.snapshot()
-		audit.Output = fmt.Sprintf("execution_id=%s state=%s completed_statements=%d result_sets=%d", view.ID, view.Status, completedStatements, len(view.ResultIDs))
+		state := view.Status
+		if succeeded {
+			state = "succeeded"
+		}
+		if audit.Output == "" && e.replayOutput != "" {
+			audit.Output = fmt.Sprintf("Query OK, %d rows discovered", e.auditRows)
+		}
+		audit.ReplayOutput = e.replayOutput
+		audit.Output += fmt.Sprintf(" execution_id=%s state=%s completed_statements=%d", view.ID, state, completedStatements)
 		if view.Transaction != nil {
 			audit.Output += fmt.Sprintf(" transaction_mode=%t transaction_state=%s transaction_outcome=%s prior_committed=%t", view.Transaction.Manual, view.Transaction.State, view.Transaction.Outcome, view.Transaction.PriorCommitted)
 		}
@@ -387,10 +406,7 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		}
 		ctx, stop := context.WithTimeout(context.Background(), 5*time.Second)
 		defer stop()
-		status := "recorded"
-		if err := v.provider.Record(ctx, s.grant, audit); err != nil {
-			status = "failed"
-		}
+		recordErr := v.provider.Record(ctx, s.grant, audit)
 		for _, warning := range triggeredWarnings {
 			if audit.RiskLevel == warning.RiskLevel && audit.ACLID == warning.ACLID && audit.GroupID == warning.GroupID {
 				continue
@@ -399,11 +415,18 @@ func (v *Server) run(s *session, c *console, e *execution) {
 			warning.Output = audit.Output + "; policy_warning"
 			warning.Error = audit.Error
 			if err := v.provider.Record(ctx, s.grant, warning); err != nil {
-				status = "failed"
+				recordErr = errors.Join(recordErr, err)
 			}
 		}
+		if recordErr != nil {
+			auditStatus = "failed"
+		}
+		return recordErr
+	}
+	defer func() {
+		_ = finishAudit(false)
 		end := time.Now()
-		v.update(s, e, func(x *ExecutionView) { x.AuditStatus = status; x.FinishedAt = &end })
+		v.update(s, e, func(x *ExecutionView) { x.AuditStatus = auditStatus; x.FinishedAt = &end })
 		if err := v.journal(s, e, "finished"); err != nil {
 			v.update(s, e, func(x *ExecutionView) { x.AuditStatus = "failed" })
 		}
@@ -447,12 +470,18 @@ func (v *Server) run(s *session, c *console, e *execution) {
 			status = "canceled"
 		}
 		rolledBack := false
-		if c.manual && e.transactionAction == "" && userSQLStarted && c.manualTx != nil {
+		if c.manual && e.transactionAction == "" && (userSQLStarted || sourceStartedTransaction) && c.manualTx != nil {
 			joinDatabaseCancel()
 			if e.cancelRequested.Load() {
 				<-e.cancelDone
 			}
-			if err := v.finishManualTransaction(s, c, e, false); err != nil {
+			var rollbackErr error
+			if sourceStartedTransaction && !userSQLStarted {
+				rollbackErr = v.rollbackSourcePreflight(s, c, e)
+			} else {
+				rollbackErr = v.finishManualTransaction(s, c, e, false)
+			}
+			if err := rollbackErr; err != nil {
 				status = "unknown"
 				api = &APIError{"transaction_outcome_unknown", err.Error()}
 			} else {
@@ -461,6 +490,11 @@ func (v *Server) run(s *session, c *console, e *execution) {
 					status = "failed"
 				}
 			}
+		}
+		if restoreErr := e.restoreSourceReadContext(); restoreErr != nil {
+			runErr = errors.Join(runErr, restoreErr)
+			status = "unknown"
+			api = sourceContextError(restoreErr)
 		}
 		if completedStatements > 0 && !rolledBack {
 			message := fmt.Sprintf("%d earlier statement(s) completed and may already have taken effect. Do not automatically repeat the whole script. ", completedStatements)
@@ -535,13 +569,56 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		failure(err, safeDatabaseError(err))
 		return
 	}
+	sourceContext := ""
+	if e.queryPage != nil {
+		sourceContext = e.queryPage.context
+	} else if e.browse != nil && e.browse.plan != nil {
+		sourceContext = e.browse.plan.context
+	}
+	if sourceContext != "" {
+		guard, err := prepareSourceReadContext(e.ctx, c, s.grant.Config.Dialect, sourceContext)
+		if err != nil {
+			failure(err, sourceContextError(err))
+			return
+		}
+		if guard != nil {
+			// PostgreSQL LOCAL settings must live inside the eventual manual
+			// transaction. Otherwise a later rollback could undo restoration
+			// and leave the connection in the result's old search_path.
+			if s.grant.Config.Dialect == "postgresql" && c.manual {
+				wasIdle := c.manualTx == nil
+				if err := v.beginManualTransaction(s, c, e); err != nil {
+					failure(err, safeDatabaseError(err))
+					return
+				}
+				sourceStartedTransaction = wasIdle
+			}
+			e.restoreReadContext = func() error {
+				// A late KILL must finish before USE/SET restores the namespace.
+				joinDatabaseCancel()
+				if e.cancelRequested.Load() {
+					<-e.cancelDone
+				}
+				return guard.restore(s)
+			}
+			databaseTouched.Store(true)
+			if err := guard.enter(e.ctx); err != nil {
+				failure(err, sourceContextError(err))
+				return
+			}
+		}
+	}
 	runSQL := e.sql
 	planVersion := ""
 	var browseArgs []any
 	if e.browse != nil && e.browse.plan != nil {
 		p := e.browse.plan
-		scope, scopeErr := liveContext(e.ctx, c, s.grant.Config.Dialect)
-		if scopeErr != nil || scope.Database != p.view.Database || (p.view.Supported && opts != p.options) {
+		contextMatches := sourceContext != ""
+		if !contextMatches {
+			scope, scopeErr := liveContext(e.ctx, c, s.grant.Config.Dialect)
+			contextMatches = scopeErr == nil && scope.Database == p.view.Database
+		}
+		if !contextMatches || (p.view.Supported && opts != p.options) {
 			failure(errors.New("browse_context_changed"), &APIError{"browse_context_changed", "Database or SQL mode changed; apply the browse conditions again"})
 			return
 		}
@@ -587,13 +664,17 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		e.mu.Unlock()
 	}
 	if e.queryPage != nil {
-		if err := validateQueryPage(e.ctx, c, s.grant.Config.Dialect, e.queryPage, opts); err != nil {
+		if err := validateQueryPage(e.ctx, c, s.grant.Config.Dialect, e.queryPage, opts, sourceContext != ""); err != nil {
 			failure(err, &APIError{"query_page_context_changed", err.Error()})
 			return
 		}
 		runSQL = e.queryPage.generated
 	}
-	analysis, err := sqlservice.AnalyzeWithOptions(sqlservice.Dialect(s.grant.Config.Dialect), runSQL, opts)
+	analyze := sqlservice.AnalyzeWithOptions
+	if e.consoleMode {
+		analyze = sqlservice.AnalyzeConsole
+	}
+	analysis, err := analyze(sqlservice.Dialect(s.grant.Config.Dialect), runSQL, opts)
 	// Generated windows may exceed the pinned TiDB grammar. Their source was
 	// admitted by the AST; only server-owned wrapping and bounded integers differ.
 	if e.queryPage != nil {
@@ -608,8 +689,8 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		failure(err, &APIError{"sql_parse_error", err.Error()})
 		return
 	}
-	if len(analysis.Statements) == 0 || len(analysis.Statements) > 100 {
-		failure(errors.New("statement_limit"), &APIError{"statement_limit", "A script must contain between 1 and 100 statements"})
+	if len(analysis.Statements) == 0 {
+		failure(errors.New("statement_limit"), &APIError{"statement_limit", "A script must contain at least one statement"})
 		return
 	}
 	if e.export != nil {
@@ -626,6 +707,10 @@ func (v *Server) run(s *session, c *console, e *execution) {
 	implicitCommit := false
 	if c.manual && e.planMode == "" {
 		for _, statement := range analysis.Statements {
+			if statement.Kind == "raw" {
+				failure(errors.New("raw_console_manual_mode"), &APIError{"raw_console_manual_mode", "This raw command has unknown transaction behavior; switch to automatic transaction mode before executing it"})
+				return
+			}
 			risk, control := sqlservice.ManualTransactionRisk(sqlservice.Dialect(s.grant.Config.Dialect), statement)
 			if control {
 				failure(errors.New("transaction_control_sql"), &APIError{"transaction_control_sql", "Use the toolbar to change transactions; transaction and session-control SQL is unavailable in manual mode"})
@@ -641,31 +726,6 @@ func (v *Server) run(s *session, c *console, e *execution) {
 			failure(errors.New("transaction_changed"), &APIError{"transaction_changed", "Transaction state changed; review the SQL and confirm again"})
 			return
 		}
-	}
-	// Validate the complete script and each original statement before sending any
-	// statement, including generated and multi-statement SQL.
-	commands := append([]string{e.sql, runSQL}, statementSQL(analysis.Statements)...)
-	if implicitCommit {
-		commands = append(commands, "COMMIT")
-	}
-	if e.planMode != "" {
-		commands = append(commands, planAuthorizationSQL(s.grant.Config.Dialect, runSQL)...)
-	}
-	if err := v.authorizeExecution(s, e, commands, &audit); err != nil {
-		var pe *jumpserver.PolicyError
-		code := "command_denied"
-		if errors.As(err, &pe) {
-			audit.RiskLevel = pe.RiskLevel
-			// A consent prompt is not an executed warning and must not notify reviewers.
-			if pe.Code == "command_warning_confirmation_required" {
-				audit.RiskLevel = 0
-			}
-			audit.ACLID = pe.ACLID
-			audit.GroupID = pe.GroupID
-			code = pe.Code
-		}
-		failure(err, &APIError{code, err.Error()})
-		return
 	}
 	if err := e.ctx.Err(); err != nil {
 		failure(err, safeDatabaseError(err))
@@ -690,7 +750,14 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		failure(startErr, safeDatabaseError(startErr))
 		return
 	}
-	for _, statement := range analysis.Statements {
+	for statementIndex, statement := range analysis.Statements {
+		audit = jumpserver.AuditRecord{ID: fmt.Sprintf("%s:statement:%d", e.view.ID, statementIndex+1), SQL: statement.SQL, StartedAt: time.Now(), RiskClassified: true}
+		if e.browse != nil || e.queryPage != nil || e.planMode != "" {
+			audit.SQL = e.sql
+		}
+		auditPending = true
+		e.replayOutput, e.auditRows = "", 0
+		triggeredWarnings = map[string]jumpserver.AuditRecord{}
 		if err := e.ctx.Err(); err != nil {
 			failure(err, safeDatabaseError(err))
 			return
@@ -715,7 +782,7 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		// AST facts remain valid while parser options are unchanged. Reuse them
 		// for dispatch and edit provenance instead of reparsing each consumer.
 		if e.queryPage == nil && !(e.planMode != "" && specialPlanDialect(s.grant.Config.Dialect)) && (statement.Facts == nil || current != opts) {
-			checked, err := sqlservice.AnalyzeWithOptions(sqlservice.Dialect(s.grant.Config.Dialect), statement.SQL, current)
+			checked, err := analyze(sqlservice.Dialect(s.grant.Config.Dialect), statement.SQL, current)
 			if err != nil || len(checked.Statements) != 1 {
 				failure(errors.New("sql_context_changed"), &APIError{"sql_context_changed", "Statement boundaries changed with the connection SQL mode; run statements separately"})
 				return
@@ -724,27 +791,57 @@ func (v *Server) run(s *session, c *console, e *execution) {
 			statement = checked.Statements[0]
 		}
 
+		// Match Java's statement boundary: a later rejection or confirmation
+		// cannot prevent an earlier statement from executing, nor replay it.
+		commands := statementSQL([]sqlservice.Statement{statement})
+		if e.browse != nil || e.queryPage != nil || e.planMode != "" {
+			commands = append([]string{e.sql}, commands...)
+		}
+		if c.manual {
+			if risk, _ := sqlservice.ManualTransactionRisk(sqlservice.Dialect(s.grant.Config.Dialect), statement); risk {
+				commands = append(commands, "COMMIT")
+			}
+		}
+		if e.planMode != "" {
+			commands = append(commands, planAuthorizationSQL(s.grant.Config.Dialect, runSQL)...)
+		}
+		if err := v.authorizeExecution(s, e, commands, &audit); err != nil {
+			var pe *jumpserver.PolicyError
+			code := "command_denied"
+			if errors.As(err, &pe) {
+				audit.RiskLevel, audit.ACLID, audit.GroupID = pe.RiskLevel, pe.ACLID, pe.GroupID
+				code = pe.Code
+			}
+			failure(err, &APIError{code, err.Error()})
+			return
+		}
+		v.update(s, e, func(view *ExecutionView) { view.Status = "running" })
+
 		if e.cancelRequested.Load() {
 			failure(context.Canceled, &APIError{"query_canceled", "Query cancellation requested"})
 			return
 		}
-		if statement.ReturnsRows && e.planMode == "" && e.queryPage == nil && e.browse == nil && e.export == nil {
+		if statement.ReturnsRows && e.planMode == "" && e.queryPage == nil && e.browse == nil {
 			v.captureQuerySQLSource(s, c, e, current, statement.SQL)
 			if err := e.ctx.Err(); err != nil {
 				failure(err, safeDatabaseError(err))
 				return
 			}
 		}
-		for _, command := range []string{e.sql, statement.SQL} {
+		for _, command := range commands {
 			if warning, ok := e.policyWarnings[command]; ok {
 				key := warning.ACLID + ":" + warning.GroupID
-				triggeredWarnings[key] = jumpserver.AuditRecord{ID: e.view.ID + ":warning:" + key, SQL: command, RiskLevel: warning.RiskLevel, ACLID: warning.ACLID, GroupID: warning.GroupID}
+				triggeredWarnings[key] = jumpserver.AuditRecord{ID: audit.ID + ":warning:" + key, SQL: command, RiskLevel: warning.RiskLevel, ACLID: warning.ACLID, GroupID: warning.GroupID}
 				if warning.RiskLevel > audit.RiskLevel {
 					audit.RiskLevel, audit.ACLID, audit.GroupID = warning.RiskLevel, warning.ACLID, warning.GroupID
 				}
 			}
 		}
 		if c.manual && e.planMode == "" {
+			if statement.Kind == "raw" {
+				failure(errors.New("raw_console_manual_mode"), &APIError{"raw_console_manual_mode", "This raw command has unknown transaction behavior; switch to automatic transaction mode before executing it"})
+				return
+			}
 			risk, control := sqlservice.ManualTransactionRisk(sqlservice.Dialect(s.grant.Config.Dialect), statement)
 			if control || (risk && !e.confirmImplicitCommit) {
 				failure(errors.New("transaction_changed"), &APIError{"transaction_changed", "SQL transaction behavior changed; submit again"})
@@ -798,21 +895,24 @@ func (v *Server) run(s *session, c *console, e *execution) {
 			if e.queryPage != nil && e.queryPage.action == "count" {
 				collectErr = v.collectQueryCount(s, e, rows)
 			} else if e.browse != nil && e.browse.plan != nil && e.browse.plan.action == "count" {
+				var total string
 				if !rows.Next() {
 					collectErr = errors.New("Count returned no value")
 				} else {
-					var total string
 					collectErr = rows.Scan(&total)
-					if collectErr == nil {
-						v.update(s, e, func(x *ExecutionView) {
-							x.BrowseCount = &BrowseCount{SourceResultID: e.browse.plan.sourceResultID, Total: total}
-						})
-					}
 				}
 				if collectErr == nil {
 					collectErr = rows.Err()
 				}
 				rows.Close()
+				if collectErr == nil {
+					collectErr = e.restoreSourceReadContext()
+				}
+				if collectErr == nil {
+					v.update(s, e, func(x *ExecutionView) {
+						x.BrowseCount = &BrowseCount{SourceResultID: e.browse.plan.sourceResultID, Total: total}
+					})
+				}
 			} else if e.browse != nil && e.browse.plan != nil && e.browse.plan.action == "append" {
 				collectErr = v.collectBrowseAppend(s, e, rows)
 			} else if e.export != nil {
@@ -824,7 +924,7 @@ func (v *Server) run(s *session, c *console, e *execution) {
 				// database/sql can replace a driver's Rows error with ctx.Err().
 				// That alone does not prove the server acknowledged cancellation.
 				confirmedCancel = isServerCancellation(err)
-				failure(err, safeDatabaseError(err))
+				failure(err, sourceContextError(err))
 				return
 			}
 		} else {
@@ -835,6 +935,7 @@ func (v *Server) run(s *session, c *console, e *execution) {
 				return
 			}
 			affected, _ := result.RowsAffected()
+			audit.Output = fmt.Sprintf("Query OK, %d rows affected", affected)
 			v.update(s, e, func(x *ExecutionView) {
 				x.StatementResults = append(x.StatementResults, StatementResult{RowsAffected: strconv.FormatInt(affected, 10)})
 			})
@@ -852,6 +953,13 @@ func (v *Server) run(s *session, c *console, e *execution) {
 			}
 		}
 		currentInFlight = false
+		// MySQL SLEEP can return a normal row after KILL QUERY. An accepted
+		// cancellation must not become a successful read just because the
+		// driver returned no error. Completed writes are still counted below.
+		if !statement.MayWrite && (e.cancelRequested.Load() || e.ctx.Err() != nil) {
+			failure(context.Canceled, &APIError{"query_canceled", "Query cancellation requested"})
+			return
+		}
 		completedStatements++
 		// Read the actual scope on the pinned connection, including transaction rollback
 		// of a PostgreSQL search_path. Never publish the name requested by the client.
@@ -863,11 +971,14 @@ func (v *Server) run(s *session, c *console, e *execution) {
 			}
 			c.publishContext(s, scope)
 		}
-		// Some MySQL statements (notably a lone SLEEP) return a normal result
-		// after KILL QUERY. A requested cancellation still rolls back the owned
-		// manual transaction before we report completion.
-		if c.manualTx != nil && (e.cancelRequested.Load() || e.ctx.Err() != nil) {
+		// A cancel racing a completed write must preserve its completed count;
+		// the failure path rolls back only a transaction owned by this console.
+		if e.cancelRequested.Load() || e.ctx.Err() != nil {
 			failure(context.Canceled, &APIError{"query_canceled", "Query cancellation requested"})
+			return
+		}
+		if err := finishAudit(true); err != nil {
+			failure(err, &APIError{"audit_persistence_failed", "The completed statement could not be audited; remaining statements were not sent"})
 			return
 		}
 	}
@@ -975,12 +1086,25 @@ func normalizeValue(value any, dbType string) any {
 		return normalizeComposite(value, dbType)
 	}
 }
-func (v *Server) collectResults(s *session, e *execution, rows *sql.Rows) error {
+func (v *Server) collectResults(s *session, e *execution, rows *sql.Rows) (err error) {
 	var collected []*Result
 	defer func() {
 		rows.Close()
 		if e.resultSQL != "" {
 			v.bindResultEditSource(s, e, collected)
+		}
+		// Source resolution above must see the original namespace. No result
+		// may become visible until the user's current namespace is restored.
+		if err == nil {
+			err = e.restoreSourceReadContext()
+		}
+		if err != nil && e.restoreReadContext != nil {
+			s.mu.Lock()
+			for _, result := range collected {
+				s.resultBytes -= result.memoryBytes
+			}
+			s.mu.Unlock()
+			return
 		}
 		for _, result := range collected {
 			s.mu.Lock()
@@ -998,19 +1122,31 @@ func (v *Server) collectResults(s *session, e *execution, rows *sql.Rows) error 
 			browse = e.browse.plan
 		}
 		// Reuse the bounded row reader without publishing a table-browse identity.
-		if e.queryPage != nil {
+		if e.queryPage != nil && e.queryPage.action == "page" {
 			browse = &browsePlan{view: BrowsePage{Supported: true, PageSize: e.queryPage.view.PageSize}}
 		}
-		result, err := v.readRows(s, rows, browse)
+		result, err := v.readRowsWithMask(s, rows, func(labels []string) []string {
+			return e.resultMaskColumns(s.grant.Config.Dialect, labels)
+		}, browse)
 		if err != nil {
 			return err
+		}
+		if e.consoleMode && len(result.Columns) == 0 {
+			// QueryContext is also used for opaque commands that return no row
+			// set. Do not invent an empty table or an unknown affected-row count.
+			if !rows.NextResultSet() {
+				return rows.Err()
+			}
+			continue
 		}
 		result.consoleID, result.sourceSQL, result.browse = e.view.ConsoleID, e.resultSQL, e.browse
 		result.sourceAnalysis = e.resultAnalysis
 		result.querySource = e.querySource
 		if e.queryPage != nil {
 			p := *e.queryPage
-			p.view.HasMore = result.Browse.HasMore
+			if result.Browse != nil {
+				p.view.HasMore = result.Browse.HasMore
+			}
 			result.querySource = &p
 			result.sourceSQL = p.original
 			// The page wrapper only selects a window of the original projection.
@@ -1024,6 +1160,7 @@ func (v *Server) collectResults(s *session, e *execution, rows *sql.Rows) error 
 			view := result.querySource.view
 			result.QueryPage = &view
 		}
+		appendResultReplay(e, result)
 		collected = append(collected, result)
 		if !rows.NextResultSet() {
 			return rows.Err()
@@ -1031,6 +1168,9 @@ func (v *Server) collectResults(s *session, e *execution, rows *sql.Rows) error 
 	}
 }
 func (v *Server) readRows(s *session, rows *sql.Rows, plans ...*browsePlan) (*Result, error) {
+	return v.readRowsWithMask(s, rows, func(labels []string) []string { return labels }, plans...)
+}
+func (v *Server) readRowsWithMask(s *session, rows *sql.Rows, maskColumns func([]string) []string, plans ...*browsePlan) (*Result, error) {
 	reserved := 0
 	complete := false
 	defer func() {
@@ -1058,8 +1198,14 @@ func (v *Server) readRows(s *session, rows *sql.Rows, plans ...*browsePlan) (*Re
 		}
 		result.Browse = &view
 	}
-	for _, column := range types {
+	labels := make([]string, len(types))
+	for i, column := range types {
 		result.Columns = append(result.Columns, Column{column.Name(), column.DatabaseTypeName()})
+		labels[i] = column.Name()
+	}
+	sources := make([]string, len(types))
+	if maskColumns != nil {
+		sources = maskColumns(labels)
 	}
 	for rows.Next() {
 		if result.Browse != nil && result.Browse.Supported && len(result.Rows) >= limit {
@@ -1080,21 +1226,7 @@ func (v *Server) readRows(s *session, rows *sql.Rows, plans ...*browsePlan) (*Re
 			if data, ok := raw[i].([]byte); ok && data != nil && !binaryResultType(types[i].DatabaseTypeName()) && !validTextBytes(data) {
 				copyLossy[i] = true
 			}
-			// DM DATE can vary with compatibility mode. Never copy a date-only
-			// display if a driver actually supplied a non-midnight time of day.
-			if s.grant.Config.Dialect == "dameng" && strings.EqualFold(types[i].DatabaseTypeName(), "DATE") {
-				if value, ok := raw[i].(time.Time); ok && (value.Hour() != 0 || value.Minute() != 0 || value.Second() != 0 || value.Nanosecond() != 0) {
-					copyLossy[i] = true
-				}
-			}
-			// OB Oracle DATE includes time of day. Keep all driver-supplied
-			// components instead of applying the date-only display normalizer.
-			if s.grant.Config.Dialect == "oceanbase-oracle" && strings.EqualFold(types[i].DatabaseTypeName(), "DATE") {
-				if value, ok := raw[i].(time.Time); ok {
-					raw[i] = value.Format("2006-01-02 15:04:05.999999999")
-				}
-			}
-			raw[i], err = materializeValue(raw[i], types[i].DatabaseTypeName(), v.opts.MaxResultBytes)
+			raw[i], err = materializeValue(raw[i], types[i].DatabaseTypeName(), v.opts.MaxResultBytes, s.grant.Config.Dialect)
 			if err != nil {
 				return nil, err
 			}
@@ -1103,7 +1235,7 @@ func (v *Server) readRows(s *session, rows *sql.Rows, plans ...*browsePlan) (*Re
 		masked := make([]bool, len(raw))
 		extra := 0
 		for i := range raw {
-			raw[i], masked[i] = v.provider.Mask(s.grant, "", types[i].Name(), raw[i])
+			raw[i], masked[i] = v.provider.Mask(s.grant, sources[i], types[i].Name(), raw[i])
 			if masked[i] {
 				b, encodeErr := json.Marshal(original[i])
 				if encodeErr != nil {
@@ -1117,7 +1249,7 @@ func (v *Server) readRows(s *session, rows *sql.Rows, plans ...*browsePlan) (*Re
 			return nil, err
 		}
 		s.mu.Lock()
-		space := s.resultBytes+len(encoded)+extra <= v.opts.MaxResultBytes
+		space := v.opts.MaxResultBytes <= 0 || s.resultBytes+len(encoded)+extra <= v.opts.MaxResultBytes
 		if len(result.Rows) < limit && space {
 			s.resultBytes += len(encoded) + extra
 			reserved += len(encoded) + extra

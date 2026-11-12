@@ -69,10 +69,13 @@ func (v *Server) newExportLocked(s *session, format, mode string, e *execution) 
 	select {
 	case v.exportSlots <- struct{}{}:
 	default:
-		return nil, &APIError{"export_capacity", "Four exports are already retained or running; remove a completed export or wait for expiry"}
+		return nil, &APIError{"export_capacity", "Four exports are already running; wait for one to finish"}
 	}
 	ctx, cancel := context.WithCancel(s.ctx)
-	j := &exportJob{id: newID("exp_"), format: format, mode: mode, session: s, server: v, execution: e, ctx: ctx, cancel: cancel, status: "queued", limitRows: exportMaxRows, limitBytes: exportMaxBytes}
+	j := &exportJob{id: newID("exp_"), format: format, mode: mode, session: s, server: v, execution: e, ctx: ctx, cancel: cancel, status: "queued"}
+	if format == "xlsx" {
+		j.limitRows = (1 << 20) - 1 // One worksheet row is used for column headers.
+	}
 	if s.exports == nil {
 		s.exports = map[string]*exportJob{}
 	}
@@ -84,12 +87,12 @@ func (v *Server) newExportLocked(s *session, format, mode string, e *execution) 
 }
 func (j *exportJob) snapshot() ExportView {
 	j.mu.Lock()
-	view := ExportView{ID: j.id, Format: j.format, Mode: j.mode, Status: j.status, Rows: j.rows, Bytes: j.bytes, Ready: j.prepared && j.approved && !j.expired && !j.deleteRequested && j.path != "" && j.ctx.Err() == nil, Truncated: j.truncated, Error: j.err, ExpiresAt: j.expiresAt, Limits: map[string]int64{"max_rows": j.limitRows, "max_bytes": j.limitBytes, "max_cell_chars": exportMaxCellChars, "max_duration_seconds": 600}}
+	view := ExportView{ID: j.id, Format: j.format, Mode: j.mode, Status: j.status, Rows: j.rows, Bytes: j.bytes, Ready: j.prepared && j.approved && !j.expired && !j.deleteRequested && j.path != "" && j.ctx.Err() == nil, Truncated: j.truncated, Error: j.err, ExpiresAt: j.expiresAt, Limits: map[string]int64{"max_rows": j.limitRows, "max_bytes": j.limitBytes, "max_cell_chars": exportMaxCellChars, "max_duration_seconds": int64(j.server.opts.QueryTimeout / time.Second)}}
+	if j.format != "xlsx" {
+		view.Limits["max_cell_chars"] = 0
+	}
 	expired := j.expired || (j.expiresAt != nil && time.Now().After(*j.expiresAt))
 	j.mu.Unlock()
-	if j.mode == "cached" {
-		view.Limits["max_duration_seconds"] = 120
-	}
 	if e := j.execution; e != nil {
 		ev := e.snapshot()
 		view.ExecutionID = ev.ID
@@ -122,20 +125,19 @@ func (j *exportJob) cleanup(expired bool) {
 	if path != "" {
 		_ = os.Remove(path)
 	}
-	j.release.Do(func() {
-		j.mu.Lock()
-		if j.expiryTimer != nil {
-			j.expiryTimer.Stop()
-		}
-		stop := j.stopSessionWatch
-		j.mu.Unlock()
-		if stop != nil {
-			stop()
-		}
-		<-j.server.exportSlots
-	})
+	j.mu.Lock()
+	if j.expiryTimer != nil {
+		j.expiryTimer.Stop()
+	}
+	stop := j.stopSessionWatch
+	j.mu.Unlock()
+	if stop != nil {
+		stop()
+	}
+	j.release.Do(func() { <-j.server.exportSlots })
 }
 func (j *exportJob) finishExecution() {
+	defer j.release.Do(func() { <-j.server.exportSlots })
 	e := j.execution.snapshot()
 	j.mu.Lock()
 	j.approved = e.Status == "succeeded" && e.AuditStatus == "recorded" && j.prepared && j.err == nil && !j.deleteRequested && j.ctx.Err() == nil && j.path != "" && j.session.grant.Check() == nil
@@ -170,13 +172,13 @@ func (j *exportJob) progress(row []any) error {
 		return err
 	}
 	j.mu.Lock()
-	if j.rows >= j.limitRows {
+	if j.limitRows > 0 && j.rows >= j.limitRows {
 		j.mu.Unlock()
 		return &APIError{"export_row_limit", "Export row limit reached; no partial file will be offered"}
 	}
-	if j.bytes+int64(len(data)) > j.limitBytes {
+	if j.limitBytes > 0 && j.bytes+int64(len(data)) > j.limitBytes {
 		j.mu.Unlock()
-		return &APIError{"export_byte_limit", "Export exceeds the 128 MiB data limit; narrow the query"}
+		return &APIError{"export_byte_limit", "Export exceeds the configured data limit"}
 	}
 	j.rows++
 	j.bytes += int64(len(data))
@@ -212,8 +214,8 @@ type exportFileWriter struct {
 }
 
 func (w *exportFileWriter) Write(b []byte) (int, error) {
-	if w.n+int64(len(b)) > w.max {
-		return 0, &APIError{"export_byte_limit", "Export file exceeds the 128 MiB disk limit"}
+	if w.max > 0 && w.n+int64(len(b)) > w.max {
+		return 0, &APIError{"export_byte_limit", "Export file exceeds the configured disk limit"}
 	}
 	n, err := w.file.Write(b)
 	w.n += int64(n)
@@ -327,9 +329,12 @@ func (v *Server) collectExport(s *session, c *console, e *execution, rows *sql.R
 		return err
 	}
 	columns := make([]Column, len(types))
+	labels := make([]string, len(types))
 	for i, t := range types {
 		columns[i] = Column{t.Name(), t.DatabaseTypeName()}
+		labels[i] = t.Name()
 	}
+	sources := e.resultMaskColumns(s.grant.Config.Dialect, labels)
 	err = j.produce(e.ctx, columns, func() ([]any, bool, error) {
 		if !rows.Next() {
 			if err := rows.Err(); err != nil {
@@ -338,7 +343,13 @@ func (v *Server) collectExport(s *session, c *console, e *execution, rows *sql.R
 			if rows.NextResultSet() {
 				return nil, false, &APIError{"export_result_limit", "Only one result set can be exported"}
 			}
-			return nil, false, rows.Err()
+			if err := rows.Err(); err != nil {
+				return nil, false, err
+			}
+			if err := rows.Close(); err != nil {
+				return nil, false, err
+			}
+			return nil, false, e.restoreSourceReadContext()
 		}
 		raw := make([]any, len(types))
 		ptrs := make([]any, len(raw))
@@ -349,11 +360,11 @@ func (v *Server) collectExport(s *session, c *console, e *execution, rows *sql.R
 			return nil, false, err
 		}
 		for i := range raw {
-			value, err := materializeValue(raw[i], types[i].DatabaseTypeName(), int(min(j.limitBytes, 16<<20)))
+			value, err := materializeValue(raw[i], types[i].DatabaseTypeName(), int(^uint(0)>>1), s.grant.Config.Dialect)
 			if err != nil {
 				return nil, false, err
 			}
-			raw[i], _ = v.provider.Mask(s.grant, "", types[i].Name(), value)
+			raw[i], _ = v.provider.Mask(s.grant, sources[i], types[i].Name(), value)
 		}
 		return raw, true, nil
 	})
@@ -413,11 +424,6 @@ func (v *Server) createCachedExport(w http.ResponseWriter, r *http.Request) {
 		}
 		count = *request.Rows
 	}
-	if len(s.exportRequests) >= 256 {
-		s.mu.Unlock()
-		fail(w, 429, "export_history_limit", "Export history limit reached")
-		return
-	}
 	j, err := v.newExportLocked(s, request.Format, "cached", nil)
 	if err != nil {
 		s.mu.Unlock()
@@ -432,8 +438,13 @@ func (v *Server) createCachedExport(w http.ResponseWriter, r *http.Request) {
 	s.mu.Unlock()
 	go func() {
 		defer s.workers.Done()
-		ctx, cancel := context.WithTimeout(j.ctx, 2*time.Minute)
-		defer cancel()
+		defer j.release.Do(func() { <-j.server.exportSlots })
+		ctx := j.ctx
+		if v.opts.QueryTimeout > 0 {
+			var cancel context.CancelFunc
+			ctx, cancel = context.WithTimeout(ctx, v.opts.QueryTimeout)
+			defer cancel()
+		}
 		i := 0
 		err := j.produce(ctx, result.Columns, func() ([]any, bool, error) {
 			if i >= count {

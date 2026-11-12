@@ -2,7 +2,6 @@ package sqlservice
 
 import (
 	"fmt"
-	"strings"
 )
 
 // The extra dialects use the same authorized directory as object navigation.
@@ -39,8 +38,7 @@ func diagramExtraSQL(d Dialect, r DiagramRequest) (catalogQuery, error) {
  JOIN sys.foreign_key_columns k ON k.constraint_object_id=f.object_id
  LEFT JOIN sys.columns sc ON sc.object_id=t.object_id AND sc.column_id=k.parent_column_id
  LEFT JOIN sys.tables rt ON rt.object_id=f.referenced_object_id LEFT JOIN sys.schemas rs ON rs.schema_id=rt.schema_id
- LEFT JOIN sys.columns rc ON rc.object_id=rt.object_id AND rc.column_id=k.referenced_column_id
- WHERE t.is_ms_shipped=0 AND s.name NOT IN ('sys','INFORMATION_SCHEMA')`
+ LEFT JOIN sys.columns rc ON rc.object_id=rt.object_id AND rc.column_id=k.referenced_column_id`
 	case IsOracleDialect(d):
 		source = `SELECT f.OWNER AS source_schema,f.TABLE_NAME AS source_table,f.CONSTRAINT_NAME AS constraint_name,
  rt.OWNER AS target_schema,rt.TABLE_NAME AS target_table,CASE WHEN rt.OWNER IS NOT NULL THEN 1 ELSE 0 END AS target_visible,
@@ -49,11 +47,11 @@ func diagramExtraSQL(d Dialect, r DiagramRequest) (catalogQuery, error) {
  FROM ALL_CONSTRAINTS f JOIN ALL_TABLES t ON t.OWNER=f.OWNER AND t.TABLE_NAME=f.TABLE_NAME
  LEFT JOIN ALL_CONS_COLUMNS k ON k.OWNER=f.OWNER AND k.TABLE_NAME=f.TABLE_NAME AND k.CONSTRAINT_NAME=f.CONSTRAINT_NAME
  LEFT JOIN ALL_CONSTRAINTS rf ON rf.OWNER=f.R_OWNER AND rf.CONSTRAINT_NAME=f.R_CONSTRAINT_NAME
- LEFT JOIN ALL_TABLES rt ON rt.OWNER=rf.OWNER AND rt.TABLE_NAME=rf.TABLE_NAME AND rt.OWNER NOT IN ('SYS','SYSTEM','CTXSYS','MDSYS','XDB','DBSNMP','OUTLN')
+ LEFT JOIN ALL_TABLES rt ON rt.OWNER=rf.OWNER AND rt.TABLE_NAME=rf.TABLE_NAME
  LEFT JOIN ALL_CONS_COLUMNS rk ON rk.OWNER=rf.OWNER AND rk.TABLE_NAME=rf.TABLE_NAME AND rk.CONSTRAINT_NAME=rf.CONSTRAINT_NAME AND rk.POSITION=k.POSITION
- WHERE f.CONSTRAINT_TYPE='R' AND f.OWNER NOT IN ('SYS','SYSTEM','CTXSYS','MDSYS','XDB','DBSNMP','OUTLN')` + oracleApplicationOwner(d, "f.OWNER")
+ WHERE f.CONSTRAINT_TYPE='R'`
 	case d == DB2:
-		targetVisible := strings.ReplaceAll(db2TableVisible, "t.", "rt.")
+		targetVisible := "rt.TABNAME IS NOT NULL"
 		source = `SELECT RTRIM(f.TABSCHEMA) AS source_schema,RTRIM(f.TABNAME) AS source_table,RTRIM(f.CONSTNAME) AS constraint_name,
  CASE WHEN ` + targetVisible + ` THEN RTRIM(rt.TABSCHEMA) END AS target_schema,CASE WHEN ` + targetVisible + ` THEN RTRIM(rt.TABNAME) END AS target_table,
  CASE WHEN ` + targetVisible + ` THEN 1 ELSE 0 END AS target_visible,k.COLSEQ AS pair_ordinal,f.COLCOUNT AS pair_count,
@@ -61,8 +59,7 @@ func diagramExtraSQL(d Dialect, r DiagramRequest) (catalogQuery, error) {
  FROM SYSCAT.REFERENCES f JOIN SYSCAT.TABLES t ON t.TABSCHEMA=f.TABSCHEMA AND t.TABNAME=f.TABNAME
  LEFT JOIN SYSCAT.KEYCOLUSE k ON k.TABSCHEMA=f.TABSCHEMA AND k.TABNAME=f.TABNAME AND k.CONSTNAME=f.CONSTNAME
  LEFT JOIN SYSCAT.TABLES rt ON rt.TABSCHEMA=f.REFTABSCHEMA AND rt.TABNAME=f.REFTABNAME
- LEFT JOIN SYSCAT.KEYCOLUSE rk ON rk.TABSCHEMA=f.REFTABSCHEMA AND rk.TABNAME=f.REFTABNAME AND rk.CONSTNAME=f.REFKEYNAME AND rk.COLSEQ=k.COLSEQ
- WHERE f.TABSCHEMA NOT LIKE 'SYS%' AND ` + db2TableVisible
+ LEFT JOIN SYSCAT.KEYCOLUSE rk ON rk.TABSCHEMA=f.REFTABSCHEMA AND rk.TABNAME=f.REFTABNAME AND rk.CONSTNAME=f.REFKEYNAME AND rk.COLSEQ=k.COLSEQ`
 	default:
 		return catalogQuery{}, ErrUnsupportedDialect
 	}

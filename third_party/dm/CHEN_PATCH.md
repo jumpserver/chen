@@ -11,14 +11,12 @@ does not include a standalone LICENSE file; this copy adds no license claim.
 and return a new error instance. Upstream modifies package-level error templates
 in place, racing across independent connections and potentially mixing private
 endpoint diagnostics. Copying before setting details/stack makes those templates
-immutable without serializing network operations. The focused regression test
-in `chen_error_test.go` checks concurrent details, stacks and template integrity.
+immutable without serializing network operations.
 
 `zc.go`: a connector's filter chain reads its own `logLevel` and `statEnable`
 fields instead of global settings which another connector can concurrently
 overwrite. Chen disables both logging and statistics; it does not configure or
-start the vendor's process-global log/statistics writers. The live concurrent
-connection/timeout regression covers this initialization race too.
+start the vendor's process-global log/statistics writers.
 
 `security/zzd.go`: initialize the fixed DH prime/generator once at package load,
 instead of reassigning shared pointers on every login. Their values and the
@@ -32,7 +30,5 @@ uses `RegisterDialContext` for actual per-I/O deadlines. This driver release's
 cancellation waits for the current driver call to return safely, discards the
 connection and reports unknown outcome; it does not claim server cancellation.
 
-Run `go test -race ./...` within this module for the template regression. Chen's
-opt-in `TestDamengSocketTimeoutLive` exercises three simultaneous real network
-timeouts; deadline, prepared, rows and administrator-close regression tests live
-in `internal/engine/database_dameng_live_test.go`.
+Run `go build ./...` within this module for build validation.
+Connection deadlines and cancellation require separate live Dameng validation.

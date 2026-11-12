@@ -54,9 +54,6 @@ func LoadBrowseTable(ctx context.Context, conn *sql.Conn, d Dialect, scope Conte
 			}
 		}
 	}
-	if systemCatalogSchema(schema, d) {
-		return out, ErrCatalogForbidden
-	}
 	if err := catalogObjectAccess(ctx, conn, d, schema, table); err != nil {
 		if !IsMySQLDialect(d) || !errors.Is(err, ErrCatalogNotFound) {
 			return out, err
@@ -75,7 +72,7 @@ func LoadBrowseTable(ctx context.Context, conn *sql.Conn, d Dialect, scope Conte
 		return out, err
 	}
 	out.View = isView
-	cols, err := tableColumnRows(ctx, conn, d, r)
+	cols, err := tableColumnRows(ctx, conn, d, r, false)
 	if err != nil {
 		return out, err
 	}
@@ -117,6 +114,11 @@ func BrowseRelationIsView(ctx context.Context, conn *sql.Conn, d Dialect, r Cata
 	if d == MariaDB {
 		q.SQL = strings.Replace(q.SQL, "TABLE_TYPE='BASE TABLE'", "TABLE_TYPE IN ('BASE TABLE','SYSTEM VERSIONED')", 1)
 	}
+	if d == SQLServer {
+		// The grid's read path can inspect visible system-owned tables; only
+		// the separate edit metadata query excludes shipped tables.
+		q.SQL = strings.Replace(q.SQL, " AND t.is_ms_shipped=0", "", 1)
+	}
 	var kind string
 	err = conn.QueryRowContext(ctx, q.SQL, q.Args...).Scan(&kind)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -143,7 +145,7 @@ func browseViewQuery(d Dialect, r CatalogColumnRequest) (catalogQuery, bool) {
 	q := ""
 	switch {
 	case IsMySQLDialect(d):
-		q = `SELECT 'VIEW' FROM information_schema.TABLES WHERE TABLE_SCHEMA=` + s + ` AND TABLE_NAME=` + t + ` AND TABLE_TYPE='VIEW'`
+		q = `SELECT 'VIEW' FROM information_schema.TABLES WHERE TABLE_SCHEMA=` + s + ` AND TABLE_NAME=` + t + ` AND TABLE_TYPE IN ('VIEW','SYSTEM VIEW')`
 	case d == SQLServer:
 		q = `SELECT 'VIEW' FROM sys.views v JOIN sys.schemas s ON s.schema_id=v.schema_id WHERE s.name=` + s + ` AND v.name=` + t
 	case IsOracleDialect(d):

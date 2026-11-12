@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"unicode/utf8"
 )
 
 var ErrDiagramContractChanged = errors.New("diagram catalog contract changed; refresh the diagram")
@@ -21,12 +22,8 @@ var diagramOBVersion = regexp.MustCompile(`(?i)OceanBase`)
 // Probe on the same authorized connection for each page, independently of
 // overview. A fingerprint is meaningful only within the diagram cursor scope.
 func probeDiagramMyContract(ctx context.Context, conn *sql.Conn, d Dialect, database string) (contract, source, reason string, columnPrivileges bool, err error) {
-	var version, current, mode, casing string
-	if err = conn.QueryRowContext(ctx, "SELECT VERSION(), DATABASE(), @@lower_case_table_names").Scan(&version, &current, &casing); err != nil {
-		return
-	}
-	if current != database {
-		err = ErrCatalogForbidden
+	var version, mode, casing string
+	if err = conn.QueryRowContext(ctx, "SELECT VERSION(), @@lower_case_table_names").Scan(&version, &casing); err != nil {
 		return
 	}
 	if len(version) > 256 || !validOverviewText(version) {
@@ -66,7 +63,7 @@ func probeDiagramMyContract(ctx context.Context, conn *sql.Conn, d Dialect, data
 		if err = rows.Scan(&table, &col); err != nil {
 			return
 		}
-		if len(names) >= 512 || len(table) > 128 || len(col) > 128 {
+		if len(names) >= 512 || !utf8.ValidString(table) || !utf8.ValidString(col) || utf8.RuneCountInString(table) > 128 || utf8.RuneCountInString(col) > 128 {
 			err = errors.New("diagram capability budget exceeded")
 			return
 		}

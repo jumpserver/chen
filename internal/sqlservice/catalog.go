@@ -47,19 +47,24 @@ type CatalogColumnRequest struct {
 	AfterOrdinal, Limit     int
 }
 
-// SchemaRows and the other catalog functions take an immutable authorized
-// database from the session layer. They never enumerate other MySQL databases or
-// change connection context. Results contain at most limit+1 rows so the HTTP
-// layer can create a keyset cursor without running a COUNT query.
+// MySQL lists all databases visible to the connected account, including when
+// no default database was selected. Other dialects list schemas in the supplied
+// database. Catalog reads never change connection context and return at most
+// limit+1 rows for keyset pagination without a COUNT query.
 func SchemaRows(ctx context.Context, conn *sql.Conn, dialect Dialect, database, after string, limit int) ([]CatalogSchema, error) {
 	items := []CatalogSchema{}
-	if err := validateCatalogInput(conn, dialect, database, after); err != nil {
+	if err := validateCatalogNames(conn, dialect, database, after); err != nil {
 		return items, err
 	}
 	ctx, cancel := context.WithTimeout(ctx, catalogTimeout)
 	defer cancel()
-	if err := catalogDatabaseAccess(ctx, conn, dialect, database); err != nil {
-		return items, err
+	if !IsMySQLDialect(dialect) {
+		if database == "" {
+			return items, ErrCatalogForbidden
+		}
+		if err := catalogDatabaseAccess(ctx, conn, dialect, database); err != nil {
+			return items, err
+		}
 	}
 	var rows *sql.Rows
 	var err error
@@ -71,13 +76,12 @@ func SchemaRows(ctx context.Context, conn *sql.Conn, dialect Dialect, database, 
 		}
 	} else if IsMySQLDialect(dialect) {
 		rows, err = conn.QueryContext(ctx, `SELECT SCHEMA_NAME, SCHEMA_NAME FROM information_schema.SCHEMATA
-WHERE BINARY SCHEMA_NAME = BINARY ? AND BINARY SCHEMA_NAME > BINARY ?
-ORDER BY BINARY SCHEMA_NAME LIMIT ?`, database, after, catalogLimit(limit)+1)
+WHERE BINARY SCHEMA_NAME > BINARY ?
+ORDER BY BINARY SCHEMA_NAME LIMIT ?`, after, catalogLimit(limit)+1)
 	} else {
-		rows, err = conn.QueryContext(ctx, `SELECT pg_catalog.current_database(), n.nspname FROM pg_catalog.pg_namespace n
-WHERE pg_catalog.current_database() = $1 AND n.nspname NOT LIKE 'pg!_%' ESCAPE '!' AND n.nspname <> 'information_schema'
-AND pg_catalog.has_schema_privilege(n.oid, 'USAGE') AND n.nspname COLLATE pg_catalog."C" > $2 COLLATE pg_catalog."C"
-ORDER BY n.nspname COLLATE pg_catalog."C" LIMIT $3`, database, after, catalogLimit(limit)+1)
+		rows, err = conn.QueryContext(ctx, `SELECT catalog_name, schema_name FROM information_schema.schemata
+WHERE catalog_name = $1 AND schema_name COLLATE pg_catalog."C" > $2 COLLATE pg_catalog."C"
+ORDER BY schema_name COLLATE pg_catalog."C" LIMIT $3`, database, after, catalogLimit(limit)+1)
 	}
 	if err != nil {
 		return items, fmt.Errorf("list catalog schemas: %w", err)
@@ -100,9 +104,6 @@ func ObjectRows(ctx context.Context, conn *sql.Conn, dialect Dialect, req Catalo
 	}
 	if req.Kind != "" && req.Kind != "table" && req.Kind != "view" {
 		return items, fmt.Errorf("catalog kind must be table or view")
-	}
-	if req.Schema != "" && systemCatalogSchema(req.Schema, dialect) {
-		return items, ErrCatalogForbidden
 	}
 	if (IsMySQLDialect(dialect) || dialect == ClickHouse) && req.Schema != "" && req.Schema != req.Database {
 		return items, ErrCatalogForbidden
@@ -140,8 +141,8 @@ func ObjectRows(ctx context.Context, conn *sql.Conn, dialect Dialect, req Catalo
 CASE WHEN TABLE_TYPE = 'VIEW' THEN 'view' ELSE 'table' END,
 CASE WHEN TABLE_TYPE = 'VIEW' THEN 'view' ELSE 'table' END, COALESCE(TABLE_COMMENT, '')
 FROM information_schema.TABLES
-WHERE BINARY TABLE_SCHEMA = BINARY ? AND TABLE_TYPE IN ('BASE TABLE', 'VIEW')
-AND (? = '' OR (? = 'table' AND TABLE_TYPE = 'BASE TABLE') OR (? = 'view' AND TABLE_TYPE = 'VIEW'))
+WHERE BINARY TABLE_SCHEMA = BINARY ? AND TABLE_TYPE IN ('BASE TABLE', 'VIEW', 'SYSTEM VIEW', 'SYSTEM VERSIONED')
+AND (? = '' OR (? = 'table' AND TABLE_TYPE <> 'VIEW') OR (? = 'view' AND TABLE_TYPE = 'VIEW'))
 AND TABLE_NAME LIKE ? ESCAPE '!'
 AND (BINARY TABLE_SCHEMA > BINARY ? OR (BINARY TABLE_SCHEMA = BINARY ? AND BINARY TABLE_NAME > BINARY ?))
 ORDER BY BINARY TABLE_SCHEMA, BINARY TABLE_NAME LIMIT ?`, req.Database, req.Kind, req.Kind, req.Kind, catalogSearch(req.Query), req.AfterSchema, req.AfterSchema, req.AfterName, catalogLimit(req.Limit)+1)
@@ -152,9 +153,7 @@ CASE c.relkind WHEN 'm' THEN 'materialized_view' WHEN 'f' THEN 'foreign_table' W
 COALESCE(pg_catalog.obj_description(c.oid, 'pg_class'), '')
 FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
 WHERE pg_catalog.current_database() = $1 AND c.relkind IN ('r', 'p', 'v', 'm', 'f')
-AND n.nspname NOT LIKE 'pg!_%' ESCAPE '!' AND n.nspname <> 'information_schema'
-AND ($2 = '' OR n.nspname = $2) AND pg_catalog.has_schema_privilege(n.oid, 'USAGE')
-AND (pg_catalog.has_table_privilege(c.oid, 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER') OR pg_catalog.has_any_column_privilege(c.oid, 'SELECT,INSERT,UPDATE,REFERENCES'))
+AND ($2 = '' OR n.nspname = $2) AND n.nspname IN (SELECT schema_name FROM information_schema.schemata)
 AND ($3 = '' OR ($3 = 'table' AND c.relkind IN ('r', 'p', 'f')) OR ($3 = 'view' AND c.relkind IN ('v', 'm')))
 AND c.relname ILIKE $4 ESCAPE '!'
 AND (n.nspname COLLATE pg_catalog."C", c.relname COLLATE pg_catalog."C") > ($5 COLLATE pg_catalog."C", $6 COLLATE pg_catalog."C")
@@ -177,12 +176,13 @@ ORDER BY n.nspname COLLATE pg_catalog."C", c.relname COLLATE pg_catalog."C" LIMI
 }
 
 func ColumnRows(ctx context.Context, conn *sql.Conn, dialect Dialect, req CatalogColumnRequest) ([]CatalogColumn, error) {
-	return columnRows(ctx, conn, dialect, req, false)
+	return columnRows(ctx, conn, dialect, req, false, false)
 }
 
 // Table operations need the complete definition, not the first directory page.
-// The caller has checked access and owns one deadline for all metadata reads.
-func tableColumnRows(ctx context.Context, conn *sql.Conn, dialect Dialect, req CatalogColumnRequest) ([]CatalogColumn, error) {
+// The caller has checked access in the requested read/edit mode and owns one
+// deadline for all metadata reads. Editing retains its column-grant restrictions.
+func tableColumnRows(ctx context.Context, conn *sql.Conn, dialect Dialect, req CatalogColumnRequest, editable bool) ([]CatalogColumn, error) {
 	req.AfterOrdinal, req.Limit = 0, MaxCatalogPageSize
 	columns := []CatalogColumn{}
 	seen := map[string]bool{}
@@ -190,7 +190,7 @@ func tableColumnRows(ctx context.Context, conn *sql.Conn, dialect Dialect, req C
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
-		page, err := columnRows(ctx, conn, dialect, req, true)
+		page, err := columnRows(ctx, conn, dialect, req, true, editable)
 		if err != nil {
 			return nil, err
 		}
@@ -212,7 +212,7 @@ func tableColumnRows(ctx context.Context, conn *sql.Conn, dialect Dialect, req C
 // accessChecked only reuses database/object checks from this operation on this
 // connection. Input validation and the metadata deadline still apply; no
 // authorization is cached across requests.
-func columnRows(ctx context.Context, conn *sql.Conn, dialect Dialect, req CatalogColumnRequest, accessChecked bool) ([]CatalogColumn, error) {
+func columnRows(ctx context.Context, conn *sql.Conn, dialect Dialect, req CatalogColumnRequest, accessChecked, editable bool) ([]CatalogColumn, error) {
 	items := []CatalogColumn{}
 	if IsMySQLDialect(dialect) && req.Schema != "" {
 		req.Database = req.Schema
@@ -229,7 +229,7 @@ func columnRows(ctx context.Context, conn *sql.Conn, dialect Dialect, req Catalo
 	if req.Schema == "" {
 		return items, fmt.Errorf("catalog schema is required")
 	}
-	if systemCatalogSchema(req.Schema, dialect) || dialect == ClickHouse && req.Schema != req.Database {
+	if dialect == ClickHouse && req.Schema != req.Database {
 		return items, ErrCatalogForbidden
 	}
 	ctx, cancel := MetadataContext(ctx, dialect)
@@ -238,7 +238,11 @@ func columnRows(ctx context.Context, conn *sql.Conn, dialect Dialect, req Catalo
 		if err := catalogDatabaseAccess(ctx, conn, dialect, req.Database); err != nil {
 			return items, err
 		}
-		if err := catalogObjectAccess(ctx, conn, dialect, req.Schema, req.Table); err != nil {
+		access := catalogObjectAccess
+		if editable {
+			access = catalogEditableObjectAccess
+		}
+		if err := access(ctx, conn, dialect, req.Schema, req.Table); err != nil {
 			return items, err
 		}
 	}
@@ -263,15 +267,18 @@ FROM information_schema.COLUMNS
 WHERE BINARY TABLE_SCHEMA = BINARY ? AND BINARY TABLE_NAME = BINARY ? AND ORDINAL_POSITION > ?
 ORDER BY ORDINAL_POSITION LIMIT ?`, req.Schema, req.Table, req.AfterOrdinal, catalogLimit(req.Limit)+1)
 	} else {
-		rows, err = conn.QueryContext(ctx, `SELECT pg_catalog.current_database(), n.nspname, c.relname, a.attname,
+		query := `SELECT pg_catalog.current_database(), n.nspname, c.relname, a.attname,
 pg_catalog.format_type(a.atttypid, a.atttypmod), NOT (a.attnotnull OR t.typnotnull), COALESCE(pg_catalog.col_description(a.attrelid, a.attnum), ''), a.attnum
 FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_class c ON c.oid = a.attrelid
 JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
 JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
 WHERE pg_catalog.current_database() = $1 AND n.nspname = $2 AND c.relname = $3 AND c.relkind IN ('r', 'p', 'v', 'm', 'f')
-AND a.attnum > $4 AND NOT a.attisdropped AND pg_catalog.has_schema_privilege(n.oid, 'USAGE')
-AND pg_catalog.has_column_privilege(c.oid, a.attnum, 'SELECT,INSERT,UPDATE,REFERENCES')
-ORDER BY a.attnum LIMIT $5`, req.Database, req.Schema, req.Table, req.AfterOrdinal, catalogLimit(req.Limit)+1)
+AND a.attnum > $4 AND NOT a.attisdropped AND n.nspname IN (SELECT schema_name FROM information_schema.schemata)`
+		if editable {
+			query += ` AND pg_catalog.has_schema_privilege(n.oid, 'USAGE')
+AND pg_catalog.has_column_privilege(c.oid, a.attnum, 'SELECT,INSERT,UPDATE,REFERENCES')`
+		}
+		rows, err = conn.QueryContext(ctx, query+" ORDER BY a.attnum LIMIT $5", req.Database, req.Schema, req.Table, req.AfterOrdinal, catalogLimit(req.Limit)+1)
 	}
 	if err != nil {
 		return items, fmt.Errorf("list catalog columns: %w", err)
@@ -307,9 +314,6 @@ func catalogDatabaseAccess(ctx context.Context, conn *sql.Conn, dialect Dialect,
 	if extraCatalogDialect(dialect) {
 		return extraCatalogDatabaseAccess(ctx, conn, dialect, database)
 	}
-	if systemCatalogSchema(database, MySQL) && IsMySQLDialect(dialect) {
-		return ErrCatalogForbidden
-	}
 	var allowed bool
 	var err error
 	if IsMySQLDialect(dialect) {
@@ -327,7 +331,7 @@ func catalogDatabaseAccess(ctx context.Context, conn *sql.Conn, dialect Dialect,
 }
 func catalogSchemaAccess(ctx context.Context, conn *sql.Conn, schema string) error {
 	var allowed bool
-	err := conn.QueryRowContext(ctx, `SELECT pg_catalog.has_schema_privilege(n.oid, 'USAGE') FROM pg_catalog.pg_namespace n WHERE n.nspname = $1`, schema).Scan(&allowed)
+	err := conn.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM information_schema.schemata WHERE schema_name = $1)`, schema).Scan(&allowed)
 	if errors.Is(err, sql.ErrNoRows) {
 		return ErrCatalogNotFound
 	}
@@ -339,17 +343,43 @@ func catalogSchemaAccess(ctx context.Context, conn *sql.Conn, schema string) err
 	}
 	return nil
 }
+
+// Catalog visibility concerns metadata only. PostgreSQL and Db2 expose catalog
+// rows independently of SELECT privileges on the described table. Actual reads
+// still run as the account, and editing uses the separate admission check below.
 func catalogObjectAccess(ctx context.Context, conn *sql.Conn, dialect Dialect, schema, table string) error {
+	if dialect != PostgreSQL {
+		return catalogObjectAccessMode(ctx, conn, dialect, schema, table, false)
+	}
+	var schemaVisible, objectExists bool
+	err := conn.QueryRowContext(ctx, `SELECT
+EXISTS (SELECT 1 FROM information_schema.schemata WHERE schema_name = $1),
+EXISTS (SELECT 1 FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+WHERE n.nspname = $1 AND c.relname = $2 AND c.relkind IN ('r', 'p', 'v', 'm', 'f'))`, schema, table).Scan(&schemaVisible, &objectExists)
+	if err != nil {
+		return fmt.Errorf("check catalog object: %w", err)
+	}
+	if !schemaVisible {
+		return ErrCatalogForbidden
+	}
+	if !objectExists {
+		return ErrCatalogNotFound
+	}
+	return nil
+}
+
+func catalogEditableObjectAccess(ctx context.Context, conn *sql.Conn, dialect Dialect, schema, table string) error {
+	return catalogObjectAccessMode(ctx, conn, dialect, schema, table, true)
+}
+
+func catalogObjectAccessMode(ctx context.Context, conn *sql.Conn, dialect Dialect, schema, table string, editable bool) error {
 	if extraCatalogDialect(dialect) {
-		return extraCatalogObjectAccess(ctx, conn, dialect, schema, table)
+		return extraCatalogObjectAccess(ctx, conn, dialect, schema, table, editable)
 	}
 	if IsMySQLDialect(dialect) {
 		var exists bool
 		query := `SELECT EXISTS (SELECT 1 FROM information_schema.TABLES
-WHERE BINARY TABLE_SCHEMA = BINARY ? AND BINARY TABLE_NAME = BINARY ? AND TABLE_TYPE IN ('BASE TABLE', 'VIEW'))`
-		if dialect == MariaDB {
-			query = strings.Replace(query, "('BASE TABLE', 'VIEW')", "('BASE TABLE', 'SYSTEM VERSIONED', 'VIEW')", 1)
-		}
+WHERE BINARY TABLE_SCHEMA = BINARY ? AND BINARY TABLE_NAME = BINARY ? AND TABLE_TYPE IN ('BASE TABLE', 'VIEW', 'SYSTEM VIEW', 'SYSTEM VERSIONED'))`
 		err := conn.QueryRowContext(ctx, query, schema, table).Scan(&exists)
 		if err != nil {
 			return fmt.Errorf("check catalog object: %w", err)
@@ -379,47 +409,28 @@ WHERE n.nspname = $1 AND c.relname = $2 AND c.relkind IN ('r', 'p', 'v', 'm', 'f
 	return nil
 }
 func validateCatalogInput(conn *sql.Conn, dialect Dialect, database string, values ...string) error {
+	if err := validateCatalogNames(conn, dialect, append([]string{database}, values...)...); err != nil {
+		return err
+	}
+	if database == "" {
+		return ErrCatalogForbidden
+	}
+	return nil
+}
+
+func validateCatalogNames(conn *sql.Conn, dialect Dialect, values ...string) error {
 	if !supported(dialect) {
 		return ErrUnsupportedDialect
 	}
 	if conn == nil {
 		return fmt.Errorf("catalog connection is required")
 	}
-	if database == "" {
-		return ErrCatalogForbidden
-	}
-	for _, value := range append([]string{database}, values...) {
-		if len(value) > 256 || !utf8.ValidString(value) || strings.ContainsRune(value, 0) {
+	for _, value := range values {
+		if !utf8.ValidString(value) || utf8.RuneCountInString(value) > 256 || strings.ContainsRune(value, 0) {
 			return fmt.Errorf("catalog identifier or search exceeds bounds")
 		}
 	}
 	return nil
-}
-func systemCatalogSchema(schema string, dialect Dialect) bool {
-	if dialect == PostgreSQL {
-		return schema == "information_schema" || strings.HasPrefix(schema, "pg_")
-	}
-	if IsOracleDialect(dialect) {
-		switch strings.ToUpper(schema) {
-		case "SYS", "SYSTEM", "CTXSYS", "MDSYS", "XDB", "DBSNMP", "OUTLN":
-			return true
-		}
-		return false
-	}
-	if dialect == DB2 {
-		return strings.HasPrefix(strings.ToUpper(schema), "SYS")
-	}
-	if dialect == ClickHouse {
-		return schema == "system" || strings.EqualFold(schema, "information_schema")
-	}
-	if dialect == SQLServer {
-		return strings.EqualFold(schema, "sys") || strings.EqualFold(schema, "information_schema")
-	}
-	switch strings.ToLower(schema) {
-	case "mysql", "sys", "performance_schema", "information_schema":
-		return true
-	}
-	return false
 }
 func catalogSearch(query string) string {
 	return "%" + strings.TrimSuffix(likePrefix(query), "%") + "%"
@@ -432,7 +443,7 @@ func catalogLimit(limit int) int {
 }
 
 // ConsoleContextNames lists the namespaces the connected principal can select.
-// The object tree remains scoped to its configured database.
+// MySQL's object tree uses the same account-visible database namespaces.
 func ConsoleContextNames(ctx context.Context, conn *sql.Conn, d Dialect, database, after string, limit int) ([]string, error) {
 	names := []string{}
 	limit = catalogLimit(limit)

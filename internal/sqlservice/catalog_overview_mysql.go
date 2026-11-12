@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	mysql "github.com/go-sql-driver/mysql"
 	ob "github.com/oceanbase/go-oceanbase-driver"
@@ -64,7 +65,7 @@ func probeOverviewMyCapabilities(ctx context.Context, conn *sql.Conn, d Dialect,
 		if err := rows.Scan(&name); err != nil {
 			return nil, err
 		}
-		if len(names) >= 128 || len(name) > 128 {
+		if len(names) >= 128 || !utf8.ValidString(name) || utf8.RuneCountInString(name) > 128 {
 			return nil, errors.New("overview capability budget exceeded")
 		}
 		name = strings.ToUpper(name)

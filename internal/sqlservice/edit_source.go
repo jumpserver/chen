@@ -18,11 +18,12 @@ type EditProjection struct {
 }
 
 type EditableSource struct {
-	Schema  string
-	Table   string
-	Alias   string
-	Star    bool
-	Columns []EditProjection
+	Database string
+	Schema   string
+	Table    string
+	Alias    string
+	Star     bool
+	Columns  []EditProjection
 }
 
 // AnalyzeEditableQuery proves the narrow source shape needed for writing result
@@ -243,10 +244,10 @@ func EditableSourceFromFacts(f sqlanalysis.Statement) (EditableSource, error) {
 		return EditableSource{}, fmt.Errorf("%w: source identity is not proven", ErrNotEditable)
 	}
 	t := f.Tables[0]
-	if t.Name.Name == "" || t.Database.Name != "" || t.Server.Name != "" {
+	if t.Name.Name == "" || t.Server.Name != "" {
 		return EditableSource{}, fmt.Errorf("%w: one local base table is required", ErrNotEditable)
 	}
-	out := EditableSource{Schema: t.Schema.Name, Table: t.Name.Name, Alias: t.Alias.Name}
+	out := EditableSource{Database: t.Database.Name, Schema: t.Schema.Name, Table: t.Name.Name, Alias: t.Alias.Name}
 	for _, p := range f.Projections {
 		if !p.Direct {
 			return EditableSource{}, fmt.Errorf("%w: direct columns are required", ErrNotEditable)

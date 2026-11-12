@@ -68,6 +68,7 @@ type catalogRequest struct {
 	conn     *sql.Conn
 	ctx      context.Context
 	database string
+	schema   string
 	scope    catalogScope
 	after    catalogCursor
 	done     func()
@@ -76,6 +77,9 @@ type catalogRequest struct {
 func parseCatalogScope(r *http.Request, operation string) (catalogScope, error) {
 	s := catalogScope{operation: operation, limit: 100}
 	allowed := map[string]bool{"cursor": true, "limit": true}
+	if operation != "databases" && operation != "ai" {
+		allowed["database"] = true
+	}
 	switch operation {
 	case "diagram":
 		for _, key := range []string{"database", "schema", "section", "direction", "table"} {
@@ -124,7 +128,7 @@ func parseCatalogScope(r *http.Request, operation string) (catalogScope, error) 
 	}
 	s.schema, s.kind, s.query, s.table, s.cursor = values.Get("schema"), values.Get("kind"), values.Get("q"), values.Get("table"), values.Get("cursor")
 	for _, name := range []string{s.schema, s.query, s.table, s.database} {
-		if len(name) > 256 || strings.ContainsRune(name, 0) || !utf8.ValidString(name) {
+		if !utf8.ValidString(name) || utf8.RuneCountInString(name) > 256 || strings.ContainsRune(name, 0) {
 			return s, errors.New("invalid_catalog_request")
 		}
 	}
@@ -154,8 +158,8 @@ func (v *Server) beginCatalog(w http.ResponseWriter, r *http.Request, operation 
 	return v.beginCatalogAccess(w, r, operation, nil)
 }
 
-// AI metadata shares catalog budgets and audit, but must use the editor console
-// connection so database, schema and session permissions cannot drift apart.
+// AI editor metadata uses its existing console connection. Database/root
+// contexts use the same independently authorized pool as the resource tree.
 func (v *Server) beginCatalogAccess(w http.ResponseWriter, r *http.Request, operation string, editor *aiEditorContext) *catalogRequest {
 	s := v.auth(w, r, false)
 	if s == nil {
@@ -165,6 +169,9 @@ func (v *Server) beginCatalogAccess(w http.ResponseWriter, r *http.Request, oper
 	if err != nil {
 		fail(w, 400, err.Error(), "Invalid catalog request or page cursor")
 		return nil
+	}
+	if editor != nil && editor.ConsoleID == "" {
+		scope.database = editor.Database
 	}
 	if (operation == "columns" || operation == "inspect" || operation == "ddl") && s.grant.Config.Dialect == "postgresql" && scope.schema == "" {
 		fail(w, 400, "invalid_catalog_request", "PostgreSQL columns require an explicit schema")
@@ -184,6 +191,11 @@ func (v *Server) beginCatalogAccess(w http.ResponseWriter, r *http.Request, oper
 			return nil
 		}
 		db.SetMaxIdleConns(1)
+		if separateCatalogDatabase(s.grant.Config.Dialect) {
+			// Cross-database reads own a short-lived pool. Do not retain an
+			// additional default connection outside the two catalog slots.
+			db.SetMaxIdleConns(0)
+		}
 		db.SetConnMaxIdleTime(time.Minute)
 		resource := &catalogResource{db: db, slots: make(chan struct{}, 2)}
 		if _, err := rand.Read(resource.cursorKey[:]); err != nil {
@@ -238,7 +250,9 @@ func (v *Server) beginCatalogAccess(w http.ResponseWriter, r *http.Request, oper
 	}
 	var conn *sql.Conn
 	var current sqlservice.Context
-	if editor != nil {
+	consoleBound := editor != nil && editor.ConsoleID != ""
+	targeted := !consoleBound && scope.database != "" && separateCatalogDatabase(s.grant.Config.Dialect)
+	if consoleBound {
 		lookup := r.Clone(ctx)
 		lookup.SetPathValue("cid", editor.ConsoleID)
 		c := v.findConsole(w, lookup, s)
@@ -251,8 +265,18 @@ func (v *Server) beginCatalogAccess(w http.ResponseWriter, r *http.Request, oper
 			fail(w, 409, "console_busy", "AI metadata is unavailable while this console is executing")
 			return nil
 		}
+		if err := ctx.Err(); err != nil {
+			c.mu.Unlock()
+			finish()
+			catalogError(w, r, s, err)
+			return nil
+		}
 		consoleFinish := finish
-		stopConsole := context.AfterFunc(c.ctx, cancel)
+		// MySQL closes a physical connection when QueryContext is canceled.
+		// A canceled AI request must not destroy the user's console/transaction;
+		// finish this bounded metadata read under the console's lifetime instead.
+		var stopConsole context.CancelFunc
+		ctx, stopConsole = context.WithTimeout(c.ctx, timeout)
 		finish = func() { stopConsole(); c.mu.Unlock(); consoleFinish() }
 		if c.closed.Load() || c.lost.Load() || c.conn == nil {
 			finish()
@@ -262,11 +286,24 @@ func (v *Server) beginCatalogAccess(w http.ResponseWriter, r *http.Request, oper
 		conn = c.conn
 		current, err = liveContext(ctx, c, s.grant.Config.Dialect)
 	} else {
-		conn, err = resource.db.Conn(ctx)
+		db := resource.db
+		if targeted {
+			cfg := s.grant.Config
+			cfg.Database = scope.database
+			db, err = openDatabase(cfg, 1)
+			if err == nil {
+				db.SetMaxIdleConns(0)
+				poolFinish := finish
+				finish = func() { _ = db.Close(); poolFinish() }
+			}
+		}
+		if err == nil {
+			conn, err = db.Conn(ctx)
+		}
 		if err == nil {
 			connFinish := finish
 			finish = func() { _ = conn.Close(); connFinish() }
-			if s.grant.Config.Dialect == "postgresql" {
+			if s.grant.Config.Dialect == "postgresql" && operation != "databases" {
 				err = conn.QueryRowContext(ctx, "SELECT pg_catalog.current_database()").Scan(&current.Database)
 			} else {
 				current, err = connectionContext(ctx, conn, s.grant.Config.Dialect, sqlservice.Context{Database: s.grant.Config.Database, Schema: s.grant.Config.Schema})
@@ -279,25 +316,52 @@ func (v *Server) beginCatalogAccess(w http.ResponseWriter, r *http.Request, oper
 		catalogError(w, r, s, err)
 		return nil
 	}
+	if operation == "databases" && s.grant.Config.Schema != "" {
+		switch s.grant.Config.Dialect {
+		case "postgresql", "oracle", "dameng", "oceanbase-oracle", "db2":
+			current.Schema = s.grant.Config.Schema
+		}
+	}
+	// MySQL's configured database is an initial selection, not an authorization
+	// boundary. Catalog SQL checks the connected account's visibility of the
+	// requested database without issuing USE on the independent catalog pool.
+	mysqlTree := !consoleBound && jumpserver.IsMySQLDialect(s.grant.Config.Dialect)
+	if mysqlTree && operation != "schemas" && operation != "databases" {
+		if scope.database != "" {
+			database = scope.database
+			if scope.schema != "" && scope.schema != database {
+				finish()
+				fail(w, 403, "catalog_forbidden", "Catalog schema does not match requested database")
+				return nil
+			}
+		} else if scope.schema != "" {
+			database = scope.schema
+		}
+	}
+	if !mysqlTree && scope.database != "" && scope.database != database {
+		finish()
+		fail(w, 403, "catalog_forbidden", "Catalog database does not match requested connection")
+		return nil
+	}
 	if (operation == "overview" || operation == "diagram") && scope.database != database {
 		finish()
 		fail(w, 403, "catalog_forbidden", "Catalog database does not match authorized session")
 		return nil
 	}
-	if database == "" {
+	if database == "" && !(mysqlTree && (operation == "schemas" || operation == "databases")) {
 		finish()
 		fail(w, 409, "catalog_database_required", "Configure a database before browsing its catalog")
 		return nil
 	}
-	if editor != nil {
+	if consoleBound {
 		if current.Schema == "" || database != editor.Database || current.Schema != editor.Schema {
 			finish()
 			fail(w, 409, "catalog_scope_changed", "SQL editor scope changed; reopen the query in the current database and schema")
 			return nil
 		}
-	} else {
-		// Only the independent tree connection is bound to the grant database.
-		// AI may use a console opened in another verified database.
+	} else if !mysqlTree && !targeted {
+		// The default pool remains bound to its original database. Explicit
+		// PostgreSQL, SQL Server and ClickHouse targets use independent pools.
 		resource.mu.Lock()
 		if resource.database == "" {
 			resource.database = database
@@ -310,7 +374,7 @@ func (v *Server) beginCatalogAccess(w http.ResponseWriter, r *http.Request, oper
 			return nil
 		}
 	}
-	request := &catalogRequest{session: s, resource: resource, conn: conn, ctx: ctx, database: database, scope: scope, done: finish}
+	request := &catalogRequest{session: s, resource: resource, conn: conn, ctx: ctx, database: database, schema: current.Schema, scope: scope, done: finish}
 	if scope.cursor != "" {
 		after, err := resource.decodeCursor(scope.cursor, s.id, database, scope)
 		if err != nil {
@@ -326,6 +390,10 @@ func (v *Server) beginCatalogAccess(w http.ResponseWriter, r *http.Request, oper
 		return nil
 	}
 	return request
+}
+
+func separateCatalogDatabase(dialect string) bool {
+	return dialect == "postgresql" || dialect == "sqlserver" || dialect == "clickhouse"
 }
 
 func (v *Server) catalogAudit(req *catalogRequest, outcome string, count int) error {
@@ -374,6 +442,12 @@ func (v *Server) finishCatalog(w http.ResponseWriter, r *http.Request, req *cata
 	return true
 }
 func catalogError(w http.ResponseWriter, r *http.Request, s *session, err error) {
+	if diagnostic := safeDatabaseError(err); diagnostic != nil {
+		switch diagnostic.Code {
+		case "42501", "MSSQL_229", "MSSQL_916", "MSSQL_4060", "CLICKHOUSE_497":
+			err = errors.Join(sqlservice.ErrCatalogForbidden, err)
+		}
+	}
 	switch {
 	case s.ctx.Err() != nil:
 		fail(w, 410, "session_closed", "Session is closed")
@@ -391,6 +465,36 @@ func catalogError(w http.ResponseWriter, r *http.Request, s *session, err error)
 		fail(w, 408, "request_canceled", "Catalog request was canceled")
 	default:
 		fail(w, 502, "catalog_failed", "Unable to read the authorized catalog")
+	}
+}
+
+func (v *Server) catalogDatabases(w http.ResponseWriter, r *http.Request) {
+	req := v.beginCatalog(w, r, "databases")
+	if req == nil {
+		return
+	}
+	defer req.done()
+	items, err := sqlservice.DatabaseRows(req.ctx, req.conn, sqlservice.Dialect(req.session.grant.Config.Dialect), req.database, req.after.AfterName, req.scope.limit)
+	type databaseItem struct {
+		Name string `json:"name"`
+	}
+	result := struct {
+		Database string `json:"database"`
+		Schema   string `json:"schema"`
+		catalogPage[databaseItem]
+	}{Database: req.database, Schema: req.schema, catalogPage: catalogPage[databaseItem]{Items: []databaseItem{}}}
+	if len(items) > req.scope.limit {
+		result.HasMore = true
+		items = items[:req.scope.limit]
+	}
+	for _, item := range items {
+		result.Items = append(result.Items, databaseItem{item.Name})
+	}
+	if result.HasMore {
+		result.NextCursor = req.resource.encodeCursor(req.session.id, req.database, req.scope, "", items[len(items)-1].Name, 0)
+	}
+	if v.finishCatalog(w, r, req, len(items), err) {
+		writeJSON(w, 200, result)
 	}
 }
 

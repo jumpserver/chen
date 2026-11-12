@@ -6,9 +6,12 @@ import (
 	"io"
 	"math/big"
 	"reflect"
+	"strings"
+	"time"
 	"unicode/utf8"
 
 	dm "gitee.com/chunanyong/dm"
+	"github.com/jumpserver/chen/internal/sqlservice"
 	"github.com/shopspring/decimal"
 	goora "github.com/sijms/go-ora/v2"
 )
@@ -16,7 +19,17 @@ import (
 // Materialize driver-owned locators while rows and their physical connection
 // are still open. A value exceeding the result budget is rejected explicitly;
 // no partial LOB is presented as a complete cell.
-func materializeValue(value any, dbType string, limit int) (any, error) {
+func materializeValue(value any, dbType string, limit int, dialect string) (any, error) {
+	if limit <= 0 {
+		limit = int(^uint(0) >> 1)
+	}
+	// Oracle-family DATE may include time of day. Preserve every supplied
+	// component in the grid, cached primary keys, SQL copies and full exports.
+	if calendar, ok := value.(time.Time); ok && sqlservice.IsOracleDialect(sqlservice.Dialect(dialect)) && strings.EqualFold(dbType, "DATE") {
+		if dialect != "dameng" || calendar.Hour() != 0 || calendar.Minute() != 0 || calendar.Second() != 0 || calendar.Nanosecond() != 0 {
+			return calendar.Format("2006-01-02 15:04:05.999999999"), nil
+		}
+	}
 	switch x := value.(type) {
 	case *dm.DmClob:
 		if x == nil {

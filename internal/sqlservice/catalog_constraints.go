@@ -1,8 +1,7 @@
 package sqlservice
 
 // Constraint details retain the v5.1.1 name/type/definition view. The caller has
-// already checked object access; PostgreSQL additionally filters column grants
-// because its system catalogs are readable independently of table privileges.
+// already checked catalog visibility; business-table grants are independent.
 func inspectionConstraints(d Dialect, schema, table string) (catalogQuery, []string, bool) {
 	b := catalogBinder{dialect: d}
 	s, t := b.bind(schema), b.bind(table)
@@ -18,8 +17,7 @@ func inspectionConstraints(d Dialect, schema, table string) (catalogQuery, []str
 FROM pg_catalog.pg_constraint k JOIN pg_catalog.pg_class t ON t.oid=k.conrelid JOIN pg_catalog.pg_namespace n ON n.oid=t.relnamespace
 LEFT JOIN pg_catalog.pg_class tr ON tr.oid=k.confrelid LEFT JOIN pg_catalog.pg_namespace nr ON nr.oid=tr.relnamespace
 WHERE n.nspname=` + s + ` AND t.relname=` + t + ` AND k.contype IN ('p','f','u','c')
-AND NOT EXISTS (SELECT 1 FROM unnest(k.conkey) scoped(attnum) WHERE NOT pg_catalog.has_column_privilege(t.oid,scoped.attnum,` + postgresColumnPrivileges + `))
-AND (k.contype<>'f' OR (pg_catalog.has_schema_privilege(nr.oid,'USAGE') AND NOT EXISTS (SELECT 1 FROM unnest(k.confkey) scoped(attnum) WHERE NOT pg_catalog.has_column_privilege(tr.oid,scoped.attnum,` + postgresColumnPrivileges + `)))) ORDER BY k.conname`
+AND (k.contype<>'f' OR nr.nspname IN (SELECT schema_name FROM information_schema.schemata)) ORDER BY k.conname`
 	case d == SQLServer:
 		q = `WITH target AS (SELECT t.object_id FROM sys.tables t JOIN sys.schemas s ON s.schema_id=t.schema_id WHERE s.name=` + s + ` AND t.name=` + t + `)
 SELECT k.name,CASE k.type WHEN 'PK' THEN 'PRIMARY KEY' ELSE 'UNIQUE' END,NULL FROM target t JOIN sys.key_constraints k ON k.parent_object_id=t.object_id

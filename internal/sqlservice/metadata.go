@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 const catalogTimeout = 3 * time.Second
@@ -33,8 +34,8 @@ func Metadata(ctx context.Context, conn *sql.Conn, dialect Dialect, req Metadata
 	if req.Limit <= 0 || req.Limit > MaxCompletionItems {
 		req.Limit = MaxCompletionItems
 	}
-	if len(req.Prefix) > 256 {
-		return items, fmt.Errorf("metadata prefix exceeds 256 bytes")
+	if !utf8.ValidString(req.Prefix) || utf8.RuneCountInString(req.Prefix) > 256 || strings.ContainsRune(req.Prefix, 0) {
+		return items, fmt.Errorf("metadata prefix must be valid text of at most 256 characters")
 	}
 	if extraCatalogDialect(dialect) {
 		return extraMetadata(ctx, conn, dialect, req)
@@ -48,9 +49,6 @@ func Metadata(ctx context.Context, conn *sql.Conn, dialect Dialect, req Metadata
 		if database == "" {
 			database = req.Context.Database
 		}
-		if req.Context.Database != "" && database != req.Context.Database {
-			return items, ErrCatalogForbidden
-		}
 		rows, err = conn.QueryContext(ctx, `SELECT TABLE_SCHEMA, TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE, COALESCE(TABLE_COMMENT, '')
 FROM information_schema.TABLES
 WHERE TABLE_SCHEMA = COALESCE(NULLIF(?, ''), DATABASE()) AND TABLE_NAME LIKE ? ESCAPE '!'
@@ -62,9 +60,7 @@ FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamesp
 WHERE c.relkind IN ('r', 'p', 'v', 'm', 'f')
 AND (($1 = '' AND n.nspname = ANY(current_schemas(false)) AND pg_catalog.pg_table_is_visible(c.oid)) OR n.nspname = $1)
 AND ($2 = '' OR current_database() = $2)
-AND c.relname ILIKE $3 ESCAPE '!' AND has_schema_privilege(n.oid, 'USAGE')
-AND (pg_catalog.has_table_privilege(c.oid, 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
- OR pg_catalog.has_any_column_privilege(c.oid, 'SELECT,INSERT,UPDATE,REFERENCES'))
+AND c.relname ILIKE $3 ESCAPE '!' AND n.nspname IN (SELECT schema_name FROM information_schema.schemata)
 ORDER BY n.nspname, c.relname LIMIT $4`, req.Context.Schema, req.Context.Database, likePrefix(req.Prefix), req.Limit)
 	}
 	if err != nil {
@@ -92,8 +88,10 @@ func Columns(ctx context.Context, conn *sql.Conn, dialect Dialect, req ColumnReq
 	if req.Table == "" {
 		return items, fmt.Errorf("table is required")
 	}
-	if len(req.Table) > 256 || len(req.Schema) > 256 {
-		return items, fmt.Errorf("identifier exceeds 256 bytes")
+	for _, name := range []string{req.Table, req.Schema} {
+		if !utf8.ValidString(name) || utf8.RuneCountInString(name) > 256 || strings.ContainsRune(name, 0) {
+			return items, fmt.Errorf("identifier must be valid text of at most 256 characters")
+		}
 	}
 	if extraCatalogDialect(dialect) {
 		return extraColumns(ctx, conn, dialect, req)
@@ -110,28 +108,28 @@ func Columns(ctx context.Context, conn *sql.Conn, dialect Dialect, req ColumnReq
 		if database == "" {
 			database = req.Context.Database
 		}
-		if req.Context.Database != "" && database != req.Context.Database {
-			return items, ErrCatalogForbidden
-		}
 		rows, err = conn.QueryContext(ctx, `SELECT COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE = 'YES', COALESCE(COLUMN_COMMENT, '')
 FROM information_schema.COLUMNS
 WHERE TABLE_SCHEMA = COALESCE(NULLIF(?, ''), DATABASE()) AND TABLE_NAME = ?
 ORDER BY ORDINAL_POSITION LIMIT 2000`, database, req.Table)
 	} else {
 		schema := req.Schema
-		// to_regclass resolves unqualified names through this connection's live
-		// search_path. format(%I) quotes values as identifiers inside PostgreSQL;
-		// parameters are never interpolated into executable SQL.
+		// Only unqualified names use the connection's live search_path. An
+		// explicitly named, catalog-visible schema need not grant USAGE merely
+		// to expose column metadata, so resolve it directly in the catalogs.
+		reference := `a.attrelid = to_regclass(format('%I', $2)) AND $1 = ''`
+		if schema != "" {
+			reference = `n.nspname = $1 AND c.relname = $2`
+		}
 		rows, err = conn.QueryContext(ctx, `SELECT a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod), NOT (a.attnotnull OR t.typnotnull),
 COALESCE(col_description(a.attrelid, a.attnum), '')
 FROM pg_catalog.pg_attribute a
 JOIN pg_catalog.pg_type t ON t.oid = a.atttypid
 JOIN pg_catalog.pg_class c ON c.oid = a.attrelid
 JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
-WHERE a.attrelid = to_regclass(CASE WHEN $1 = '' THEN format('%I', $2) ELSE format('%I.%I', $1, $2) END)
+WHERE `+reference+`
 AND a.attnum > 0 AND NOT a.attisdropped AND ($3 = '' OR current_database() = $3)
-AND pg_catalog.has_schema_privilege(n.oid, 'USAGE')
-AND pg_catalog.has_column_privilege(c.oid, a.attnum, 'SELECT,INSERT,UPDATE,REFERENCES')
+AND n.nspname IN (SELECT schema_name FROM information_schema.schemata)
 ORDER BY a.attnum LIMIT 2000`, schema, req.Table, req.Context.Database)
 	}
 	if err != nil {

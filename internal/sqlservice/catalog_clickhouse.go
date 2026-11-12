@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"unicode/utf8"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
 )
@@ -138,7 +139,7 @@ func probeClickHouseCatalogColumns(ctx context.Context, conn *sql.Conn, table st
 	}
 	present := map[string]bool{}
 	for _, name := range names {
-		if name == "" || len(name) > 128 || !validOverviewText(name) {
+		if name == "" || !utf8.ValidString(name) || utf8.RuneCountInString(name) > 128 {
 			return states, fmt.Errorf("invalid ClickHouse catalog column name")
 		}
 		present[name] = true

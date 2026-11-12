@@ -2,6 +2,7 @@ package sqlservice
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -149,6 +150,12 @@ func lexMode(document string, d Dialect, ansiQuotes, noBackslash bool) []token {
 					closed = true
 					break
 				}
+				if d == ClickHouse && q != '\'' && document[i] == '\\' && i+1 < len(document) {
+					escaped, consumed := clickHouseIdentifierEscape(document[i:])
+					value.WriteString(escaped)
+					i += consumed
+					continue
+				}
 				if document[i] == '\\' && ((IsMySQLDialect(d) || d == ClickHouse) && !noBackslash && (q == '\'' || q == '"' && !ansiQuotes) || d == PostgreSQL && q == '\'' && start > 0 && (document[start-1] == 'e' || document[start-1] == 'E')) && i+1 < len(document) {
 					value.WriteByte(document[i+1])
 					i += 2
@@ -180,6 +187,29 @@ func lexMode(document string, d Dialect, ansiQuotes, noBackslash bool) []token {
 		tokens = append(tokens, token{text: document[start:i], value: document[start:i], start: start, end: i, kind: document[start]})
 	}
 	return tokens
+}
+
+// ClickHouse quoted identifiers use the same escapes as its string literals.
+// Unknown escapes preserve the backslash; doubled quote delimiters are handled
+// by the shared quoted-token scanner above.
+func clickHouseIdentifierEscape(text string) (string, int) {
+	const escaped = "abefnrtv0\\'\"`/="
+	const decoded = "\a\b\x1b\f\n\r\t\v\x00\\'\"`/="
+	if at := strings.IndexByte(escaped, text[1]); at >= 0 {
+		return string(decoded[at]), 2
+	}
+	if text[1] == 'N' {
+		return "", 2
+	}
+	if text[1] == 'x' && len(text) >= 4 {
+		if value, err := strconv.ParseUint(text[2:4], 16, 8); err == nil {
+			return string([]byte{byte(value)}), 4
+		}
+	}
+	if text[1] <= 31 {
+		return text[1:2], 2
+	}
+	return text[:1], 1
 }
 
 func offsetToByte(document string, offset int) (int, error) {

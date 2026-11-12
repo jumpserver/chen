@@ -43,6 +43,7 @@ type aiEditorContext struct {
 	Dialect          string `json:"dialect"`
 	Database         string `json:"database"`
 	Schema           string `json:"schema"`
+	Table            string `json:"table,omitempty"`
 	NodeKey          string `json:"nodeKey"`
 	ConsoleID        string `json:"consoleId"`
 	PaneID           string `json:"paneId"`
@@ -81,7 +82,9 @@ func (v *Server) aiMessages(w http.ResponseWriter, r *http.Request) {
 		ResourceSessionID string          `json:"resource_session_id"`
 		Data              json.RawMessage `json:"data"`
 	}
-	r.Body = http.MaxBytesReader(w, r.Body, 320<<10)
+	// Java's document/context limits count UTF-16 characters, not UTF-8 bytes.
+	// Leave room for the JSON envelopes and escaped non-ASCII editor text.
+	r.Body = http.MaxBytesReader(w, r.Body, 2<<20)
 	if !decode(w, r, &frame) {
 		return
 	}
@@ -194,8 +197,8 @@ func (v *Server) aiMessages(w http.ResponseWriter, r *http.Request) {
 			response["error"] = map[string]any{"code": -32602, "message": err.Error()}
 		} else {
 			b, e := json.Marshal(result)
-			if e != nil || len(b) > 128<<10 {
-				response["error"] = map[string]any{"code": -32603, "message": "Tool result exceeds the bounded response size; inspect fewer tables"}
+			if e != nil {
+				response["error"] = map[string]any{"code": -32603, "message": "Tool result could not be encoded"}
 			} else {
 				response["result"] = map[string]any{"content": []any{map[string]any{"type": "text", "text": string(b)}}, "structuredContent": result}
 			}
@@ -210,25 +213,58 @@ func (v *Server) aiMessages(w http.ResponseWriter, r *http.Request) {
 }
 func resolveAIEditor(s *session, raw json.RawMessage) (aiEditorContext, error) {
 	var e aiEditorContext
-	if len(raw) == 0 || len(raw) > 288<<10 || json.Unmarshal(raw, &e) != nil {
+	if len(raw) == 0 || aiTextLength(string(raw)) > 256<<10 || json.Unmarshal(raw, &e) != nil {
 		return e, errors.New("Invalid SQL editor context")
 	}
-	for _, value := range []string{e.NodeKey, e.ConsoleID, e.PaneID, e.TabID, e.WorkspaceTabID, e.Database, e.Schema, e.CurrentContext} {
-		if len(value) > 1024 || strings.ContainsRune(value, 0) {
+	for _, value := range []string{e.NodeKey, e.ConsoleID, e.PaneID, e.TabID, e.WorkspaceTabID, e.Database, e.Schema, e.Table, e.CurrentContext} {
+		if aiTextLength(value) > 1024 || strings.ContainsRune(value, 0) {
 			return e, errors.New("Invalid SQL editor identifier")
 		}
 	}
-	s.mu.Lock()
-	c := s.consoles[e.ConsoleID]
-	s.mu.Unlock()
-	if c == nil || c.closed.Load() || c.lost.Load() || e.NodeKey != c.id || e.WorkspaceTabKind != "query" {
-		return e, errors.New("An active SQL query console is required")
+	if e.WorkspaceTabKind == "" {
+		e.WorkspaceTabKind = "none"
 	}
-	scope := c.currentContext()
-	if e.Database != scope.Database || e.Schema != scope.Schema || e.Dialect != s.grant.Config.Dialect {
+	requiresConsole := false
+	switch e.WorkspaceTabKind {
+	case "query", "console", "data-view":
+		requiresConsole = true
+	case "database", "none":
+	default:
+		return e, errors.New("Invalid database workspace context")
+	}
+	if e.NodeKey == "" || e.Dialect != s.grant.Config.Dialect {
+		return e, errors.New("Invalid database resource context")
+	}
+	if requiresConsole || e.ConsoleID != "" {
+		s.mu.Lock()
+		c := s.consoles[e.ConsoleID]
+		s.mu.Unlock()
+		if c == nil || c.closed.Load() || c.lost.Load() || e.NodeKey != c.id {
+			return e, errors.New("An active database console is required")
+		}
+		scope := c.currentContext()
+		if e.Database != scope.Database || e.Schema != scope.Schema {
+			return e, errors.New("SQL editor scope changed; refresh the editor context")
+		}
+		if e.WorkspaceTabKind == "data-view" {
+			// A table pane has a dedicated console. Recover its relation from
+			// admitted browse results instead of trusting a client table label.
+			e.Table = ""
+			s.mu.Lock()
+			for _, result := range s.results {
+				if result.consoleID == c.id && result.browse != nil {
+					e.Table = result.browse.Table
+					break
+				}
+			}
+			s.mu.Unlock()
+		}
+	} else if !validAIResourceKey(e.NodeKey, s.id, e.Database, e.Schema) {
 		return e, errors.New("SQL editor scope changed; refresh the editor context")
+	} else if e.Database == "" && e.Schema != "" {
+		return e, errors.New("Invalid database resource context")
 	}
-	if e.Revision < 0 || len(e.DocumentSQL) > aiMaxSQL || e.SelectionFrom < 0 || e.SelectionTo < e.SelectionFrom {
+	if e.Revision < 0 || aiTextLength(e.DocumentSQL) > aiMaxSQL || e.SelectionFrom < 0 || e.SelectionTo < e.SelectionFrom {
 		return e, errors.New("Invalid SQL document or selection")
 	}
 	doc := utf16.Encode([]rune(e.DocumentSQL))
@@ -246,8 +282,11 @@ func resolveAIEditor(s *session, raw json.RawMessage) (aiEditorContext, error) {
 		return e, errors.New("SQL selection no longer matches the document")
 	}
 	if e.ProposalTarget == "" {
-		e.ProposalTarget = "document"
-		if selected != "" {
+		e.ProposalTarget = "new_query"
+		if e.WorkspaceTabKind == "query" || e.WorkspaceTabKind == "console" {
+			e.ProposalTarget = "document"
+		}
+		if e.ProposalTarget == "document" && selected != "" {
 			e.ProposalTarget = "selection"
 		}
 	}
@@ -263,6 +302,13 @@ func resolveAIEditor(s *session, raw json.RawMessage) (aiEditorContext, error) {
 		e.LastError = lastError
 	}
 	return e, nil
+}
+
+func aiTextLength(value string) int { return len(utf16.Encode([]rune(value))) }
+
+func validAIResourceKey(key, sessionID, database, schema string) bool {
+	var parts []string
+	return json.Unmarshal([]byte(key), &parts) == nil && len(parts) == 3 && parts[0] == sessionID && parts[1] == database && parts[2] == schema
 }
 
 // Only an execution reference is accepted from the browser. Its diagnostic and
@@ -320,6 +366,20 @@ func (v *Server) runAITool(ctx context.Context, r *http.Request, s *session, e a
 	if err := s.grant.Check(); err != nil {
 		return nil, errors.New("Session is unavailable")
 	}
+	// Unlike an editor's live console, a database/root tab has no pinned
+	// connection. Resolve its requested resource with the account's catalog
+	// privileges before disclosing it as verified AI context.
+	if e.ConsoleID == "" && e.Database != "" && name != "search_schema" && name != "inspect_schema" {
+		req, err := v.beginAICatalogAccess(ctx, r, e)
+		if err != nil {
+			return nil, err
+		}
+		_, err = sqlservice.ObjectRows(req.ctx, req.conn, sqlservice.Dialect(e.Dialect), sqlservice.CatalogObjectRequest{Database: req.database, Schema: e.Schema, Limit: 1})
+		req.done()
+		if err != nil {
+			return nil, errors.New("Database context is unavailable to this account")
+		}
+	}
 	switch name {
 	case "read_sql_context":
 		if string(raw) != "{}" {
@@ -349,11 +409,11 @@ func (v *Server) runAITool(ctx context.Context, r *http.Request, s *session, e a
 		}
 		return e, nil
 	case "validate_sql", "propose_sql":
-		if strings.TrimSpace(args.SQL) == "" || len(args.SQL) > aiMaxSQL || len(args.Explanation) > 4096 {
+		if strings.TrimSpace(args.SQL) == "" || aiTextLength(args.SQL) > aiMaxSQL || aiTextLength(args.Explanation) > 4096 {
 			return nil, errors.New("Invalid SQL draft")
 		}
 		analysis, err := sqlservice.Analyze(sqlservice.Dialect(e.Dialect), args.SQL)
-		if err == nil && (len(analysis.Statements) == 0 || len(analysis.Statements) > 100) {
+		if err == nil && len(analysis.Statements) == 0 {
 			err = errors.New("Invalid statement count")
 		}
 		checked := map[string]any{"syntax": analysis.Syntax, "compatibility": analysis.Compatibility, "diagnostics": analysis.Diagnostics, "valid": err == nil && analysis.Syntax == sqlanalysis.Checked, "statementCount": len(analysis.Statements), "statements": analysis.Statements, "dialect": e.Dialect, "execution": "never"}
@@ -388,13 +448,16 @@ func (v *Server) runAITool(ctx context.Context, r *http.Request, s *session, e a
 			response["kind"], response["analysis"] = "validation", checked
 			return response, nil
 		}
-		if err != nil {
+		if err != nil && e.WorkspaceTabKind != "console" {
 			return nil, errors.New("SQL draft cannot be parsed")
 		}
-		for _, st := range analysis.Statements {
-			if st.MayWrite || !st.ReturnsRows {
-				return nil, errors.New("Only read-only query proposals are supported")
+		if err != nil {
+			const notice = "Chen cannot validate this SQL with its dialect parser.\n\nIt may use database-native syntax.\n\nPlease review it before execution."
+			args.Explanation = strings.TrimSpace(args.Explanation)
+			if args.Explanation != "" {
+				args.Explanation += "\n\n"
 			}
+			args.Explanation += notice
 		}
 		original := e.DocumentSQL
 		if e.ProposalTarget == "selection" {
@@ -407,10 +470,13 @@ func (v *Server) runAITool(ctx context.Context, r *http.Request, s *session, e a
 		}
 		return map[string]any{"kind": "proposal", "analysis": checked, "proposal": map[string]any{"sql": args.SQL, "originalSql": original, "explanation": args.Explanation, "analysis": checked, "base": map[string]any{"paneId": e.PaneID, "tabId": e.TabID, "workspaceTabId": e.WorkspaceTabID, "workspaceTabKind": e.WorkspaceTabKind, "currentContext": e.CurrentContext, "revision": e.Revision, "selectionFrom": e.SelectionFrom, "selectionTo": e.SelectionTo, "nodeKey": e.NodeKey, "database": e.Database, "schema": e.Schema, "target": e.ProposalTarget}}}, nil
 	case "search_schema", "inspect_schema":
-		if args.Schema != "" && args.Schema != e.Schema {
+		if err := validateAISchemaScope(e); err != nil {
+			return nil, err
+		}
+		if args.Schema != "" && !strings.EqualFold(args.Schema, e.Schema) {
 			return nil, errors.New("Schema is outside the verified editor scope")
 		}
-		if len(args.Query) > 256 || len(args.Tables) > 8 || args.Limit < 0 || args.Limit > 10 {
+		if aiTextLength(args.Query) > 1024 || len(args.Tables) > 8 || args.Limit < 0 || args.Limit > 10 {
 			return nil, errors.New("Invalid schema lookup limits")
 		}
 		if name == "search_schema" && (strings.TrimSpace(args.Query) == "" || args.Query == "*") {
@@ -419,26 +485,31 @@ func (v *Server) runAITool(ctx context.Context, r *http.Request, s *session, e a
 		if name == "inspect_schema" && strings.TrimSpace(args.Query) == "" && len(args.Tables) == 0 {
 			return nil, errors.New("Schema query or exact tables are required")
 		}
-		for _, table := range args.Tables {
-			if table == "" || len(table) > 256 || strings.ContainsRune(table, 0) {
+		if args.Query == "*" && len(args.Tables) != 0 {
+			return nil, errors.New("Table discovery cannot include explicit tables")
+		}
+		for index, table := range args.Tables {
+			if table == "" || aiTextLength(table) > 1024 || strings.ContainsRune(table, 0) {
 				return nil, errors.New("Invalid table identifier")
 			}
+			name, err := aiTableName(e, table)
+			if err != nil {
+				return nil, err
+			}
+			args.Tables[index] = name
 		}
-		rr := r.Clone(ctx)
-		rr.URL = &url.URL{Path: r.URL.Path, RawQuery: url.Values{"schema": {e.Schema}, "limit": {"100"}}.Encode()}
-		w := &aiCatalogWriter{header: make(http.Header)}
-		req := v.beginCatalogAccess(w, rr, "ai", &e)
-		if req == nil {
-			var failure struct {
-				Error APIError `json:"error"`
-			}
-			if json.Unmarshal(w.body.Bytes(), &failure) == nil && failure.Error.Message != "" {
-				return nil, errors.New(failure.Error.Message)
-			}
-			return nil, errors.New("Authorized catalog is unavailable")
+		req, err := v.beginAICatalogAccess(ctx, r, e)
+		if err != nil {
+			return nil, err
 		}
 		defer req.done()
-		objects, err := sqlservice.ObjectRows(req.ctx, req.conn, sqlservice.Dialect(e.Dialect), sqlservice.CatalogObjectRequest{Database: req.database, Schema: e.Schema, Limit: 100})
+		lookup := sqlservice.CatalogObjectRequest{Database: req.database, Schema: e.Schema, Limit: 100}
+		if name == "inspect_schema" && args.Query != "*" {
+			// Filter before paging so a matching relation after the first 100
+			// catalog objects remains discoverable, as in Java's full catalog.
+			lookup.Query = args.Query
+		}
+		objects, err := sqlservice.ObjectRows(req.ctx, req.conn, sqlservice.Dialect(e.Dialect), lookup)
 		if err != nil {
 			return nil, errors.New("Unable to inspect authorized schema")
 		}
@@ -467,6 +538,23 @@ func (v *Server) runAITool(ctx context.Context, r *http.Request, s *session, e a
 	default:
 		return nil, fmt.Errorf("Unknown SQL tool %q", name)
 	}
+}
+
+func (v *Server) beginAICatalogAccess(ctx context.Context, r *http.Request, e aiEditorContext) (*catalogRequest, error) {
+	rr := r.Clone(ctx)
+	rr.URL = &url.URL{Path: r.URL.Path, RawQuery: url.Values{"schema": {e.Schema}, "limit": {"100"}}.Encode()}
+	w := &aiCatalogWriter{header: make(http.Header)}
+	req := v.beginCatalogAccess(w, rr, "ai", &e)
+	if req == nil {
+		var failure struct {
+			Error APIError `json:"error"`
+		}
+		if json.Unmarshal(w.body.Bytes(), &failure) == nil && failure.Error.Message != "" {
+			return nil, errors.New(failure.Error.Message)
+		}
+		return nil, errors.New("Authorized catalog is unavailable")
+	}
+	return req, nil
 }
 
 // The catalog lifecycle shares authentication, audit and concurrency limits with

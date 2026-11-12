@@ -373,11 +373,14 @@ func (p *WispProvider) Record(_ context.Context, g *Grant, record AuditRecord) e
 	if record.Error != "" {
 		output = record.Error
 	}
-	// Result contents are never replayed here. Only a bounded status summary
-	// enters command audit, avoiding a second unmasked copy of query results.
+	replay := output
+	if record.Error == "" && record.ReplayOutput != "" {
+		replay = record.ReplayOutput
+	}
 	for _, secret := range []string{g.Config.Password, g.Config.TLS.ClientKey} {
 		if secret != "" {
 			output = strings.ReplaceAll(output, secret, "[redacted]")
+			replay = strings.ReplaceAll(replay, secret, "[redacted]")
 		}
 	}
 	output = truncate(output, 2048)
@@ -387,7 +390,7 @@ func (p *WispProvider) Record(_ context.Context, g *Grant, record AuditRecord) e
 		Input: record.SQL, Output: output, Timestamp: record.StartedAt.Unix(),
 		RiskLevel: risk, CmdAclId: record.ACLID, CmdGroupId: record.GroupID,
 	}
-	if err := p.replays.record(g, record.SQL, output, record.StartedAt); err != nil {
+	if err := p.replays.record(g, record.SQL, replay, record.StartedAt); err != nil {
 		return errors.Join(ErrAuditDisk, err)
 	}
 	if err := p.spool.put(envelope{Command: request}); err != nil {
