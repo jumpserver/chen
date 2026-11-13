@@ -5,6 +5,7 @@ target
 .DS_Store
 replay
 data
+/.env
 
 # Retired implementation artifacts and private local configuration
 /backend/

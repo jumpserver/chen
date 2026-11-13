@@ -21,6 +21,12 @@ make image-ee VERSION=dev PLATFORM=linux/arm64
 make run
 ```
 
+For first-time registration, set `BOOTSTRAP_TOKEN` in `chen/.env` to the token
+configured in Core. `make run` and `make dev-up` read this file through Docker
+Compose. With Core's default `auto` registration setting, start Chen within five
+minutes of starting Core. Wisp saves its access key in the Chen data volume and
+reuses it on subsequent starts.
+
 Linux amd64 and arm64 builds include all supported database drivers, including
 the pure Go Db2 driver.
 
