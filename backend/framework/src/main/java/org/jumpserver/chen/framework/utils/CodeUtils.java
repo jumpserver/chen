@@ -9,7 +9,7 @@ public class CodeUtils {
      * @return
      */
     public static String escapeCsvValue(String value) {
-        if (value.contains("\"") || value.contains(",") || value.contains("\n")) {
+        if (value.contains("\"") || value.contains(",") || value.contains("\n") || value.contains("\r")) {
             // 对引号进行转义
             value = value.replace("\"", "\"\"");
             // 用引号包围值
