@@ -245,6 +245,8 @@ type session struct {
 	subscribers    map[uint64]chan Event
 	nextSubscriber uint64
 	closed         bool
+
+	cachedExportWorkers int // active and queued cached exports, protected by mu
 }
 
 func (s *session) view() SessionView {

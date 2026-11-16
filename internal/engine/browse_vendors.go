@@ -1,10 +1,44 @@
 package engine
 
 import (
+	"context"
+	"errors"
 	"fmt"
-	"github.com/jumpserver/chen/internal/sqlservice"
+	"slices"
 	"strings"
+
+	"github.com/jumpserver/chen/internal/sqlservice"
 )
+
+// SQL Server paging projects each visible column to exclude the synthetic row
+// number. An explicit refresh must rebuild that projection in the result's
+// original database, even when the console has since executed USE.
+func refreshSQLServerBrowseTable(ctx context.Context, s *session, c *console, p *browsePlan) (err error) {
+	guard, err := prepareSourceReadContext(ctx, c, "sqlserver", p.context)
+	if err != nil {
+		return err
+	}
+	if guard != nil {
+		defer func() {
+			if restoreErr := guard.restore(s); restoreErr != nil {
+				err = restoreErr
+			}
+		}()
+		if err := guard.enter(ctx); err != nil {
+			return err
+		}
+	}
+	scope := sqlservice.Context{Database: p.view.Database, Schema: p.view.Schema}
+	table, err := sqlservice.LoadBrowseTable(ctx, c.conn, sqlservice.SQLServer, scope, scope.Schema, p.view.Table)
+	if err != nil {
+		return errors.New("Unable to refresh table column metadata")
+	}
+	if table.View != p.table.View || !slices.Equal(table.PrimaryKey, p.table.PrimaryKey) {
+		return &APIError{"browse_source_changed", "The table or view changed; reopen it before browsing"}
+	}
+	p.table = table
+	return nil
+}
 
 func browsePolicyLiteral(d, text string) (string, error) {
 	if d == "oracle" && text == "" {

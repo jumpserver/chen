@@ -34,7 +34,7 @@ type browseRequest struct {
 	Schema             string        `json:"schema"`
 	Table              string        `json:"table"`
 	SourceResultID     string        `json:"source_result_id,omitempty"`
-	Action             string        `json:"action,omitempty"` // page (default), append, count, export
+	Action             string        `json:"action,omitempty"` // page (default), refresh, append, count, export
 	Where              string        `json:"where,omitempty"`
 	Filter             *browseFilter `json:"filter,omitempty"`
 	Sort               []browseOrder `json:"sort,omitempty"`
@@ -120,7 +120,7 @@ func (v *Server) browseTable(w http.ResponseWriter, r *http.Request) {
 	if req.Action == "" {
 		req.Action = "page"
 	}
-	if req.Action != "page" && req.Action != "append" && req.Action != "count" && req.Action != "export" {
+	if req.Action != "page" && req.Action != "refresh" && req.Action != "append" && req.Action != "count" && req.Action != "export" {
 		fail(w, 400, "invalid_browse", "Unknown browse operation")
 		return
 	}
@@ -183,6 +183,11 @@ func (v *Server) resolveBrowse(ctx context.Context, s *session, c *console, req 
 		p.sourceResultID = req.SourceResultID
 		p.view.Offset = req.Offset
 		p.fetchSize = 0
+		if req.Action == "refresh" && d == "sqlserver" && p.context != "" {
+			if err := refreshSQLServerBrowseTable(ctx, s, c, p); err != nil {
+				return nil, err
+			}
+		}
 		if req.Action == "append" && req.PageSize != 0 && req.PageSize != previous.view.PageSize {
 			return nil, errors.New("Restart browsing before changing the batch size")
 		}
@@ -193,7 +198,7 @@ func (v *Server) resolveBrowse(ctx context.Context, s *session, c *console, req 
 		}
 	} else {
 		if req.Action != "page" {
-			return nil, errors.New("Count and full export require an applied browse result")
+			return nil, errors.New("This operation requires an applied browse result")
 		}
 		if req.Table == "" {
 			return nil, errors.New("Select a table to browse")
@@ -320,26 +325,26 @@ func (v *Server) resolveBrowse(ctx context.Context, s *session, c *console, req 
 		// The browse key is independent of the actual primary key used by editing.
 		// Without a proven non-null unique key, offset instability stays explicit.
 		base := " FROM " + editQualified(p.view.Schema, p.view.Table, d)
-		p.fullSQL = "SELECT *" + base
-		p.fullPolicySQL = p.fullSQL
-		p.countSQL = "SELECT COUNT(*)" + base
-		if d == "postgresql" {
-			p.countSQL = "SELECT pg_catalog.count(*)" + base
-		}
-		if d == "db2" {
-			p.countSQL = "SELECT SYSIBM.COUNT_BIG(*)" + base
-		}
-		if d == "sqlserver" {
-			p.countSQL = "SELECT COUNT_BIG(*)" + base
-		}
-		p.countPolicySQL = p.countSQL
 		if predicate != "" {
-			p.fullSQL += " WHERE " + predicate
-			p.countSQL += " WHERE " + predicate
-			p.fullPolicySQL += " WHERE " + policy
-			p.countPolicySQL += " WHERE " + policy
+			predicate = " WHERE " + predicate
+			policy = " WHERE " + policy
 		}
-		p.pageBaseSQL, p.pageBasePolicySQL = p.fullSQL, p.fullPolicySQL
+		p.fullSQL = "SELECT *" + base + predicate
+		p.fullPolicySQL = "SELECT *" + base + policy
+		count := "SELECT COUNT(*)"
+		switch d {
+		case "postgresql":
+			count = "SELECT pg_catalog.count(*)"
+		case "db2":
+			count = "SELECT SYSIBM.COUNT_BIG(*)"
+		case "sqlserver":
+			count = "SELECT COUNT_BIG(*)"
+			// Another console may hold an uncommitted write. Report the lock
+			// before the driver's socket timeout discards this browse connection.
+			base += " WITH (NOWAIT)"
+		}
+		p.countSQL, p.countPolicySQL = count+base+predicate, count+base+policy
+		p.pageBaseSQL, p.pageBasePolicySQL = "SELECT *"+base+predicate, "SELECT *"+base+policy
 		p.orderSQL = strings.Join(order, ", ")
 		if len(order) > 0 {
 			p.fullSQL += " ORDER BY " + strings.Join(order, ", ")
