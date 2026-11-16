@@ -305,13 +305,9 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		if s.grant.Config.Dialect == "db2" && db2CancellationAcknowledged(c, db2CancelCheckpoint) {
 			confirmedCancel = true
 		}
-		// PostgreSQL conversion/constraint errors can quote original field
-		// values (for example protected_text::integer). A result-only mask would
-		// otherwise leak that value through an error response and command audit.
+		var maskedDiagnostic bool
 		if isServerError(err) {
-			if _, masked := v.provider.Mask(s.grant, "", "", api.Message); masked {
-				api = &APIError{api.Code, "Database diagnostic details are hidden by the data masking policy"}
-			}
+			api, maskedDiagnostic = v.maskDatabaseDiagnostic(s, api)
 		}
 		status := "failed"
 		if confirmedCancel {
@@ -366,6 +362,7 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		v.update(s, e, func(x *ExecutionView) {
 			x.Status = status
 			x.Error = api
+			x.maskedDiagnostic = maskedDiagnostic && status == "failed"
 			if current := c.transaction.Load(); current != nil {
 				if x.Transaction == nil {
 					x.Transaction = &TransactionOutcome{Action: e.transactionAction}
