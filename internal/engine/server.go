@@ -727,6 +727,9 @@ func (v *Server) createConsole(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		ccancel()
 		e := safeDatabaseError(err)
+		if isServerError(err) {
+			e, _ = v.maskDatabaseDiagnostic(s, e)
+		}
 		fail(w, 400, e.Code, e.Message)
 		return
 	}

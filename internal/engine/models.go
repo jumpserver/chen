@@ -70,6 +70,7 @@ type StatementResult struct {
 	RowsAffected string `json:"rows_affected,omitempty"`
 }
 type ExecutionView struct {
+	maskedDiagnostic bool                     // the stored database error (including any script warning) is safe for AI
 	Revision         uint64                   `json:"revision"`
 	Confirmation     *ExecutionConfirmation   `json:"confirmation,omitempty"`
 	Transaction      *TransactionOutcome      `json:"transaction,omitempty"`

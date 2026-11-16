@@ -141,7 +141,7 @@ func (v *Server) aiMessages(w http.ResponseWriter, r *http.Request) {
 		fail(w, 400, "invalid_ai_binding", "Invalid AI resource binding")
 		return
 	}
-	editor, err := resolveAIEditor(s, rpc.Params.Meta["com.jumpserver/sqlContext"])
+	editor, err := v.resolveAIEditor(s, rpc.Params.Meta["com.jumpserver/sqlContext"])
 	if err != nil {
 		fail(w, 400, "invalid_ai_context", err.Error())
 		return
@@ -211,7 +211,7 @@ func (v *Server) aiMessages(w http.ResponseWriter, r *http.Request) {
 	}()
 	w.WriteHeader(http.StatusNoContent)
 }
-func resolveAIEditor(s *session, raw json.RawMessage) (aiEditorContext, error) {
+func (v *Server) resolveAIEditor(s *session, raw json.RawMessage) (aiEditorContext, error) {
 	var e aiEditorContext
 	if len(raw) == 0 || aiTextLength(string(raw)) > 256<<10 || json.Unmarshal(raw, &e) != nil {
 		return e, errors.New("Invalid SQL editor context")
@@ -300,7 +300,7 @@ func resolveAIEditor(s *session, raw json.RawMessage) (aiEditorContext, error) {
 	if e.ProposalTarget != "selection" && e.ProposalTarget != "document" && e.ProposalTarget != "new_query" || e.ProposalTarget == "selection" && selected == "" || e.ProposalTarget != "new_query" && e.TabID == "" {
 		return e, errors.New("Invalid SQL proposal target")
 	}
-	lastError, err := resolveAIExecutionError(s, e)
+	lastError, err := v.resolveAIExecutionError(s, e)
 	if err != nil {
 		return e, err
 	}
@@ -320,7 +320,7 @@ func validAIResourceKey(key, sessionID, database, schema string) bool {
 
 // Only an execution reference is accepted from the browser. Its diagnostic and
 // SQL are recovered from this session's completed execution, never client text.
-func resolveAIExecutionError(s *session, editor aiEditorContext) (*aiExecutionError, error) {
+func (v *Server) resolveAIExecutionError(s *session, editor aiEditorContext) (*aiExecutionError, error) {
 	raw, _ := json.Marshal(editor.LastError)
 	var reference struct {
 		ExecutionID string `json:"executionId"`
@@ -347,7 +347,13 @@ func resolveAIExecutionError(s *session, editor aiEditorContext) (*aiExecutionEr
 		(editor.ProposalTarget == "selection" && target != execution.sql) || !strings.Contains(target, execution.sql) {
 		return nil, errors.New("SQL execution error no longer matches this editor; refresh its execution context before requesting a repair")
 	}
-	return &aiExecutionError{ExecutionID: view.ID, Code: view.Error.Code, Message: view.Error.Message, SQL: execution.sql}, nil
+	message := view.Error.Message
+	if !view.maskedDiagnostic {
+		if _, masked := v.provider.Mask(s.grant, "", "", message); masked {
+			message = hiddenDatabaseDiagnostic
+		}
+	}
+	return &aiExecutionError{ExecutionID: view.ID, Code: view.Error.Code, Message: message, SQL: execution.sql}, nil
 }
 
 func (v *Server) executeAITool(ctx context.Context, r *http.Request, s *session, e aiEditorContext, name string, raw json.RawMessage) (any, error) {
@@ -401,15 +407,12 @@ func (v *Server) executeAITool(ctx context.Context, r *http.Request, s *session,
 				return nil, errors.New("read_sql_context takes no arguments")
 			}
 		}
-		lastError, err := resolveAIExecutionError(s, e)
+		lastError, err := v.resolveAIExecutionError(s, e)
 		if err != nil {
 			return nil, err
 		}
 		e.LastError = nil
 		if lastError != nil {
-			if _, masked := v.provider.Mask(s.grant, "", "", lastError.Message); masked {
-				lastError.Message = "Database diagnostic details are hidden by the data masking policy"
-			}
 			if len(lastError.Message) > 4096 {
 				lastError.Message = strings.ToValidUTF8(lastError.Message[:4096], "") + "…"
 				lastError.MessageTruncated = true
