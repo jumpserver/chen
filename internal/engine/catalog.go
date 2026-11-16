@@ -21,6 +21,8 @@ import (
 	"github.com/jumpserver/chen/internal/sqlservice"
 )
 
+const catalogInspectionTimeout = 12 * time.Second
+
 // Each session has at most two catalog connections, separately budgeted from
 // fixed SQL consoles and their cancellation pool. No USE/SET is issued here.
 type catalogResource struct {
@@ -211,7 +213,7 @@ func (v *Server) beginCatalogAccess(w http.ResponseWriter, r *http.Request, oper
 	s.mu.Unlock()
 	timeout := 3 * time.Second
 	if operation == "inspect" || operation == "ai" || operation == "overview" || operation == "diagram" {
-		timeout = 12 * time.Second
+		timeout = catalogInspectionTimeout
 	}
 	if operation == "ddl" {
 		timeout = 30 * time.Second
@@ -271,11 +273,13 @@ func (v *Server) beginCatalogAccess(w http.ResponseWriter, r *http.Request, oper
 			return nil
 		}
 		consoleFinish := finish
-		// MySQL closes a physical connection when QueryContext is canceled.
-		// A canceled AI request must not destroy the user's console/transaction;
-		// finish this bounded metadata read under the console's lifetime instead.
 		var stopConsole context.CancelFunc
-		ctx, stopConsole = context.WithTimeout(c.ctx, timeout)
+		if pinnedMySQLCatalog(s.grant.Config.Dialect) {
+			ctx = sqlservice.WithConsoleCatalogLifetime(ctx, c.ctx)
+			stopConsole = interruptCatalogOnCancel(ctx, s, c)
+		} else {
+			ctx, stopConsole = context.WithTimeout(c.ctx, timeout)
+		}
 		finish = func() { stopConsole(); c.mu.Unlock(); consoleFinish() }
 		if c.closed.Load() || c.lost.Load() || c.conn == nil {
 			finish()
@@ -283,7 +287,7 @@ func (v *Server) beginCatalogAccess(w http.ResponseWriter, r *http.Request, oper
 			return nil
 		}
 		conn = c.conn
-		current, err = liveContext(ctx, c, s.grant.Config.Dialect)
+		current, err = liveContext(sqlservice.CatalogQueryContext(ctx), c, s.grant.Config.Dialect)
 	} else {
 		db := resource.db
 		if targeted {

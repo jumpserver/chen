@@ -308,7 +308,7 @@ func diagramSQL(d Dialect, r DiagramRequest) (string, []any) {
 
 func diagramObjectAccess(ctx context.Context, conn *sql.Conn, d Dialect, r DiagramRequest) error {
 	if d != MariaDB && d != OceanBaseMySQL {
-		return catalogObjectAccess(ctx, conn, d, r.Schema, r.Table)
+		return CatalogObjectAccess(ctx, conn, d, r.Schema, r.Table)
 	}
 	q, args := diagramCompatibleSQL(d, DiagramRequest{CatalogObjectRequest: r.CatalogObjectRequest, Section: "nodes", Direction: "incoming", Table: r.Table})
 	var schema, name, kind string

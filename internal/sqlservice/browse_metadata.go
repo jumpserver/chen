@@ -84,7 +84,7 @@ func LoadBrowseTable(ctx context.Context, conn *sql.Conn, d Dialect, scope Conte
 		case d == PostgreSQL:
 			// Distinguish an inaccessible schema from a missing or unbrowsable
 			// relation only on a miss.
-			if accessErr := catalogObjectAccess(ctx, conn, d, schema, table); accessErr != nil {
+			if accessErr := CatalogObjectAccess(ctx, conn, d, schema, table); accessErr != nil {
 				err = accessErr
 			}
 		}

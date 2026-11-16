@@ -109,14 +109,14 @@ func extraColumns(ctx context.Context, conn *sql.Conn, d Dialect, req ColumnRequ
 	if d == ClickHouse && schema != req.Context.Database {
 		return items, ErrCatalogForbidden
 	}
-	if err := catalogObjectAccess(ctx, conn, d, schema, req.Table); err != nil {
+	if err := CatalogObjectAccess(ctx, conn, d, schema, req.Table); err != nil {
 		// SQL Server resolves unqualified tables in the default schema, then
 		// dbo. Explicit schema qualifiers must never take this fallback.
 		if d != SQLServer || req.Schema != "" || schema == "dbo" || !errors.Is(err, ErrCatalogNotFound) {
 			return items, err
 		}
 		schema = "dbo"
-		if err := catalogObjectAccess(ctx, conn, d, schema, req.Table); err != nil {
+		if err := CatalogObjectAccess(ctx, conn, d, schema, req.Table); err != nil {
 			return items, err
 		}
 	}

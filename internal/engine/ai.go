@@ -187,9 +187,9 @@ func (v *Server) aiMessages(w http.ResponseWriter, r *http.Request) {
 			result, err = v.runAITool(ctx, request, s, editor, rpc.Params.Name, rpc.Params.Arguments)
 		}
 		response := map[string]any{"jsonrpc": "2.0", "id": id, "version": 1, "resource_session_id": s.id}
-		if ctx.Err() != nil {
+		if timeout := errors.Is(err, context.DeadlineExceeded) || errors.Is(ctx.Err(), context.DeadlineExceeded); timeout || ctx.Err() != nil {
 			status, code := "cancelled", "tool_cancelled"
-			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			if timeout {
 				status, code = "timeout", "tool_timeout"
 			}
 			response["result"] = map[string]any{"isError": true, "content": []any{map[string]any{"type": "text", "text": "AI tool " + status}}, "_meta": map[string]any{"com.jumpserver/agent": map[string]any{"status": status, "code": code}}}
@@ -226,14 +226,21 @@ func resolveAIEditor(s *session, raw json.RawMessage) (aiEditorContext, error) {
 	}
 	requiresConsole := false
 	switch e.WorkspaceTabKind {
-	case "query", "console", "data-view":
+	case "query", "console":
 		requiresConsole = true
+	case "data-view":
+		if e.ConsoleID == "" && (e.Table == "" || e.Database == "" || e.Schema == "") {
+			return e, errors.New("An active catalog table is required")
+		}
 	case "database", "none":
 	default:
 		return e, errors.New("Invalid database workspace context")
 	}
 	if e.NodeKey == "" || e.Dialect != s.grant.Config.Dialect {
 		return e, errors.New("Invalid database resource context")
+	}
+	if e.WorkspaceTabKind != "data-view" {
+		e.Table = ""
 	}
 	if requiresConsole || e.ConsoleID != "" {
 		s.mu.Lock()
@@ -247,12 +254,12 @@ func resolveAIEditor(s *session, raw json.RawMessage) (aiEditorContext, error) {
 			return e, errors.New("SQL editor scope changed; refresh the editor context")
 		}
 		if e.WorkspaceTabKind == "data-view" {
-			// A table pane has a dedicated console. Recover its relation from
+			// Older table panes have a dedicated console. Recover their relation from
 			// admitted browse results instead of trusting a client table label.
 			e.Table = ""
 			s.mu.Lock()
 			for _, result := range s.results {
-				if result.consoleID == c.id && result.browse != nil {
+				if result.consoleID == c.id && result.browse != nil && result.browse.Schema == e.Schema {
 					e.Table = result.browse.Table
 					break
 				}
@@ -343,7 +350,7 @@ func resolveAIExecutionError(s *session, editor aiEditorContext) (*aiExecutionEr
 	return &aiExecutionError{ExecutionID: view.ID, Code: view.Error.Code, Message: view.Error.Message, SQL: execution.sql}, nil
 }
 
-func (v *Server) runAITool(ctx context.Context, r *http.Request, s *session, e aiEditorContext, name string, raw json.RawMessage) (any, error) {
+func (v *Server) executeAITool(ctx context.Context, r *http.Request, s *session, e aiEditorContext, name string, raw json.RawMessage) (any, error) {
 	var args struct {
 		SQL         string   `json:"sql"`
 		Explanation string   `json:"explanation"`
@@ -374,7 +381,12 @@ func (v *Server) runAITool(ctx context.Context, r *http.Request, s *session, e a
 		if err != nil {
 			return nil, err
 		}
-		_, err = sqlservice.ObjectRows(req.ctx, req.conn, sqlservice.Dialect(e.Dialect), sqlservice.CatalogObjectRequest{Database: req.database, Schema: e.Schema, Limit: 1})
+		if e.Table != "" {
+			// A selected object from the browser is not verified until the account can see it.
+			err = sqlservice.CatalogObjectAccess(req.ctx, req.conn, sqlservice.Dialect(e.Dialect), e.Schema, e.Table)
+		} else {
+			_, err = sqlservice.ObjectRows(req.ctx, req.conn, sqlservice.Dialect(e.Dialect), sqlservice.CatalogObjectRequest{Database: req.database, Schema: e.Schema, Limit: 1})
+		}
 		req.done()
 		if err != nil {
 			return nil, errors.New("Database context is unavailable to this account")
@@ -483,12 +495,18 @@ func (v *Server) runAITool(ctx context.Context, r *http.Request, s *session, e a
 			return nil, errors.New("Schema search requires a business term")
 		}
 		if name == "inspect_schema" && strings.TrimSpace(args.Query) == "" && len(args.Tables) == 0 {
-			return nil, errors.New("Schema query or exact tables are required")
+			if e.Table == "" {
+				return nil, errors.New("Select a table or specify a schema query or exact tables")
+			}
+			args.Tables = []string{e.Table}
 		}
 		if args.Query == "*" && len(args.Tables) != 0 {
 			return nil, errors.New("Table discovery cannot include explicit tables")
 		}
 		for index, table := range args.Tables {
+			if table == e.Table && table != "" {
+				continue // A catalog name is literal, including any dots or quotes.
+			}
 			if table == "" || aiTextLength(table) > 1024 || strings.ContainsRune(table, 0) {
 				return nil, errors.New("Invalid table identifier")
 			}
@@ -503,15 +521,19 @@ func (v *Server) runAITool(ctx context.Context, r *http.Request, s *session, e a
 			return nil, err
 		}
 		defer req.done()
-		lookup := sqlservice.CatalogObjectRequest{Database: req.database, Schema: e.Schema, Limit: 100}
-		if name == "inspect_schema" && args.Query != "*" {
-			// Filter before paging so a matching relation after the first 100
-			// catalog objects remains discoverable, as in Java's full catalog.
-			lookup.Query = args.Query
-		}
-		objects, err := sqlservice.ObjectRows(req.ctx, req.conn, sqlservice.Dialect(e.Dialect), lookup)
-		if err != nil {
-			return nil, errors.New("Unable to inspect authorized schema")
+		var objects []sqlservice.CatalogObject
+		if name == "inspect_schema" && strings.TrimSpace(args.Query) == "" && len(args.Tables) == 1 && args.Tables[0] == e.Table {
+			// InspectTableSummary checks exact visibility; no need to enumerate the schema.
+			objects = []sqlservice.CatalogObject{{Schema: e.Schema, Name: e.Table}}
+		} else {
+			lookup := sqlservice.CatalogObjectRequest{Database: req.database, Schema: e.Schema, Limit: 100}
+			if name == "inspect_schema" && args.Query != "*" {
+				lookup.Query = args.Query
+			}
+			objects, err = sqlservice.ObjectRows(req.ctx, req.conn, sqlservice.Dialect(e.Dialect), lookup)
+			if err != nil {
+				return nil, errors.New("Unable to inspect authorized schema")
+			}
 		}
 		if name == "search_schema" {
 			for len(objects) > 0 && len(objects) <= 1000 && len(objects)%100 == 1 {
@@ -529,6 +551,9 @@ func (v *Server) runAITool(ctx context.Context, r *http.Request, s *session, e a
 		}
 		result, err := aiSchemaResult(req, e, name, args.Query, args.Tables, args.Limit, objects)
 		if err != nil {
+			return nil, err
+		}
+		if err := req.ctx.Err(); err != nil {
 			return nil, err
 		}
 		if v.catalogAudit(req, "succeeded", len(objects)) != nil {

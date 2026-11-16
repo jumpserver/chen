@@ -105,7 +105,7 @@ WHERE n.nspname=$1 AND t.relname=$2`, req.Schema, req.Table).Scan(&relationKind)
 		if clickHouseIndexes {
 			section.State = CapabilitySupported
 		}
-		rows, err := conn.QueryContext(ctx, q.SQL, q.Args...)
+		rows, err := conn.QueryContext(CatalogQueryContext(ctx), q.SQL, q.Args...)
 		if err != nil {
 			if clickHouseIndexes {
 				if !clickHousePermissionDenied(err) {
