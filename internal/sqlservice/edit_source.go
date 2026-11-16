@@ -182,9 +182,13 @@ func AnalyzeEditableQuery(d Dialect, document string, opts AnalyzeOptions) (Edit
 		if consumed < len(item) && item[consumed].is("AS") {
 			consumed++
 		}
-		if consumed < len(item) && item[consumed].ident() {
-			col.Label = item[consumed].name(d)
-			consumed++
+		if consumed < len(item) {
+			alias := item[consumed]
+			// MySQL allows a quoted string as a SELECT label, even without ANSI_QUOTES.
+			if alias.ident() || IsMySQLDialect(d) && alias.kind == 's' && alias.closed {
+				col.Label = alias.name(d)
+				consumed++
+			}
 		}
 		if consumed != len(item) {
 			return fail("projection expression")
