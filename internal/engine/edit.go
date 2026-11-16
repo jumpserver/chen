@@ -68,6 +68,7 @@ type editPreviewRequest struct {
 type editCommand struct {
 	sql                   string
 	args                  []any
+	argColumns            []string // source column for each parameter, including the primary-key predicate
 	policySQL, previewSQL string
 	op                    string
 }

@@ -23,8 +23,14 @@ type EditColumn struct {
 	PrimaryKey bool   `json:"primary_key"`
 }
 
+// DB2ColumnID identifies a physical column in Db2's SQL0407N diagnostic.
+type DB2ColumnID struct {
+	Tablespace, Table, Column int64
+}
+
 type EditTable struct {
-	View bool `json:"-"`
+	View           bool                   `json:"-"`
+	DB2ColumnNames map[DB2ColumnID]string `json:"-"`
 	// LoadEditTable establishes this capability; read-only browsing does not.
 	Transactional bool         `json:"transactional"`
 	Database      string       `json:"database"`
@@ -143,7 +149,12 @@ func LoadEditTable(ctx context.Context, conn *sql.Conn, d Dialect, scope Context
 	for rows.Next() {
 		var col EditColumn
 		var generated, identity sql.NullBool
-		if err = rows.Scan(&col.Name, &generated, &identity, &col.HasDefault); err != nil {
+		var tablespaceID, tableID, columnID sql.NullInt64
+		dest := []any{&col.Name, &generated, &identity, &col.HasDefault}
+		if d == DB2 {
+			dest = append(dest, &tablespaceID, &tableID, &columnID)
+		}
+		if err = rows.Scan(dest...); err != nil {
 			break
 		}
 		if d == DB2 {
@@ -154,6 +165,12 @@ func LoadEditTable(ctx context.Context, conn *sql.Conn, d Dialect, scope Context
 		// belong to the visible table definition and cannot grant write access.
 		if !visibleColumns[key] {
 			continue
+		}
+		if tablespaceID.Valid && tableID.Valid && columnID.Valid {
+			if out.DB2ColumnNames == nil {
+				out.DB2ColumnNames = make(map[DB2ColumnID]string)
+			}
+			out.DB2ColumnNames[DB2ColumnID{tablespaceID.Int64, tableID.Int64, columnID.Int64}] = col.Name
 		}
 		if !generated.Valid || !identity.Valid {
 			err = ErrEditColumnFlagsUnknown
@@ -358,7 +375,13 @@ func editColumnFlagsQuery(d Dialect, r CatalogColumnRequest) (catalogQuery, erro
 	case IsOracleDialect(d):
 		q = `SELECT COLUMN_NAME, CASE WHEN VIRTUAL_COLUMN='YES' THEN 1 ELSE 0 END, CASE WHEN IDENTITY_COLUMN='YES' THEN 1 ELSE 0 END, CASE WHEN DEFAULT_LENGTH>0 THEN 1 ELSE 0 END FROM ALL_TAB_COLS WHERE OWNER=` + s + ` AND TABLE_NAME=` + t + ` AND HIDDEN_COLUMN='NO' ORDER BY COLUMN_ID`
 	case d == DB2:
-		q = `SELECT RTRIM(COLNAME), CASE WHEN GENERATED IN ('A','D') THEN 1 ELSE 0 END, CASE WHEN IDENTITY='Y' THEN 1 ELSE 0 END, CASE WHEN DEFAULT IS NOT NULL THEN 1 ELSE 0 END FROM SYSCAT.COLUMNS WHERE TABSCHEMA=` + s + ` AND TABNAME=` + t + ` ORDER BY COLNO`
+		// For partitioned tables TBSPACE is NULL and the table IDs are
+		// logical. A partition's physical ID cannot be inferred from them.
+		q = `SELECT RTRIM(c.COLNAME), CASE WHEN c.GENERATED IN ('A','D') THEN 1 ELSE 0 END,
+CASE WHEN c.IDENTITY='Y' THEN 1 ELSE 0 END, CASE WHEN c.DEFAULT IS NOT NULL THEN 1 ELSE 0 END,
+CASE WHEN t.TBSPACE IS NOT NULL THEN t.TBSPACEID END, t.TABLEID, c.COLNO
+FROM SYSCAT.COLUMNS c JOIN SYSCAT.TABLES t ON t.TABSCHEMA=c.TABSCHEMA AND t.TABNAME=c.TABNAME
+WHERE c.TABSCHEMA=` + s + ` AND c.TABNAME=` + t + ` ORDER BY c.COLNO`
 	default:
 		return catalogQuery{}, ErrUnsupportedDialect
 	}

@@ -697,6 +697,18 @@ func shouldExternalizeLOB(t SQLType, arg any) bool {
 	}
 }
 
+type parameterEncodingError struct {
+	index int // one-based DRDA input parameter
+	err   error
+}
+
+func (e *parameterEncodingError) Error() string {
+	return fmt.Sprintf("failed to encode parameter %d: %v", e.index, e.err)
+}
+
+func (e *parameterEncodingError) Unwrap() error       { return e.err }
+func (e *parameterEncodingError) ParameterIndex() int { return e.index }
+
 // BuildSQLDTAWithEXTDTA constructs SQLDTA containing FDODSC and FDODTA, extracting LOB payloads into EXTDTA packets.
 func BuildSQLDTAWithEXTDTA(colTypes []SQLType, colLens []int64, precs, scales []int, args []any, endian binary.ByteOrder) ([]byte, [][]byte, error) {
 	numParams := len(args)
@@ -804,7 +816,7 @@ func BuildSQLDTAWithEXTDTA(colTypes []SQLType, colLens []int64, precs, scales []
 			var err error
 			sqldta, err = appendFDODTA(sqldta, colTypes[i], colLens[i], precs[i], scales[i], rawVal, endian)
 			if err != nil {
-				return nil, nil, fmt.Errorf("failed to encode parameter %d: %w", i+1, err)
+				return nil, nil, &parameterEncodingError{index: i + 1, err: err}
 			}
 		}
 	}

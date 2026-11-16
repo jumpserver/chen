@@ -448,7 +448,7 @@ func (s *Session) handshake(ctx context.Context) error {
 	}
 
 	// Validate reply status
-	for _, r := range replies {
+	for i, r := range replies {
 		if r.CodePoint == CodePointSECCHKRM {
 			sub, _ := ParseDDMReply(r.Data)
 			if secChkCd, ok := sub[CodePointSECCHKCD]; ok && len(secChkCd) > 0 && secChkCd[0] != 0 {
@@ -465,7 +465,7 @@ func (s *Session) handshake(ctx context.Context) error {
 			return errors.New("authorization failed connecting to relational database")
 		}
 		if r.CodePoint == CodePointSQLERRRM {
-			return parseSQLERRRM(r.Data, s.endian)
+			return parseSQLERRRM(replies[i:], s.endian)
 		}
 	}
 
@@ -613,9 +613,9 @@ func (s *Session) Ping(ctx context.Context) error {
 			}
 			return fmt.Errorf("failed to read ping reply: %w", err)
 		}
-		for _, r := range replies {
+		for i, r := range replies {
 			if r.CodePoint == CodePointSQLERRRM {
-				return parseSQLERRRM(r.Data, s.endian)
+				return parseSQLERRRM(replies[i:], s.endian)
 			}
 		}
 		return nil
@@ -694,8 +694,7 @@ func (s *Session) commitLocked() error {
 		return err
 	}
 
-	_, err = s.readReplyChain()
-	return err
+	return s.readTransactionReply()
 }
 
 // Rollback rolls back the active transaction.
@@ -716,8 +715,29 @@ func (s *Session) Rollback(ctx context.Context) error {
 		return err
 	}
 
-	_, err = s.readReplyChain()
-	return err
+	return s.readTransactionReply()
+}
+
+func (s *Session) readTransactionReply() error {
+	replies, err := s.readReplyChain()
+	if err != nil {
+		return err
+	}
+	for i, reply := range replies {
+		switch reply.CodePoint {
+		case CodePointSQLERRRM:
+			return parseSQLERRRM(replies[i:], s.endian)
+		case CodePointSQLCARD:
+			code, state, msg, _, err := ParseSQLCARD(reply.Data, s.endian)
+			if err != nil {
+				return err
+			}
+			if code < 0 {
+				return NewError(code, state, msg, nil)
+			}
+		}
+	}
+	return nil
 }
 
 // ExecDirect executes a DDL or DML statement immediately without parameter binding.
@@ -767,7 +787,7 @@ func (s *Session) ExecDirect(ctx context.Context, sql string) (int64, error) {
 	}
 
 	var affectedRows int64
-	for _, r := range replies {
+	for i, r := range replies {
 		if r.CodePoint == CodePointSQLCARD {
 			code, state, msg, rows, parseErr := ParseSQLCARD(r.Data, s.endian)
 			if parseErr != nil {
@@ -779,7 +799,7 @@ func (s *Session) ExecDirect(ctx context.Context, sql string) (int64, error) {
 			affectedRows += rows
 		}
 		if r.CodePoint == CodePointSQLERRRM {
-			return 0, parseSQLERRRM(r.Data, s.endian)
+			return 0, parseSQLERRRM(replies[i:], s.endian)
 		}
 	}
 
@@ -869,7 +889,7 @@ func (s *Session) PrepareAndDescribe(ctx context.Context, sql string, pkgsn uint
 	}
 
 	var outputCols, paramCols []ColumnDescription
-	for _, r := range replies {
+	for i, r := range replies {
 		if r.CodePoint == CodePointSQLDARD {
 			cols, err := ParseSQLDARD(r.Data, s.endian)
 			if err != nil {
@@ -889,7 +909,7 @@ func (s *Session) PrepareAndDescribe(ctx context.Context, sql string, pkgsn uint
 				return nil, nil, NewError(code, state, msg, nil)
 			}
 		} else if r.CodePoint == CodePointSQLERRRM {
-			return nil, nil, parseSQLERRRM(r.Data, s.endian)
+			return nil, nil, parseSQLERRRM(replies[i:], s.endian)
 		}
 	}
 
@@ -977,7 +997,7 @@ func (s *Session) ExecWithParams(ctx context.Context, pkgsn uint16, paramCols []
 
 	var affectedRows int64
 	var outValues []any
-	for _, r := range replies {
+	for i, r := range replies {
 		if r.CodePoint == CodePointSQLDTARD {
 			vals, parseErr := codec.ParseSQLDTARD(r.Data, s.endian)
 			if parseErr == nil && len(vals) > 0 {
@@ -993,7 +1013,7 @@ func (s *Session) ExecWithParams(ctx context.Context, pkgsn uint16, paramCols []
 			}
 			affectedRows += rows
 		} else if r.CodePoint == CodePointSQLERRRM {
-			return 0, nil, parseSQLERRRM(r.Data, s.endian)
+			return 0, nil, parseSQLERRRM(replies[i:], s.endian)
 		}
 	}
 
@@ -1123,7 +1143,7 @@ type queryResult struct {
 // query data, and returns the first error the server reported in it.
 func (q *queryResult) consume(replies []ReplyPacket, endian binary.ByteOrder) (bool, error) {
 	progress := false
-	for _, r := range replies {
+	for i, r := range replies {
 		switch r.CodePoint {
 		case CodePointSQLDARD:
 			cols, err := ParseSQLDARD(r.Data, endian)
@@ -1155,7 +1175,7 @@ func (q *queryResult) consume(replies []ReplyPacket, endian binary.ByteOrder) (b
 		case CodePointENDQRYRM:
 			q.ended = true
 		case CodePointSQLERRRM:
-			return progress, parseSQLERRRM(r.Data, endian)
+			return progress, parseSQLERRRM(replies[i:], endian)
 		case CodePointSQLCARD:
 			code, state, msg, _, err := ParseSQLCARD(r.Data, endian)
 			if err != nil {
@@ -1606,7 +1626,7 @@ func (qs *QueryStream) fetchNextBatchLocked() ([][]driver.Value, error) {
 		var newExtdta [][]byte
 		progress := false
 
-		for _, r := range cntReplies {
+		for i, r := range cntReplies {
 			switch r.CodePoint {
 			case CodePointQRYDTA:
 				newQryDta.Write(r.Data)
@@ -1617,7 +1637,7 @@ func (qs *QueryStream) fetchNextBatchLocked() ([][]driver.Value, error) {
 			case CodePointENDQRYRM:
 				qs.ended = true
 			case CodePointSQLERRRM:
-				return nil, parseSQLERRRM(r.Data, qs.session.endian)
+				return nil, parseSQLERRRM(cntReplies[i:], qs.session.endian)
 			case CodePointSQLCARD:
 				code, state, msg, _, err := ParseSQLCARD(r.Data, qs.session.endian)
 				if err != nil {
@@ -2038,7 +2058,7 @@ func (s *Session) parseCallResultSets(replies []ReplyPacket) ([]CallResultSet, [
 		return nil
 	}
 
-	for _, r := range replies {
+	for i, r := range replies {
 		switch r.CodePoint {
 		case CodePointSQLDARD:
 			cols, err := ParseSQLDARD(r.Data, s.endian)
@@ -2074,7 +2094,7 @@ func (s *Session) parseCallResultSets(replies []ReplyPacket) ([]CallResultSet, [
 				outValues = vals
 			}
 		case CodePointSQLERRRM:
-			return nil, nil, parseSQLERRRM(r.Data, s.endian)
+			return nil, nil, parseSQLERRRM(replies[i:], s.endian)
 		case CodePointSQLCARD:
 			code, state, msg, _, err := ParseSQLCARD(r.Data, s.endian)
 			if err != nil {
@@ -2223,12 +2243,12 @@ func (s *Session) SwitchUser(ctx context.Context, newUser string, password ...st
 
 	// AC-5: Validate replies and check for failure codepoints (RDBAFLRM, RDBATHRM, SQLERRRM, or missing SECCHKRM / SECCHKCD != 0)
 	var seenSECCHKRM bool
-	for _, r := range replies {
+	for i, r := range replies {
 		if r.CodePoint == CodePointRDBAFLRM || r.CodePoint == CodePointRDBATHRM {
 			return errors.New("authorization failed connecting to relational database")
 		}
 		if r.CodePoint == CodePointSQLERRRM {
-			return parseSQLERRRM(r.Data, s.endian)
+			return parseSQLERRRM(replies[i:], s.endian)
 		}
 		if r.CodePoint == CodePointSECCHKRM {
 			seenSECCHKRM = true
@@ -2487,12 +2507,27 @@ func decodeSRVDGN(data []byte) string {
 	return strings.TrimSpace(codec.DecodeCP500(data))
 }
 
-// parseSQLERRRM extracts error information from an SQLERRRM reply packet.
-// It prioritizes parsing embedded SQLCARD structures (SQLCODE, SQLSTATE, message),
-// appending decoded SRVDGN diagnostic information if present.
-func parseSQLERRRM(data []byte, endian binary.ByteOrder) error {
-	sub, _ := ParseDDMReply(data)
-	if cardData, ok := sub[CodePointSQLCARD]; ok && len(cardData) > 0 {
+// SQLERRRM reports severity; its SQLCARD supplies SQLCODE, SQLSTATE and tokens.
+// The card can follow type definitions within the same command's reply chain.
+func parseSQLERRRM(replies []ReplyPacket, endian binary.ByteOrder) error {
+	sub, _ := ParseDDMReply(replies[0].Data)
+	cardData := sub[CodePointSQLCARD]
+	if len(cardData) == 0 {
+		for i, next := range replies[1:] {
+			prev := replies[i].Header
+			if prev == nil || !prev.Chained || next.Header == nil || next.Header.CorrelationID != prev.CorrelationID {
+				break
+			}
+			if next.CodePoint == CodePointTYPDEFNAM || next.CodePoint == CodePointTYPDEFOVR {
+				continue
+			}
+			if next.CodePoint == CodePointSQLCARD {
+				cardData = next.Data
+			}
+			break
+		}
+	}
+	if len(cardData) > 0 {
 		code, state, msg, _, err := ParseSQLCARD(cardData, endian)
 		if err == nil && code < 0 {
 			if srvDgn := decodeSRVDGN(sub[CodePointSRVDGN]); srvDgn != "" {

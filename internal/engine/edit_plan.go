@@ -98,6 +98,7 @@ func buildEditPlan(dialect, cid string, r *Result, x *editResolved, req editPrev
 			}
 			name := quoteDatabaseIdentifier(field.Name, dialect)
 			cmd.args = append(cmd.args, editDriverBindValue(dialect, field, value))
+			cmd.argColumns = append(cmd.argColumns, field.Name)
 			placeholder := editTypedExpression(dialect, field, editPlaceholder(dialect, len(cmd.args)))
 			literal := editTypedLiteral(dialect, field, value, false)
 			assign = append(assign, name+" = "+placeholder)
@@ -115,12 +116,18 @@ func buildEditPlan(dialect, cid string, r *Result, x *editResolved, req editPrev
 				}
 			}
 			if len(indexes) == 0 {
-				cmd.sql = "INSERT INTO " + target + " DEFAULT VALUES"
-				if dialect == "mysql" || dialect == "mariadb" || dialect == "oceanbase-mysql" {
+				switch dialect {
+				case "db2":
+					// Db2 requires DEFAULT inside VALUES. The required-column
+					// check above proves the primary key can be generated or defaulted.
+					key := quoteDatabaseIdentifier(x.columns[x.pk].Name, dialect)
+					cmd.sql = "INSERT INTO " + target + " (" + key + ") VALUES (DEFAULT)"
+				case "mysql", "mariadb", "oceanbase-mysql":
 					cmd.sql = "INSERT INTO " + target + " () VALUES ()"
-				}
-				if dialect == "oracle" || dialect == "dameng" || dialect == "oceanbase-oracle" {
+				case "oracle", "dameng", "oceanbase-oracle":
 					return nil, errors.New("Provide at least one writable column for this database")
+				default:
+					cmd.sql = "INSERT INTO " + target + " DEFAULT VALUES"
 				}
 				cmd.policySQL, cmd.previewSQL = cmd.sql, cmd.sql
 			} else {
@@ -138,6 +145,7 @@ func buildEditPlan(dialect, cid string, r *Result, x *editResolved, req editPrev
 				return nil, fmt.Errorf("Column %s primary key value: %s", field.Name, err)
 			}
 			cmd.args = append(cmd.args, editDriverBindValue(dialect, field, value))
+			cmd.argColumns = append(cmd.argColumns, field.Name)
 			where := editTypedEquality(dialect, field, name, editPlaceholder(dialect, len(cmd.args)))
 			policyValue := value
 			if dialect == "oracle" && editOracleJSON(dialect, field) {
