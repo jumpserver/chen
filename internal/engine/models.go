@@ -155,7 +155,7 @@ type execution struct {
 	ctx                   context.Context
 	cancel                context.CancelFunc
 	cancelDone            chan struct{}
-	cancelOnce            sync.Once
+	databaseDone          chan struct{} // protected by mu; non-nil while the worker owns cancellable database work
 	cancelRequested       atomic.Bool
 	deadlineExpired       atomic.Bool
 	submitReview          bool

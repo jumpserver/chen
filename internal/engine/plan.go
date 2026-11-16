@@ -227,9 +227,7 @@ func (v *Server) runEstimatedPlan(s *session, c *console, e *execution, command,
 	defer func() {
 		if boundary != nil {
 			// A concurrent cancel must finish its control command before cleanup SQL.
-			if e.cancelRequested.Load() {
-				<-e.cancelDone
-			}
+			e.finishDatabaseWork()
 			ctx, stop := context.WithTimeout(context.Background(), 5*time.Second)
 			defer stop()
 			var cleanupErr error

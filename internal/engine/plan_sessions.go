@@ -62,9 +62,7 @@ func (v *Server) runSQLServerPlan(s *session, c *console, e *execution, command,
 	// OFF is attempted even when ON's acknowledgement was lost. A failed recovery
 	// discards the console; subsequent user SQL must never run under SHOWPLAN.
 	defer func() {
-		if e.cancelRequested.Load() {
-			<-e.cancelDone
-		}
+		e.finishDatabaseWork()
 		cleanup, stop := context.WithTimeout(context.Background(), 5*time.Second)
 		defer stop()
 		_, restoreErr := c.conn.ExecContext(cleanup, showplanOffSQL)
@@ -243,9 +241,7 @@ func (v *Server) runAuxiliaryPlan(s *session, c *console, e *execution, command,
 	p.ServerVersion = planString(version)
 	reserved := 0
 	defer func() {
-		if e.cancelRequested.Load() {
-			<-e.cancelDone
-		}
+		e.finishDatabaseWork()
 		cleanup, stop := context.WithTimeout(context.Background(), 5*time.Second)
 		defer stop()
 		if cleanupErr := boundary.rollback(cleanup); cleanupErr != nil {

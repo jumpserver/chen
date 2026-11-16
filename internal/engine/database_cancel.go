@@ -5,8 +5,12 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
+	"strconv"
+	"time"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
+	"github.com/jumpserver/chen/internal/jumpserver"
 )
 
 func supportsActiveCancellation(dialect string) bool {
@@ -34,13 +38,83 @@ func executionContext(ctx context.Context, dialect, id string) context.Context {
 	return ctx
 }
 
-// cancelDriverExecution uses a separate connection and only targets this
-// server-generated execution ID under the current database account.
-func cancelDriverExecution(ctx context.Context, s *session, c *console, e *execution) {
-	if s.db == nil || e == nil || s.grant.Config.Dialect != "clickhouse" {
-		return
+// Only these drivers have a server-side interrupt independent of the original
+// query context. Other drivers need context cancellation to start the interrupt.
+func supportsBackendInterrupt(dialect string) bool {
+	return jumpserver.IsMySQLWire(dialect) || dialect == "postgresql" || dialect == "clickhouse"
+}
+
+func (e *execution) beginDatabaseWork() error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if e.cancelRequested.Load() {
+		return context.Canceled
 	}
-	_ = cancelClickHouseExecution(ctx, s.db, e.view.ID)
+	if err := e.ctx.Err(); err != nil {
+		return err
+	}
+	e.databaseDone = make(chan struct{})
+	return nil
+}
+
+// Called by the worker after driver calls and row draining, before cleanup SQL
+// or another statement can reuse the connection targeted by the interrupt.
+func (e *execution) finishDatabaseWork() {
+	e.mu.Lock()
+	if e.databaseDone != nil {
+		close(e.databaseDone)
+		e.databaseDone = nil
+	}
+	pending := e.cancelRequested.Load()
+	e.mu.Unlock()
+	if pending {
+		<-e.cancelDone
+	}
+}
+
+func interruptDatabaseWork(s *session, c *console, e *execution, databaseDone <-chan struct{}) {
+	defer close(e.cancelDone)
+	start := time.Now()
+	ctx, stop := context.WithTimeout(context.Background(), 2*time.Second)
+	err := cancelBackend(ctx, s, c, e)
+	stop()
+	if err != nil {
+		slog.Warn("database_interrupt_failed", "dialect", s.grant.Config.Dialect, "execution", e.view.ID, "elapsed", time.Since(start), "error", err)
+	}
+	// A successful control command does not mean the original connection has
+	// finished reading its reply. Canceling its context early can close it.
+	timer := time.NewTimer(time.Second)
+	defer timer.Stop()
+	select {
+	case <-databaseDone:
+	case <-e.ctx.Done():
+	case <-timer.C:
+		slog.Warn("database_interrupt_grace_expired", "dialect", s.grant.Config.Dialect, "execution", e.view.ID, "elapsed", time.Since(start))
+		e.cancel()
+	}
+}
+
+func cancelBackend(ctx context.Context, s *session, c *console, e *execution) error {
+	if s.db == nil {
+		return nil
+	}
+	dialect := s.grant.Config.Dialect
+	switch {
+	case jumpserver.IsMySQLWire(dialect):
+		_, err := s.db.ExecContext(ctx, "KILL QUERY "+strconv.FormatInt(c.backendID, 10))
+		return err
+	case dialect == "postgresql":
+		var sent bool
+		if err := s.db.QueryRowContext(ctx, "SELECT pg_cancel_backend($1)", c.backendID).Scan(&sent); err != nil {
+			return err
+		}
+		if !sent {
+			return errors.New("PostgreSQL did not signal the backend")
+		}
+	case dialect == "clickhouse":
+		return cancelClickHouseExecution(ctx, s.db, e.view.ID)
+	}
+	return nil
 }
 
 func cancelClickHouseExecution(ctx context.Context, db *sql.DB, id string) error {
