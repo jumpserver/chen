@@ -338,7 +338,7 @@ func (v *Server) collectExport(s *session, c *console, e *execution, rows *sql.R
 		if err != nil {
 			j.fail(err)
 			j.cleanup(false)
-			if e.ctx.Err() == nil {
+			if e.ctx.Err() == nil && !e.cancelRequested.Load() {
 				ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 				cancelBackend(ctx, s, c, e)
 				cancel()
@@ -373,6 +373,7 @@ func (v *Server) collectExport(s *session, c *console, e *execution, rows *sql.R
 			if err := rows.Close(); err != nil {
 				return nil, false, err
 			}
+			e.finishDatabaseWork()
 			return nil, false, e.restoreSourceReadContext()
 		}
 		raw := make([]any, len(types))

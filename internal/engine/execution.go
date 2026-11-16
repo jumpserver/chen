@@ -75,6 +75,11 @@ func (v *Server) cancelExecutionWithResponse(w http.ResponseWriter, r *http.Requ
 		writeJSON(w, 200, response(view))
 		return
 	}
+	if e.cancelRequested.Load() {
+		e.mu.Unlock()
+		writeJSON(w, 202, response(e.snapshot()))
+		return
+	}
 	if !supportsActiveCancellation(s.grant.Config.Dialect) && e.view.Status != "queued" && e.view.Status != "waiting_review" {
 		e.mu.Unlock()
 		fail(w, 409, "cancel_unsupported", "The installed database driver cannot cancel an active query")
@@ -85,32 +90,17 @@ func (v *Server) cancelExecutionWithResponse(w http.ResponseWriter, r *http.Requ
 		fail(w, 409, "transaction_cancel_unsupported", "Transaction boundaries cannot be canceled")
 		return
 	}
-	wasQueued := e.view.Status == "queued" || e.view.Status == "waiting_review"
 	e.cancelRequested.Store(true)
 	e.view.Status = "cancel_requested"
-	if wasQueued {
+	e.view.Revision++
+	if e.databaseDone != nil && c != nil && s.db != nil && supportsBackendInterrupt(s.grant.Config.Dialect) {
+		go interruptDatabaseWork(s, c, e, e.databaseDone)
+	} else {
 		e.cancel()
+		close(e.cancelDone)
 	}
 	e.mu.Unlock()
 	s.emit("execution.updated", e.snapshot())
-	e.cancelOnce.Do(func() {
-		go func() {
-			defer close(e.cancelDone)
-			defer e.cancel()
-			if wasQueued || c == nil {
-				return
-			}
-			// Use a separate control connection. The worker waits for this control
-			// operation before it can start another statement on this connection.
-			ctx, stop := context.WithTimeout(context.Background(), 2*time.Second)
-			defer stop()
-			cancelBackend(ctx, s, c, e)
-			select {
-			case <-time.After(75 * time.Millisecond):
-			case <-ctx.Done():
-			}
-		}()
-	})
 	writeJSON(w, 202, response(e.snapshot()))
 }
 func (v *Server) worker(s *session, c *console) {
@@ -171,7 +161,7 @@ func (v *Server) run(s *session, c *console, e *execution) {
 	initialMySQL := c.initialMySQL
 	c.initialMySQL = nil
 	userSQLStarted := false
-	sourceStartedTransaction := false
+	preflightStartedTransaction := false
 	var db2CancelCheckpoint uint64
 	if s.grant.Config.Dialect == "db2" {
 		db2CancelCheckpoint = db2CancellationCheckpoint(c)
@@ -306,6 +296,7 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		}
 	}()
 	failure := func(err error, api *APIError) {
+		e.finishDatabaseWork()
 		if errors.Is(err, context.Canceled) && e.deadlineExpired.Load() {
 			err = context.DeadlineExceeded
 			api = safeDatabaseError(err)
@@ -334,13 +325,10 @@ func (v *Server) run(s *session, c *console, e *execution) {
 			status = "canceled"
 		}
 		rolledBack := false
-		if c.manual && e.transactionAction == "" && (userSQLStarted || sourceStartedTransaction) && c.manualTx != nil {
+		if c.manual && e.transactionAction == "" && (userSQLStarted || preflightStartedTransaction) && c.manualTx != nil {
 			joinDatabaseCancel()
-			if e.cancelRequested.Load() {
-				<-e.cancelDone
-			}
 			var rollbackErr error
-			if sourceStartedTransaction && !userSQLStarted {
+			if preflightStartedTransaction && !userSQLStarted {
 				rollbackErr = v.rollbackSourcePreflight(s, c, e)
 			} else {
 				rollbackErr = v.finishManualTransaction(s, c, e, false)
@@ -425,6 +413,10 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		v.update(s, e, func(x *ExecutionView) { x.Status = "succeeded"; x.StartedAt = &start })
 		return
 	}
+	if err := e.beginDatabaseWork(); err != nil {
+		failure(err, safeDatabaseError(err))
+		return
+	}
 	if jumpserver.IsMySQLWire(s.grant.Config.Dialect) {
 		databaseTouched.Store(true)
 	}
@@ -449,6 +441,9 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		}
 		state, err := readMySQLSession(e.ctx, c.conn)
 		if err != nil {
+			if e.cancelRequested.Load() {
+				return sqlservice.AnalyzeOptions{}, context.Canceled
+			}
 			// Some compatible servers support SQL mode but not every paging
 			// variable. Ordinary SQL can still run without replay metadata.
 			mysqlState = nil
@@ -484,14 +479,12 @@ func (v *Server) run(s *session, c *console, e *execution) {
 					failure(err, safeDatabaseError(err))
 					return
 				}
-				sourceStartedTransaction = wasIdle
+				preflightStartedTransaction = wasIdle
 			}
 			e.restoreReadContext = func() error {
 				// A late KILL must finish before USE/SET restores the namespace.
+				e.finishDatabaseWork()
 				joinDatabaseCancel()
-				if e.cancelRequested.Load() {
-					<-e.cancelDone
-				}
 				return guard.restore(s)
 			}
 			databaseTouched.Store(true)
@@ -668,6 +661,10 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		// sql_mode (or change database), so take a new snapshot after each.
 		current := opts
 		if statementIndex > 0 {
+			if err := e.beginDatabaseWork(); err != nil {
+				failure(err, safeDatabaseError(err))
+				return
+			}
 			current, err = readOptions()
 			if err != nil {
 				failure(err, safeDatabaseError(err))
@@ -704,6 +701,11 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		if e.planMode != "" {
 			commands = append(commands, planAuthorizationSQL(s.grant.Config.Dialect, runSQL)...)
 		}
+		e.finishDatabaseWork()
+		if e.cancelRequested.Load() {
+			failure(context.Canceled, &APIError{"query_canceled", "Query cancellation requested"})
+			return
+		}
 		if err := v.authorizeExecution(s, e, commands, &audit); err != nil {
 			var pe *jumpserver.PolicyError
 			code := "command_denied"
@@ -716,8 +718,8 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		}
 		v.update(s, e, func(view *ExecutionView) { view.Status = "running" })
 
-		if e.cancelRequested.Load() {
-			failure(context.Canceled, &APIError{"query_canceled", "Query cancellation requested"})
+		if err := e.beginDatabaseWork(); err != nil {
+			failure(err, safeDatabaseError(err))
 			return
 		}
 		var starSource *resultStarSource
@@ -732,6 +734,10 @@ func (v *Server) run(s *session, c *console, e *execution) {
 				e.mu.RUnlock()
 			}
 			starSource = v.captureQuerySQLSource(s, c, e, current, statement, mysqlState, mysqlHint)
+			if e.cancelRequested.Load() {
+				failure(context.Canceled, &APIError{"query_canceled", "Query cancellation requested"})
+				return
+			}
 			if err := e.ctx.Err(); err != nil {
 				failure(err, safeDatabaseError(err))
 				return
@@ -771,11 +777,19 @@ func (v *Server) run(s *session, c *console, e *execution) {
 					failure(err, &APIError{"transaction_table_unsupported", "Manual writes require verifiable transactional base tables"})
 					return
 				}
+				wasIdle := c.manualTx == nil
 				if err := v.beginManualTransaction(s, c, e); err != nil {
 					failure(err, safeDatabaseError(err))
 					return
 				}
+				preflightStartedTransaction = preflightStartedTransaction || wasIdle
 			}
+		}
+		// Metadata probes can absorb an interrupt as a recoverable error. Do
+		// not send the user's SQL if cancellation arrived during that work.
+		if e.cancelRequested.Load() {
+			failure(context.Canceled, &APIError{"query_canceled", "Query cancellation requested"})
+			return
 		}
 		userSQLStarted = true
 		currentInFlight = true
@@ -886,6 +900,7 @@ func (v *Server) run(s *session, c *console, e *execution) {
 			failure(context.Canceled, &APIError{"query_canceled", "Query cancellation requested"})
 			return
 		}
+		e.finishDatabaseWork()
 		if err := finishAudit(true); err != nil {
 			failure(err, &APIError{"audit_persistence_failed", "The completed statement could not be audited; remaining statements were not sent"})
 			return
@@ -928,19 +943,6 @@ func isServerCancellation(err error) bool {
 	}
 	var pe *pgconn.PgError
 	return errors.As(err, &pe) && pe.Code == "57014" || extraServerCancellation(err)
-}
-
-func cancelBackend(ctx context.Context, s *session, c *console, e *execution) {
-	if s.db == nil {
-		return
-	}
-	if jumpserver.IsMySQLWire(s.grant.Config.Dialect) {
-		_, _ = s.db.ExecContext(ctx, "KILL QUERY "+strconv.FormatInt(c.backendID, 10))
-	} else if s.grant.Config.Dialect == "postgresql" {
-		_, _ = s.db.ExecContext(ctx, "SELECT pg_cancel_backend($1)", c.backendID)
-	} else {
-		cancelDriverExecution(ctx, s, c, e)
-	}
 }
 
 func isServerError(err error) bool {
@@ -997,9 +999,15 @@ func (v *Server) collectResults(s *session, e *execution, rows *sql.Rows, starSo
 	var collected []*Result
 	defer func() {
 		rows.Close()
+		// Once the rows have drained, an already requested interrupt must
+		// finish before source metadata uses the same physical connection.
+		if e.cancelRequested.Load() {
+			e.finishDatabaseWork()
+		}
 		if e.resultSQL != "" {
 			v.bindResultEditSource(s, e, collected, starSource)
 		}
+		e.finishDatabaseWork()
 		// Source resolution above must see the original namespace. No result
 		// may become visible until the user's current namespace is restored.
 		if err == nil {

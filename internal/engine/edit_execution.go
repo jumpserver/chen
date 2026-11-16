@@ -87,11 +87,9 @@ func (v *Server) runEdits(s *session, c *console, e *execution) {
 		}
 	}()
 	failEdit := func(err error) {
+		e.finishDatabaseWork()
 		if c.manual && touched.Load() && c.manualTx != nil {
 			joinCancel()
-			if e.cancelRequested.Load() {
-				<-e.cancelDone
-			}
 			if cleanupErr := v.finishManualTransaction(s, c, e, false); cleanupErr != nil {
 				err = cleanupErr
 			}
@@ -164,6 +162,10 @@ func (v *Server) runEdits(s *session, c *console, e *execution) {
 	}
 	// Revalidate table metadata immediately before touching data. Existing
 	// previews cannot outlive changed PK/type/generated-column definitions.
+	if err := e.beginDatabaseWork(); err != nil {
+		failEdit(err)
+		return
+	}
 	ctx, stop := context.WithTimeout(e.ctx, 5*time.Second)
 	resolved, resolveErr := v.resolveEdit(ctx, s, c, result)
 	stop()
@@ -202,6 +204,8 @@ func (v *Server) runEdits(s *session, c *console, e *execution) {
 		})
 	}
 	rollback := func(cause error) {
+		e.finishDatabaseWork()
+		joinCancel()
 		// A successful ROLLBACK does not undo changes to a nontransactional
 		// table. Do not report those changes as rolled back.
 		nontransactional := attempted && !resolved.table.Transactional
@@ -272,6 +276,7 @@ func (v *Server) runEdits(s *session, c *console, e *execution) {
 		}
 		applied++
 	}
+	e.finishDatabaseWork()
 	if e.ctx.Err() != nil || e.cancelRequested.Load() {
 		rollback(editError("edit_canceled", "Save was canceled and its changes were rolled back"))
 		return
@@ -280,7 +285,12 @@ func (v *Server) runEdits(s *session, c *console, e *execution) {
 		rollback(editError("session_unavailable", "Session changed; this save was rolled back"))
 		return
 	}
-	if err := boundary.finish(e.ctx); err != nil {
+	// Once the save crosses its commit boundary, a late user cancel must
+	// not interrupt COMMIT or RELEASE SAVEPOINT on the pinned connection.
+	cleanup, done := context.WithTimeout(c.ctx, 5*time.Second)
+	err = boundary.finish(cleanup)
+	done()
+	if err != nil {
 		if boundary.tx == nil {
 			rollback(err)
 			return
