@@ -157,6 +157,9 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		v.runEdits(s, c, e)
 		return
 	}
+	if e.export != nil && v.acquireExportSlot(e.ctx) {
+		defer func() { <-v.exportSlots }()
+	}
 	c.mu.Lock()
 	initialMySQL := c.initialMySQL
 	c.initialMySQL = nil

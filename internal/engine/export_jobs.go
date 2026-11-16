@@ -51,7 +51,6 @@ type exportJob struct {
 	err                                                             *APIError
 	expiresAt                                                       *time.Time
 	lastProgress                                                    time.Time
-	release                                                         sync.Once
 }
 type downloadTicket struct {
 	job     *exportJob
@@ -61,17 +60,24 @@ type downloadTicket struct {
 func (v *Server) submitExport(w http.ResponseWriter, r *http.Request) {
 	v.submitExecution(w, r, executionIntent{export: true}, nil)
 }
+
+// Workers wait here so accepted exports stay queued without starting a query
+// or creating a partial file while the export workers are busy.
+func (v *Server) acquireExportSlot(ctx context.Context) bool {
+	select {
+	case v.exportSlots <- struct{}{}:
+		return true
+	case <-ctx.Done():
+		return false
+	}
+}
+
 func (v *Server) newExportLocked(s *session, format, mode string, e *execution) (*exportJob, error) {
 	if v.exportInitErr != nil {
 		return nil, &APIError{"export_storage_unavailable", "Private export storage could not be initialized"}
 	}
 	if format != "csv" && format != "xlsx" {
 		return nil, &APIError{"invalid_export_format", "Choose CSV or XLSX"}
-	}
-	select {
-	case v.exportSlots <- struct{}{}:
-	default:
-		return nil, &APIError{"export_capacity", "Four exports are already running; wait for one to finish"}
 	}
 	ctx, cancel := context.WithCancel(s.ctx)
 	j := &exportJob{id: newID("exp_"), format: format, mode: mode, session: s, server: v, execution: e, ctx: ctx, cancel: cancel, status: "queued"}
@@ -151,10 +157,8 @@ func (j *exportJob) cleanup(expired bool) {
 	if stop != nil {
 		stop()
 	}
-	j.release.Do(func() { <-j.server.exportSlots })
 }
 func (j *exportJob) finishExecution() {
-	defer j.release.Do(func() { <-j.server.exportSlots })
 	e := j.execution.snapshot()
 	j.mu.Lock()
 	j.approved = e.Status == "succeeded" && e.AuditStatus == "recorded" && j.prepared && j.err == nil && !j.deleteRequested && j.ctx.Err() == nil && j.path != "" && j.session.grant.Check() == nil
@@ -449,6 +453,11 @@ func (v *Server) createCachedExport(w http.ResponseWriter, r *http.Request) {
 		}
 		count = *request.Rows
 	}
+	if s.cachedExportWorkers >= 256 {
+		s.mu.Unlock()
+		fail(w, 429, "queue_full", "Session export queue is full")
+		return
+	}
 	j, err := v.newExportLocked(s, request.Format, "cached", nil)
 	if err != nil {
 		s.mu.Unlock()
@@ -460,11 +469,19 @@ func (v *Server) createCachedExport(w http.ResponseWriter, r *http.Request) {
 	j.cachedRows = request.Rows
 	j.truncated = result.Truncated
 	s.exportRequests[request.RequestID] = j
+	s.cachedExportWorkers++
 	s.workers.Add(1)
 	s.mu.Unlock()
 	go func() {
 		defer s.workers.Done()
-		defer j.release.Do(func() { <-j.server.exportSlots })
+		defer func() {
+			s.mu.Lock()
+			s.cachedExportWorkers--
+			s.mu.Unlock()
+		}()
+		if v.acquireExportSlot(j.ctx) {
+			defer func() { <-v.exportSlots }()
+		}
 		ctx := j.ctx
 		if v.opts.QueryTimeout > 0 {
 			var cancel context.CancelFunc
@@ -515,9 +532,7 @@ func exportAPIError(w http.ResponseWriter, err error) {
 	var api *APIError
 	if errors.As(err, &api) {
 		status := 400
-		if api.Code == "export_capacity" {
-			status = 429
-		} else if api.Code == "export_storage_unavailable" {
+		if api.Code == "export_storage_unavailable" {
 			status = 503
 		}
 		fail(w, status, api.Code, api.Message)
