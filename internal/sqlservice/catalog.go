@@ -108,7 +108,7 @@ func ObjectRows(ctx context.Context, conn *sql.Conn, dialect Dialect, req Catalo
 	if (IsMySQLDialect(dialect) || dialect == ClickHouse) && req.Schema != "" && req.Schema != req.Database {
 		return items, ErrCatalogForbidden
 	}
-	ctx, cancel := context.WithTimeout(ctx, catalogTimeout)
+	ctx, cancel := catalogReadContext(ctx)
 	defer cancel()
 	if err := catalogDatabaseAccess(ctx, conn, dialect, req.Database); err != nil {
 		return items, err
@@ -137,7 +137,7 @@ func ObjectRows(ctx context.Context, conn *sql.Conn, dialect Dialect, req Catalo
 		// MySQL's INFORMATION_SCHEMA applies the current account's table and
 		// column privileges itself, including active roles. No grant parsing or
 		// elevated helper account is used.
-		rows, err = conn.QueryContext(ctx, `SELECT TABLE_SCHEMA, TABLE_SCHEMA, TABLE_NAME,
+		rows, err = conn.QueryContext(CatalogQueryContext(ctx), `SELECT TABLE_SCHEMA, TABLE_SCHEMA, TABLE_NAME,
 CASE WHEN TABLE_TYPE = 'VIEW' THEN 'view' ELSE 'table' END,
 CASE WHEN TABLE_TYPE = 'VIEW' THEN 'view' ELSE 'table' END, COALESCE(TABLE_COMMENT, '')
 FROM information_schema.TABLES
@@ -215,7 +215,7 @@ func columnRows(ctx context.Context, conn *sql.Conn, dialect Dialect, req Catalo
 		if err := catalogDatabaseAccess(ctx, conn, dialect, req.Database); err != nil {
 			return items, err
 		}
-		access := catalogObjectAccess
+		access := CatalogObjectAccess
 		if editable {
 			access = catalogEditableObjectAccess
 		}
@@ -252,7 +252,7 @@ ORDER BY ORDINAL_POSITION`
 			query += " LIMIT ?"
 			args = append(args, limit)
 		}
-		rows, err = conn.QueryContext(ctx, query, args...)
+		rows, err = conn.QueryContext(CatalogQueryContext(ctx), query, args...)
 	} else {
 		query := `SELECT pg_catalog.current_database(), n.nspname, c.relname, a.attname,
 pg_catalog.format_type(a.atttypid, a.atttypmod), NOT (a.attnotnull OR t.typnotnull), COALESCE(pg_catalog.col_description(a.attrelid, a.attnum), ''), a.attnum
@@ -324,7 +324,7 @@ func catalogDatabaseAccess(ctx context.Context, conn *sql.Conn, dialect Dialect,
 	var allowed bool
 	var err error
 	if IsMySQLDialect(dialect) {
-		err = conn.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM information_schema.SCHEMATA WHERE BINARY SCHEMA_NAME = BINARY ?)`, database).Scan(&allowed)
+		err = conn.QueryRowContext(CatalogQueryContext(ctx), `SELECT EXISTS (SELECT 1 FROM information_schema.SCHEMATA WHERE BINARY SCHEMA_NAME = BINARY ?)`, database).Scan(&allowed)
 	} else {
 		err = conn.QueryRowContext(ctx, `SELECT pg_catalog.current_database() = $1`, database).Scan(&allowed)
 	}
@@ -351,10 +351,10 @@ func catalogSchemaAccess(ctx context.Context, conn *sql.Conn, schema string) err
 	return nil
 }
 
-// Catalog visibility concerns metadata only. PostgreSQL and Db2 expose catalog
+// CatalogObjectAccess checks visibility of an exact relation in the catalog. PostgreSQL and Db2 expose catalog
 // rows independently of SELECT privileges on the described table. Actual reads
 // still run as the account, and editing uses the separate admission check below.
-func catalogObjectAccess(ctx context.Context, conn *sql.Conn, dialect Dialect, schema, table string) error {
+func CatalogObjectAccess(ctx context.Context, conn *sql.Conn, dialect Dialect, schema, table string) error {
 	if dialect != PostgreSQL {
 		return catalogObjectAccessMode(ctx, conn, dialect, schema, table, false)
 	}
@@ -387,7 +387,7 @@ func catalogObjectAccessMode(ctx context.Context, conn *sql.Conn, dialect Dialec
 		var exists bool
 		query := `SELECT EXISTS (SELECT 1 FROM information_schema.TABLES
 WHERE BINARY TABLE_SCHEMA = BINARY ? AND BINARY TABLE_NAME = BINARY ? AND TABLE_TYPE IN ('BASE TABLE', 'VIEW', 'SYSTEM VIEW', 'SYSTEM VERSIONED'))`
-		err := conn.QueryRowContext(ctx, query, schema, table).Scan(&exists)
+		err := conn.QueryRowContext(CatalogQueryContext(ctx), query, schema, table).Scan(&exists)
 		if err != nil {
 			return fmt.Errorf("check catalog object: %w", err)
 		}
