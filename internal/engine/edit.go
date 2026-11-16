@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -152,32 +153,22 @@ func (v *Server) resolveResultSource(ctx context.Context, s *session, c *console
 	for i, col := range r.Columns {
 		x.view.Columns = append(x.view.Columns, editColumnView{Index: i, Name: col.Name, DataType: col.DataType, Reason: "This result is read-only"})
 	}
-	d := sqlservice.Dialect(s.grant.Config.Dialect)
-	opts, err := liveOptions(ctx, c, s.grant.Config.Dialect)
-	if err != nil {
-		return x, errors.New("Database settings are unavailable")
-	}
 	if r.editSourceBound && r.editSourceError != "" {
 		return x, errors.New(r.editSourceError)
 	}
-	var source sqlservice.EditableSource
-	switch {
-	case r.browse != nil:
-		source = sqlservice.EditableSource{Schema: r.browse.Schema, Table: r.browse.Table, Star: true}
-	case r.editSource != nil:
-		source = *r.editSource
-	case r.sourceAnalysis != nil && r.sourceAnalysis.SourceCandidate:
-		source, err = sqlservice.EditableSourceFromFacts(*r.sourceAnalysis)
-	default:
-		source, err = sqlservice.AnalyzeEditableQuery(d, r.sourceSQL, opts)
-	}
+	d := sqlservice.Dialect(s.grant.Config.Dialect)
+	source, err := resultSource(ctx, c, d, r)
 	if err != nil {
 		return x, err
 	}
-
-	scope, err := liveContext(ctx, c, s.grant.Config.Dialect)
-	if err != nil {
-		return x, errors.New("Database context is unavailable")
+	// A qualified MySQL table names its own database even after USE. Its
+	// live privileges and column/key definition are still checked below.
+	scope := sqlservice.Context{Database: source.Schema}
+	if !sqlservice.IsMySQLDialect(d) || scope.Database == "" {
+		scope, err = liveContext(ctx, c, s.grant.Config.Dialect)
+		if err != nil {
+			return x, errors.New("Database context is unavailable")
+		}
 	}
 	table, err := loadResultSourceTable(ctx, s, c, r, scope, source)
 	if err != nil {
@@ -206,35 +197,32 @@ func (v *Server) resolveResultSource(ctx context.Context, s *session, c *console
 	}
 	sourceCounts := map[string]int{}
 	for i := range r.Columns {
-		name := ""
-		if source.Star {
-			name = table.Columns[i].Name
-		} else {
-			name = source.Columns[i].Name
-		}
 		var field *sqlservice.EditColumn
-		for k := range table.Columns {
-			if table.Columns[k].Name == name {
-				field = &table.Columns[k]
-				break
-			}
-		}
-		if field == nil && (d == sqlservice.SQLServer || sqlservice.IsMySQLDialect(d)) {
+		if source.Star {
+			field = &table.Columns[i]
+		} else {
+			name := source.Columns[i].Name
 			for k := range table.Columns {
-				if strings.EqualFold(table.Columns[k].Name, name) {
-					if field != nil {
-						return x, errors.New("Result column source is ambiguous")
-					}
+				if table.Columns[k].Name == name {
 					field = &table.Columns[k]
+					break
 				}
 			}
+			if field == nil && (d == sqlservice.SQLServer || sqlservice.IsMySQLDialect(d)) {
+				for k := range table.Columns {
+					if strings.EqualFold(table.Columns[k].Name, name) {
+						if field != nil {
+							return x, errors.New("Result column source is ambiguous")
+						}
+						field = &table.Columns[k]
+					}
+				}
+			}
+			if field == nil {
+				return x, errors.New("Result columns are ambiguous or no longer match the table")
+			}
 		}
-		if field != nil {
-			name = field.Name
-		}
-		if field == nil {
-			return x, errors.New("Result columns are ambiguous or no longer match the table")
-		}
+		name := field.Name
 		// The returned labels must agree with the proven projection. In
 		// particular a stale SELECT * must not follow a changed column order.
 		label := name
@@ -281,6 +269,25 @@ func (v *Server) resolveResultSource(ctx context.Context, s *session, c *console
 		return x, errors.New("The primary key must occur exactly once in the result")
 	}
 	return x, nil
+}
+
+func resultSource(ctx context.Context, c *console, d sqlservice.Dialect, r *Result) (sqlservice.EditableSource, error) {
+	switch {
+	case r.editSource != nil:
+		return *r.editSource, nil
+	case r.browse != nil:
+		return sqlservice.EditableSource{Schema: r.browse.Schema, Table: r.browse.Table, Star: true}, nil
+	case r.sourceAnalysis != nil && r.sourceAnalysis.SourceCandidate:
+		return sqlservice.EditableSourceFromFacts(*r.sourceAnalysis)
+	case r.querySource != nil:
+		return sqlservice.AnalyzeEditableQuery(d, r.sourceSQL, r.querySource.options)
+	default:
+		opts, err := liveOptions(ctx, c, string(d))
+		if err != nil {
+			return sqlservice.EditableSource{}, errors.New("Database settings are unavailable")
+		}
+		return sqlservice.AnalyzeEditableQuery(d, r.sourceSQL, opts)
+	}
 }
 
 // Results retain their qualified source when USE changes the console context.
@@ -554,7 +561,7 @@ func editSchemaFingerprint(x *editResolved) string {
 
 // Freeze qualified provenance before the worker releases its physical
 // connection. A later USE/search_path change cannot retarget cached result rows.
-func (v *Server) bindResultEditSource(s *session, e *execution, results []*Result) {
+func (v *Server) bindResultEditSource(s *session, e *execution, results []*Result, starSource *resultStarSource) {
 	s.mu.Lock()
 	c := s.consoles[e.view.ConsoleID]
 	s.mu.Unlock()
@@ -564,7 +571,12 @@ func (v *Server) bindResultEditSource(s *session, e *execution, results []*Resul
 			result.editSourceError = "Multiple-result statements cannot be edited"
 			continue
 		}
-		ctx, cancel := sqlservice.MetadataContext(e.ctx, sqlservice.Dialect(s.grant.Config.Dialect))
+		d := sqlservice.Dialect(s.grant.Config.Dialect)
+		if bindStarSource(d, result, starSource) {
+			result.editSourceBound = true
+			continue
+		}
+		ctx, cancel := sqlservice.MetadataContext(e.ctx, d)
 		resolved, err := v.resolveResultSource(ctx, s, c, result)
 		cancel()
 		if resolved != nil && len(resolved.columns) == len(result.Columns) {
@@ -575,6 +587,42 @@ func (v *Server) bindResultEditSource(s *session, e *execution, results []*Resul
 			result.editSourceError = err.Error()
 		}
 	}
+}
+
+// A single base table's SELECT * already carries the physical column
+// names used for masking. Freeze its namespace under the execution lock and
+// read the live write/copy metadata only when the caller asks for it.
+func bindStarSource(d sqlservice.Dialect, r *Result, star *resultStarSource) bool {
+	if len(r.Columns) == 0 {
+		return false
+	}
+	var source sqlservice.EditableSource
+	if r.browse != nil {
+		p := r.browse.plan
+		// Older paging wrappers project a saved list of named columns. Only
+		// a fresh star expansion can attest to the current physical order.
+		if p == nil || p.table.View || p.view.Supported && browsePageProjectsColumns(string(d)) {
+			return false
+		}
+		if !slices.EqualFunc(r.Columns, p.table.Columns, func(col Column, field sqlservice.EditColumn) bool {
+			return col.Name == field.Name
+		}) {
+			return false
+		}
+		source = sqlservice.EditableSource{Database: p.table.Database, Schema: p.table.Schema, Table: p.table.Table, Star: true}
+	} else {
+		if star == nil || !slices.EqualFunc(r.Columns, star.columns, func(col Column, name string) bool {
+			return col.Name == name
+		}) {
+			return false
+		}
+		source = star.source
+	}
+	if !source.Star || source.Database == "" || source.Schema == "" || source.Table == "" {
+		return false
+	}
+	r.editSource, r.editDatabase = &source, source.Database
+	return true
 }
 
 // Initial row reading masks conservatively when an alias has no proven origin.

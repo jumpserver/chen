@@ -23,7 +23,7 @@ func browsePolicyLiteral(d, text string) (string, error) {
 // never found by deleting text from a user's query. Explicit projection removes
 // the synthetic row number, including when a real column has the same name.
 func browsePageSQL(d, full, base, order string, columns []sqlservice.EditColumn, offset, size int) string {
-	if d != "oracle" && d != "oceanbase-oracle" && d != "sqlserver" && d != "db2" {
+	if !browsePageProjectsColumns(d) {
 		return fmt.Sprintf("%s LIMIT %d OFFSET %d", full, size, offset)
 	}
 	used := map[string]bool{}
@@ -49,4 +49,8 @@ func browsePageSQL(d, full, base, order string, columns []sqlservice.EditColumn,
 	// ROW_NUMBER is available before OFFSET/FETCH (SQL Server 2005+, DB2 9.7+).
 	// No synthetic field reaches the result or its row references.
 	return fmt.Sprintf("SELECT %s FROM (SELECT CHEN_source.*, ROW_NUMBER() OVER (%s) AS %s FROM (\n%s\n) CHEN_source) AS CHEN_page WHERE %s>%d AND %s<=%d ORDER BY %s", strings.Join(projection, ","), window, rn, base, rn, offset, rn, offset+size, rn)
+}
+
+func browsePageProjectsColumns(d string) bool {
+	return d == "oracle" || d == "oceanbase-oracle" || d == "sqlserver" || d == "db2"
 }

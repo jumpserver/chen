@@ -179,32 +179,88 @@ func (v *Server) queryPage(w http.ResponseWriter, r *http.Request) {
 // This snapshot is taken on the same physical connection, under the worker lock.
 // An old result cannot be moved into a new console after reconnect.
 func queryPageContext(ctx context.Context, c *console, d string) (string, error) {
+	fingerprint, _, err := readQueryPageContext(ctx, c, d)
+	return fingerprint, err
+}
+
+// The live database and schema used to resolve an open table are already in
+// the paging settings. Return both from the same read on this console.
+func readQueryPageContext(ctx context.Context, c *console, d string) (string, sqlservice.Context, error) {
+	scope := c.context
 	var values []string
 	if d == "postgresql" {
 		values = make([]string, 7)
 		err := c.conn.QueryRowContext(ctx, "SELECT pg_catalog.current_database(), pg_catalog.current_schema(), pg_catalog.current_setting('search_path'), pg_catalog.current_setting('standard_conforming_strings'), current_user, pg_catalog.current_setting('TimeZone'), pg_catalog.current_setting('row_security')").Scan(&values[0], &values[1], &values[2], &values[3], &values[4], &values[5], &values[6])
 		if err != nil {
-			return "", err
+			return "", scope, err
 		}
 		if values[3] != "on" {
-			return "", errors.New("Database paging requires standard_conforming_strings=on")
+			return "", scope, errors.New("Database paging requires standard_conforming_strings=on")
 		}
 	} else if d != "mysql" && d != "mariadb" && d != "oceanbase-mysql" {
-		return vendorQueryPageContext(ctx, c, d)
+		var err error
+		values, err = vendorQueryPageContext(ctx, c, d)
+		if err != nil {
+			return "", scope, err
+		}
 	} else {
 		values = make([]string, 6)
-		err := c.conn.QueryRowContext(ctx, "SELECT COALESCE(DATABASE(), ''), CURRENT_USER(), @@session.sql_mode, @@session.time_zone, @@session.character_set_connection, @@session.collation_connection").Scan(&values[0], &values[1], &values[2], &values[3], &values[4], &values[5])
+		err := c.conn.QueryRowContext(ctx, "SELECT "+sqlservice.MySQLPageSettings).Scan(&values[0], &values[1], &values[2], &values[3], &values[4], &values[5])
 		if err != nil {
-			return "", err
+			return "", scope, err
+		}
+	}
+	switch d {
+	case "mysql", "mariadb", "oceanbase-mysql", "clickhouse":
+		scope.Database, scope.Schema = values[0], values[0]
+	case "oracle", "dameng", "oceanbase-oracle":
+		// The configured service alias identifies the database in the catalog.
+		scope.Schema = values[1]
+		if scope.Database == "" {
+			scope.Database = scope.Schema
+		}
+	default: // PostgreSQL, SQL Server and Db2 return database, schema first.
+		scope.Database, scope.Schema = values[0], values[1]
+		if d == "sqlserver" && scope.Schema == "" {
+			scope.Schema = "dbo"
 		}
 	}
 	b, _ := json.Marshal(values)
-	return string(b), nil
+	return string(b), scope, nil
 }
-func (v *Server) captureQuerySQLSource(s *session, c *console, e *execution, opts sqlservice.AnalyzeOptions, statementSQL string) {
+
+type resultStarSource struct {
+	source  sqlservice.EditableSource
+	columns []string
+}
+
+// Only the original statement uses this column list; a later query page must
+// validate its own result, whose wrapper may explicitly alias old labels.
+func (v *Server) captureQuerySQLSource(s *session, c *console, e *execution, opts sqlservice.AnalyzeOptions, statement sqlservice.Statement, mysqlState *mysqlSessionState, hint *resultStarSource) *resultStarSource {
+	d := sqlservice.Dialect(s.grant.Config.Dialect)
+	statementSQL := statement.SQL
+	editableSource := func() (sqlservice.EditableSource, error) {
+		if statement.Facts != nil && statement.Facts.SourceCandidate {
+			return sqlservice.EditableSourceFromFacts(*statement.Facts)
+		}
+		return sqlservice.AnalyzeEditableQuery(d, statementSQL, opts)
+	}
 	p := &queryPagePlan{original: statementSQL, options: opts, view: QueryPage{Mode: "cache", MaxPageSize: min(1000, v.opts.MaxRows), MaxOffset: browseMaxOffset}}
 	e.querySource = p
-	q, err := sqlservice.AnalyzeQueryPage(sqlservice.Dialect(s.grant.Config.Dialect), statementSQL, opts)
+	var scope sqlservice.Context
+	captureContext := func() error {
+		if p.context != "" {
+			return nil
+		}
+		if mysqlState != nil {
+			p.context, scope = mysqlState.fingerprint, mysqlState.scope
+			return nil
+		}
+		var err error
+		p.context, scope, err = readQueryPageContext(e.ctx, c, string(d))
+		return err
+	}
+	q, err := sqlservice.AnalyzeQueryPage(d, statementSQL, opts)
 	if err == nil && (s.grant.Config.Dialect == "mariadb" || s.grant.Config.Dialect == "oceanbase-mysql") {
 		_, reason, vendorErr := browseVendorContext(e.ctx, c, s.grant.Config.Dialect, opts)
 		if vendorErr != nil {
@@ -213,34 +269,54 @@ func (v *Server) captureQuerySQLSource(s *session, c *console, e *execution, opt
 			err = errors.New(reason)
 		}
 	}
-	if err == nil {
-		err = validateQueryPageSources(e.ctx, c, s.grant.Config.Dialect, q)
+	var star *resultStarSource
+	if err == nil && (sqlservice.IsMySQLDialect(d) || d == sqlservice.PostgreSQL) && e.export == nil && len(q.Relations) == 1 && len(q.CTEs) == 0 {
+		source, sourceErr := editableSource()
+		if sourceErr == nil && source.Star && source.Schema == q.Relations[0].Schema && source.Table == q.Relations[0].Name {
+			star = &resultStarSource{source: source}
+		}
+	}
+	if star != nil && sqlservice.IsMySQLDialect(d) {
+		source := &star.source
+		if source.Schema == "" && captureContext() == nil {
+			source.Schema = scope.Database
+		}
+		source.Database = source.Schema
+		if hint != nil && source.Schema == hint.source.Schema && source.Table == hint.source.Table {
+			star.columns = hint.columns
+		} else if columns, err := sqlservice.MySQLQueryStarColumns(e.ctx, c.conn, source.Schema, source.Table); err == nil {
+			star.columns = columns
+		}
+	}
+	if err == nil && (star == nil || len(star.columns) == 0) {
+		err = validateQueryPageSources(e.ctx, c, string(d), q, star)
 	}
 	if err != nil {
+		star = nil
 		reason := err.Error()
-		q, err = sqlservice.AnalyzeQueryPageForReexecution(sqlservice.Dialect(s.grant.Config.Dialect), statementSQL, opts)
+		q, err = sqlservice.AnalyzeQueryPageForReexecution(d, statementSQL, opts)
 		if err != nil {
 			p.view.Reason = reason
 			// Paging and cached refresh have different requirements. A direct
 			// editable SELECT can still be refreshed without a page wrapper.
 			// Freeze its context now; the handler also requires the result's
 			// later metadata/provenance binding to have succeeded.
-			if _, editErr := sqlservice.AnalyzeEditableQuery(sqlservice.Dialect(s.grant.Config.Dialect), statementSQL, opts); editErr == nil {
-				p.context, _ = queryPageContext(e.ctx, c, s.grant.Config.Dialect)
+			if _, editErr := editableSource(); editErr == nil {
+				_ = captureContext()
 			}
-			return
+			return nil
 		}
 		p.view.RequiresReexecution = true
 	}
-	p.context, err = queryPageContext(e.ctx, c, s.grant.Config.Dialect)
-	if err != nil {
+	if err = captureContext(); err != nil {
 		p.view.Reason = err.Error()
-		return
+		return nil
 	}
 	p.query = q
 	p.view.Supported = true
 	p.view.ScopeID = newID("qpage_")
 	p.view.Ordered = q.Ordered
+	return star
 }
 func validateQueryPage(ctx context.Context, c *console, d string, p *queryPagePlan, opts sqlservice.AnalyzeOptions, contextVerified bool) error {
 	// The worker already verified (and, when needed, selected) this complete
@@ -259,7 +335,7 @@ func validateQueryPage(ctx context.Context, c *console, d string, p *queryPagePl
 		_, err := sqlservice.AnalyzeQueryPageForReexecution(sqlservice.Dialect(d), p.original, opts)
 		return err
 	}
-	return validateQueryPageSources(ctx, c, d, p.query)
+	return validateQueryPageSources(ctx, c, d, p.query, nil)
 }
 
 var queryCountDecimal = regexp.MustCompile(`^(0|[1-9][0-9]*)$`)
@@ -303,10 +379,11 @@ func queryPageAudit(p *queryPagePlan) string {
 // Replay is restricted to ordinary tables with built-in PostgreSQL types and
 // no RLS. Views/foreign tables can hide arbitrary function calls from the source
 // AST. A CTE name that also resolves to an unsafe table is conservatively denied.
-func validateQueryPageSources(ctx context.Context, c *console, d string, q *sqlservice.QueryPageSQL) error {
+func validateQueryPageSources(ctx context.Context, c *console, d string, q *sqlservice.QueryPageSQL, star *resultStarSource) error {
 	if len(q.Relations) > 128 || len(q.Functions) > 128 || len(q.Operators) > 128 || len(q.Types) > 128 {
 		return errors.New("Query paging source inspection exceeds its limit")
 	}
+	var tableQuery string
 	seen := map[string]bool{}
 	for _, r := range q.Relations {
 		key := r.Schema + "\x00" + r.Name
@@ -321,13 +398,12 @@ func validateQueryPageSources(ctx context.Context, c *console, d string, q *sqls
 			cteName = strings.ToLower(cteName)
 		}
 		if d == "postgresql" {
-			qualified := sqlQuoteIdentifier(r.Name)
-			if r.Schema != "" {
-				qualified = sqlQuoteIdentifier(r.Schema) + "." + qualified
-			}
-			err = c.conn.QueryRowContext(ctx, `SELECT c.relkind IN ('r','m') AND NOT c.relrowsecurity AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_inherits i WHERE i.inhparent=c.oid) AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_type t ON t.oid=a.atttypid JOIN pg_catalog.pg_namespace n ON n.oid=t.typnamespace WHERE a.attrelid=c.oid AND a.attnum>0 AND NOT a.attisdropped AND n.nspname<>'pg_catalog') FROM pg_catalog.pg_class c WHERE c.oid=pg_catalog.to_regclass($1)`, qualified).Scan(&safe)
-		} else if d != "mysql" && d != "mariadb" && d != "oceanbase-mysql" {
-			err = vendorQueryPageSource(ctx, c, d, r, &safe)
+			safe, err = postgresQueryPageRelation(ctx, c, r, star)
+		} else if d == "mysql" {
+			cteName = strings.ToLower(cteName)
+			safe, err = sqlservice.MySQLQueryPageSource(ctx, c.conn, r.Schema, r.Name)
+		} else if d != "mariadb" && d != "oceanbase-mysql" {
+			err = vendorQueryPageSource(ctx, c, d, r, &safe, &tableQuery)
 		} else {
 			cteName = strings.ToLower(cteName)
 			query := `SELECT TABLE_TYPE='BASE TABLE' AND ENGINE IN ('InnoDB','MyISAM','MEMORY','Aria') FROM information_schema.TABLES WHERE TABLE_SCHEMA=COALESCE(NULLIF(?,''),DATABASE()) AND TABLE_NAME=?`
@@ -355,48 +431,62 @@ func validateQueryPageSources(ctx context.Context, c *console, d string, q *sqls
 
 	}
 
-	if d == "postgresql" && len(q.Functions) > 0 {
-		seen = map[string]bool{}
-		for _, name := range q.Functions {
-			if seen[name] {
-				continue
-			}
-			seen[name] = true
-			var shadow bool
-			err := c.conn.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_proc p JOIN pg_catalog.pg_namespace n ON n.oid=p.pronamespace WHERE p.proname=$1 AND n.nspname<>'pg_catalog' AND pg_catalog.pg_function_is_visible(p.oid))`, name).Scan(&shadow)
-			if err != nil || shadow {
-				return errors.New("Database paging cannot prove the selected function resolves only to a built-in")
-			}
-		}
-	}
-	if d == "postgresql" && len(q.Operators) > 0 {
-		seen = map[string]bool{}
-		for _, name := range q.Operators {
-			if seen[name] {
-				continue
-			}
-			seen[name] = true
-			var shadow bool
-			err := c.conn.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_operator o JOIN pg_catalog.pg_namespace n ON n.oid=o.oprnamespace WHERE o.oprname=$1 AND n.nspname<>'pg_catalog' AND pg_catalog.pg_operator_is_visible(o.oid))`, name).Scan(&shadow)
-			if err != nil || shadow {
-				return errors.New("Database paging cannot prove the selected operator resolves only to a built-in")
-			}
-		}
-	}
-	if d == "postgresql" && len(q.Types) > 0 {
-		seen = map[string]bool{}
-		for _, name := range q.Types {
-			if seen[name] {
-				continue
-			}
-			seen[name] = true
-			var shadow bool
-			err := c.conn.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_type t JOIN pg_catalog.pg_namespace n ON n.oid=t.typnamespace WHERE t.typname=$1 AND n.nspname<>'pg_catalog' AND pg_catalog.pg_type_is_visible(t.oid))`, name).Scan(&shadow)
-			if err != nil || shadow {
-				return errors.New("Database paging cannot prove the selected type resolves only to a built-in")
-			}
+	if d == "postgresql" && (len(q.Functions) > 0 || len(q.Operators) > 0 || len(q.Types) > 0) {
+		// All names are interpreted on this connection's current search_path.
+		// Check them in one catalog snapshot, including duplicate references.
+		var function, operator, typ bool
+		err := c.conn.QueryRowContext(ctx, `SELECT
+EXISTS (SELECT 1 FROM pg_catalog.pg_proc p JOIN pg_catalog.pg_namespace n ON n.oid=p.pronamespace
+  WHERE p.proname=ANY($1::pg_catalog.name[]) AND n.nspname<>'pg_catalog' AND pg_catalog.pg_function_is_visible(p.oid)),
+EXISTS (SELECT 1 FROM pg_catalog.pg_operator o JOIN pg_catalog.pg_namespace n ON n.oid=o.oprnamespace
+  WHERE o.oprname=ANY($2::pg_catalog.name[]) AND n.nspname<>'pg_catalog' AND pg_catalog.pg_operator_is_visible(o.oid)),
+EXISTS (SELECT 1 FROM pg_catalog.pg_type t JOIN pg_catalog.pg_namespace n ON n.oid=t.typnamespace
+  WHERE t.typname=ANY($3::pg_catalog.name[]) AND n.nspname<>'pg_catalog' AND pg_catalog.pg_type_is_visible(t.oid))`,
+			q.Functions, q.Operators, q.Types).Scan(&function, &operator, &typ)
+		switch {
+		case err != nil:
+			return errors.New("Database paging could not verify visible PostgreSQL functions, operators and types")
+		case function:
+			return errors.New("Database paging cannot prove the selected function resolves only to a built-in")
+		case operator:
+			return errors.New("Database paging cannot prove the selected operator resolves only to a built-in")
+		case typ:
+			return errors.New("Database paging cannot prove the selected type resolves only to a built-in")
 		}
 	}
 	return nil
 }
 func sqlQuoteIdentifier(name string) string { return `"` + strings.ReplaceAll(name, `"`, `""`) + `"` }
+
+func postgresQueryPageRelation(ctx context.Context, c *console, r sqlservice.QueryPageRelation, star *resultStarSource) (bool, error) {
+	qualified := sqlQuoteIdentifier(r.Name)
+	if r.Schema != "" {
+		qualified = sqlQuoteIdentifier(r.Schema) + "." + qualified
+	}
+	const guard = `SELECT c.relkind IN ('r','m') AND NOT c.relrowsecurity
+AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_inherits i WHERE i.inhparent=c.oid)
+AND NOT EXISTS (SELECT 1 FROM pg_catalog.pg_attribute a
+  JOIN pg_catalog.pg_type t ON t.oid=a.atttypid JOIN pg_catalog.pg_namespace n ON n.oid=t.typnamespace
+  WHERE a.attrelid=c.oid AND a.attnum>0 AND NOT a.attisdropped AND n.nspname<>'pg_catalog')`
+	var safe bool
+	if star == nil {
+		err := c.conn.QueryRowContext(ctx, guard+` FROM pg_catalog.pg_class c WHERE c.oid=pg_catalog.to_regclass($1)`, qualified).Scan(&safe)
+		return safe, err
+	}
+	// Resolve against the actual search_path, including temporary schemas.
+	// A materialized view may pass replay admission but cannot bind as an editable table.
+	const projection = `, pg_catalog.current_database(), n.nspname, c.relname,
+pg_catalog.array_to_json(ARRAY(SELECT a.attname FROM pg_catalog.pg_attribute a
+  WHERE a.attrelid=c.oid AND a.attnum>0 AND NOT a.attisdropped AND c.relkind='r'
+  AND pg_catalog.has_schema_privilege(n.oid,'USAGE')
+  AND pg_catalog.has_column_privilege(c.oid,a.attnum,'SELECT,INSERT,UPDATE,REFERENCES')
+  ORDER BY a.attnum))::pg_catalog.text
+FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace
+WHERE c.oid=pg_catalog.to_regclass($1)`
+	var names []byte
+	err := c.conn.QueryRowContext(ctx, guard+projection, qualified).Scan(&safe, &star.source.Database, &star.source.Schema, &star.source.Table, &names)
+	if err == nil && safe {
+		err = json.Unmarshal(names, &star.columns)
+	}
+	return safe, err
+}

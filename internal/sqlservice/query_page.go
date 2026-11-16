@@ -46,6 +46,30 @@ func AnalyzeQueryPage(d Dialect, document string, options AnalyzeOptions) (*Quer
 	return analyzeQueryPage(d, document, options, false)
 }
 
+// This preliminary parse selects only a possible catalog lookup. Execution
+// must parse the original SQL again with the physical connection's SQL mode.
+func MySQLStarHint(document string) (QueryPageRelation, bool) {
+	text := strings.TrimSpace(document)
+	if len(text) < len("SELECT") || !strings.EqualFold(text[:len("SELECT")], "SELECT") {
+		return QueryPageRelation{}, false
+	}
+	nodes, _, err := parser.New().ParseSQL(text)
+	if err != nil || len(nodes) != 1 {
+		return QueryPageRelation{}, false
+	}
+	sel, ok := nodes[0].(*ast.SelectStmt)
+	if !ok || sel.Fields == nil || len(sel.Fields.Fields) != 1 || sel.Fields.Fields[0].WildCard == nil {
+		return QueryPageRelation{}, false
+	}
+	q := &QueryPageSQL{CTEs: map[string]bool{}}
+	guard := &queryPageGuard{query: q}
+	sel.Accept(guard)
+	if guard.unsafe || guard.selects != 1 || len(q.Relations) != 1 || len(q.CTEs) != 0 {
+		return QueryPageRelation{}, false
+	}
+	return q.Relations[0], true
+}
+
 // Explicit reexecution retains the old console's paging semantics for views,
 // functions and other server-resolved sources. It still requires one SELECT
 // with no nested DML, locking, INTO, parameters or executable comments. Callers
@@ -196,6 +220,7 @@ func queryPageFunction(name string) bool {
 
 type queryPageGuard struct {
 	unsafe    bool
+	selects   int
 	query     *QueryPageSQL
 	reexecute bool
 }
@@ -207,6 +232,7 @@ func (g *queryPageGuard) Enter(n ast.Node) (ast.Node, bool) {
 	case *ast.CommonTableExpression:
 		g.query.CTEs[strings.ToLower(x.Name.O)] = true
 	case *ast.SelectStmt:
+		g.selects++
 		if x.SelectIntoOpt != nil || x.LockInfo != nil && x.LockInfo.LockType != ast.SelectLockNone || x.SelectStmtOpts != nil && x.CalcFoundRows {
 			g.unsafe = true
 		}

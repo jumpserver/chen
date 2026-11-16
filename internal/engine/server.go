@@ -721,14 +721,15 @@ func (v *Server) createConsole(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}()
-	req, backend, err := initializeConsole(ctx, conn, s.grant.Config, req)
+	cctx, ccancel := context.WithCancel(s.ctx)
+	c := &console{id: newID("con_"), conn: conn, queue: make(chan *execution, 8), ctx: cctx, cancel: ccancel, requests: map[string]*execution{}, ownedDB: owned, catalogAuditAt: map[string]time.Time{}}
+	c.context, c.backendID, err = initializeConsole(ctx, c, s.grant.Config, req)
 	if err != nil {
+		ccancel()
 		e := safeDatabaseError(err)
 		fail(w, 400, e.Code, e.Message)
 		return
 	}
-	cctx, ccancel := context.WithCancel(s.ctx)
-	c := &console{id: newID("con_"), conn: conn, context: req, queue: make(chan *execution, 8), ctx: cctx, cancel: ccancel, requests: map[string]*execution{}, backendID: backend, ownedDB: owned, catalogAuditAt: map[string]time.Time{}}
 	s.mu.Lock()
 	if s.closed || s.ctx.Err() != nil || s.grant.Check() != nil || (v.opts.MaxConsoles > 0 && len(s.consoles) >= v.opts.MaxConsoles) {
 		s.mu.Unlock()

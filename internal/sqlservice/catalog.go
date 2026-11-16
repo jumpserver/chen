@@ -183,36 +183,13 @@ func ColumnRows(ctx context.Context, conn *sql.Conn, dialect Dialect, req Catalo
 // The caller has checked access in the requested read/edit mode and owns one
 // deadline for all metadata reads. Editing retains its column-grant restrictions.
 func tableColumnRows(ctx context.Context, conn *sql.Conn, dialect Dialect, req CatalogColumnRequest, editable bool) ([]CatalogColumn, error) {
-	req.AfterOrdinal, req.Limit = 0, MaxCatalogPageSize
-	columns := []CatalogColumn{}
-	seen := map[string]bool{}
-	for {
-		if err := ctx.Err(); err != nil {
-			return nil, err
-		}
-		page, err := columnRows(ctx, conn, dialect, req, true, editable)
-		if err != nil {
-			return nil, err
-		}
-		for _, column := range page {
-			if column.Ordinal <= req.AfterOrdinal || column.Name == "" || seen[column.Name] {
-				return nil, fmt.Errorf("column metadata changed while reading the table")
-			}
-			seen[column.Name] = true
-			// Ordinals may have gaps after dropped or inaccessible columns.
-			req.AfterOrdinal = column.Ordinal
-			columns = append(columns, column)
-		}
-		if len(page) <= MaxCatalogPageSize {
-			return columns, ctx.Err()
-		}
-	}
+	req.AfterOrdinal = 0
+	return columnRows(ctx, conn, dialect, req, true, editable)
 }
 
-// accessChecked only reuses database/object checks from this operation on this
-// connection. Input validation and the metadata deadline still apply; no
-// authorization is cached across requests.
-func columnRows(ctx context.Context, conn *sql.Conn, dialect Dialect, req CatalogColumnRequest, accessChecked, editable bool) ([]CatalogColumn, error) {
+// A table operation has already admitted this object and needs its complete
+// definition. Directory calls check access here and return a bounded page.
+func columnRows(ctx context.Context, conn *sql.Conn, dialect Dialect, req CatalogColumnRequest, complete, editable bool) ([]CatalogColumn, error) {
 	items := []CatalogColumn{}
 	if IsMySQLDialect(dialect) && req.Schema != "" {
 		req.Database = req.Schema
@@ -234,7 +211,7 @@ func columnRows(ctx context.Context, conn *sql.Conn, dialect Dialect, req Catalo
 	}
 	ctx, cancel := MetadataContext(ctx, dialect)
 	defer cancel()
-	if !accessChecked {
+	if !complete {
 		if err := catalogDatabaseAccess(ctx, conn, dialect, req.Database); err != nil {
 			return items, err
 		}
@@ -246,26 +223,36 @@ func columnRows(ctx context.Context, conn *sql.Conn, dialect Dialect, req Catalo
 			return items, err
 		}
 	}
+	limit := 0
+	if !complete {
+		limit = catalogLimit(req.Limit) + 1
+	}
 	var rows *sql.Rows
 	var err error
 	if extraCatalogDialect(dialect) {
 		var query catalogQuery
-		query, err = extraColumnQuery(dialect, req, catalogLimit(req.Limit)+1, true)
+		query, err = extraColumnQuery(dialect, req, limit, true)
 		if err == nil {
 			rows, err = queryCatalogRows(ctx, conn, dialect, query.SQL, query.Args...)
 			if err != nil && dialect == DB2 && catalogMissingStringUnits(err) {
-				query, err = extraColumnQuery(dialect, req, catalogLimit(req.Limit)+1, true, false)
+				query, err = extraColumnQuery(dialect, req, limit, true, false)
 				if err == nil {
 					rows, err = queryCatalogRows(ctx, conn, dialect, query.SQL, query.Args...)
 				}
 			}
 		}
 	} else if IsMySQLDialect(dialect) {
-		rows, err = conn.QueryContext(ctx, `SELECT TABLE_SCHEMA, TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_TYPE,
+		query := `SELECT TABLE_SCHEMA, TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_TYPE,
 IS_NULLABLE = 'YES', COALESCE(COLUMN_COMMENT, ''), ORDINAL_POSITION
 FROM information_schema.COLUMNS
 WHERE BINARY TABLE_SCHEMA = BINARY ? AND BINARY TABLE_NAME = BINARY ? AND ORDINAL_POSITION > ?
-ORDER BY ORDINAL_POSITION LIMIT ?`, req.Schema, req.Table, req.AfterOrdinal, catalogLimit(req.Limit)+1)
+ORDER BY ORDINAL_POSITION`
+		args := []any{req.Schema, req.Table, req.AfterOrdinal}
+		if limit > 0 {
+			query += " LIMIT ?"
+			args = append(args, limit)
+		}
+		rows, err = conn.QueryContext(ctx, query, args...)
 	} else {
 		query := `SELECT pg_catalog.current_database(), n.nspname, c.relname, a.attname,
 pg_catalog.format_type(a.atttypid, a.atttypmod), NOT (a.attnotnull OR t.typnotnull), COALESCE(pg_catalog.col_description(a.attrelid, a.attnum), ''), a.attnum
@@ -278,7 +265,13 @@ AND a.attnum > $4 AND NOT a.attisdropped AND n.nspname IN (SELECT schema_name FR
 			query += ` AND pg_catalog.has_schema_privilege(n.oid, 'USAGE')
 AND pg_catalog.has_column_privilege(c.oid, a.attnum, 'SELECT,INSERT,UPDATE,REFERENCES')`
 		}
-		rows, err = conn.QueryContext(ctx, query+" ORDER BY a.attnum LIMIT $5", req.Database, req.Schema, req.Table, req.AfterOrdinal, catalogLimit(req.Limit)+1)
+		query += " ORDER BY a.attnum"
+		args := []any{req.Database, req.Schema, req.Table, req.AfterOrdinal}
+		if limit > 0 {
+			query += " LIMIT $5"
+			args = append(args, limit)
+		}
+		rows, err = conn.QueryContext(ctx, query, args...)
 	}
 	if err != nil {
 		return items, fmt.Errorf("list catalog columns: %w", err)
@@ -287,6 +280,10 @@ AND pg_catalog.has_column_privilege(c.oid, a.attnum, 'SELECT,INSERT,UPDATE,REFER
 	columnNames, err := rows.Columns()
 	if err != nil {
 		return nil, err
+	}
+	var seen map[string]bool
+	if complete {
+		seen = make(map[string]bool)
 	}
 	for rows.Next() {
 		var item CatalogColumn
@@ -304,10 +301,20 @@ AND pg_catalog.has_column_privilege(c.oid, a.attnum, 'SELECT,INSERT,UPDATE,REFER
 		if modifiers {
 			item.DataType = catalogColumnType(dialect, item.DataType, length, precision, scale, charLength, units)
 		}
+		if complete {
+			if item.Ordinal <= req.AfterOrdinal || item.Name == "" || seen[item.Name] {
+				return nil, fmt.Errorf("column metadata changed while reading the table")
+			}
+			seen[item.Name] = true
+			req.AfterOrdinal = item.Ordinal
+		}
 		item.Comment = comment.String
 		items = append(items, item)
 	}
-	return items, rows.Err()
+	if err := rows.Err(); err != nil {
+		return items, err
+	}
+	return items, ctx.Err()
 }
 
 func catalogDatabaseAccess(ctx context.Context, conn *sql.Conn, dialect Dialect, database string) error {
@@ -391,22 +398,28 @@ WHERE BINARY TABLE_SCHEMA = BINARY ? AND BINARY TABLE_NAME = BINARY ? AND TABLE_
 		}
 		return nil
 	}
+	_, err := postgresEditableObjectKind(ctx, conn, schema, table)
+	return err
+}
+
+func postgresEditableObjectKind(ctx context.Context, conn *sql.Conn, schema, table string) (string, error) {
+	var kind string
 	var schemaAllowed, objectAllowed, columnsAllowed bool
-	err := conn.QueryRowContext(ctx, `SELECT pg_catalog.has_schema_privilege(n.oid, 'USAGE'),
+	err := conn.QueryRowContext(ctx, `SELECT c.relkind::text, pg_catalog.has_schema_privilege(n.oid, 'USAGE'),
 (pg_catalog.has_table_privilege(c.oid, 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER') OR pg_catalog.has_any_column_privilege(c.oid, 'SELECT,INSERT,UPDATE,REFERENCES')),
 pg_catalog.has_any_column_privilege(c.oid, 'SELECT,INSERT,UPDATE,REFERENCES')
 FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
-WHERE n.nspname = $1 AND c.relname = $2 AND c.relkind IN ('r', 'p', 'v', 'm', 'f')`, schema, table).Scan(&schemaAllowed, &objectAllowed, &columnsAllowed)
+WHERE n.nspname = $1 AND c.relname = $2 AND c.relkind IN ('r', 'p', 'v', 'm', 'f')`, schema, table).Scan(&kind, &schemaAllowed, &objectAllowed, &columnsAllowed)
 	if errors.Is(err, sql.ErrNoRows) {
-		return ErrCatalogNotFound
+		return "", ErrCatalogNotFound
 	}
 	if err != nil {
-		return fmt.Errorf("check catalog object: %w", err)
+		return "", fmt.Errorf("check catalog object: %w", err)
 	}
 	if !schemaAllowed || !objectAllowed || !columnsAllowed {
-		return ErrCatalogForbidden
+		return "", ErrCatalogForbidden
 	}
-	return nil
+	return kind, nil
 }
 func validateCatalogInput(conn *sql.Conn, dialect Dialect, database string, values ...string) error {
 	if err := validateCatalogNames(conn, dialect, append([]string{database}, values...)...); err != nil {
