@@ -254,5 +254,12 @@ func editSafeFailure(err error) *APIError {
 	if native := db2EditDiagnostic(err, nil, nil); native != nil {
 		return native
 	}
+	if diagnostic := safeDatabaseError(err); diagnostic != nil {
+		switch diagnostic.Code {
+		case "MYSQL_1044", "MYSQL_1142", "MYSQL_1143", "OCEANBASE_1044", "OCEANBASE_1142", "OCEANBASE_1143", "OCEANBASE_5360",
+			"42501", "MSSQL_229", "ORA_01031", "DM_-5501", "DM_-5502", "DM_-5503", "DM_-5659":
+			return editError("database_permission", "The database denied access. Check the account permissions on the target object.")
+		}
+	}
 	return editError("edit_database_error", "The database rejected a change. No field values are included in this diagnostic.")
 }

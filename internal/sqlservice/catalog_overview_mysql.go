@@ -101,7 +101,7 @@ func overviewOBStorageVersion(version string) bool {
 }
 
 func (c *overviewMyCapabilities) state(key string) string {
-	column := map[string]string{"estimated_rows": "TABLE_ROWS", "data_bytes": "DATA_LENGTH", "index_bytes": "INDEX_LENGTH", "engine": "ENGINE", "collation": "TABLE_COLLATION", "column": "COLUMN_NAME", "expression": "EXPRESSION", "unique": "NON_UNIQUE", "method": "INDEX_TYPE", "position": "SEQ_IN_INDEX", "direction": "COLLATION", "prefix_length": "SUB_PART", "comment": "TABLE_COMMENT"}[key]
+	column := map[string]string{"estimated_rows": "TABLE_ROWS", "data_bytes": "DATA_LENGTH", "index_bytes": "INDEX_LENGTH", "engine": "ENGINE", "collation": "TABLE_COLLATION", "column": "COLUMN_NAME", "expression": "EXPRESSION", "unique": "NON_UNIQUE", "method": "INDEX_TYPE", "position": "SEQ_IN_INDEX", "direction": "COLLATION", "prefix_length": "SUB_PART", "comment": "TABLE_COMMENT", "created": "CREATE_TIME", "average_row_length": "AVG_ROW_LENGTH"}[key]
 	if key == "definition" || key == "last_analyzed" {
 		if key == "last_analyzed" {
 			return "unknown"
@@ -140,7 +140,7 @@ func (c *overviewMyCapabilities) value(key string, value sql.NullString, section
 		source += "; field not provided by this product/catalog"
 		value = sql.NullString{}
 	}
-	if strings.HasSuffix(key, "_bytes") && !c.storage {
+	if (strings.HasSuffix(key, "_bytes") || key == "average_row_length") && !c.storage {
 		source += "; storage semantics unverified for this OceanBase version; compatibility values omitted"
 		value = sql.NullString{}
 	}
@@ -151,7 +151,7 @@ func (c *overviewMyCapabilities) adaptQuery(query catalogQuery, section string) 
 	// Replacements are fixed catalog identifiers, never request text. Identity
 	// and ordering columns were required by the probe; optional facts become NULL.
 	pairs := []string{}
-	for _, name := range []string{"TABLE_ROWS", "DATA_LENGTH", "INDEX_LENGTH", "ENGINE", "TABLE_COLLATION", "TABLE_COMMENT"} {
+	for _, name := range []string{"TABLE_ROWS", "DATA_LENGTH", "INDEX_LENGTH", "ENGINE", "TABLE_COLLATION", "TABLE_COMMENT", "CREATE_TIME", "AVG_ROW_LENGTH"} {
 		if !c.columns[name] || !c.storage && (name == "DATA_LENGTH" || name == "INDEX_LENGTH") {
 			pairs = append(pairs, "t."+name, "NULL")
 		}

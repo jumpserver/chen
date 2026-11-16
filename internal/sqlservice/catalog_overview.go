@@ -259,6 +259,9 @@ func CatalogOverviewRows(ctx context.Context, conn *sql.Conn, d Dialect, req Ove
 		} else {
 			var comment sql.NullString
 			valueKeys := []string{"estimated_rows", "data_bytes", "index_bytes", "total_bytes", "last_analyzed", "engine", "character_set", "collation"}
+			if IsMySQLDialect(d) {
+				valueKeys = append(valueKeys, "created", "average_row_length")
+			}
 			if extraCatalogDialect(d) {
 				valueKeys = append(valueKeys, "tablespace", "status", "average_row_length", "sample_size", "created")
 			}
@@ -427,7 +430,7 @@ func overviewSQL(d Dialect, r OverviewRequest) (string, []any) {
 		kind = "VIEW"
 	}
 	return `SELECT t.TABLE_SCHEMA,t.TABLE_SCHEMA,t.TABLE_NAME,IF(t.TABLE_TYPE='VIEW','view','table'),IF(t.TABLE_TYPE='VIEW','view','table'),LEFT(t.TABLE_COMMENT,4097),
- CAST(t.TABLE_ROWS AS CHAR),CAST(t.DATA_LENGTH AS CHAR),CAST(t.INDEX_LENGTH AS CHAR),CAST(t.DATA_LENGTH+t.INDEX_LENGTH AS CHAR),NULL,t.ENGINE,c.CHARACTER_SET_NAME,t.TABLE_COLLATION
+ CAST(t.TABLE_ROWS AS CHAR),CAST(t.DATA_LENGTH AS CHAR),CAST(t.INDEX_LENGTH AS CHAR),CAST(t.DATA_LENGTH+t.INDEX_LENGTH AS CHAR),NULL,t.ENGINE,c.CHARACTER_SET_NAME,t.TABLE_COLLATION,CAST(t.CREATE_TIME AS CHAR),CAST(t.AVG_ROW_LENGTH AS CHAR)
  FROM information_schema.TABLES t LEFT JOIN information_schema.COLLATION_CHARACTER_SET_APPLICABILITY c ON c.COLLATION_NAME=t.TABLE_COLLATION
  WHERE BINARY t.TABLE_SCHEMA=BINARY ? AND t.TABLE_TYPE=? AND t.TABLE_NAME LIKE ? ESCAPE '!'
  AND (?='' OR (BINARY t.TABLE_SCHEMA,BINARY t.TABLE_NAME) ` + op + ` (BINARY ?,BINARY ?)) ORDER BY BINARY t.TABLE_SCHEMA ` + order + `,BINARY t.TABLE_NAME ` + order + ` LIMIT ?`, []any{r.Database, kind, catalogSearch(r.Query), r.AfterSchema, r.AfterSchema, r.AfterName, catalogLimit(r.Limit) + 1}
