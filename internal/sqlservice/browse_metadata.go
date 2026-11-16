@@ -3,10 +3,12 @@ package sqlservice
 import (
 	"context"
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"sort"
 	"strings"
+	"unicode/utf8"
 )
 
 // LoadBrowseTable needs authorized read metadata, not identity/default flags
@@ -27,6 +29,18 @@ func LoadBrowseTable(ctx context.Context, conn *sql.Conn, d Dialect, scope Conte
 	}
 	ctx, cancel := MetadataContext(ctx, d)
 	defer cancel()
+	if d == MySQL {
+		out.Schema = out.Database
+		indexed, err := mysqlBrowseColumns(ctx, conn, &out)
+		if err != nil {
+			return out, err
+		}
+		if len(out.Columns) > 0 {
+			return withBrowseKey(ctx, conn, d, out, indexed)
+		}
+		// The exact name was not visible. Use the regular access checks
+		// and lower_case_table_names resolution for this less common case.
+	}
 	if err := catalogDatabaseAccess(ctx, conn, d, out.Database); err != nil {
 		return out, err
 	}
@@ -54,20 +68,30 @@ func LoadBrowseTable(ctx context.Context, conn *sql.Conn, d Dialect, scope Conte
 			}
 		}
 	}
-	if err := catalogObjectAccess(ctx, conn, d, schema, table); err != nil {
-		if !IsMySQLDialect(d) || !errors.Is(err, ErrCatalogNotFound) {
-			return out, err
+	out.Schema = schema
+	r := CatalogColumnRequest{Database: out.Database, Schema: schema, Table: table}
+	// The same visible catalog row proves both object access and the kind
+	// used to decide if the user must confirm reading a view.
+	isView, err := BrowseRelationIsView(ctx, conn, d, r)
+	if errors.Is(err, sql.ErrNoRows) {
+		switch {
+		case IsMySQLDialect(d):
+			out.Table, err = editMySQLCanonicalTable(ctx, conn, schema, table)
+			if err == nil {
+				r.Table = out.Table
+				isView, err = BrowseRelationIsView(ctx, conn, d, r)
+			}
+		case d == PostgreSQL:
+			// Distinguish an inaccessible schema from a missing or unbrowsable
+			// relation only on a miss.
+			if accessErr := catalogObjectAccess(ctx, conn, d, schema, table); accessErr != nil {
+				err = accessErr
+			}
 		}
-		var err error
-		table, err = editMySQLCanonicalTable(ctx, conn, schema, table)
-		if err != nil {
-			return out, err
+		if errors.Is(err, sql.ErrNoRows) {
+			err = ErrCatalogNotFound
 		}
 	}
-	out.Schema, out.Table = schema, table
-	r := CatalogColumnRequest{Database: out.Database, Schema: schema, Table: table, Limit: MaxCatalogPageSize}
-	// View reads require explicit reexecution confirmation at the HTTP layer.
-	isView, err := BrowseRelationIsView(ctx, conn, d, r)
 	if err != nil {
 		return out, err
 	}
@@ -82,11 +106,77 @@ func LoadBrowseTable(ctx context.Context, conn *sql.Conn, d Dialect, scope Conte
 	for _, c := range cols {
 		out.Columns = append(out.Columns, EditColumn{Name: c.Name, DataType: c.DataType, Nullable: c.Nullable, Supported: EditTypeSupported(d, c.DataType)})
 	}
-	// Only complete non-null, unconditional unique keys promise a tie breaker.
-	// ClickHouse primary/sorting keys do not enforce uniqueness.
-	if !out.View {
-		out.PrimaryKey, err = browseUniqueKey(ctx, conn, d, out)
+	return withBrowseKey(ctx, conn, d, out, true)
+}
+
+// Read the authenticated account's visible table kind and columns together.
+// Every usable unique key has an indexed leading column. COLUMN_KEY is only
+// a hint to inspect STATISTICS; it never establishes uniqueness on its own.
+func mysqlBrowseColumns(ctx context.Context, conn *sql.Conn, table *EditTable) (bool, error) {
+	from, args := mysqlVisibleColumnsSQL(table.Schema, table.Table, true)
+	rows, err := conn.QueryContext(ctx, `SELECT t.TABLE_TYPE, c.COLUMN_NAME, c.COLUMN_TYPE, c.IS_NULLABLE='YES', c.COLUMN_KEY`+from, args...)
+	if err != nil {
+		return false, err
 	}
+	defer rows.Close()
+	var indexed bool
+	for rows.Next() {
+		var column EditColumn
+		var kind, key string
+		if err := rows.Scan(&kind, &column.Name, &column.DataType, &column.Nullable, &key); err != nil {
+			return false, err
+		}
+		table.View = kind != "BASE TABLE"
+		column.Supported = EditTypeSupported(MySQL, column.DataType)
+		table.Columns = append(table.Columns, column)
+		indexed = indexed || key != ""
+	}
+	return indexed, rows.Err()
+}
+
+func mysqlVisibleColumnsSQL(schema, table string, includeViews bool) (string, []any) {
+	target, args := mysqlCatalogTarget(schema, table)
+	return mysqlVisibleColumnsFrom(target, includeViews) + " ORDER BY c.ORDINAL_POSITION", args
+}
+
+func mysqlVisibleColumnsFrom(target string, includeViews bool) string {
+	kind := "t.TABLE_TYPE='BASE TABLE'"
+	if includeViews {
+		kind = "t.TABLE_TYPE IN ('BASE TABLE','VIEW','SYSTEM VIEW')"
+	}
+	// Ordinary equality permits dictionary index lookups. The extra binary
+	// comparisons keep names exact even on case-insensitive catalog collations.
+	return ` FROM information_schema.TABLES t
+JOIN information_schema.COLUMNS c USING (TABLE_SCHEMA, TABLE_NAME)
+JOIN information_schema.SCHEMATA s ON s.SCHEMA_NAME=t.TABLE_SCHEMA
+CROSS JOIN ` + target + `
+WHERE t.TABLE_SCHEMA=target.db AND t.TABLE_NAME=target.tbl AND ` + kind + `
+AND BINARY t.TABLE_SCHEMA=BINARY target.db AND BINARY t.TABLE_NAME=BINARY target.tbl
+AND BINARY c.TABLE_SCHEMA=BINARY t.TABLE_SCHEMA AND BINARY c.TABLE_NAME=BINARY t.TABLE_NAME
+AND BINARY s.SCHEMA_NAME=BINARY t.TABLE_SCHEMA`
+}
+
+// The only data embedded into these fixed catalog reads is the hexadecimal
+// encoding of ASCII names. Exact catalog lookups compare other names as
+// bound bytes: an implicit string conversion in the derived table could
+// truncate UTF-8 bytes when the session uses a different character set.
+func mysqlCatalogTarget(schema, table string) (string, []any) {
+	for _, name := range []string{schema, table} {
+		for i := 0; i < len(name); i++ {
+			if name[i] >= utf8.RuneSelf {
+				return "(SELECT BINARY ? AS db, BINARY ? AS tbl) AS target", []any{schema, table}
+			}
+		}
+	}
+	return "(SELECT _ascii X'" + hex.EncodeToString([]byte(schema)) + "' AS db, _ascii X'" + hex.EncodeToString([]byte(table)) + "' AS tbl) AS target", nil
+}
+
+func withBrowseKey(ctx context.Context, conn *sql.Conn, d Dialect, out EditTable, indexed bool) (EditTable, error) {
+	if out.View || !indexed {
+		return out, ctx.Err()
+	}
+	// Only complete non-null, unconditional unique keys promise a tie breaker.
+	keys, err := browseUniqueKey(ctx, conn, d, out)
 	if err != nil {
 		if ctx.Err() != nil {
 			return out, ctx.Err()
@@ -94,66 +184,135 @@ func LoadBrowseTable(ctx context.Context, conn *sql.Conn, d Dialect, scope Conte
 		// Key discovery is optional read metadata. Missing index visibility
 		// never grants stability and never turns a readable table into an
 		// editable one; the page still executes with the account's rights.
-		out.PrimaryKey = nil
+		return out, nil
 	}
+	out.PrimaryKey = keys
 	return out, nil
 }
 
 // BrowseRelationIsView also detects a table replaced by a view between pages.
 // Reads never infer that a sorting key or view projection is a writable identity.
 func BrowseRelationIsView(ctx context.Context, conn *sql.Conn, d Dialect, r CatalogColumnRequest) (bool, error) {
+	if d == MySQL {
+		var view bool
+		target, args := mysqlCatalogTarget(r.Schema, r.Table)
+		err := conn.QueryRowContext(ctx, `SELECT TABLE_TYPE <> 'BASE TABLE' FROM information_schema.TABLES CROSS JOIN `+target+`
+WHERE TABLE_SCHEMA=target.db AND TABLE_NAME=target.tbl AND BINARY TABLE_SCHEMA=BINARY target.db AND BINARY TABLE_NAME=BINARY target.tbl
+AND TABLE_TYPE IN ('BASE TABLE','VIEW','SYSTEM VIEW')`, args...).Scan(&view)
+		return view, err
+	}
 	if d == ClickHouse {
 		var engine string
-		err := conn.QueryRowContext(ctx, `SELECT engine FROM system.tables WHERE database=? AND name=?`, r.Schema, r.Table).Scan(&engine)
+		err := conn.QueryRowContext(ctx, `SELECT engine FROM system.tables WHERE database=? AND name=? AND is_temporary=0`, r.Schema, r.Table).Scan(&engine)
 		return strings.Contains(strings.ToLower(engine), "view"), err
 	}
-	q, err := editBaseTableQuery(d, r)
-	if err != nil {
-		return false, err
-	}
-	if d == MariaDB {
-		q.SQL = strings.Replace(q.SQL, "TABLE_TYPE='BASE TABLE'", "TABLE_TYPE IN ('BASE TABLE','SYSTEM VERSIONED')", 1)
-	}
-	if d == SQLServer {
-		// The grid's read path can inspect visible system-owned tables; only
-		// the separate edit metadata query excludes shipped tables.
-		q.SQL = strings.Replace(q.SQL, " AND t.is_ms_shipped=0", "", 1)
-	}
-	var kind string
-	err = conn.QueryRowContext(ctx, q.SQL, q.Args...).Scan(&kind)
-	if errors.Is(err, sql.ErrNoRows) {
-		var ok bool
-		q, ok = browseViewQuery(d, r)
-		if !ok {
-			return false, err
+	if IsMySQLDialect(d) {
+		kinds := "'BASE TABLE','VIEW','SYSTEM VIEW'"
+		if d == MariaDB {
+			kinds += ",'SYSTEM VERSIONED'"
 		}
-		err = conn.QueryRowContext(ctx, q.SQL, q.Args...).Scan(&kind)
+		var view bool
+		err := conn.QueryRowContext(ctx, `SELECT TABLE_TYPE IN ('VIEW','SYSTEM VIEW') FROM information_schema.TABLES
+WHERE BINARY TABLE_SCHEMA=BINARY ? AND BINARY TABLE_NAME=BINARY ? AND TABLE_TYPE IN (`+kinds+")", r.Schema, r.Table).Scan(&view)
+		return view, err
 	}
+	if d == PostgreSQL {
+		var view bool
+		err := conn.QueryRowContext(ctx, `SELECT c.relkind IN ('v','m') FROM pg_catalog.pg_class c
+JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname=$1 AND c.relname=$2
+AND c.relkind IN ('r','p','v','m') AND n.nspname IN (SELECT schema_name FROM information_schema.schemata)`, r.Schema, r.Table).Scan(&view)
+		return view, err
+	}
+	b := &catalogBinder{dialect: d}
+	source, err := extraObjectSource(d, b, r.Schema)
 	if err != nil {
 		return false, err
 	}
-	view := kind == "VIEW" || d == PostgreSQL && (kind == "v" || kind == "m")
-	if !view && !editBaseTableKind(d, kind) {
+	// Read the directory's object type, not merely its table/view grouping:
+	// Db2 nicknames and materialized query tables are not base tables.
+	query := "SELECT objecttype FROM (" + source + ") objects WHERE schemaname=" + b.bind(r.Schema) +
+		" AND objectname=" + b.bind(r.Table) + " AND objecttype IN ('table','view') ORDER BY objecttype"
+	var kind string
+	if err := conn.QueryRowContext(ctx, query, b.args...).Scan(&kind); err != nil {
+		return false, err
+	}
+	switch strings.TrimRight(kind, " ") {
+	case "view":
+		return true, nil
+	case "table":
+		return false, nil
+	default:
 		return false, ErrCatalogNotFound
 	}
-	return view, nil
 }
 
-func browseViewQuery(d Dialect, r CatalogColumnRequest) (catalogQuery, bool) {
-	b := catalogBinder{dialect: d}
-	s, t := b.bind(r.Schema), b.bind(r.Table)
-	q := ""
-	switch {
-	case IsMySQLDialect(d):
-		q = `SELECT 'VIEW' FROM information_schema.TABLES WHERE TABLE_SCHEMA=` + s + ` AND TABLE_NAME=` + t + ` AND TABLE_TYPE IN ('VIEW','SYSTEM VIEW')`
-	case d == SQLServer:
-		q = `SELECT 'VIEW' FROM sys.views v JOIN sys.schemas s ON s.schema_id=v.schema_id WHERE s.name=` + s + ` AND v.name=` + t
-	case IsOracleDialect(d):
-		q = `SELECT 'VIEW' FROM ALL_VIEWS WHERE OWNER=` + s + ` AND VIEW_NAME=` + t
-	case d == DB2:
-		q = `SELECT 'VIEW' FROM SYSCAT.TABLES WHERE TABSCHEMA=` + s + ` AND TABNAME=` + t + ` AND TYPE='V'`
+const mysqlPageEngines = " IN ('InnoDB','MyISAM','MEMORY','Aria')"
+
+const MySQLPageSettings = "COALESCE(DATABASE(), ''), CURRENT_USER(), @@session.sql_mode, @@session.time_zone, @@session.character_set_connection, @@session.collation_connection"
+const MySQLSessionFields = MySQLPageSettings + ", VERSION(), CONNECTION_ID()"
+
+// The first row always contains the live session, even for a missing table
+// or a view. Following rows stream the base table's visible column names.
+func MySQLStarSessionRows(ctx context.Context, conn *sql.Conn, hint QueryPageRelation) (*sql.Rows, error) {
+	target, args := mysqlCatalogTarget(hint.Schema, hint.Name)
+	if hint.Schema == "" {
+		target = "(SELECT DATABASE() AS db, tbl FROM " + target + ") AS target"
 	}
-	return catalogQuery{SQL: q, Args: b.args}, q != ""
+	query := "SELECT " + MySQLSessionFields + ", NULL AS column_name, NULL AS safe, 0 AS ordinal " +
+		"UNION ALL SELECT NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,c.COLUMN_NAME,t.ENGINE" + mysqlPageEngines +
+		",c.ORDINAL_POSITION" + mysqlVisibleColumnsFrom(target, false) + " ORDER BY ordinal"
+	return conn.QueryContext(ctx, query, args...)
+}
+
+// For a direct SELECT *, validate the same base table and engine as query
+// paging and retain just its visible column names, in physical order.
+func MySQLQueryStarColumns(ctx context.Context, conn *sql.Conn, schema, table string) ([]string, error) {
+	from, args := mysqlVisibleColumnsSQL(schema, table, false)
+	rows, err := conn.QueryContext(ctx, "SELECT c.COLUMN_NAME, t.ENGINE"+mysqlPageEngines+from, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var columns []string
+	for rows.Next() {
+		var name string
+		var safe bool
+		if err := rows.Scan(&name, &safe); err != nil {
+			return nil, err
+		}
+		if !safe {
+			return nil, nil
+		}
+		columns = append(columns, name)
+	}
+	return columns, rows.Err()
+}
+
+// Query paging can automatically rerun a read only when its actual source is
+// an ordinary supported table. MySQL's filesystem case mode also applies to
+// qualified identifiers in user SQL.
+func MySQLQueryPageSource(ctx context.Context, conn *sql.Conn, schema, table string) (bool, error) {
+	target, args := mysqlCatalogTarget(schema, table)
+	var safe bool
+	const selectSource = "SELECT TABLE_TYPE='BASE TABLE' AND ENGINE" + mysqlPageEngines + " FROM information_schema.TABLES"
+	if len(args) != 0 {
+		// User SQL resolves identifiers in its session charset and case mode.
+		// Preserve direct parameter coercion for non-ASCII identifiers.
+		err := conn.QueryRowContext(ctx, selectSource+`
+WHERE TABLE_SCHEMA=COALESCE(NULLIF(?,''),DATABASE()) AND TABLE_NAME=?
+AND (@@lower_case_table_names<>0 OR (BINARY TABLE_SCHEMA=BINARY COALESCE(NULLIF(?,''),DATABASE()) AND BINARY TABLE_NAME=BINARY ?))`, schema, table, schema, table).Scan(&safe)
+		return safe, err
+	}
+	resolvedSchema := "target.db"
+	if schema == "" {
+		// DATABASE() can contain non-ASCII characters even when the table
+		// name is ASCII. Keep the server's own result charset.
+		resolvedSchema = "DATABASE()"
+	}
+	err := conn.QueryRowContext(ctx, selectSource+` CROSS JOIN `+target+`
+WHERE TABLE_SCHEMA=`+resolvedSchema+` AND TABLE_NAME=target.tbl
+AND (@@lower_case_table_names<>0 OR (BINARY TABLE_SCHEMA=BINARY `+resolvedSchema+` AND BINARY TABLE_NAME=BINARY target.tbl))`).Scan(&safe)
+	return safe, err
 }
 
 func browseUniqueKey(ctx context.Context, conn *sql.Conn, d Dialect, table EditTable) ([]string, error) {

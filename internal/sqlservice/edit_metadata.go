@@ -42,8 +42,8 @@ type EditTable struct {
 
 // LoadEditTable reads the authenticated connection's visible metadata. Missing
 // metadata and views fail closed; no user-table query is used as an alternate
-// discovery path. Read every column page before deriving
-// write permissions so a partial definition cannot omit required insert values.
+// discovery path. Read the complete definition before deriving write
+// permissions so a partial definition cannot omit required insert values.
 func LoadEditTable(ctx context.Context, conn *sql.Conn, d Dialect, scope Context, schema, table string) (EditTable, error) {
 	out := EditTable{Database: scope.Database, Schema: schema, Table: table}
 	if d == ClickHouse || !supported(d) {
@@ -60,6 +60,25 @@ func LoadEditTable(ctx context.Context, conn *sql.Conn, d Dialect, scope Context
 	}
 	ctx, cancel := MetadataContext(ctx, d)
 	defer cancel()
+	if d == MySQL {
+		out.Schema = out.Database
+		engine, possibleKey, err := mysqlEditColumns(ctx, conn, &out)
+		if err != nil {
+			return out, err
+		}
+		if len(out.Columns) > 0 {
+			out.Transactional, err = editMySQLTransactional(ctx, conn, engine)
+			if err != nil {
+				return out, err
+			}
+			if !possibleKey {
+				return out, ctx.Err()
+			}
+			return loadEditPrimaryKey(ctx, conn, d, out)
+		}
+		// Preserve case folding and the distinction between an inaccessible
+		// schema, a missing table and an unsupported object on exact misses.
+	}
 	if err := catalogDatabaseAccess(ctx, conn, d, out.Database); err != nil {
 		return out, err
 	}
@@ -76,46 +95,25 @@ func LoadEditTable(ctx context.Context, conn *sql.Conn, d Dialect, scope Context
 			return out, fmt.Errorf("resolve editable table: %w", err)
 		}
 		schema = resolved
+	} else if schema == "" && d == SQLServer {
+		// SQL Server first searches the default schema and then dbo.
+		if err := conn.QueryRowContext(ctx, `SELECT OBJECT_SCHEMA_NAME(OBJECT_ID(@p1, 'U'))`, quoteIdentifier(table, d, '[')).Scan(&schema); err != nil {
+			return out, fmt.Errorf("resolve editable table: %w", err)
+		}
 	} else if schema == "" {
 		var err error
 		schema, err = extraDefaultSchema(ctx, conn, d, scope.Database)
 		if err != nil {
 			return out, err
 		}
-		if d == SQLServer {
-			// SQL Server first searches the default schema and then dbo.
-			var resolved string
-			err = conn.QueryRowContext(ctx, `SELECT OBJECT_SCHEMA_NAME(OBJECT_ID(@p1, 'U'))`, quoteIdentifier(table, d, '[')).Scan(&resolved)
-			if err != nil {
-				return out, fmt.Errorf("resolve editable table: %w", err)
-			}
-			schema = resolved
-		}
 	}
 	out.Schema = schema
-	if err := catalogEditableObjectAccess(ctx, conn, d, schema, table); err != nil {
-		if !IsMySQLDialect(d) || !errors.Is(err, ErrCatalogNotFound) {
-			return out, err
-		}
-		// MySQL-compatible servers with lower_case_table_names=1/2 resolve
-		// even quoted table references without case sensitivity. Preserve
-		// strict lookup on case-sensitive servers and resolve only a unique,
-		// visible catalog name; never probe user rows to guess the target.
-		table, err = editMySQLCanonicalTable(ctx, conn, schema, table)
-		if err != nil {
-			return out, err
-		}
-		out.Table = table
-	}
-	r := CatalogColumnRequest{Database: out.Database, Schema: schema, Table: table, Limit: MaxCatalogPageSize}
-	base, err := editBaseTableQuery(d, r)
+	r := CatalogColumnRequest{Database: out.Database, Schema: schema, Table: table}
+	kind, err := editableTableKind(ctx, conn, d, &r)
 	if err != nil {
 		return out, err
 	}
-	var kind string
-	if err := conn.QueryRowContext(ctx, base.SQL, base.Args...).Scan(&kind); err != nil {
-		return out, fmt.Errorf("read editable table kind: %w", err)
-	}
+	out.Table = r.Table
 	if !editBaseTableKind(d, kind) {
 		return out, fmt.Errorf("%w: a base table is required", ErrNotEditable)
 	}
@@ -199,12 +197,44 @@ func LoadEditTable(ctx context.Context, conn *sql.Conn, d Dialect, scope Context
 		item.Supported = EditTypeSupported(d, col.DataType)
 		out.Columns = append(out.Columns, item)
 	}
+	return loadEditPrimaryKey(ctx, conn, d, out)
+}
+
+// The MySQL dictionary exposes all column attributes in one visible row.
+// COLUMN_KEY only tells us whether a primary key lookup might be needed.
+// Resolve the actual key (including composite key order) from constraints.
+func mysqlEditColumns(ctx context.Context, conn *sql.Conn, table *EditTable) (string, bool, error) {
+	from, args := mysqlVisibleColumnsSQL(table.Schema, table.Table, false)
+	rows, err := conn.QueryContext(ctx, `SELECT COALESCE(t.ENGINE,''), c.COLUMN_NAME, c.COLUMN_TYPE, c.IS_NULLABLE='YES',
+COALESCE(c.EXTRA LIKE '%GENERATED%' AND c.EXTRA NOT LIKE '%DEFAULT_GENERATED%',0), COALESCE(c.EXTRA LIKE '%auto_increment%',0),
+c.COLUMN_DEFAULT IS NOT NULL, c.COLUMN_KEY`+from, args...)
+	if err != nil {
+		return "", false, err
+	}
+	defer rows.Close()
+	var engine string
+	var possibleKey bool
+	for rows.Next() {
+		var column EditColumn
+		var key sql.NullString
+		if err := rows.Scan(&engine, &column.Name, &column.DataType, &column.Nullable, &column.Generated, &column.Identity, &column.HasDefault, &key); err != nil {
+			return "", false, err
+		}
+		column.Supported = EditTypeSupported(MySQL, column.DataType)
+		table.Columns = append(table.Columns, column)
+		possibleKey = possibleKey || !key.Valid || strings.EqualFold(key.String, "PRI")
+	}
+	return engine, possibleKey, rows.Err()
+}
+
+func loadEditPrimaryKey(ctx context.Context, conn *sql.Conn, d Dialect, out EditTable) (EditTable, error) {
+	r := CatalogColumnRequest{Database: out.Database, Schema: out.Schema, Table: out.Table}
 	verifyKeySize := d == MariaDB || d == OceanBaseMySQL
 	pk, _, ok := inspectionQuery(d, r, "primary_key", verifyKeySize, true)
 	if !ok {
 		return out, fmt.Errorf("%w: primary key metadata is unavailable", ErrNotEditable)
 	}
-	rows, err = conn.QueryContext(ctx, pk.SQL, pk.Args...)
+	rows, err := conn.QueryContext(ctx, pk.SQL, pk.Args...)
 	if err != nil {
 		return out, fmt.Errorf("read primary key: %w", err)
 	}
@@ -326,24 +356,54 @@ func editBaseTableKind(d Dialect, kind string) bool {
 	return kind == "TABLE"
 }
 
+// A visible base-table row proves both the object kind and metadata access.
+// Read the wider directory only when it can distinguish an invisible object,
+// a visible unsupported object, or a case-folded MySQL table name.
+func editableTableKind(ctx context.Context, conn *sql.Conn, d Dialect, r *CatalogColumnRequest) (string, error) {
+	if d == PostgreSQL {
+		return postgresEditableObjectKind(ctx, conn, r.Schema, r.Table)
+	}
+	readKind := func() (string, error) {
+		q, err := editBaseTableQuery(d, *r)
+		if err != nil {
+			return "", err
+		}
+		var kind string
+		err = conn.QueryRowContext(ctx, q.SQL, q.Args...).Scan(&kind)
+		return kind, err
+	}
+	kind, err := readKind()
+	if errors.Is(err, sql.ErrNoRows) {
+		accessErr := catalogEditableObjectAccess(ctx, conn, d, r.Schema, r.Table)
+		if IsMySQLDialect(d) && errors.Is(accessErr, ErrCatalogNotFound) {
+			r.Table, accessErr = editMySQLCanonicalTable(ctx, conn, r.Schema, r.Table)
+			if accessErr == nil {
+				kind, err = readKind()
+			}
+		}
+		if accessErr != nil {
+			return "", accessErr
+		}
+	}
+	if err != nil {
+		return "", fmt.Errorf("read editable table kind: %w", err)
+	}
+	return kind, nil
+}
+
 func editBaseTableQuery(d Dialect, r CatalogColumnRequest) (catalogQuery, error) {
 	b := catalogBinder{dialect: d}
 	s, t := b.bind(r.Schema), b.bind(r.Table)
-	if d == PostgreSQL {
-		s, t = "$1", "$2"
-	}
 	var q string
 	switch {
 	case IsMySQLDialect(d):
 		q = `SELECT COALESCE(ENGINE,'') FROM information_schema.TABLES WHERE BINARY TABLE_SCHEMA=BINARY ` + s + ` AND BINARY TABLE_NAME=BINARY ` + t + ` AND TABLE_TYPE='BASE TABLE'`
-	case d == PostgreSQL:
-		q = `SELECT t.relkind::text FROM pg_catalog.pg_class t JOIN pg_catalog.pg_namespace n ON n.oid=t.relnamespace WHERE n.nspname=` + s + ` AND t.relname=` + t
 	case d == SQLServer:
 		q = `SELECT 'TABLE' FROM sys.tables t JOIN sys.schemas s ON s.schema_id=t.schema_id WHERE s.name=` + s + ` AND t.name=` + t + ` AND t.is_ms_shipped=0`
 	case IsOracleDialect(d):
 		q = `SELECT 'TABLE' FROM ALL_TABLES WHERE OWNER=` + s + ` AND TABLE_NAME=` + t
 	case d == DB2:
-		q = `SELECT 'TABLE' FROM SYSCAT.TABLES WHERE TABSCHEMA=` + s + ` AND TABNAME=` + t + ` AND TYPE='T'`
+		q = `SELECT 'TABLE' FROM SYSCAT.TABLES t WHERE t.TABSCHEMA=` + s + ` AND t.TABNAME=` + t + ` AND t.TYPE='T' AND ` + db2TableVisible
 	default:
 		return catalogQuery{}, ErrUnsupportedDialect
 	}

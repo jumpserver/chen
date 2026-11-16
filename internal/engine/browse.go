@@ -162,10 +162,6 @@ func (v *Server) browseTable(w http.ResponseWriter, r *http.Request) {
 
 func (v *Server) resolveBrowse(ctx context.Context, s *session, c *console, req browseRequest) (*browsePlan, error) {
 	d := s.grant.Config.Dialect
-	scope, err := liveContext(ctx, c, d)
-	if err != nil {
-		return nil, err
-	}
 	p := &browsePlan{action: req.Action, sourceResultID: req.SourceResultID}
 	if req.SourceResultID != "" {
 		s.mu.Lock()
@@ -202,13 +198,31 @@ func (v *Server) resolveBrowse(ctx context.Context, s *session, c *console, req 
 		if req.Table == "" {
 			return nil, errors.New("Select a table to browse")
 		}
-		p.options, err = liveOptions(ctx, c, d)
-		if err != nil {
-			return nil, err
+		var scope sqlservice.Context
+		if state := c.initialMySQL; state != nil {
+			scope, p.options, p.context = state.scope, state.options, state.fingerprint
+		} else if d == "mysql" {
+			state, err := readMySQLSession(ctx, c.conn)
+			if err == nil {
+				scope, p.options, p.context = state.scope, state.options, state.fingerprint
+			}
 		}
-		// An unavailable fingerprint does not remove legacy initial browsing;
-		// it simply cannot authorize a later temporary namespace switch.
-		p.context, _ = queryPageContext(ctx, c, d)
+		if p.context == "" {
+			var err error
+			p.options, err = liveOptions(ctx, c, d)
+			if err != nil {
+				return nil, err
+			}
+			p.context, scope, err = readQueryPageContext(ctx, c, d)
+			if err != nil {
+				// A driver or account can expose its namespace without all paging
+				// settings. Initial browsing remains available in that case.
+				scope, err = liveContext(ctx, c, d)
+				if err != nil {
+					return nil, err
+				}
+			}
+		}
 		version, reason, err := browseVendorContext(ctx, c, d, p.options)
 		if err != nil {
 			return nil, err
@@ -510,7 +524,7 @@ func (v *Server) collectBrowseAppend(s *session, e *execution, rows *sql.Rows) e
 	}
 	batch.consoleID, batch.sourceSQL, batch.browse = e.view.ConsoleID, e.resultSQL, e.browse
 	batch.sourceAnalysis = e.resultAnalysis
-	v.bindResultEditSource(s, e, []*Result{batch})
+	v.bindResultEditSource(s, e, []*Result{batch}, nil)
 	if err := e.restoreSourceReadContext(); err != nil {
 		return err
 	}

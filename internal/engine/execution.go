@@ -168,6 +168,8 @@ func (v *Server) run(s *session, c *console, e *execution) {
 		return
 	}
 	c.mu.Lock()
+	initialMySQL := c.initialMySQL
+	c.initialMySQL = nil
 	userSQLStarted := false
 	sourceStartedTransaction := false
 	var db2CancelCheckpoint uint64
@@ -426,7 +428,36 @@ func (v *Server) run(s *session, c *console, e *execution) {
 	if jumpserver.IsMySQLWire(s.grant.Config.Dialect) {
 		databaseTouched.Store(true)
 	}
-	opts, err := liveOptions(e.ctx, c, s.grant.Config.Dialect)
+	dialect := s.grant.Config.Dialect
+	var mysqlState *mysqlSessionState
+	var mysqlHint *resultStarSource
+	if dialect == "mysql" && initialMySQL == nil && e.browse == nil && e.queryPage == nil && e.planMode == "" && e.export == nil {
+		if target, ok := sqlservice.MySQLStarHint(e.sql); ok {
+			state, hint, err := readMySQLStarSession(e.ctx, c.conn, target)
+			if err == nil {
+				initialMySQL, mysqlHint = &state, hint
+			}
+		}
+	}
+	readOptions := func() (sqlservice.AnalyzeOptions, error) {
+		if dialect != "mysql" {
+			return liveOptions(e.ctx, c, dialect)
+		}
+		if initialMySQL != nil {
+			mysqlState, initialMySQL = initialMySQL, nil
+			return mysqlState.options, nil
+		}
+		state, err := readMySQLSession(e.ctx, c.conn)
+		if err != nil {
+			// Some compatible servers support SQL mode but not every paging
+			// variable. Ordinary SQL can still run without replay metadata.
+			mysqlState = nil
+			return liveOptions(e.ctx, c, dialect)
+		}
+		mysqlState = &state
+		return state.options, nil
+	}
+	opts, err := readOptions()
 	if err != nil {
 		failure(err, safeDatabaseError(err))
 		return
@@ -437,7 +468,7 @@ func (v *Server) run(s *session, c *console, e *execution) {
 	} else if e.browse != nil && e.browse.plan != nil {
 		sourceContext = e.browse.plan.context
 	}
-	if sourceContext != "" {
+	if sourceContext != "" && (mysqlState == nil || mysqlState.fingerprint != sourceContext) {
 		guard, err := prepareSourceReadContext(e.ctx, c, s.grant.Config.Dialect, sourceContext)
 		if err != nil {
 			failure(err, sourceContextError(err))
@@ -632,10 +663,16 @@ func (v *Server) run(s *session, c *console, e *execution) {
 			failure(err, &APIError{"session_unavailable", err.Error()})
 			return
 		}
-		current, err := liveOptions(e.ctx, c, s.grant.Config.Dialect)
-		if err != nil {
-			failure(err, safeDatabaseError(err))
-			return
+		// The first statement still owns the connection on which admission
+		// read the parser settings. Earlier statements in a script can SET
+		// sql_mode (or change database), so take a new snapshot after each.
+		current := opts
+		if statementIndex > 0 {
+			current, err = readOptions()
+			if err != nil {
+				failure(err, safeDatabaseError(err))
+				return
+			}
 		}
 		if (e.planMode != "" || e.browse != nil || e.queryPage != nil) && current != opts {
 			failure(errors.New("sql_context_changed"), &APIError{"sql_context_changed", "SQL mode changed during admission; submit a new request"})
@@ -683,8 +720,18 @@ func (v *Server) run(s *session, c *console, e *execution) {
 			failure(context.Canceled, &APIError{"query_canceled", "Query cancellation requested"})
 			return
 		}
+		var starSource *resultStarSource
 		if statement.ReturnsRows && e.planMode == "" && e.queryPage == nil && e.browse == nil {
-			v.captureQuerySQLSource(s, c, e, current, statement.SQL)
+			if mysqlHint != nil {
+				e.mu.RLock()
+				// A later statement or an approval wait may have outlived
+				// the dictionary read. Recheck the source after authorization.
+				if len(analysis.Statements) != 1 || e.view.Review != nil || len(e.confirmationDecisions) != 0 {
+					mysqlHint = nil
+				}
+				e.mu.RUnlock()
+			}
+			starSource = v.captureQuerySQLSource(s, c, e, current, statement, mysqlState, mysqlHint)
 			if err := e.ctx.Err(); err != nil {
 				failure(err, safeDatabaseError(err))
 				return
@@ -780,7 +827,7 @@ func (v *Server) run(s *session, c *console, e *execution) {
 			} else if e.export != nil {
 				collectErr = v.collectExport(s, c, e, rows)
 			} else {
-				collectErr = v.collectResults(s, e, rows)
+				collectErr = v.collectResults(s, e, rows, starSource)
 			}
 			if err := collectErr; err != nil {
 				// database/sql can replace a driver's Rows error with ctx.Err().
@@ -870,9 +917,7 @@ func liveOptions(ctx context.Context, c *console, dialect string) (sqlservice.An
 		if err := c.conn.QueryRowContext(ctx, "SELECT @@session.sql_mode, VERSION()").Scan(&o.MySQLSQLMode, &version); err != nil {
 			return o, err
 		}
-		var major, minor, patch int
-		_, _ = fmt.Sscanf(version, "%d.%d.%d", &major, &minor, &patch)
-		o.MySQLVersion = major*10000 + minor*100 + patch
+		o = mysqlAnalyzeOptions(o.MySQLSQLMode, version)
 	}
 	return o, nil
 }
@@ -948,12 +993,12 @@ func normalizeValue(value any, dbType string) any {
 		return normalizeComposite(value, dbType)
 	}
 }
-func (v *Server) collectResults(s *session, e *execution, rows *sql.Rows) (err error) {
+func (v *Server) collectResults(s *session, e *execution, rows *sql.Rows, starSource *resultStarSource) (err error) {
 	var collected []*Result
 	defer func() {
 		rows.Close()
 		if e.resultSQL != "" {
-			v.bindResultEditSource(s, e, collected)
+			v.bindResultEditSource(s, e, collected, starSource)
 		}
 		// Source resolution above must see the original namespace. No result
 		// may become visible until the user's current namespace is restored.

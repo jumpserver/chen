@@ -247,6 +247,9 @@ FROM system.columns WHERE database = ` + b.bind(req.Database) + " AND table = " 
 		query = strings.ReplaceAll(query, "c.STRINGUNITSLENGTH", "CAST(NULL AS INTEGER)")
 		query = strings.ReplaceAll(query, "c.TYPESTRINGUNITS", "CAST('UNKNOWN' AS VARCHAR(11))")
 	}
+	if limit == 0 {
+		return catalogQuery{SQL: query, Args: b.args}, nil
+	}
 	return b.orderedPage(query, limit), nil
 }
 
