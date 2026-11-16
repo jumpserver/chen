@@ -251,5 +251,8 @@ func editSafeFailure(err error) *APIError {
 	if errors.As(err, &api) {
 		return api
 	}
+	if native := db2EditDiagnostic(err, nil, nil); native != nil {
+		return native
+	}
 	return editError("edit_database_error", "The database rejected a change. No field values are included in this diagnostic.")
 }

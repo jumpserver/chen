@@ -345,6 +345,13 @@ func DecodeField(drdaType uint8, ps []byte, r io.Reader, endian binary.ByteOrder
 			buf = buf[:len(buf)-1]
 		}
 		s := string(buf)
+		// Db2 timestamps can carry twelve fractional digits. Go's time.Parse
+		// accepts that text but silently discards digits beyond nanoseconds.
+		const fractionStart = len("2006-01-02-15.04.05.")
+		if len(buf) >= fractionStart+10 && buf[fractionStart-1] == '.' &&
+			len(bytes.Trim(buf[fractionStart:fractionStart+10], "0123456789")) == 0 {
+			return s, nil
+		}
 		for _, layout := range timestampLayouts {
 			if t, err := time.Parse(layout, s); err == nil {
 				return t, nil

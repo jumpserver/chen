@@ -952,7 +952,8 @@ func ParseSQLCARD(obj []byte, endian binary.ByteOrder) (int32, string, string, i
 	if obj[0] == 0xFF {
 		return 0, "", "", 0, nil // Valid empty / no error
 	}
-	if len(obj) < 18 {
+	const extendedGroup = 1 + 4 + 5 + 8 // null indicator, SQLCODE, SQLSTATE, SQLERRPROC
+	if len(obj) < extendedGroup {
 		return 0, "", "", 0, fmt.Errorf("SQLCARD payload too short: %d bytes", len(obj))
 	}
 
@@ -964,36 +965,39 @@ func ParseSQLCARD(obj []byte, endian binary.ByteOrder) (int32, string, string, i
 		sqlstate = string(obj[5:10])
 	}
 
-	var rowsAffected int64
-	if len(obj) >= 26 {
-		rowsAffected = int64(int32(endian.Uint32(obj[22:26])))
-	}
-	if rowsAffected == 0 && sqlcode == 0 {
-		rowsAffected = 1
+	if len(obj) == extendedGroup || obj[extendedGroup] == 0xFF {
+		return sqlcode, sqlstate, "", 0, nil
 	}
 
-	// Try extracting human-readable message if present
+	// In the SQLAM 11 SQLCAXGRP, six SQLERRD integers precede SQLWARN.
+	// SQLERRD(3) contains the DML count. A commit reply contributes zero.
+	fields := obj[extendedGroup+1:]
+	const fixedFields = 6*4 + 11
+	if len(fields) < fixedFields {
+		// A short reply can still carry a useful SQLCODE and SQLSTATE, but
+		// does not establish an affected-row count.
+		return sqlcode, sqlstate, "", 0, nil
+	}
+	rowsAffected := int64(int32(endian.Uint32(fields[8:12])))
+
+	// The database name and the two message fields use network-order lengths,
+	// independently of the negotiated integer byte order.
+	rest := fields[fixedFields:]
 	var message string
-	if len(obj) > 36+18 {
-		rest := obj[36+18:]
-		// Extract RDB name
-		if len(rest) >= 2 {
-			rdbLen := int(binary.BigEndian.Uint16(rest[:2]))
-			if len(rest) >= 2+rdbLen {
-				rest = rest[2+rdbLen:]
-			} else {
-				rest = nil
-			}
+	for i := 0; i < 3; i++ {
+		if len(rest) < 2 {
+			break
 		}
-		// Extract error message
-		if len(rest) >= 2 {
-			msgLen := int(binary.BigEndian.Uint16(rest[:2]))
-			if len(rest) >= 2+msgLen {
-				rawMsg := rest[2 : 2+msgLen]
-				message = string(rawMsg)
-				message = strings.ReplaceAll(message, "\xff", ", ")
-			}
+		length := int(binary.BigEndian.Uint16(rest))
+		rest = rest[2:]
+		if len(rest) < length {
+			break
 		}
+		if i > 0 && length > 0 {
+			message = strings.ReplaceAll(string(rest[:length]), "\xff", ", ")
+			break
+		}
+		rest = rest[length:]
 	}
 
 	return sqlcode, sqlstate, message, rowsAffected, nil

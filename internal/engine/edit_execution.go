@@ -100,11 +100,12 @@ func (v *Server) runEdits(s *session, c *console, e *execution) {
 		if e.ctx.Err() != nil || e.cancelRequested.Load() {
 			status = "canceled"
 		}
-		if api := editSafeFailure(err); api.Code == "transaction_outcome_unknown" || api.Code == "edit_nontransactional_failed" {
+		api := editSafeFailure(err)
+		if api.Code == "transaction_outcome_unknown" || api.Code == "edit_nontransactional_failed" {
 			status = "unknown"
 			v.update(s, e, func(x *ExecutionView) { x.Edit.Outcome = "unknown"; x.Edit.RefreshRequired = true })
 		}
-		v.update(s, e, func(x *ExecutionView) { x.Status = status; x.Error = editSafeFailure(err) })
+		v.update(s, e, func(x *ExecutionView) { x.Status = status; x.Error = api })
 	}
 	if err := e.ctx.Err(); err != nil {
 		failEdit(editError("edit_canceled", "Save was canceled before execution"))
@@ -256,6 +257,11 @@ func (v *Server) runEdits(s *session, c *console, e *execution) {
 		attempted = true
 		result, execErr := boundary.exec(e.ctx, command.sql, command.args...)
 		if execErr != nil {
+			if s.grant.Config.Dialect == "db2" {
+				if api := db2EditDiagnostic(execErr, command.argColumns, &resolved.table); api != nil {
+					execErr = api
+				}
+			}
 			rollback(execErr)
 			return
 		}

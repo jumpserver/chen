@@ -94,17 +94,24 @@ func normalizeTypedEditValue(dialect string, field sqlservice.EditColumn, value 
 		}
 		if bits > 0 {
 			integer, err := exactEditInteger(text)
+			var signed int64
 			if err == nil {
 				if strings.HasSuffix(editBaseType(field.DataType), " UNSIGNED") || dialect == "sqlserver" && typeName == "TINYINT" {
 					_, err = strconv.ParseUint(integer, 10, bits)
 				} else {
-					_, err = strconv.ParseInt(integer, 10, bits)
+					signed, err = strconv.ParseInt(integer, 10, bits)
 				}
 			}
 			if err != nil {
 				return nil, errors.New("Enter a whole number within the column's range")
 			}
+			if dialect == "db2" {
+				return signed, nil
+			}
 			return integer, nil
+		}
+		if dialect == "db2" {
+			return db2EditTextValue(field.DataType, typeName, text)
 		}
 	}
 	if editOracleTimezone(dialect, field) {
@@ -194,6 +201,11 @@ func editTimestampTZValue(value any) (string, error) {
 }
 
 func editTypedExpression(dialect string, field sqlservice.EditColumn, expression string) string {
+	if dialect == "db2" && expression == "?" && db2EditTemporalType(editBaseType(field.DataType)) {
+		// Db2 uses the target column's temporal precision for a string in an
+		// assignment or comparison. Its native Go timestamp bind only sends microseconds.
+		return "CAST(? AS VARCHAR(" + strconv.Itoa(db2TemporalBindSize) + "))"
+	}
 	if dialect == "oracle" && editOracleJSON(dialect, field) {
 		return "JSON(" + expression + ")"
 	}
