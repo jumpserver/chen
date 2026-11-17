@@ -43,6 +43,8 @@ Managed mode listens on `127.0.0.1:8082`. Keep registration keys in `data/keys`
 and audit state in `data/go` persistent; container data is under `/opt/chen/data`.
 The API is served at `/chen/api/v1/` with SSE streaming. Use `chen-go healthcheck`
 for liveness and `chen-go readycheck` for readiness.
+Managed mode uses the first `X-Forwarded-For` entry when it is a valid IP. Keep Chen behind
+JumpServer's web proxy, which must replace untrusted client-supplied forwarding headers.
 
 Queries have no default deadline or aggregate result byte quota. Deployments can
 set `--query-timeout` and `--max-result-bytes`; `0` disables either limit. Cached

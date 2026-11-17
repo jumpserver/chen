@@ -8,6 +8,7 @@ import (
 	"errors"
 	"io"
 	"mime"
+	"net"
 	"net/http"
 	"net/url"
 	"slices"
@@ -319,6 +320,13 @@ func (v *Server) createSession(w http.ResponseWriter, r *http.Request) {
 		// Creation owns its deadline: a browser disconnect must not lose a consumed
 		// connection token. Retrying this same token observes this same attempt.
 		token, remoteAddr := credential, r.RemoteAddr
+		if !v.opts.SingleMode {
+			// Managed requests use the client address forwarded by JumpServer's web proxy.
+			forwarded, _, _ := strings.Cut(r.Header.Get("X-Forwarded-For"), ",")
+			if ip := strings.TrimSpace(forwarded); net.ParseIP(ip) != nil {
+				remoteAddr = ip
+			}
+		}
 		v.creating.Add(1)
 		go func() {
 			defer v.creating.Done()
