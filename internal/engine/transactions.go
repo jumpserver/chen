@@ -5,10 +5,34 @@ import (
 	"database/sql/driver"
 	"errors"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/jumpserver/chen/internal/jumpserver"
 )
+
+// Automatic-mode SQL may open a transaction outside Chen's managed transaction.
+// Read the pinned connection only when a client needs to decide whether it is safe to close.
+func (v *Server) consoleTransactionState(w http.ResponseWriter, r *http.Request) {
+	s, c, ctx, done := v.catalogConsole(w, r)
+	if s == nil {
+		return
+	}
+	defer done()
+	if err := v.auditCatalog(ctx, s, c, "transaction-state"); err != nil {
+		fail(w, 503, "audit_persistence_failed", "Transaction state access could not be audited")
+		return
+	}
+	state := editTxActive
+	if c.manualTx == nil {
+		var err error
+		state, err = editTransactionState(ctx, c, s.grant.Config.Dialect)
+		if err != nil {
+			state = editTxUnknown
+		}
+	}
+	writeJSON(w, 200, map[string]editTxState{"state": state})
+}
 
 type TransactionView struct {
 	Supported          bool               `json:"supported"`

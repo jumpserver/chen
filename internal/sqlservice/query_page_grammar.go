@@ -284,7 +284,9 @@ func (p *repeatableQueryParser) selectBlock(top bool) bool {
 	scope := &QueryPageScope{Parent: p.currentScope}
 	p.currentScope = scope
 	p.query.Scopes = append(p.query.Scopes, scope)
-	if !p.take("DISTINCT") {
+	distinct := p.take("DISTINCT")
+	direct := p.query.Dialect == Dameng && top && p.pos == 1 && !distinct
+	if !distinct {
 		p.take("ALL")
 	}
 	if p.take("TOP") {
@@ -305,6 +307,7 @@ func (p *repeatableQueryParser) selectBlock(top bool) bool {
 	n := 0
 	for {
 		start := p.pos
+		references := len(scope.References)
 		if !p.expression() {
 			return false
 		}
@@ -317,6 +320,7 @@ func (p *repeatableQueryParser) selectBlock(top bool) bool {
 			return false
 		}
 		projection := p.projection(start, end)
+		direct = direct && (projection.Star || projection.Name != "" && len(scope.References) == references+1)
 		if alias != "" {
 			projection.Name = alias
 		}
@@ -332,6 +336,9 @@ func (p *repeatableQueryParser) selectBlock(top bool) bool {
 	if p.take("FROM") {
 		if !p.table() {
 			return false
+		}
+		if direct && p.pos == len(p.tokens) && len(scope.Sources) == 1 && scope.Sources[0].Relation != nil {
+			p.query.DirectTableProjection = true
 		}
 		for {
 			if p.take(",") {

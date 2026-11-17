@@ -3,10 +3,13 @@ package engine
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/jumpserver/chen/internal/sqlservice"
 	"strings"
+
+	dm "gitee.com/chunanyong/dm"
+	"github.com/jumpserver/chen/internal/sqlservice"
 )
 
 func vendorQueryPageContext(ctx context.Context, c *console, d string) ([]string, error) {
@@ -17,7 +20,7 @@ func vendorQueryPageContext(ctx context.Context, c *console, d string) ([]string
 		fieldCount = 7
 		query = `SELECT COALESCE(DB_NAME(),''),COALESCE(SCHEMA_NAME(),''),SUSER_SNAME(),USER_NAME(),CONVERT(varchar(20),@@OPTIONS),@@LANGUAGE,CONVERT(varchar(20),@@DATEFIRST)`
 	case "oracle", "dameng", "oceanbase-oracle":
-		query = `SELECT SYS_CONTEXT('USERENV','DB_NAME'),SYS_CONTEXT('USERENV','CURRENT_SCHEMA'),SYS_CONTEXT('USERENV','CURRENT_USER'),SYS_CONTEXT('USERENV','SESSION_USER'),SESSIONTIMEZONE,DBTIMEZONE FROM DUAL`
+		query = oraclePageIdentity
 	case "db2":
 		query = `SELECT RTRIM(CURRENT SERVER),RTRIM(CURRENT SCHEMA),SESSION_USER,CURRENT USER,CURRENT PATH,CHAR(CURRENT TIMEZONE) FROM SYSIBM.SYSDUMMY1`
 	case "clickhouse":
@@ -26,42 +29,18 @@ func vendorQueryPageContext(ctx context.Context, c *console, d string) ([]string
 	default:
 		return nil, errors.New("Database query paging is unavailable for this dialect")
 	}
-	rows, err := c.conn.QueryContext(ctx, query)
+	values, err := readPageContextRow(ctx, c, query, fieldCount)
 	if err != nil {
 		return nil, err
 	}
-	values := make([]string, fieldCount)
-	dest := make([]any, fieldCount)
-	for i := range values {
-		dest[i] = &values[i]
-	}
-	if !rows.Next() {
-		err = rows.Err()
-		rows.Close()
-		if err == nil {
-			err = errors.New("Unable to verify the paging session context")
-		}
-		return nil, err
-	}
-	if err = rows.Scan(dest...); err != nil {
-		rows.Close()
-		return nil, err
-	}
-	if rows.Next() {
-		rows.Close()
-		return nil, errors.New("Unexpected paging context result")
-	}
-	if err = rows.Err(); err != nil {
-		rows.Close()
-		return nil, err
-	}
-	rows.Close()
 	settings := ""
 	switch d {
 	case "sqlserver":
 		settings = "DBCC USEROPTIONS WITH NO_INFOMSGS"
-	case "oracle", "dameng", "oceanbase-oracle":
+	case "oracle", "oceanbase-oracle":
 		settings = "SELECT PARAMETER,COALESCE(VALUE,'') FROM NLS_SESSION_PARAMETERS ORDER BY PARAMETER"
+	case "dameng":
+		settings = "SELECT PARAMETER,CASE WHEN VALUE IS NULL THEN '0' ELSE '1'||VALUE END FROM SYS.V$NLS_PARAMETERS ORDER BY PARAMETER"
 	case "clickhouse":
 		// clickhouse-go derives max_execution_time from each request's context
 		// deadline. Admission and execution have different deadlines; this query
@@ -69,8 +48,12 @@ func vendorQueryPageContext(ctx context.Context, c *console, d string) ([]string
 		settings = "SELECT name,value FROM system.settings WHERE changed AND name != 'max_execution_time' ORDER BY name"
 	}
 	if settings != "" {
-		rows, err = c.conn.QueryContext(ctx, settings)
+		rows, err := c.conn.QueryContext(ctx, settings)
 		if err != nil {
+			var denied *dm.DmError
+			if d == "dameng" && errors.As(err, &denied) && denied.ErrCode == -5504 {
+				return nil, &damengNLSAccessError{err, pageContextJSON(values)}
+			}
 			return nil, err
 		}
 		defer rows.Close()
@@ -89,6 +72,48 @@ func vendorQueryPageContext(ctx context.Context, c *console, d string) ([]string
 		if err := rows.Err(); err != nil {
 			return nil, err
 		}
+	}
+	return values, nil
+}
+
+type damengNLSAccessError struct {
+	error
+	identity string
+}
+
+const oraclePageIdentity = `SELECT SYS_CONTEXT('USERENV','DB_NAME'),SYS_CONTEXT('USERENV','CURRENT_SCHEMA'),SYS_CONTEXT('USERENV','CURRENT_USER'),SYS_CONTEXT('USERENV','SESSION_USER'),SESSIONTIMEZONE,DBTIMEZONE FROM DUAL`
+
+func pageContextJSON(values []string) string {
+	data, _ := json.Marshal(values)
+	return string(data)
+}
+
+func readPageContextRow(ctx context.Context, c *console, query string, fieldCount int) ([]string, error) {
+	rows, err := c.conn.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	values := make([]string, fieldCount)
+	dest := make([]any, fieldCount)
+	for i := range values {
+		dest[i] = &values[i]
+	}
+	if !rows.Next() {
+		err = rows.Err()
+		if err == nil {
+			err = errors.New("Unable to verify the paging session context")
+		}
+		return nil, err
+	}
+	if err = rows.Scan(dest...); err != nil {
+		return nil, err
+	}
+	if rows.Next() {
+		return nil, errors.New("Unexpected paging context result")
+	}
+	if err = rows.Err(); err != nil {
+		return nil, err
 	}
 	return values, nil
 }
@@ -163,7 +188,13 @@ func vendorQueryPageSource(ctx context.Context, c *console, d string, r sqlservi
 			}
 		}
 		var one int
-		err := c.conn.QueryRowContext(ctx, `SELECT 1 FROM ALL_TABLES WHERE OWNER=:1 AND TABLE_NAME=:2`, owner, r.Name).Scan(&one)
+		table := `SELECT 1 FROM ALL_TABLES WHERE OWNER=:1 AND TABLE_NAME=:2`
+		if d == "dameng" {
+			// VSYSOBJTABLES only exposes visible tables. INFO3's low byte is the
+			// storage type: require an ordinary user table (external tables use 13).
+			table = `SELECT 1 FROM SYS.VSYSOBJTABLES WHERE SF_GET_SCHEMA_NAME_BY_ID(SCHID)=:1 AND NAME=:2 AND SUBTYPE$='UTAB' AND BITAND(INFO3,255)=0`
+		}
+		err := c.conn.QueryRowContext(ctx, table, owner, r.Name).Scan(&one)
 		if errors.Is(err, sql.ErrNoRows) && d == "oracle" && r.Schema == "" && r.Name == "DUAL" {
 			var matches, local int
 			if err = c.conn.QueryRowContext(ctx, `SELECT COUNT(*) FROM ALL_OBJECTS WHERE OWNER=:1 AND OBJECT_NAME='DUAL'`, owner).Scan(&local); err != nil {
@@ -183,11 +214,14 @@ func vendorQueryPageSource(ctx context.Context, c *console, d string, r sqlservi
 		// Independent exact-key reads avoid deeply correlated Oracle catalog
 		// views and NULL-typed schema binds while preserving every guard.
 		var unsafe int
-		for _, query := range []string{
+		checks := []string{
 			`SELECT COUNT(*) FROM ALL_TAB_COLS WHERE OWNER=:1 AND TABLE_NAME=:2 AND (VIRTUAL_COLUMN IS NULL OR VIRTUAL_COLUMN<>'NO' OR DATA_TYPE_OWNER IS NOT NULL)`,
-			`SELECT COUNT(*) FROM ALL_EXTERNAL_TABLES WHERE OWNER=:1 AND TABLE_NAME=:2`,
 			`SELECT COUNT(*) FROM ALL_POLICIES WHERE OBJECT_OWNER=:1 AND OBJECT_NAME=:2 AND (ENABLE IS NULL OR ENABLE<>'NO')`,
-		} {
+		}
+		if d != "dameng" {
+			checks = append(checks, `SELECT COUNT(*) FROM ALL_EXTERNAL_TABLES WHERE OWNER=:1 AND TABLE_NAME=:2`)
+		}
+		for _, query := range checks {
 			if err := c.conn.QueryRowContext(ctx, query, owner, r.Name).Scan(&unsafe); err != nil {
 				return err
 			}

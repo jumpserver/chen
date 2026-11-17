@@ -59,6 +59,7 @@ func (v *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /chen/api/v1/sessions/{sid}/catalog/diagram", v.catalogDiagram)
 	mux.HandleFunc("POST /chen/api/v1/sessions/{sid}/consoles", v.createConsole)
 	mux.HandleFunc("DELETE /chen/api/v1/consoles/{cid}", v.deleteConsole)
+	mux.HandleFunc("GET /chen/api/v1/consoles/{cid}/transaction-state", v.consoleTransactionState)
 	mux.HandleFunc("POST /chen/api/v1/consoles/{cid}/executions", v.submit)
 	mux.HandleFunc("POST /chen/api/v1/consoles/{cid}/browse", v.browseTable)
 	mux.HandleFunc("GET /chen/api/v1/consoles/{cid}/results/{rid}/edit", v.editMetadata)

@@ -412,6 +412,19 @@ func editBaseTableQuery(d Dialect, r CatalogColumnRequest) (catalogQuery, error)
 
 func editColumnFlagsQuery(d Dialect, r CatalogColumnRequest) (catalogQuery, error) {
 	b := catalogBinder{dialect: d}
+	if d == Dameng {
+		// DM exposes the identity column's zero-based ID to table readers.
+		// ALL_TAB_COLS numbers the same columns starting at one.
+		qualified := quoteIdentifier(r.Schema, d, '"') + "." + quoteIdentifier(r.Table, d, '"')
+		obj := b.bind(qualified)
+		s, t := b.bind(r.Schema), b.bind(r.Table)
+		q := `SELECT c.COLUMN_NAME, CASE c.VIRTUAL_COLUMN WHEN 'YES' THEN 1 WHEN 'NO' THEN 0 END,
+CASE WHEN c.COLUMN_ID=SF_GET_IDENTITY_COLID(o.ID)+1 THEN 1 ELSE 0 END,
+CASE WHEN c.DEFAULT_LENGTH>0 THEN 1 ELSE 0 END
+FROM (SELECT OBJECT_ID(` + obj + `) AS ID FROM DUAL) o JOIN SYS.ALL_TAB_COLS c ON o.ID IS NOT NULL
+WHERE c.OWNER=` + s + ` AND c.TABLE_NAME=` + t + ` ORDER BY c.COLUMN_ID`
+		return catalogQuery{SQL: q, Args: b.args}, nil
+	}
 	s, t := b.bind(r.Schema), b.bind(r.Table)
 	if d == PostgreSQL {
 		s, t = "$1", "$2"
@@ -424,10 +437,6 @@ func editColumnFlagsQuery(d Dialect, r CatalogColumnRequest) (catalogQuery, erro
 		q = `SELECT a.attname, COALESCE(to_jsonb(a)->>'attgenerated','')<>'', COALESCE(to_jsonb(a)->>'attidentity','')<>'', ad.oid IS NOT NULL FROM pg_catalog.pg_attribute a JOIN pg_catalog.pg_class t ON t.oid=a.attrelid JOIN pg_catalog.pg_namespace n ON n.oid=t.relnamespace LEFT JOIN pg_catalog.pg_attrdef ad ON ad.adrelid=t.oid AND ad.adnum=a.attnum WHERE n.nspname=` + s + ` AND t.relname=` + t + ` AND a.attnum>0 AND NOT a.attisdropped AND pg_catalog.has_column_privilege(t.oid,a.attnum,` + postgresColumnPrivileges + `) ORDER BY a.attnum`
 	case d == SQLServer:
 		q = `SELECT c.name, CASE WHEN c.is_computed=1 OR c.generated_always_type<>0 OR c.system_type_id=189 THEN 1 ELSE 0 END, c.is_identity, CASE WHEN c.default_object_id<>0 THEN 1 ELSE 0 END FROM sys.columns c JOIN sys.tables t ON t.object_id=c.object_id JOIN sys.schemas s ON s.schema_id=t.schema_id WHERE s.name=` + s + ` AND t.name=` + t + ` ORDER BY c.column_id`
-	case d == Dameng:
-		// DM documents SYSCOLUMNS.INFO2 bit 0 as identity. Use object IDs so
-		// same-named tables in other schemas cannot influence writable flags.
-		q = `SELECT c.COLUMN_NAME, CASE WHEN c.VIRTUAL_COLUMN='YES' THEN 1 ELSE 0 END, CASE WHEN BITAND(sc.INFO2,1)=1 THEN 1 ELSE 0 END, CASE WHEN c.DEFAULT_LENGTH>0 THEN 1 ELSE 0 END FROM ALL_TAB_COLS c JOIN ALL_OBJECTS o ON o.OWNER=c.OWNER AND o.OBJECT_NAME=c.TABLE_NAME AND o.OBJECT_TYPE='TABLE' JOIN SYS.SYSCOLUMNS sc ON sc.ID=o.OBJECT_ID AND sc.NAME=c.COLUMN_NAME WHERE c.OWNER=` + s + ` AND c.TABLE_NAME=` + t + ` ORDER BY c.COLUMN_ID`
 	case d == OceanBaseOracle:
 		// Several OB releases expose IDENTITY_COLUMN as a NULL placeholder.
 		// Preserve unknown instead of treating it as a non-identity column.
