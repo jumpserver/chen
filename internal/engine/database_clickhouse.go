@@ -4,7 +4,9 @@ import (
 	"context"
 	"database/sql/driver"
 	"errors"
+	"io"
 	"net/http"
+	"strings"
 	"sync/atomic"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
@@ -17,6 +19,29 @@ import (
 // connection so consoles and the independent catalog cannot affect each other.
 type clickHouseHTTPConnector struct{ options clickhouse.Options }
 
+// Managed custom ports have no transport encoded in the asset. Only the
+// server's explicit Native-port HTTP response can select Native, before any
+// business SQL is sent. Auth, TLS and timeout errors never select a protocol.
+type clickHouseAutoConnector struct{ options clickhouse.Options }
+
+func (c *clickHouseAutoConnector) Driver() driver.Driver {
+	return clickhouse.Connector(&c.options).Driver()
+}
+
+func (c *clickHouseAutoConnector) Connect(ctx context.Context) (driver.Conn, error) {
+	options := c.options
+	options.Protocol = clickhouse.HTTP
+	conn, err := (&clickHouseHTTPConnector{options: options}).Connect(ctx)
+	var httpError *clickhouse.HTTPError
+	if ctx.Err() != nil || !errors.As(err, &httpError) || httpError.StatusCode != http.StatusBadRequest ||
+		!strings.Contains(httpError.Error(), "is for clickhouse-client program") ||
+		!strings.Contains(httpError.Error(), "for HTTP.") {
+		return conn, err
+	}
+	options.Protocol = clickhouse.Native
+	return clickhouse.Connector(&options).Connect(ctx)
+}
+
 func (c *clickHouseHTTPConnector) Driver() driver.Driver {
 	return clickhouse.Connector(&c.options).Driver()
 }
@@ -26,7 +51,11 @@ func (c *clickHouseHTTPConnector) Connect(ctx context.Context) (driver.Conn, err
 	database := &atomic.Value{}
 	database.Store(options.Auth.Database)
 	transport := options.TransportFunc
+	var active http.RoundTripper
+	var baseTransport *http.Transport
+	legacy := false
 	options.TransportFunc = func(base *http.Transport) (http.RoundTripper, error) {
+		baseTransport = base
 		var next http.RoundTripper = base
 		if transport != nil {
 			var err error
@@ -35,9 +64,28 @@ func (c *clickHouseHTTPConnector) Connect(ctx context.Context) (driver.Conn, err
 				return nil, err
 			}
 		}
+		if legacy {
+			var err error
+			next, err = newClickHouseLegacyTransport(next)
+			if err != nil {
+				return nil, err
+			}
+		}
+		active = next
 		return &clickHouseDatabaseTransport{next: next, database: database}, nil
 	}
 	raw, err := clickhouse.Connector(&options).Connect(ctx)
+	if ctx.Err() == nil && clickHouseLegacyHandshakeError(err) {
+		// Only the driver's own failed connection handshake may select legacy
+		// HTTP. Do not retry authentication, TLS, timeout or business SQL errors.
+		if closer, ok := active.(interface{ CloseIdleConnections() }); ok {
+			closer.CloseIdleConnections()
+		} else if baseTransport != nil {
+			baseTransport.CloseIdleConnections()
+		}
+		legacy = true
+		raw, err = clickhouse.Connector(&options).Connect(ctx)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -46,11 +94,12 @@ func (c *clickHouseHTTPConnector) Connect(ctx context.Context) (driver.Conn, err
 		_ = raw.Close()
 		return nil, errors.New("unsupported ClickHouse HTTP driver interfaces")
 	}
-	return &clickHouseHTTPConn{clickHouseHTTPDriver: conn, database: database}, nil
+	return &clickHouseHTTPConn{clickHouseHTTPDriver: conn, database: database, legacy: legacy}, nil
 }
 
 // Forward the pinned driver's optional interfaces, including named value and
-// batch handling, while changing only successful literal USE execution.
+// batch handling. Compatibility is confined to successful USE state and empty
+// SELECT metadata on confirmed legacy HTTP connections.
 type clickHouseHTTPDriver interface {
 	driver.Conn
 	driver.ConnBeginTx
@@ -65,6 +114,78 @@ type clickHouseHTTPDriver interface {
 type clickHouseHTTPConn struct {
 	clickHouseHTTPDriver
 	database *atomic.Value
+	legacy   bool
+}
+
+func (c *clickHouseHTTPConn) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
+	rows, err := c.clickHouseHTTPDriver.QueryContext(ctx, query, args)
+	if err != nil || !c.legacy || len(rows.Columns()) != 0 {
+		return rows, err
+	}
+	// 20.8 HTTP Native emits no header at all for an empty SELECT, including
+	// the catalog's LIMIT 0 capability probe. Use the existing statement
+	// scanner to admit one SELECT, then ask the server to analyze its schema.
+	// DESCRIBE does not execute the SELECT; business SQL is never replayed.
+	analysis, analysisErr := sqlservice.Analyze(sqlservice.ClickHouse, query)
+	if analysisErr != nil || len(analysis.Statements) != 1 || analysis.Statements[0].Kind != "select" || analysis.Statements[0].MayWrite {
+		return rows, nil
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	metadata, err := c.clickHouseHTTPDriver.QueryContext(ctx, "DESCRIBE TABLE (\n"+analysis.Statements[0].SQL+"\n)", args)
+	if err != nil {
+		return nil, err
+	}
+	defer metadata.Close()
+	var result clickHouseEmptyRows
+	values := make([]driver.Value, len(metadata.Columns()))
+	if len(values) < 2 {
+		return nil, errors.New("legacy ClickHouse SELECT schema is unavailable")
+	}
+	for {
+		if err := metadata.Next(values); err != nil {
+			if err == io.EOF {
+				break
+			}
+			return nil, err
+		}
+		name, nameOK := clickHouseMetadataString(values[0])
+		typ, typeOK := clickHouseMetadataString(values[1])
+		if !nameOK || !typeOK || name == "" || typ == "" || len(result.names) >= 4096 {
+			return nil, errors.New("invalid legacy ClickHouse SELECT schema")
+		}
+		result.names = append(result.names, name)
+		result.types = append(result.types, typ)
+	}
+	if err := metadata.Close(); err != nil {
+		return nil, err
+	}
+	if len(result.names) == 0 {
+		return nil, errors.New("legacy ClickHouse SELECT schema is empty")
+	}
+	return &result, nil
+}
+
+func clickHouseMetadataString(value driver.Value) (string, bool) {
+	switch value := value.(type) {
+	case string:
+		return value, true
+	case []byte:
+		return string(value), true
+	default:
+		return "", false
+	}
+}
+
+type clickHouseEmptyRows struct{ names, types []string }
+
+func (r *clickHouseEmptyRows) Columns() []string                       { return r.names }
+func (r *clickHouseEmptyRows) Close() error                            { return nil }
+func (r *clickHouseEmptyRows) Next([]driver.Value) error               { return io.EOF }
+func (r *clickHouseEmptyRows) ColumnTypeDatabaseTypeName(i int) string { return r.types[i] }
+func (r *clickHouseEmptyRows) ColumnTypeNullable(i int) (bool, bool) {
+	return strings.HasPrefix(r.types[i], "Nullable("), true
 }
 
 func (c *clickHouseHTTPConn) ExecContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Result, error) {

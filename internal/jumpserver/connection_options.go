@@ -9,6 +9,33 @@ import (
 )
 
 func applyPlatformConnectionOptions(c *ConnectionConfig, data *protobuf.TokenAuthInfo) error {
+	if c.Dialect == "clickhouse" {
+		for _, protocol := range data.GetPlatform().GetProtocols() {
+			if protocol == nil || !strings.EqualFold(protocol.Name, "clickhouse") {
+				continue
+			}
+			if value, configured := protocol.GetSettings()["transport"]; configured {
+				transport := strings.ToLower(strings.TrimSpace(value))
+				if transport != "http" && transport != "native" {
+					return errors.New("invalid_clickhouse_transport_option")
+				}
+				c.Transport = transport
+				return nil
+			}
+		}
+		// Preserve the original asset protocol before a gateway replaces its
+		// port. Custom ports may serve Java's HTTP or Go's Native connections;
+		// only an explicit Native-port HTTP response may select Native there.
+		switch c.Port {
+		case 8123, 8443:
+			c.Transport = "http"
+		case 9000, 9440:
+			c.Transport = "native"
+		default:
+			c.Transport = "auto"
+		}
+		return nil
+	}
 	if c.Dialect == "oracle" {
 		value := data.GetConnectOptions().GetSettings()["use_sysdba"]
 		if value != "" {
