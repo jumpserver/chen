@@ -79,9 +79,9 @@ func (v *Server) authorizeExecution(s *session, e *execution, commands []string,
 			reviews[command] = policy.ACLID + "\x00" + policy.GroupID
 		}
 	}
-	// The legacy grid save preview is already the user's batch confirmation;
-	// NotifyWarning records its risk there, while query consoles prompt per SQL.
-	confirmWarnings, submitReview := e.confirmWarnings || e.edit != nil, e.submitReview
+	// A grid preview confirms the changes, not an ACL warning. Bind that
+	// decision to the current execution and present its masked batch once.
+	confirmWarnings, submitReview := e.edit == nil && e.confirmWarnings, e.submitReview
 	if warningRequired != nil && !confirmWarnings {
 		if err := v.waitExecutionConfirmation(s, e, "warning", audit.SQL); err != nil {
 			var policy *jumpserver.PolicyError

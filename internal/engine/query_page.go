@@ -50,6 +50,7 @@ type queryPagePlan struct {
 	original                            string
 	options                             sqlservice.AnalyzeOptions
 	context                             string
+	damengRefreshIdentity               string // plain projection on a connection without NLS catalog access
 	columns                             int
 	action, sourceResultID, fingerprint string
 	generated                           string
@@ -101,7 +102,7 @@ func (v *Server) queryPage(w http.ResponseWriter, r *http.Request) {
 		fail(w, 400, "query_page_unavailable", "Choose a supported result from this console; database paging cannot replace its SQL")
 		return
 	}
-	if !source.querySource.view.Supported && !(req.Action == "refresh" && source.querySource.context != "" && source.editSourceBound && source.editSource != nil && source.editSourceError == "") {
+	if !source.querySource.view.Supported && !(req.Action == "refresh" && (source.querySource.context != "" || source.querySource.damengRefreshIdentity != "") && source.editSourceBound && source.editSource != nil && source.editSourceError == "") {
 		fail(w, 400, "query_page_unavailable", "This result has no verified query source to refresh")
 		return
 	}
@@ -225,8 +226,7 @@ func readQueryPageContext(ctx context.Context, c *console, d string) (string, sq
 			scope.Schema = "dbo"
 		}
 	}
-	b, _ := json.Marshal(values)
-	return string(b), scope, nil
+	return pageContextJSON(values), scope, nil
 }
 
 type resultStarSource struct {
@@ -310,6 +310,12 @@ func (v *Server) captureQuerySQLSource(s *session, c *console, e *execution, opt
 	}
 	if err = captureContext(); err != nil {
 		p.view.Reason = err.Error()
+		var denied *damengNLSAccessError
+		if q.DirectTableProjection && !p.view.RequiresReexecution && errors.As(err, &denied) {
+			// Re-reading directly projected cells needs no NLS-dependent comparisons or
+			// conversions. The request must also have verified editable provenance.
+			p.query, p.damengRefreshIdentity = q, denied.identity
+		}
 		return nil
 	}
 	p.query = q
@@ -319,6 +325,16 @@ func (v *Server) captureQuerySQLSource(s *session, c *console, e *execution, opt
 	return star
 }
 func validateQueryPage(ctx context.Context, c *console, d string, p *queryPagePlan, opts sqlservice.AnalyzeOptions, contextVerified bool) error {
+	if p.damengRefreshIdentity != "" {
+		current, err := readPageContextRow(ctx, c, oraclePageIdentity, 6)
+		if err != nil {
+			return err
+		}
+		if p.action != "refresh" || opts != p.options || pageContextJSON(current) != p.damengRefreshIdentity {
+			return sourceContextChanged()
+		}
+		return validateQueryPageSources(ctx, c, d, p.query, nil)
+	}
 	// The worker already verified (and, when needed, selected) this complete
 	// fingerprint. Do not probe it twice on every ordinary page/refresh.
 	if !contextVerified || opts != p.options {

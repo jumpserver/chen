@@ -40,6 +40,9 @@ type QueryPageSQL struct {
 	HasCTE               bool
 	Prefix               string
 	Body                 string
+
+	// DirectTableProjection is a single table's columns or * with no expressions or clauses.
+	DirectTableProjection bool
 }
 
 func AnalyzeQueryPage(d Dialect, document string, options AnalyzeOptions) (*QueryPageSQL, error) {
