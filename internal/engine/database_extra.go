@@ -65,6 +65,9 @@ func extraDatabase(c jumpserver.ConnectionConfig, t *tls.Config) (*sql.DB, error
 		if protocol == clickhouse.HTTP {
 			return sql.OpenDB(&clickHouseHTTPConnector{options: *options}), nil
 		}
+		if c.Transport == "auto" {
+			return sql.OpenDB(&clickHouseAutoConnector{options: *options}), nil
+		}
 		return clickhouse.OpenDB(options), nil
 	case "oracle":
 		options := oracleConnectionOptions(c)
