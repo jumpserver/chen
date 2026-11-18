@@ -15,7 +15,8 @@ import (
 
 var mysqlCopyTemporal = regexp.MustCompile(`^(?:[0-9]{4}-[0-9]{2}-[0-9]{2}(?: [0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]{1,6})?)?|-?[0-9]{1,3}:[0-9]{2}:[0-9]{2}(?:\.[0-9]{1,6})?)$`)
 
-var copyTypeParameters = regexp.MustCompile(`\([0-9 ,]+\)`)
+// Catalog character lengths can include a BYTE or CHAR unit.
+var copyTypeParameters = regexp.MustCompile(`(?i)^(CHAR|VARCHAR2?)\( *[0-9]+ +(?:BYTE|CHAR) *\)$|\([0-9 ,]+\)`)
 
 // This is a closed set of literal codecs, not the parameterized write-back
 // formatter. Unknown types fail even for NULL, so their semantics stay explicit.
@@ -262,7 +263,8 @@ func copySQLLiteral(dialect, dataType string, value any) (string, error) {
 	return literal, nil
 }
 func copyTypeName(dataType string) string {
-	return strings.ToLower(strings.Join(strings.Fields(copyTypeParameters.ReplaceAllString(dataType, "")), " "))
+	name := copyTypeParameters.ReplaceAllString(strings.TrimSpace(dataType), "${1}")
+	return strings.ToLower(strings.Join(strings.Fields(name), " "))
 }
 
 func copyTextLiteral(dialect, text string) (string, error) {

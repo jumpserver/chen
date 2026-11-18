@@ -415,13 +415,12 @@ func editColumnFlagsQuery(d Dialect, r CatalogColumnRequest) (catalogQuery, erro
 	if d == Dameng {
 		// DM exposes the identity column's zero-based ID to table readers.
 		// ALL_TAB_COLS numbers the same columns starting at one.
-		qualified := quoteIdentifier(r.Schema, d, '"') + "." + quoteIdentifier(r.Table, d, '"')
-		obj := b.bind(qualified)
 		s, t := b.bind(r.Schema), b.bind(r.Table)
 		q := `SELECT c.COLUMN_NAME, CASE c.VIRTUAL_COLUMN WHEN 'YES' THEN 1 WHEN 'NO' THEN 0 END,
-CASE WHEN c.COLUMN_ID=SF_GET_IDENTITY_COLID(o.ID)+1 THEN 1 ELSE 0 END,
+CASE WHEN c.COLUMN_ID=SF_GET_IDENTITY_COLID(o.OBJECT_ID)+1 THEN 1 ELSE 0 END,
 CASE WHEN c.DEFAULT_LENGTH>0 THEN 1 ELSE 0 END
-FROM (SELECT OBJECT_ID(` + obj + `) AS ID FROM DUAL) o JOIN SYS.ALL_TAB_COLS c ON o.ID IS NOT NULL
+FROM SYS.ALL_TAB_COLS c JOIN SYS.ALL_OBJECTS o
+ON o.OWNER=c.OWNER AND o.OBJECT_NAME=c.TABLE_NAME AND o.OBJECT_TYPE='TABLE' AND o.OBJECT_ID IS NOT NULL
 WHERE c.OWNER=` + s + ` AND c.TABLE_NAME=` + t + ` ORDER BY c.COLUMN_ID`
 		return catalogQuery{SQL: q, Args: b.args}, nil
 	}
