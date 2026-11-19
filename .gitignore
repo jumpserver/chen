@@ -4,7 +4,15 @@ target
 *.iml
 .DS_Store
 replay
-backend/web/src/main/resources/static
-backend/web/src/main/resources/static/**
 data
-config/application-dev.yml
+/.env
+
+# Retired implementation artifacts and private local configuration
+/backend/
+/drivers/
+/frontend/
+/config/
+
+# Go release artifacts and local Python helpers
+/build/
+/scripts/__pycache__/

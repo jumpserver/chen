@@ -1,110 +1,81 @@
 # Chen
 
-Chen is the WebDB connection component of JumpServer, supporting multiple database protocols.
+Chen is JumpServer's database workspace. It provides SQL queries, schema browsing,
+result editing and data import/export through the Luna frontend. The Go backend
+integrates with JumpServer through Wisp for authentication, permissions and audit.
 
-Chen is implemented in Java, and its name is derived from the Dota hero [Chen](https://www.dota2.com/hero/chen).
+## Build
 
-# UI Showcase
+Use the Go version specified in [go.mod](go.mod) and a C compiler. PostgreSQL SQL
+parsing requires CGO. Build the frontend separately in the Luna repository.
 
-![UI Showcase](https://download.jumpserver.org/images/chen.png)
-
-
-## Supported Features
-
-- [x] Security Authentication
-- [x] SQL Filtering
-- [x] SQL Recording
-- [x] SQL Blocking
-
-## Supported Databases
-
-- [x] MySQL 5.7/8.0+
-- [x] MariaDB
-- [x] PostgreSQL (X-Pack)
-- [x] SQL Server (X-Pack)
-- [x] Oracle (X-Pack)
-- [x] DB2 (X-Pack)
-
-## Develop with Wisp
-
-The default Chen image contains a released Wisp binary. The development
-override separates Wisp into its own service, starts Chen's Java process
-directly, and connects Chen to `wisp:9090` over the Compose network.
-
-### Use a Wisp image
-
-`make run` defaults to `ghcr.io/jumpserver/wisp:<chen-branch>`. The branch is
-resolved from the current branch's tracking branch first, then from the local
-branch. JumpServer-style branches such as `pr@new_terminal@feat_ai` resolve to
-their base branch (`new_terminal`), and characters that cannot appear in a
-Docker tag are replaced with `-`. A detached checkout falls back to `latest`.
-
-Check the result without starting containers:
-
-```bash
-make dev-wisp-image
+```sh
+make build
+make vet
 ```
 
-The matching tag must have been published in the Wisp container registry. If
-it is not available, select a known tag with `WISP_TAG`, use `WISP_SOURCE` as
-described below, or set `WISP_IMAGE` to a private-registry or locally built
-image:
+To build and run the container image:
 
-```bash
-make run WISP_TAG=latest
-
-make run \
-  WISP_IMAGE=registry.example.com/wisp:my-branch \
-  WISP_PULL_POLICY=always
+```sh
+make image-ee VERSION=dev PLATFORM=linux/arm64
+make run
 ```
 
-Use `WISP_BRANCH` to resolve a tag from a branch other than the checked-out
-Chen branch. `WISP_IMAGE_REPOSITORY` changes only the registry/repository while
-retaining automatic tag selection. For an image already built locally, set
-`WISP_PULL_POLICY=never`.
+For first-time registration, set `BOOTSTRAP_TOKEN` in `chen/.env` to the token
+configured in Core. `make run` and `make dev-up` read this file through Docker
+Compose. With Core's default `auto` registration setting, start Chen within five
+minutes of starting Core. Wisp saves its access key in the Chen data volume and
+reuses it on subsequent starts.
 
-Calling `docker compose` directly (without the Makefile) retains the Compose
-file's `ghcr.io/jumpserver/wisp:latest` fallback.
+Linux amd64 and arm64 builds include all supported database drivers, including
+the pure Go Db2 driver.
 
-### Build from Wisp source
+## Run with JumpServer
 
-Add `docker-compose.wisp-source.yml` and set `WISP_SOURCE` to any local checkout
-path. It does not need to be `../wisp`:
+Start Core and configure the bootstrap credential through the environment or a
+private Wisp configuration file, then run:
 
-```bash
-make run WISP_SOURCE=/absolute/path/to/wisp
+```sh
+CORE_HOST=http://127.0.0.1:8080 ./start.sh managed
 ```
 
-`WISP_SOURCE` is a BuildKit named context, so it may also be a Git context URL
-when the changes have been pushed to a branch. Uncommitted changes require a
-local directory.
+Managed mode listens on `127.0.0.1:8082`. Keep registration keys in `data/keys`
+and audit state in `data/go` persistent; container data is under `/opt/chen/data`.
+The API is served at `/chen/api/v1/` with SSE streaming. Use `chen-go healthcheck`
+for liveness and `chen-go readycheck` for readiness.
+Managed mode uses the first `X-Forwarded-For` entry when it is a valid IP. Keep Chen behind
+JumpServer's web proxy, which must replace untrusted client-supplied forwarding headers.
 
-After a Go-only Wisp change, rebuild just Wisp; the Java container can stay up
-and its gRPC channel will reconnect:
+Queries have no default deadline or aggregate result byte quota. Deployments can
+set `--query-timeout` and `--max-result-bytes`; `0` disables either limit. Cached
+result sets retain up to `--max-rows` rows (10,000 by default).
 
-```bash
-make dev-wisp WISP_SOURCE=/absolute/path/to/wisp
+## Run without JumpServer
+
+Build Luna's standalone frontend using its declared Node.js and pnpm versions:
+
+```sh
+pnpm --dir ../luna install --frozen-lockfile
+pnpm --dir ../luna generate:chen
+mkdir -p data
+cp conf/standalone_backends_example.yaml data/standalone_backends.yml
+chmod 600 data/standalone_backends.yml
 ```
 
-If a Wisp `.proto` file changes, regenerate both Go and Java outputs in Wisp,
-then synchronize the Java output before rebuilding Chen:
+Edit the configuration with your database connection details, then start Chen:
 
-```bash
-make -C /absolute/path/to/wisp proto-go proto-java
-make proto-sync WISP_SOURCE=/absolute/path/to/wisp
-make dev-up WISP_SOURCE=/absolute/path/to/wisp
+```sh
+make single BACKENDS=data/standalone_backends.yml WEB_DIR=../luna/.output/public
 ```
 
-With JDK 21 and Maven installed, use `make dev` to build and start Chen directly
-on the host. Use `make run` to build and start Chen and Wisp together with
-Compose. Use `make dev-up` for detached Compose startup, `make dev-logs` to
-follow both service logs, and `make dev-down` to stop the environment. Run
-`make help` for all development commands.
+Open `http://127.0.0.1:8083/luna/chen/?selector=local-pg`, using a selector from
+the [configuration](conf/standalone_backends_example.yaml). Single mode has no
+Core authentication; keep access limited to the intended users. The selector
+identifies a connection and is not a password.
 
-The build and runtime limits can be adjusted with `WISP_BUILD_PROCS`,
-`WISP_BUILD_MEMORY`, `WISP_CPUS`, `WISP_MEMORY_LIMIT`, `CHEN_CPUS`, and
-`CHEN_MEMORY_LIMIT`.
+## Release packages
 
-## License
-
-This project is licensed under the GNU General Public License version 3 (GPLv3), consistent with the [JumpServer main repository](https://github.com/jumpserver/jumpserver). See [LICENSE](LICENSE) for the full license text.
+`make package` extracts the built image into `build/chen-<version>-linux-<arch>.tar.gz`.
+The archive includes binaries, configuration examples, licenses and this README.
+On a matching Linux system, extract it and run `./start.sh managed`, or
+`./start.sh single --backends /path/to/backends.yml --web-dir /path/to/luna`.

@@ -1,0 +1,166 @@
+--- a/cmd/common/uploader_service.go
++++ b/cmd/common/uploader_service.go
+@@ -19,18 +19,16 @@
+ func NewUploader(apiClient *service.JMService,
+ 	cfg *model.TerminalConfig) *UploaderService {
+ 	uploader := UploaderService{
+-		commandChan: make(chan *model.Command, 10),
+-		apiClient:   apiClient,
+-		closed:      make(chan struct{}),
++		apiClient: apiClient,
++		closed:    make(chan struct{}),
+ 	}
+ 	uploader.updateBackendCfg(cfg)
+ 	return &uploader
+ }
+ 
+ type UploaderService struct {
+-	commandChan chan *model.Command
+-	closed      chan struct{}
+-	apiClient   *service.JMService
++	closed    chan struct{}
++	apiClient *service.JMService
+ 
+ 	commandCfg atomic.Value // model.CommandConfig
+ 	replayCfg  atomic.Value // model.ReplayConfig
+@@ -41,8 +39,7 @@
+ }
+ 
+ func (u *UploaderService) Start() {
+-	u.wg.Add(2)
+-	go u.run()
++	u.wg.Add(1)
+ 	go u.watchConfig()
+ }
+ 
+@@ -87,63 +84,6 @@
+ 	return *cfg
+ }
+ 
+-func (u *UploaderService) run() {
+-	cmdList := make([]*model.Command, 0, 10)
+-	notificationList := make([]*model.Command, 0, 10)
+-	ticker := time.NewTicker(10 * time.Second)
+-	defer ticker.Stop()
+-	defer u.wg.Done()
+-	maxRetry := 0
+-	for {
+-		select {
+-		case <-u.closed:
+-			logger.Info("Uploader service command task done")
+-			return
+-		case p := <-u.commandChan:
+-			if p.RiskLevel >= model.WarningLevel && p.RiskLevel <= model.ReviewReject {
+-				notificationList = append(notificationList, p)
+-			}
+-			cmdList = append(cmdList, p)
+-			if len(cmdList) < 5 {
+-				continue
+-			}
+-		case <-ticker.C:
+-			if len(cmdList) == 0 {
+-				continue
+-			}
+-		}
+-		if len(notificationList) > 0 {
+-			if err := u.apiClient.NotifyCommand(notificationList); err == nil {
+-				notificationList = notificationList[:0]
+-			} else {
+-				logger.Errorf("Uploader service command notify err: %s", err)
+-			}
+-		}
+-		commandBackend := u.getCommandBackend()
+-		backendName := commandBackend.TypeName()
+-		err := commandBackend.BulkSave(cmdList)
+-		if err != nil && commandBackend.TypeName() != "server" {
+-			logger.Warnf("Uploader service command backend %s error %s. Switch default save.",
+-				backendName, err)
+-			backendName = "server"
+-			err = u.apiClient.PushSessionCommand(cmdList)
+-		}
+-		if err != nil {
+-			logger.Errorf("Uploader service command bulk save err: %s", err)
+-			if maxRetry > 5 {
+-				cmdList = cmdList[1:]
+-			}
+-			maxRetry++
+-			continue
+-		}
+-		logger.Infof("Uploader service command backend %s upload %d commands",
+-			backendName, len(cmdList))
+-		cmdList = cmdList[:0]
+-		maxRetry = 0
+-
+-	}
+-}
+-
+ const dateTimeFormat = "2006-01-02"
+ 
+ func (u *UploaderService) UploadReplay(sid, replayPath string) error {
+@@ -211,8 +151,26 @@
+ 	return nil
+ }
+ 
+-func (u *UploaderService) UploadCommand(cmd *model.Command) {
+-	u.commandChan <- cmd
++// Chen keeps a durable outbox until this call succeeds. A memory-queue ACK
++// loses the last command when Wisp stops before its batch timer fires.
++func (u *UploaderService) UploadCommand(cmd *model.Command) error {
++	commands := []*model.Command{cmd}
++	backend := u.getCommandBackend()
++	err := backend.BulkSave(commands)
++	if err != nil && backend.TypeName() != "server" {
++		err = u.apiClient.PushSessionCommand(commands)
++	}
++	if err != nil {
++		return fmt.Errorf("command persistence failed: %w", err)
++	}
++	if cmd.RiskLevel >= model.WarningLevel && cmd.RiskLevel <= model.ReviewReject {
++		if err := u.apiClient.NotifyCommand(commands); err != nil {
++			// An uncertain ACK may cause a repeated audit on retry. Preserve the
++			// caller's durable record until both required operations succeed.
++			return fmt.Errorf("command notification failed: %w", err)
++		}
++	}
++	return nil
+ }
+ 
+ func (u *UploaderService) UploadRemainReplays(replayDir string) {
+--- a/cmd/impl/jms.go
++++ b/cmd/impl/jms.go
+@@ -159,7 +159,10 @@
+ 		status pb.Status
+ 	)
+ 	cmd := ConvertToCommand(req)
+-	j.uploader.UploadCommand(&cmd)
++	if err := j.uploader.UploadCommand(&cmd); err != nil {
++		status.Err = "command_persistence_or_notification_failed"
++		return &pb.CommandResponse{Status: &status}, nil
++	}
+ 	status.Ok = true
+ 	logger.Debugf("Upload command session %s %s", req.Sid, req.Asset)
+ 	return &pb.CommandResponse{Status: &status}, nil
+@@ -174,10 +177,10 @@
+ 		if err != nil {
+ 			msg := fmt.Sprintf("Dispatch Task streaming err: %v", err)
+ 			if err == io.EOF {
+-				logger.Infof(msg)
++				logger.Infof("%s", msg)
+ 				return nil
+ 			}
+-			logger.Errorf(msg)
++			logger.Errorf("%s", msg)
+ 			return err
+ 		}
+ 		j.handleTerminalTask(taskReq)
+--- a/cmd/root.go
++++ b/cmd/root.go
+@@ -49,7 +49,7 @@
+ 		}
+ 		uploader := common.NewUploader(apiClient, &cfg)
+ 		{
+-			go uploader.Start()
++			uploader.Start()
+ 			defer uploader.Stop()
+ 		}
+ 		beat := common.NewBeatService(apiClient)

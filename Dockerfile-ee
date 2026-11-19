@@ -1,15 +1,7 @@
 ARG VERSION=dev
-
-FROM jumpserver/chen:${VERSION}-ce
-ARG TARGETARCH
-
-ARG DEPENDENCIES="                    \
-        iputils-ping                  \
-        telnet"
-
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked,id=chen-apt-cache-${TARGETARCH} \
-    --mount=type=cache,target=/var/lib/apt,sharing=locked,id=chen-apt-lib-${TARGETARCH} \
-    set -ex \
-    && rm -f /etc/apt/apt.conf.d/docker-clean \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends ${DEPENDENCIES}
+ARG CHEN_CE_IMAGE=jumpserver/chen:${VERSION}-ce
+FROM ${CHEN_CE_IMAGE}
+USER root
+RUN apt-get -o Acquire::Retries=3 update && apt-get install -y --no-install-recommends iputils-ping telnet \
+    && rm -rf /var/lib/apt/lists/*
+USER 10001:10001

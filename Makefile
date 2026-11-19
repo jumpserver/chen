@@ -2,97 +2,59 @@ SHELL := /bin/bash
 .DEFAULT_GOAL := help
 .NOTPARALLEL:
 
-MAVEN ?= mvn
-LOCAL_REVISION ?= 0.0.1
-LOCAL_MAVEN_TEST_ARGS ?= -Dmaven.test.skip=true
-LOCAL_JAVA_HOME ?= $(shell if [[ -x /usr/libexec/java_home ]]; then /usr/libexec/java_home -v 21 2>/dev/null; elif [[ -n "$$JAVA_HOME" ]]; then printf '%s' "$$JAVA_HOME"; fi)
-LOCAL_JAVA_ENV := $(if $(strip $(LOCAL_JAVA_HOME)),JAVA_HOME="$(LOCAL_JAVA_HOME)")
-
+GO ?= go
+VERSION ?= dev
+PLATFORM ?= linux/$(shell $(GO) env GOARCH)
+APT_MIRROR ?= https://deb.debian.org
+BASE_VERSION ?= 20261117_081404
+CHEN_BASE_IMAGE ?= jumpserver/chen-base:$(BASE_VERSION)
+CHEN_IMAGE ?= jumpserver/chen:$(VERSION)-ce
+CHEN_EE_IMAGE ?= jumpserver/chen:$(VERSION)-ee
 DOCKER_COMPOSE ?= docker compose
-COMPOSE_PARALLEL_LIMIT ?= 1
-WISP_IMAGE_REPOSITORY ?= ghcr.io/jumpserver/wisp
-WISP_BRANCH ?=
-export WISP_BRANCH
-WISP_TAG ?= $(shell ./scripts/resolve-wisp-tag.sh)
-WISP_IMAGE ?= $(WISP_IMAGE_REPOSITORY):$(WISP_TAG)
-WISP_PULL_POLICY ?= missing
+COMPOSE_FILES ?= -f docker-compose.yml
+GO_BUILD_TAGS ?=
+BACKENDS ?= data/standalone_backends.yml
+WEB_DIR ?= ../luna/.output/public
+export CHEN_BASE_IMAGE CHEN_IMAGE VERSION GO_BUILD_TAGS
 
-export COMPOSE_PARALLEL_LIMIT
-export WISP_IMAGE_REPOSITORY
-export WISP_TAG
-export WISP_IMAGE
-export WISP_PULL_POLICY
-export WISP_SOURCE
-
-DEV_COMPOSE_FILES := -f docker-compose.yml -f docker-compose.wisp-dev.yml
-ifneq ($(strip $(WISP_SOURCE)),)
-DEV_COMPOSE_FILES += -f docker-compose.wisp-source.yml
-endif
-DEV_COMPOSE := $(DOCKER_COMPOSE) $(DEV_COMPOSE_FILES)
-
-.PHONY: help dev run dev-run dev-up dev-wisp dev-wisp-image dev-logs dev-ps dev-config dev-down proto-sync
-
+.PHONY: help build vet dev single run dev-run dev-up dev-logs dev-ps dev-config dev-down image-base image image-ee package
 help:
 	@printf '%s\n' \
-		'Chen development commands:' \
-		'  make dev                 Build and run Chen locally' \
-		'  make run                 Run Chen and Wisp with Compose in the foreground' \
-		'  make dev-up              Build and run in the background' \
-		'  make dev-wisp            Rebuild/recreate only Wisp' \
-		'  make dev-wisp-image      Show the resolved Wisp image' \
-		'  make dev-logs            Follow Chen and Wisp logs' \
-		'  make dev-ps              Show development services' \
-		'  make dev-config          Render the merged Compose configuration' \
-		'  make dev-down            Stop and remove development services' \
-		'  make proto-sync          Copy generated Java protobuf files from Wisp' \
-		'' \
-		'Wisp source mode:' \
-		'  make run WISP_SOURCE=/absolute/path/to/wisp' \
-		'' \
-		'Wisp image mode:' \
-		'  Wisp tag defaults to the current Chen tracking branch' \
-		'  make run WISP_TAG=latest' \
-		'  make run WISP_IMAGE=registry/wisp:tag WISP_PULL_POLICY=always'
-
-run: dev-run
-	@:
-
-dev-run:
-	@$(DEV_COMPOSE) up --build
-
+	  'make build/vet            Build and check the Go backend (CGO required)' \
+	  'make dev                  Build and run local Chen + pinned Wisp; Core must be available' \
+	  'make single               Run without Core/Wisp; BACKENDS=... WEB_DIR=...' \
+	  'make image                Build formal base -> Go CE image for PLATFORM=...' \
+	  'make image-ee             Build base -> CE -> EE image' \
+	  'make run / dev-up         Run the managed image in foreground / background' \
+	  'make dev-down             Stop this Compose project (keep data volumes)' \
+	  'make package              Export current CHEN_IMAGE as a native release archive'
+build:
+	@mkdir -p data/bin
+	CGO_ENABLED=1 $(GO) build -tags='$(GO_BUILD_TAGS)' -trimpath -ldflags='-X main.version=$(VERSION)' -o data/bin/chen-go ./cmd/chen-go
+vet:
+	CGO_ENABLED=1 $(GO) vet -tags='$(GO_BUILD_TAGS)' ./...
 dev:
-	@$(LOCAL_JAVA_ENV) $(MAVEN) -U \
-		-Drevision=$(LOCAL_REVISION) \
-		$(LOCAL_MAVEN_TEST_ARGS) \
-		-Dmaven.antrun.skip=true \
-		clean org.codehaus.mojo:flatten-maven-plugin:1.6.0:flatten install
-	@cd backend/web && $(LOCAL_JAVA_ENV) $(MAVEN) \
-		-Drevision=$(LOCAL_REVISION) \
-		$(LOCAL_MAVEN_TEST_ARGS) \
-		spring-boot:run \
-		-Dmaven.antrun.skip=true \
-		-Dspring-boot.run.arguments="--spring.config.additional-location=file:$(CURDIR)/config/ --driver.driver-path=$(CURDIR)/drivers"
-
-dev-up:
-	@$(DEV_COMPOSE) up -d --build
-
-dev-wisp:
-	@$(DEV_COMPOSE) up -d --build --no-deps wisp
-
-dev-wisp-image:
-	@printf '%s\n' '$(WISP_IMAGE)'
-
+	@./start.sh managed
+single:
+	@./start.sh single --backends '$(BACKENDS)' --web-dir '$(WEB_DIR)'
+image-base:
+	docker build --platform '$(PLATFORM)' -f Dockerfile-base --build-arg APT_MIRROR='$(APT_MIRROR)' -t '$(CHEN_BASE_IMAGE)' .
+image: image-base
+	docker build --platform '$(PLATFORM)' -f Dockerfile --build-arg APT_MIRROR='$(APT_MIRROR)' --build-arg CHEN_BASE_IMAGE='$(CHEN_BASE_IMAGE)' --build-arg VERSION='$(VERSION)' -t '$(CHEN_IMAGE)' .
+image-ee: image
+	docker build --platform '$(PLATFORM)' -f Dockerfile-ee --build-arg CHEN_CE_IMAGE='$(CHEN_IMAGE)' -t '$(CHEN_EE_IMAGE)' .
+package:
+	@./scripts/package-image.sh '$(CHEN_IMAGE)' '$(VERSION)' '$(PLATFORM)'
+run: dev-run
+dev-run: image
+	@$(DOCKER_COMPOSE) $(COMPOSE_FILES) up --no-build
+dev-up: image
+	@$(DOCKER_COMPOSE) $(COMPOSE_FILES) up -d --no-build
 dev-logs:
-	@$(DEV_COMPOSE) logs -f chen-backend wisp
-
+	@$(DOCKER_COMPOSE) $(COMPOSE_FILES) logs -f
 dev-ps:
-	@$(DEV_COMPOSE) ps
-
+	@$(DOCKER_COMPOSE) $(COMPOSE_FILES) ps
 dev-config:
-	@$(DEV_COMPOSE) config
-
+	@$(DOCKER_COMPOSE) $(COMPOSE_FILES) config --quiet
 dev-down:
-	@$(DEV_COMPOSE) down
-
-proto-sync:
-	@./scripts/sync-wisp-proto.sh
+	@$(DOCKER_COMPOSE) $(COMPOSE_FILES) down
