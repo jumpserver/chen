@@ -199,8 +199,8 @@ func CatalogOverviewRows(ctx context.Context, conn *sql.Conn, d Dialect, req Ove
 				}
 			}
 			if capabilities != nil {
-				result.Fields["server_version"] = overviewText(capabilities.version, string(d)+"; SELECT VERSION()")
-				result.Fields["schema_ddl"], err = overviewDatabaseDDL(ctx, conn, d, req.Database)
+				result.Fields["server_version"] = overviewText(capabilities.version, string(capabilities.dialect)+"; "+capabilities.versionQuery)
+				result.Fields["schema_ddl"], err = overviewDatabaseDDL(ctx, conn, capabilities.dialect, req.Database)
 				if err != nil {
 					return result, err
 				}

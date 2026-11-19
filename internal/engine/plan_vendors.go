@@ -11,7 +11,11 @@ import (
 )
 
 var planVersionNumber = regexp.MustCompile(`^(\d+)\.(\d+)\.(\d+)`)
-var oceanBasePlanVersion = regexp.MustCompile(`(?i)OceanBase(?:[^\s]*-v|(?:_[A-Z]+)?\s+)(\d+\.\d+\.\d+)`)
+var oceanBasePlanVersion = regexp.MustCompile(`(?i)OceanBase[^\s]*(?:-v|\s+v?)(\d+\.\d+\.\d+)`)
+
+func mysqlReturnsOceanBasePlan(dialect string, r *Result) bool {
+	return dialect == "mysql" && len(r.Columns) == 1 && strings.EqualFold(r.Columns[0].Name, "Query Plan")
+}
 
 // These are format compatibility families, not a claim of live testing every
 // release. New families must provide versioned output evidence before admission.
@@ -39,7 +43,7 @@ func supportedPlanVersion(dialect, version string) bool {
 	case "mariadb":
 		return major == 10 && minor == 11 || major == 11 && minor <= 8
 	case "oceanbase-mysql", "oceanbase-oracle":
-		return major == 4 && (minor == 2 || minor == 3)
+		return major == 4 && (minor == 2 || minor == 3 || (dialect == "oceanbase-mysql" && minor == 4))
 	case "clickhouse":
 		return major == 21 && minor >= 6 || major >= 22 && major <= 26
 	}

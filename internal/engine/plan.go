@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"github.com/jumpserver/chen/internal/sqlservice"
 )
 
 const planMaxBytes = 2_000_000
@@ -159,7 +161,7 @@ func (v *Server) executionPlan(w http.ResponseWriter, r *http.Request) {
 			switch e.view.Error.Code {
 			case "explain_not_supported":
 				p.Status = "UNSUPPORTED_DATABASE"
-			case "explain_requires_single_select", "explain_unsafe_select", "explain_unsafe_function":
+			case "explain_requires_single_select", "explain_unsafe_select", "explain_unsafe_function", sqlservice.ErrExplainShowNotSupported.Error():
 				p.Status = "UNSUPPORTED_STATEMENT"
 			case "plan_transaction_failed", "plan_transaction_unknown", "plan_prerequisites_unmet", "plan_session_state_unknown", "plan_permission_denied":
 				p.Status = "PREREQUISITES_UNMET"
@@ -261,23 +263,28 @@ func (v *Server) runEstimatedPlan(s *session, c *console, e *execution, command,
 		return err
 	}
 	reserved = result.memoryBytes
+	hasExtraResults := rows.NextResultSet()
+	err = rows.Err()
+	if closeErr := rows.Close(); err == nil {
+		err = closeErr
+	}
+	dialect := s.grant.Config.Dialect
+	if err == nil && !hasExtraResults && !result.Truncated && mysqlReturnsOceanBasePlan(dialect, result) {
+		// A MySQL-protocol asset can return a native OceanBase plan. Verify the
+		// product on the same console before choosing its vendor formatter.
+		version, _, _ = sqlservice.OceanBaseMySQLVersion(e.ctx, c.conn)
+	}
 	// readRows has applied the existing masking and per-session row/byte limits.
 	// Retain only the masked plan, never the result's original/edit buffers.
-	p = normalizePlan(s.grant.Config.Dialect, result, version)
-	if rows.NextResultSet() {
+	p = normalizePlan(dialect, result, version)
+	if hasExtraResults {
 		p.Status = "RAW_ONLY"
 		p.Roots = []*PlanNode{}
 		p.Capabilities.Structured = false
 		p.Capabilities.Hierarchy = false
 		p.warn("plan_extra_results", "Additional plan result sets are not supported")
 	}
-	if err = rows.Err(); err != nil {
-		return err
-	}
-	if err = rows.Close(); err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func (v *Server) reservePlan(s *session, p *ExecutionPlan, reserved int) {
@@ -313,6 +320,9 @@ func planPrefix(s string, limit int) string {
 	return s
 }
 func normalizePlan(dialect string, r *Result, versions ...string) *ExecutionPlan {
+	if mysqlReturnsOceanBasePlan(dialect, r) && len(versions) > 0 && oceanBasePlanVersion.MatchString(versions[0]) {
+		dialect = "oceanbase-mysql"
+	}
 	p := emptyPlan(dialect)
 	if len(versions) > 0 {
 		p.ServerVersion = planString(versions[0])

@@ -2,9 +2,9 @@ package sqlservice
 
 import (
 	"errors"
-	"github.com/jumpserver/chen/internal/sqlanalysis"
 	"strings"
 
+	"github.com/jumpserver/chen/internal/sqlanalysis"
 	pg "github.com/pganalyze/pg_query_go/v6"
 	"github.com/pingcap/tidb/pkg/parser"
 	"github.com/pingcap/tidb/pkg/parser/ast"
@@ -14,6 +14,9 @@ import (
 
 // ClickHouseJSONPlanPrefix pins the vendor PLAN format without executing ANALYZE.
 const ClickHouseJSONPlanPrefix = "EXPLAIN PLAN json=1, description=1, actions=0 "
+
+// ErrExplainShowNotSupported reports a metadata SHOW statement in plan mode.
+var ErrExplainShowNotSupported = errors.New("explain_show_not_supported")
 
 // EstimatedPlanSQL validates the original statement using the physical console's
 // parser options. It is an admission check, never an authorization or purity proof.
@@ -28,6 +31,9 @@ func EstimatedPlanSQL(d Dialect, document string, options AnalyzeOptions) (strin
 		return "", errors.New("explain_requires_single_select")
 	}
 	s := a.Statements[0]
+	if IsMySQLDialect(d) && s.Kind == "show" {
+		return "", ErrExplainShowNotSupported
+	}
 	vendor := d == Oracle || d == SQLServer || d == DB2 || d == Dameng || d == OceanBaseOracle
 	if (s.MayWrite && !vendor) || !s.ReturnsRows || (s.Kind != "select" && s.Kind != "setopr") {
 		return "", errors.New("explain_requires_single_select")

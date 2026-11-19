@@ -24,24 +24,37 @@ var ErrOverviewContractChanged = errors.New("overview product, version or catalo
 type overviewMyCapabilities struct {
 	dialect           Dialect
 	version, contract string
+	versionQuery      string
 	columns           map[string]bool
 	storage           bool
 }
 
 func probeOverviewMyCapabilities(ctx context.Context, conn *sql.Conn, d Dialect, section string) (*overviewMyCapabilities, error) {
-	c := &overviewMyCapabilities{dialect: d, columns: map[string]bool{}, storage: true}
-	if err := conn.QueryRowContext(ctx, "SELECT VERSION()").Scan(&c.version); err != nil {
+	c := &overviewMyCapabilities{dialect: d, versionQuery: "SELECT VERSION()", columns: map[string]bool{}, storage: true}
+	var err error
+	if d == OceanBaseMySQL {
+		c.version, c.versionQuery, err = OceanBaseMySQLVersion(ctx, conn)
+	} else {
+		err = conn.QueryRowContext(ctx, c.versionQuery).Scan(&c.version)
+	}
+	if err != nil {
 		return nil, err
 	}
 	if len(c.version) > 256 || !validOverviewText(c.version) {
 		return nil, errors.New("invalid overview server version")
 	}
 	lower := strings.ToLower(c.version)
-	// Do not apply a compatibility product's semantic contract to another product.
-	if d == MariaDB && !strings.Contains(lower, "mariadb") || d == OceanBaseMySQL && !strings.Contains(lower, "oceanbase") || d == MySQL && (strings.Contains(lower, "mariadb") || strings.Contains(lower, "oceanbase")) {
+	oceanBase := strings.Contains(lower, "oceanbase")
+	mariaDB := strings.Contains(lower, "mariadb")
+	switch {
+	case d == MySQL && oceanBase:
+		// A MySQL-protocol asset may use OceanBase. Its server version identifies
+		// which storage and index capabilities apply to the shared catalog SQL.
+		c.dialect = OceanBaseMySQL
+	case d == MariaDB && !mariaDB, d == OceanBaseMySQL && !oceanBase, d == MySQL && mariaDB:
 		return nil, ErrOverviewContractChanged
 	}
-	if d == OceanBaseMySQL {
+	if c.dialect == OceanBaseMySQL {
 		c.storage = overviewOBStorageVersion(c.version)
 	}
 	table := "TABLES"
@@ -81,11 +94,11 @@ func probeOverviewMyCapabilities(ctx context.Context, conn *sql.Conn, d Dialect,
 		}
 	}
 	sort.Strings(names)
-	c.contract = fmt.Sprintf("%x", sha256.Sum256([]byte(string(d)+"\x00"+c.version+"\x00"+table+"\x00"+strings.Join(names, ","))))
+	c.contract = fmt.Sprintf("%x", sha256.Sum256([]byte(string(c.dialect)+"\x00"+c.version+"\x00"+table+"\x00"+strings.Join(names, ","))))
 	return c, nil
 }
 
-var overviewOBVersion = regexp.MustCompile(`(?i)OceanBase[^\s]*-v(\d+)\.(\d+)\.(\d+)`)
+var overviewOBVersion = regexp.MustCompile(`(?i)OceanBase[^\s]*(?:-v|\s+v?)(\d+)\.(\d+)\.(\d+)`)
 
 func overviewOBStorageVersion(version string) bool {
 	m := overviewOBVersion.FindStringSubmatch(version)

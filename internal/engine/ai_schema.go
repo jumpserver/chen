@@ -31,6 +31,15 @@ func aiSchemaResult(req *catalogRequest, e aiEditorContext, tool, query string, 
 		if objectsTruncated {
 			objects = objects[:1000]
 		}
+		const columnObjectLimit, columnsPerObjectLimit = 16, 96
+		var columnsByTable map[string][]sqlservice.CatalogColumn
+		if pinnedMySQLCatalog(e.Dialect) {
+			var err error
+			columnsByTable, err = sqlservice.MySQLSearchColumns(req.ctx, req.conn, req.database, objects[:min(len(objects), columnObjectLimit)], columnsPerObjectLimit)
+			if err != nil {
+				return nil, errors.New("Unable to search authorized columns")
+			}
+		}
 		columnObjects, columnsScanned := 0, 0
 		columnsTruncated := false
 		for _, o := range objects {
@@ -51,21 +60,25 @@ func aiSchemaResult(req *catalogRequest, e aiEditorContext, tool, query string, 
 			}
 			// Score every visible name/comment even after the bounded column budget.
 			// Metadata fan-out remains bounded independently of name search.
-			columns := []sqlservice.CatalogColumn{}
-			var err error
-			if columnObjects < 16 {
+			var columns []sqlservice.CatalogColumn
+			if columnObjects < columnObjectLimit {
 				columnObjects++
-				columns, err = sqlservice.ColumnRows(req.ctx, req.conn, d, sqlservice.CatalogColumnRequest{Database: req.database, Schema: o.Schema, Table: o.Name, Limit: 96})
-				if len(columns) > 96 {
+				if columnsByTable != nil {
+					columns = columnsByTable[o.Name]
+				} else {
+					var err error
+					columns, err = sqlservice.ColumnRows(req.ctx, req.conn, d, sqlservice.CatalogColumnRequest{Database: req.database, Schema: o.Schema, Table: o.Name, Limit: columnsPerObjectLimit})
+					if err != nil {
+						return nil, errors.New("Unable to search authorized columns")
+					}
+				}
+				if len(columns) > columnsPerObjectLimit {
 					columnsTruncated = true
-					columns = columns[:96]
+					columns = columns[:columnsPerObjectLimit]
 				}
 				columnsScanned += len(columns)
 			} else {
 				columnsTruncated = true
-			}
-			if err != nil {
-				return nil, errors.New("Unable to search authorized columns")
 			}
 			for _, c := range columns {
 				for _, term := range terms {
@@ -96,7 +109,7 @@ func aiSchemaResult(req *catalogRequest, e aiEditorContext, tool, query string, 
 		if len(out) > limit {
 			out = out[:limit]
 		}
-		return map[string]any{"kind": "schema_search", "tables": out, "truncated": truncated, "objects_scanned": len(objects), "column_objects_scanned": columnObjects, "columns_scanned": columnsScanned, "object_limit": 1000, "column_object_limit": 16, "columns_per_object_limit": 96, "incomplete_columns": columnsTruncated, "incomplete_objects": objectsTruncated, "not_found_is_conclusive": false, "coverage": "authorized_catalog_only", "snapshot": false, "scope": map[string]string{"database": req.database, "schema": e.Schema}, "business_rows_read": false}, nil
+		return map[string]any{"kind": "schema_search", "tables": out, "truncated": truncated, "objects_scanned": len(objects), "column_objects_scanned": columnObjects, "columns_scanned": columnsScanned, "object_limit": 1000, "column_object_limit": columnObjectLimit, "columns_per_object_limit": columnsPerObjectLimit, "incomplete_columns": columnsTruncated, "incomplete_objects": objectsTruncated, "not_found_is_conclusive": false, "coverage": "authorized_catalog_only", "snapshot": false, "scope": map[string]string{"database": req.database, "schema": e.Schema}, "business_rows_read": false}, nil
 	}
 	wanted := map[string]bool{}
 	for _, table := range tables {

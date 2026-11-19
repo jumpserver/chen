@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"net/http"
 	"strings"
 
@@ -40,6 +41,11 @@ func (v *Server) prepareExplain(w http.ResponseWriter, r *http.Request) {
 	}
 	sql, _, err := estimatedPlanSQL(r.Context(), c, s.grant.Config.Dialect, request.SQL, opts)
 	if err != nil {
+		var explicit *APIError
+		if errors.As(err, &explicit) {
+			fail(w, 400, explicit.Code, explicit.Message)
+			return
+		}
 		if !strings.HasPrefix(err.Error(), "explain_") {
 			fail(w, 409, "sql_context_unavailable", "Console server version is unavailable")
 			return
@@ -55,6 +61,9 @@ func (v *Server) prepareExplain(w http.ResponseWriter, r *http.Request) {
 func estimatedPlanSQL(ctx context.Context, c *console, dialect, document string, opts sqlservice.AnalyzeOptions) (string, string, error) {
 	command, err := sqlservice.EstimatedPlanSQL(sqlservice.Dialect(dialect), document, opts)
 	if err != nil {
+		if errors.Is(err, sqlservice.ErrExplainShowNotSupported) {
+			return "", "", &APIError{err.Error(), "Estimated plans are unavailable for SHOW statements. Run the statement directly to view the metadata."}
+		}
 		return "", "", err
 	}
 	switch dialect {
@@ -90,7 +99,13 @@ func estimatedPlanSQL(ctx context.Context, c *console, dialect, document string,
 			return "", "", err
 		}
 		return command, version, nil
-	case "mariadb", "oceanbase-mysql", "clickhouse":
+	case "oceanbase-mysql":
+		version, _, err := sqlservice.OceanBaseMySQLVersion(ctx, c.conn)
+		if err != nil && version == "" {
+			return "", "", err
+		}
+		return command, version, nil
+	case "mariadb", "clickhouse":
 		var version string
 		if err := c.conn.QueryRowContext(ctx, "SELECT VERSION()").Scan(&version); err != nil {
 			return "", "", err

@@ -431,7 +431,23 @@ func (v *Server) executeAITool(ctx context.Context, r *http.Request, s *session,
 		if err == nil && len(analysis.Statements) == 0 {
 			err = errors.New("Invalid statement count")
 		}
-		checked := map[string]any{"syntax": analysis.Syntax, "compatibility": analysis.Compatibility, "diagnostics": analysis.Diagnostics, "valid": err == nil && analysis.Syntax == sqlanalysis.Checked, "statementCount": len(analysis.Statements), "statements": analysis.Statements, "dialect": e.Dialect, "execution": "never"}
+		validationStatus := "unverified"
+		if err != nil {
+			validationStatus = "invalid"
+		} else if analysis.Syntax == sqlanalysis.Checked {
+			validationStatus = "valid"
+		}
+		checked := map[string]any{
+			"syntax":           analysis.Syntax,
+			"compatibility":    analysis.Compatibility,
+			"diagnostics":      analysis.Diagnostics,
+			"validationStatus": validationStatus,
+			"valid":            validationStatus == "valid",
+			"statementCount":   len(analysis.Statements),
+			"statements":       analysis.Statements,
+			"dialect":          e.Dialect,
+			"execution":        "never",
+		}
 		var messages []string
 		for _, d := range analysis.Diagnostics {
 			messages = append(messages, d.Message)
@@ -539,7 +555,8 @@ func (v *Server) executeAITool(ctx context.Context, r *http.Request, s *session,
 			}
 		}
 		if name == "search_schema" {
-			for len(objects) > 0 && len(objects) <= 1000 && len(objects)%100 == 1 {
+			for len(objects) > 100 && len(objects) <= 1000 {
+				// ObjectRows returns one extra row only when another page exists.
 				last := objects[len(objects)-2]
 				objects = objects[:len(objects)-1]
 				page, pageErr := sqlservice.ObjectRows(req.ctx, req.conn, sqlservice.Dialect(e.Dialect), sqlservice.CatalogObjectRequest{Database: req.database, Schema: e.Schema, Limit: 100, AfterSchema: last.Schema, AfterName: last.Name})
