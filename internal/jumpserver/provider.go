@@ -469,15 +469,30 @@ func (p *WispProvider) createForward(ctx context.Context, request *protobuf.Forw
 
 func authorizedDialect(data *protobuf.TokenAuthInfo) (string, error) {
 	protocol := data.Asset.Protocols[0].Name
-	tenant := ""
-	if strings.EqualFold(data.GetPlatform().GetType(), "oceanbase") {
-		protocol = "oceanbase"
-		for _, p := range data.GetPlatform().GetProtocols() {
-			if p != nil && (strings.EqualFold(p.Name, data.Asset.Protocols[0].Name) || len(data.GetPlatform().GetProtocols()) == 1) {
-				tenant = p.GetSettings()["tenant_mode"]
-				break
+	platform := data.GetPlatform()
+	platformType := platform.GetType()
+	oceanBase := strings.EqualFold(platformType, "oceanbase")
+
+	// Wisp 0.2.15 copies the charset into Platform.Type. In that payload,
+	// the selected MySQL protocol's explicit tenant mode identifies OceanBase.
+	charset := strings.ToLower(platform.GetCharset())
+	legacyDatabase := strings.EqualFold(protocol, "mysql") && strings.EqualFold(platform.GetCategory(), "database") &&
+		platformType == platform.GetCharset() && (charset == "utf-8" || charset == "gbk")
+	if oceanBase || legacyDatabase {
+		protocols := platform.GetProtocols()
+		for _, p := range protocols {
+			if p == nil || (!strings.EqualFold(p.Name, protocol) && !(oceanBase && len(protocols) == 1)) {
+				continue
 			}
+			tenant, configured := p.GetSettings()["tenant_mode"]
+			if oceanBase || configured {
+				return CanonicalDialect("oceanbase", tenant)
+			}
+			break
+		}
+		if oceanBase {
+			return CanonicalDialect("oceanbase", "")
 		}
 	}
-	return CanonicalDialect(protocol, tenant)
+	return CanonicalDialect(protocol, "")
 }
