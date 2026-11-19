@@ -774,7 +774,11 @@ func (v *Server) run(s *session, c *console, e *execution) {
 				}
 			} else {
 				if err := sqlservice.CheckTransactionTables(e.ctx, c.conn, sqlservice.Dialect(s.grant.Config.Dialect), statement, current); err != nil {
-					failure(err, &APIError{"transaction_table_unsupported", "Manual writes require verifiable transactional base tables"})
+					api := safeDatabaseError(err)
+					if api.Code != "MYSQL_1146" && api.Code != "OCEANBASE_1146" {
+						api = &APIError{"transaction_table_unsupported", "Manual writes require verifiable transactional base tables"}
+					}
+					failure(err, api)
 					return
 				}
 				wasIdle := c.manualTx == nil
