@@ -29,6 +29,9 @@ func extraDatabase(c jumpserver.ConnectionConfig, t *tls.Config) (*sql.DB, error
 		cfg.DBName = c.Database
 		cfg.ParseTime = false
 		cfg.ClientFoundRows = c.Dialect == "oceanbase-mysql"
+		if c.Dialect == "oceanbase-oracle" {
+			cfg.Params = map[string]string{"autocommit": "1"}
+		}
 		cfg.Timeout = 10 * time.Second
 		cfg.ReadTimeout = 2 * time.Minute
 		cfg.WriteTimeout = 15 * time.Second
