@@ -137,15 +137,23 @@ func ObjectRows(ctx context.Context, conn *sql.Conn, dialect Dialect, req Catalo
 		// MySQL's INFORMATION_SCHEMA applies the current account's table and
 		// column privileges itself, including active roles. No grant parsing or
 		// elevated helper account is used.
+		schemaMatch := "BINARY TABLE_SCHEMA = BINARY ?"
+		args := []any{req.Database}
+		if dialect == MySQL || dialect == MariaDB {
+			// Let the dictionary narrow the schema before the exact check.
+			schemaMatch = "TABLE_SCHEMA = ? AND " + schemaMatch
+			args = append(args, req.Database)
+		}
+		args = append(args, req.Kind, req.Kind, req.Kind, catalogSearch(req.Query), req.AfterSchema, req.AfterSchema, req.AfterName, catalogLimit(req.Limit)+1)
 		rows, err = conn.QueryContext(CatalogQueryContext(ctx), `SELECT TABLE_SCHEMA, TABLE_SCHEMA, TABLE_NAME,
 CASE WHEN TABLE_TYPE = 'VIEW' THEN 'view' ELSE 'table' END,
 CASE WHEN TABLE_TYPE = 'VIEW' THEN 'view' ELSE 'table' END, COALESCE(TABLE_COMMENT, '')
 FROM information_schema.TABLES
-WHERE BINARY TABLE_SCHEMA = BINARY ? AND TABLE_TYPE IN ('BASE TABLE', 'VIEW', 'SYSTEM VIEW', 'SYSTEM VERSIONED')
+WHERE `+schemaMatch+` AND TABLE_TYPE IN ('BASE TABLE', 'VIEW', 'SYSTEM VIEW', 'SYSTEM VERSIONED')
 AND (? = '' OR (? = 'table' AND TABLE_TYPE <> 'VIEW') OR (? = 'view' AND TABLE_TYPE = 'VIEW'))
 AND TABLE_NAME LIKE ? ESCAPE '!'
 AND (BINARY TABLE_SCHEMA > BINARY ? OR (BINARY TABLE_SCHEMA = BINARY ? AND BINARY TABLE_NAME > BINARY ?))
-ORDER BY BINARY TABLE_SCHEMA, BINARY TABLE_NAME LIMIT ?`, req.Database, req.Kind, req.Kind, req.Kind, catalogSearch(req.Query), req.AfterSchema, req.AfterSchema, req.AfterName, catalogLimit(req.Limit)+1)
+ORDER BY BINARY TABLE_SCHEMA, BINARY TABLE_NAME LIMIT ?`, args...)
 	} else {
 		rows, err = conn.QueryContext(ctx, `SELECT pg_catalog.current_database(), n.nspname, c.relname,
 CASE WHEN c.relkind IN ('v', 'm') THEN 'view' ELSE 'table' END,
@@ -177,6 +185,49 @@ ORDER BY n.nspname COLLATE pg_catalog."C", c.relname COLLATE pg_catalog."C" LIMI
 
 func ColumnRows(ctx context.Context, conn *sql.Conn, dialect Dialect, req CatalogColumnRequest) ([]CatalogColumn, error) {
 	return columnRows(ctx, conn, dialect, req, false, false)
+}
+
+// MySQLSearchColumns reads names and comments for objects already returned by
+// ObjectRows on this connection. INFORMATION_SCHEMA still applies the account's
+// active grants, and each table keeps its own bounded page with one extra row.
+// The caller owns one deadline for the whole catalog search.
+func MySQLSearchColumns(ctx context.Context, conn *sql.Conn, database string, objects []CatalogObject, limit int) (map[string][]CatalogColumn, error) {
+	// Plain equalities let the metadata optimizer narrow the lookup. Keep the
+	// binary comparisons for exact schema and table names.
+	const statement = `SELECT TABLE_NAME, COLUMN_NAME, COALESCE(COLUMN_COMMENT, ''), ORDINAL_POSITION
+FROM information_schema.COLUMNS
+WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND BINARY TABLE_SCHEMA = BINARY ? AND BINARY TABLE_NAME = BINARY ?
+ORDER BY ORDINAL_POSITION LIMIT ?`
+	columns := make(map[string][]CatalogColumn, len(objects))
+	if len(objects) == 0 {
+		return columns, nil
+	}
+	parts := make([]string, 0, len(objects))
+	args := make([]any, 0, len(objects)*5)
+	for _, object := range objects {
+		parts = append(parts, "("+statement+")")
+		args = append(args, database, object.Name, database, object.Name, catalogLimit(limit)+1)
+	}
+	query := statement
+	if len(parts) > 1 {
+		query = strings.Join(parts, " UNION ALL ") + " ORDER BY TABLE_NAME, ORDINAL_POSITION"
+	}
+	rows, err := conn.QueryContext(CatalogQueryContext(ctx), query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var column CatalogColumn
+		if err := rows.Scan(&column.Table, &column.Name, &column.Comment, &column.Ordinal); err != nil {
+			return nil, err
+		}
+		columns[column.Table] = append(columns[column.Table], column)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return columns, ctx.Err()
 }
 
 // Table operations need the complete definition, not the first directory page.

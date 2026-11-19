@@ -68,6 +68,15 @@ func CheckTransactionTables(ctx context.Context, conn *sql.Conn, d Dialect, s St
 	for _, node := range nodes {
 		node.Accept(visitor)
 	}
+	if d == OceanBaseMySQL && len(visitor.tables) != 0 {
+		var tenantMode string
+		if err := conn.QueryRowContext(ctx, "SELECT @@ob_compatibility_mode").Scan(&tenantMode); err != nil {
+			return err
+		}
+		if !strings.EqualFold(tenantMode, "MYSQL") {
+			return fmt.Errorf("cannot verify OceanBase MySQL tenant")
+		}
+	}
 	seen := map[string]bool{}
 	for _, table := range visitor.tables {
 		key := quoteIdentifier(table.Name.O, d, '`')
@@ -81,6 +90,15 @@ func CheckTransactionTables(ctx context.Context, conn *sql.Conn, d Dialect, s St
 		var name, definition string
 		if err := conn.QueryRowContext(ctx, "SHOW CREATE TABLE "+key).Scan(&name, &definition); err != nil {
 			return err
+		}
+		if d == OceanBaseMySQL {
+			// OceanBase base tables use its transactional storage engine. Its
+			// server-generated DDL includes native options in place of ENGINE.
+			words := strings.Fields(definition)
+			if len(words) < 3 || !strings.EqualFold(words[0], "CREATE") || !strings.EqualFold(words[1], "TABLE") {
+				return fmt.Errorf("cannot verify transactional base table")
+			}
+			continue
 		}
 		node, err := p.ParseOneStmt(definition, "", "")
 		if err != nil {
