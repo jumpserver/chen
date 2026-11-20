@@ -18,6 +18,10 @@ export WORK_DIR=${WORK_DIR:-/opt/chen}
 export BIND_HOST=${WISP_BIND_HOST:-127.0.0.1}
 export BIND_PORT=${WISP_BIND_PORT:-9090}
 export CHEN_WISP_ADDRESS=${CHEN_WISP_ADDRESS:-127.0.0.1:${BIND_PORT}}
+# Keep direct managed entrypoint invocations aligned with start.sh. The
+# all-in-one image launches this entrypoint directly and does not inherit the
+# managed-mode CHEN_HTTP_ADDR default from start.sh.
+export CHEN_HTTP_ADDR=${CHEN_HTTP_ADDR:-127.0.0.1:8082}
 export EXECUTE_PROGRAM=''
 export LOG_LEVEL=${LOG_LEVEL:-INFO}
 mkdir -p "$WORK_DIR/data"
