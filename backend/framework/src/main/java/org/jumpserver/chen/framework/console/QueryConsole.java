@@ -51,6 +51,8 @@ public class QueryConsole extends AbstractConsole {
     private final Map<String, DataView> dataViews = new HashMap<>();
     private volatile Map<String, String> allowedContexts = Map.of();
     private final SQLChunkTransferManager sqlChunkTransfers = new SQLChunkTransferManager();
+    // title -> {schema, table}，用于给查询结果数据视图补齐表元数据
+    private final Map<String, String[]> dataViewTables = new HashMap<>();
 
     private static final Gson GSON = new Gson();
 
@@ -133,6 +135,7 @@ public class QueryConsole extends AbstractConsole {
             case "close_data_view" -> {
                 var name = (String) packet.getData();
                 this.dataViews.remove(name);
+                this.dataViewTables.remove(name);
                 log.info("close data view {}", name);
             }
 
@@ -432,6 +435,40 @@ public class QueryConsole extends AbstractConsole {
         }
     }
 
+    private String[] extractSingleTable(SQLExecutePlan plan) {
+        try {
+            var statement = plan.getTargetSQLStatement();
+            if (statement == null) {
+                return null;
+            }
+            var visitor = new com.alibaba.druid.sql.visitor.SchemaStatVisitor();
+            statement.accept(visitor);
+            var tables = visitor.getTables();
+            if (tables == null || tables.size() != 1) {
+                return null;
+            }
+            var rawName = tables.keySet().iterator().next().getName();
+            if (StringUtils.isBlank(rawName)) {
+                return null;
+            }
+            var schema = this.getState().getCurrentContext();
+            var tableName = rawName;
+            // 表名若带库/schema 前缀（db.table），优先以 SQL 里的限定名为准
+            int dot = rawName.lastIndexOf('.');
+            if (dot >= 0) {
+                schema = rawName.substring(0, dot);
+                tableName = rawName.substring(dot + 1);
+            }
+            if (StringUtils.isBlank(schema) || StringUtils.isBlank(tableName)) {
+                return null;
+            }
+            return new String[]{schema, tableName};
+        } catch (Exception e) {
+            log.warn("extract single table from sql failed: {}", e.getMessage());
+            return null;
+        }
+    }
+
     private DataView runSingleSQL(String sql, ACLResult aclResult) throws SQLException {
 
         SQLExecutePlan plan = this.datasource
@@ -467,6 +504,13 @@ public class QueryConsole extends AbstractConsole {
 
         dataView.loadData();
 
+        // 严格提取单表：仅当 SQL 恰好引用一张表时才补齐 schema/table，
+        // 多表（JOIN/UNION/子查询）或解析失败时不带，由前端提示兜底
+        var singleTable = this.extractSingleTable(plan);
+        if (singleTable != null) {
+            this.dataViewTables.put(dataView.getTitle(), singleTable);
+        }
+
         this.getState().setCanCancel(false);
         this.stateManager.commit();
 
@@ -483,11 +527,19 @@ public class QueryConsole extends AbstractConsole {
                 }
             }
             forDeleteDataViewTitles.forEach(this.dataViews.keySet()::remove);
+            forDeleteDataViewTitles.forEach(this.dataViewTables::remove);
             this.getPacketIO().sendPacket("close_data_view", forDeleteDataViewTitles);
         }
 
         if (!this.dataViews.containsKey(dataView.getTitle())) {
-            this.getPacketIO().sendPacket("new_data_view", Map.of("title", dataView.getTitle()));
+            var payload = new HashMap<String, Object>();
+            payload.put("title", dataView.getTitle());
+            var tableInfo = this.dataViewTables.get(dataView.getTitle());
+            if (tableInfo != null) {
+                payload.put("schema", tableInfo[0]);
+                payload.put("table", tableInfo[1]);
+            }
+            this.getPacketIO().sendPacket("new_data_view", payload);
         }
 
         this.dataViews.put(dataView.getTitle(), dataView);
@@ -499,6 +551,7 @@ public class QueryConsole extends AbstractConsole {
     @Override
     public void close() {
         this.sqlChunkTransfers.close();
+        this.dataViewTables.clear();
         if (this.currentPlan != null) {
             // flush
             var session = SessionManager.getCurrentSession();
