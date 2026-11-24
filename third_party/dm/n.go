@@ -271,6 +271,8 @@ const (
 
 type DmConnector struct {
 	filterable
+	// Set before Connect when the dialer closes the transport on login cancellation.
+	TransportCancelsLogin bool
 
 	mu sync.Mutex
 
@@ -927,7 +929,7 @@ func (c *DmConnector) Driver() driver.Driver {
 
 func (c *DmConnector) connect(ctx context.Context) (*DmConnection, error) {
 	if c.group != nil && len(c.group.epList) > 0 {
-		return c.group.connect(c)
+		return c.group.connect(ctx, c)
 	} else {
 		return c.connectSingle(ctx)
 	}
@@ -955,10 +957,12 @@ func (c *DmConnector) connectSingle(ctx context.Context) (*DmConnection, error) 
 	}
 
 	dc.startWatcher()
-	if err = dc.watchCancel(ctx); err != nil {
-		return nil, err
+	if !c.TransportCancelsLogin {
+		if err = dc.watchCancel(ctx); err != nil {
+			return nil, err
+		}
+		defer dc.finish()
 	}
-	defer dc.finish()
 
 	if err = dc.Access.dm_build_59(); err != nil {
 

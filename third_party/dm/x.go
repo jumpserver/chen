@@ -152,10 +152,10 @@ func (ep *ep) refreshStatus(alive bool, conn *DmConnection) {
 	}
 }
 
-func (ep *ep) connect(connector *DmConnector) (*DmConnection, error) {
+func (ep *ep) connect(ctx context.Context, connector *DmConnector) (*DmConnection, error) {
 	connector.host = ep.host
 	connector.port = ep.port
-	conn, err := connector.connectSingle(context.Background())
+	conn, err := connector.connectSingle(ctx)
 	if err != nil {
 		ep.refreshStatus(false, conn)
 		return nil, err

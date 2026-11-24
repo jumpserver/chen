@@ -457,7 +457,7 @@ func (dc *DmConnection) reconnect() error {
 
 	var newConn *DmConnection
 	if dc.dmConnector.group != nil {
-		if newConn, err = dc.dmConnector.group.connect(dc.dmConnector); err != nil {
+		if newConn, err = dc.dmConnector.group.connect(context.Background(), dc.dmConnector); err != nil {
 			return err
 		}
 	} else {

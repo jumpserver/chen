@@ -84,6 +84,10 @@ func makeTLS(c jumpserver.ConnectionConfig) (*tls.Config, error) {
 	return t, nil
 }
 func openDatabase(c jumpserver.ConnectionConfig, max int) (*sql.DB, error) {
+	return regularPool.openDatabase(c, max)
+}
+
+func (pool databasePool) openDatabase(c jumpserver.ConnectionConfig, max int) (*sql.DB, error) {
 	t, err := makeTLS(c)
 	if err != nil {
 		return nil, databaseTLSError{err}
@@ -103,14 +107,14 @@ func openDatabase(c jumpserver.ConnectionConfig, max int) (*sql.DB, error) {
 		cfg.ClientFoundRows = true
 		cfg.Loc = time.UTC
 		cfg.Timeout = 10 * time.Second
-		cfg.ReadTimeout = 2 * time.Minute
+		cfg.ReadTimeout = pool.readTimeout(2 * time.Minute)
 		cfg.WriteTimeout = 15 * time.Second
 		cfg.TLS = t
 		connector, e := mysql.NewConnector(cfg)
 		if e != nil {
 			return nil, errors.New("invalid MySQL connection configuration")
 		}
-		db = sql.OpenDB(connector)
+		db = pool.openConnector(connector, 2*time.Minute)
 	case "postgresql":
 		if os.Getenv("PGSERVICE") != "" {
 			return nil, errors.New("PGSERVICE cannot override server-managed database connections")
@@ -131,6 +135,9 @@ func openDatabase(c jumpserver.ConnectionConfig, max int) (*sql.DB, error) {
 		}
 		cfg.TLSConfig = t
 		cfg.Fallbacks = nil
+		if pool == catalogPool {
+			cfg.DialFunc = catalogDialer{dial: cfg.DialFunc}.DialContext
+		}
 		configurePostgresTransport(cfg, c, t)
 		cfg.SSLNegotiation = "postgres"
 		cfg.ConnectTimeout = 10 * time.Second
@@ -139,9 +146,9 @@ func openDatabase(c jumpserver.ConnectionConfig, max int) (*sql.DB, error) {
 		cfg.BuildContextWatcherHandler = func(conn *pgconn.PgConn) ctxwatch.Handler {
 			return &pgconn.CancelRequestContextWatcherHandler{Conn: conn, CancelRequestDelay: 0, DeadlineDelay: 3 * time.Second}
 		}
-		db = stdlib.OpenDB(*cfg)
+		db = pool.openConnector(stdlib.GetConnector(*cfg), cfg.ConnectTimeout)
 	default:
-		db, err = extraDatabase(c, t)
+		db, err = pool.extraDatabase(c, t)
 		if err != nil {
 			return nil, err
 		}

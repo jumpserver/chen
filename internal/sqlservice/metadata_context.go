@@ -3,6 +3,13 @@ package sqlservice
 import "context"
 
 type consoleCatalogLifetime struct{}
+type catalogRequestLifetime struct{}
+
+// WithCatalogRequestLifetime lets resource-tree queries share the HTTP request's
+// deadline and cancellation across metadata lookups.
+func WithCatalogRequestLifetime(ctx context.Context) context.Context {
+	return context.WithValue(ctx, catalogRequestLifetime{}, true)
+}
 
 // WithConsoleCatalogLifetime lets MySQL finish a statement on the pinned console
 // when the AI request expires. The engine interrupts the query separately.
@@ -20,7 +27,7 @@ func CatalogQueryContext(ctx context.Context) context.Context {
 }
 
 func catalogReadContext(ctx context.Context) (context.Context, context.CancelFunc) {
-	if ctx.Value(consoleCatalogLifetime{}) != nil {
+	if ctx.Value(catalogRequestLifetime{}) != nil || ctx.Value(consoleCatalogLifetime{}) != nil {
 		return context.WithCancel(ctx)
 	}
 	return context.WithTimeout(ctx, catalogTimeout)
