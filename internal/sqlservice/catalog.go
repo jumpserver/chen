@@ -293,12 +293,20 @@ func columnRows(ctx context.Context, conn *sql.Conn, dialect Dialect, req Catalo
 			}
 		}
 	} else if IsMySQLDialect(dialect) {
+		target := "BINARY TABLE_SCHEMA = BINARY ? AND BINARY TABLE_NAME = BINARY ?"
+		args := []any{req.Schema, req.Table}
+		if dialect != MySQL || !complete {
+			// Plain equalities narrow the dictionary lookup. Binary comparisons
+			// still enforce exact schema and table names.
+			target = "TABLE_SCHEMA = ? AND TABLE_NAME = ? AND " + target
+			args = append(args, req.Schema, req.Table)
+		}
 		query := `SELECT TABLE_SCHEMA, TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_TYPE,
 IS_NULLABLE = 'YES', COALESCE(COLUMN_COMMENT, ''), ORDINAL_POSITION
 FROM information_schema.COLUMNS
-WHERE BINARY TABLE_SCHEMA = BINARY ? AND BINARY TABLE_NAME = BINARY ? AND ORDINAL_POSITION > ?
+WHERE ` + target + ` AND ORDINAL_POSITION > ?
 ORDER BY ORDINAL_POSITION`
-		args := []any{req.Schema, req.Table, req.AfterOrdinal}
+		args = append(args, req.AfterOrdinal)
 		if limit > 0 {
 			query += " LIMIT ?"
 			args = append(args, limit)

@@ -197,6 +197,21 @@ func inspectionQuery(d Dialect, r CatalogColumnRequest, kind string, keySize ...
 	case "primary_key":
 		names = []string{"name", "column", "ordinal"}
 		switch {
+		case d == MariaDB:
+			// MariaDB's metadata collation can equate distinct table names.
+			// Use the same exact lookup for the key columns and their count.
+			const source = ` FROM information_schema.KEY_COLUMN_USAGE
+WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
+  AND BINARY TABLE_SCHEMA = BINARY ? AND BINARY TABLE_NAME = BINARY ?
+  AND BINARY CONSTRAINT_NAME = BINARY 'PRIMARY'`
+			args := []any{r.Schema, r.Table, r.Schema, r.Table}
+			q = "SELECT CONSTRAINT_NAME, COLUMN_NAME, ORDINAL_POSITION"
+			if len(keySize) > 0 && keySize[0] {
+				q += ", (SELECT COUNT(*)" + source + ")"
+				args = append(args, args...)
+				names = append(names, "column_count")
+			}
+			return catalogQuery{q + source + " ORDER BY ORDINAL_POSITION", args}, names, true
 		case IsMySQLDialect(d):
 			q = `SELECT CONSTRAINT_NAME, COLUMN_NAME, ORDINAL_POSITION FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA=` + a + ` AND TABLE_NAME=` + c + ` AND CONSTRAINT_NAME='PRIMARY' ORDER BY ORDINAL_POSITION`
 		case d == PostgreSQL:
@@ -244,8 +259,7 @@ func inspectionQuery(d Dialect, r CatalogColumnRequest, kind string, keySize ...
 	if q == "" {
 		return catalogQuery{}, nil, false
 	}
-	// The editor consumes the original three-column primary-key query. Only
-	// inspection requests its source key size to detect incomplete metadata.
+	// Callers can request the source key size to detect incomplete metadata.
 	if kind == "primary_key" && len(keySize) > 0 && keySize[0] {
 		count := ""
 		switch {
