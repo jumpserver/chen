@@ -18,7 +18,7 @@ func DatabaseRows(ctx context.Context, conn *sql.Conn, dialect Dialect, database
 	if IsMySQLDialect(dialect) {
 		return SchemaRows(ctx, conn, dialect, database, after, limit)
 	}
-	ctx, cancel := context.WithTimeout(ctx, catalogTimeout)
+	ctx, cancel := catalogReadContext(ctx)
 	defer cancel()
 	if err := ctx.Err(); err != nil {
 		return items, err

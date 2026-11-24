@@ -1,6 +1,7 @@
 package db2
 
 import (
+	"context"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -53,8 +54,10 @@ type Config struct {
 	// files. It lets a caller that holds certificates in memory, not on disk,
 	// build the root CA pool or client certificate itself. It cannot be set
 	// from a DSN.
-	TLSConfig          *tls.Config
-	Timeout            time.Duration
+	TLSConfig *tls.Config
+	Timeout   time.Duration
+	// DialContext optionally opens the TCP transport before TLS and DRDA negotiation.
+	DialContext        func(context.Context, string, string) (net.Conn, error)
 	BlockSize          int
 	SecurityMechanism  uint16
 	AllowPlaintextAuth bool
@@ -377,6 +380,7 @@ func (c *Config) toSessionConfig() drda.SessionConfig {
 		SSLClientKeyPath:   c.SSLClientKeyPath,
 		TLSConfig:          c.TLSConfig,
 		Timeout:            c.Timeout,
+		DialContext:        c.DialContext,
 		BlockSize:          c.BlockSize,
 		SecurityMechanism:  c.SecurityMechanism,
 		AllowPlaintextAuth: c.AllowPlaintextAuth,

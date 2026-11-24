@@ -2,12 +2,16 @@ package engine
 
 import (
 	"context"
+	"crypto/tls"
 	"database/sql/driver"
 	"errors"
 	"io"
+	"math"
+	"net"
 	"net/http"
 	"strings"
 	"sync/atomic"
+	"time"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/jumpserver/chen/internal/sqlservice"
@@ -22,7 +26,10 @@ type clickHouseHTTPConnector struct{ options clickhouse.Options }
 // Managed custom ports have no transport encoded in the asset. Only the
 // server's explicit Native-port HTTP response can select Native, before any
 // business SQL is sent. Auth, TLS and timeout errors never select a protocol.
-type clickHouseAutoConnector struct{ options clickhouse.Options }
+type clickHouseAutoConnector struct {
+	options clickhouse.Options
+	pool    databasePool
+}
 
 func (c *clickHouseAutoConnector) Driver() driver.Driver {
 	return clickhouse.Connector(&c.options).Driver()
@@ -39,7 +46,38 @@ func (c *clickHouseAutoConnector) Connect(ctx context.Context) (driver.Conn, err
 		return conn, err
 	}
 	options.Protocol = clickhouse.Native
+	if c.pool == catalogPool {
+		return catalogClickHouseNative(options).Connect(ctx)
+	}
 	return clickhouse.Connector(&options).Connect(ctx)
+}
+
+func catalogClickHouseHTTPTransport(rt *http.Transport) (http.RoundTripper, error) {
+	rt.ResponseHeaderTimeout = 0
+	rt.DialContext = catalogDialer{dial: rt.DialContext, http: true, writeTimeout: 15 * time.Second}.DialContext
+	return rt, nil
+}
+
+func catalogClickHouseNative(options clickhouse.Options) driver.Connector {
+	// Native sets ReadTimeout once for the entire result. Let the socket
+	// enforce its renewable read limit while keeping explicit caller deadlines.
+	options.ReadTimeout = time.Duration(math.MaxInt64)
+	dialer := catalogDialer{dial: (&net.Dialer{Timeout: options.DialTimeout}).DialContext, writeTimeout: 15 * time.Second}
+	options.DialContext = func(ctx context.Context, addr string) (net.Conn, error) {
+		conn, err := dialer.DialContext(ctx, "tcp", addr)
+		if err != nil || options.TLS == nil {
+			return conn, err
+		}
+		// A custom native dialer owns TLS negotiation. HTTP negotiates TLS
+		// separately in net/http, including the HTTP-first auto probe.
+		secure := tls.Client(conn, options.TLS)
+		if err := secure.HandshakeContext(ctx); err != nil {
+			_ = conn.Close()
+			return nil, err
+		}
+		return secure, nil
+	}
+	return clickhouse.Connector(&options)
 }
 
 func (c *clickHouseHTTPConnector) Driver() driver.Driver {

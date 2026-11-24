@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -20,8 +21,6 @@ import (
 	"github.com/jumpserver/chen/internal/jumpserver"
 	"github.com/jumpserver/chen/internal/sqlservice"
 )
-
-const catalogInspectionTimeout = 12 * time.Second
 
 // Each session has at most two catalog connections, separately budgeted from
 // fixed SQL consoles and their cancellation pool. No USE/SET is issued here.
@@ -186,7 +185,7 @@ func (v *Server) beginCatalogAccess(w http.ResponseWriter, r *http.Request, oper
 		return nil
 	}
 	if s.catalog == nil {
-		db, err := openDatabase(s.grant.Config, 2)
+		db, err := catalogPool.openDatabase(s.grant.Config, 2)
 		if err != nil {
 			s.mu.Unlock()
 			fail(w, 502, "catalog_unavailable", "Unable to initialize catalog access")
@@ -211,39 +210,18 @@ func (v *Server) beginCatalogAccess(w http.ResponseWriter, r *http.Request, oper
 	resource := s.catalog
 	s.catalogOps.Add(1)
 	s.mu.Unlock()
-	timeout := 3 * time.Second
-	if operation == "inspect" || operation == "ai" || operation == "overview" || operation == "diagram" {
-		timeout = catalogInspectionTimeout
-	}
-	if operation == "ddl" {
-		timeout = 30 * time.Second
-	}
-	ctx, cancel := context.WithTimeout(r.Context(), timeout)
-	stop := context.AfterFunc(s.ctx, cancel)
+	ctx, cancel := catalogQueryContext(r.Context(), s.ctx, operation)
 	s.grant.SetBusy(true)
 	s.grant.Touch()
-	finish := func() { stop(); cancel(); s.grant.SetBusy(false); s.catalogOps.Done() }
-	// A short burst of metadata reads waits within the request deadline instead
-	// of failing while another tab is loading. Take the session slot first so
-	// one session's waiting requests cannot occupy the entire global budget.
-	select {
-	case resource.slots <- struct{}{}:
-	case <-ctx.Done():
+	finish := func() { cancel(); s.grant.SetBusy(false); s.catalogOps.Done() }
+	release, err := acquireCatalogSlots(ctx, operation, resource.slots, v.catalogSlots)
+	if err != nil {
 		finish()
-		catalogError(w, r, s, ctx.Err())
+		catalogError(w, r, s, err)
 		return nil
 	}
-	baseFinish := finish
-	finish = func() { <-resource.slots; baseFinish() }
-	select {
-	case v.catalogSlots <- struct{}{}:
-	case <-ctx.Done():
-		finish()
-		catalogError(w, r, s, ctx.Err())
-		return nil
-	}
-	localFinish := finish
-	finish = func() { <-v.catalogSlots; localFinish() }
+	endOperation := finish
+	finish = func() { release(); endOperation() }
 	if err := s.grant.Check(); err != nil {
 		finish()
 		fail(w, 403, "session_unavailable", err.Error())
@@ -278,7 +256,7 @@ func (v *Server) beginCatalogAccess(w http.ResponseWriter, r *http.Request, oper
 			ctx = sqlservice.WithConsoleCatalogLifetime(ctx, c.ctx)
 			stopConsole = interruptCatalogOnCancel(ctx, s, c)
 		} else {
-			ctx, stopConsole = context.WithTimeout(c.ctx, timeout)
+			ctx, stopConsole = context.WithTimeout(c.ctx, catalogInspectionTimeout)
 		}
 		finish = func() { stopConsole(); c.mu.Unlock(); consoleFinish() }
 		if c.closed.Load() || c.lost.Load() || c.conn == nil {
@@ -293,7 +271,7 @@ func (v *Server) beginCatalogAccess(w http.ResponseWriter, r *http.Request, oper
 		if targeted {
 			cfg := s.grant.Config
 			cfg.Database = scope.database
-			db, err = openDatabase(cfg, 1)
+			db, err = catalogPool.openDatabase(cfg, 1)
 			if err == nil {
 				db.SetMaxIdleConns(0)
 				poolFinish := finish
@@ -462,7 +440,7 @@ func catalogError(w http.ResponseWriter, r *http.Request, s *session, err error)
 		fail(w, 409, "overview_contract_changed", "Catalog product, version or fields changed; refresh the overview")
 	case errors.Is(err, sqlservice.ErrCatalogNotFound):
 		fail(w, 404, "catalog_not_found", "Object is unavailable or does not exist")
-	case errors.Is(err, context.DeadlineExceeded):
+	case errors.Is(err, context.DeadlineExceeded), errors.Is(err, os.ErrDeadlineExceeded):
 		fail(w, 504, "catalog_timeout", "Catalog request timed out")
 	case r.Context().Err() != nil:
 		fail(w, 408, "request_canceled", "Catalog request was canceled")

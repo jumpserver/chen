@@ -17,15 +17,17 @@ import (
 // network-transport snapshot, then joins before synchronous driver cleanup.
 // A dispatched cancel has unknown database outcome and discards the console.
 const damengDialName = "chen-bounded-dameng"
+const damengCatalogDialName = "chen-catalog-dameng"
 
 func init() {
 	dm.RegisterDialContext(damengDialName, damengDial(120*time.Second, 15*time.Second))
+	dm.RegisterDialContext(damengCatalogDialName, damengDial(catalogSocketReadTimeout, 15*time.Second))
 }
 
 func damengDial(readTimeout, writeTimeout time.Duration) func(context.Context, string) (net.Conn, error) {
 	return func(ctx context.Context, addr string) (net.Conn, error) {
 		dialer := net.Dialer{Timeout: 10 * time.Second, KeepAlive: 2 * time.Second}
-		conn, err := dialer.DialContext(ctx, "tcp", addr)
+		conn, err := dialCatalogTransport(ctx, "tcp", addr, dialer.DialContext)
 		if err != nil {
 			return nil, err
 		}
@@ -81,22 +83,25 @@ func isDamengTransportError(err error) bool {
 	return false
 }
 
-func openDameng(dsn string) (*sql.DB, error) {
+func (pool databasePool) openDameng(dsn string) (*sql.DB, error) {
 	// Obtain the initialized registered driver without opening a network connection.
 	raw, err := sql.Open("dm", dsn)
 	if err != nil {
 		return nil, err
 	}
-	d := damengDriver{raw.Driver().(driver.DriverContext)}
+	d := damengDriver{raw.Driver().(driver.DriverContext), pool}
 	_ = raw.Close()
 	c, err := d.OpenConnector(dsn)
 	if err != nil {
 		return nil, err
 	}
-	return sql.OpenDB(c), nil
+	return pool.openConnector(c, 2*time.Minute), nil
 }
 
-type damengDriver struct{ driver.DriverContext }
+type damengDriver struct {
+	driver.DriverContext
+	pool databasePool
+}
 
 func (d damengDriver) Open(dsn string) (driver.Conn, error) {
 	c, err := d.OpenConnector(dsn)
@@ -111,12 +116,18 @@ func (d damengDriver) OpenConnector(dsn string) (driver.Connector, error) {
 	if err != nil {
 		return nil, err
 	}
-	return damengConnector{c, d}, nil
+	connector := damengConnector{Connector: c, driver: d}
+	if d.pool == catalogPool {
+		c.(*dm.DmConnector).TransportCancelsLogin = true
+		connector.loginSlot = make(chan struct{}, 1)
+	}
+	return connector, nil
 }
 
 type damengConnector struct {
 	driver.Connector
-	driver driver.Driver
+	driver    driver.Driver
+	loginSlot chan struct{}
 }
 
 func (c damengConnector) Driver() driver.Driver { return c.driver }
@@ -124,9 +135,21 @@ func (c damengConnector) Connect(ctx context.Context) (driver.Conn, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	raw, err := c.Connector.Connect(context.WithoutCancel(ctx))
+	driverCtx := context.WithoutCancel(ctx)
+	if c.loginSlot != nil {
+		// The vendor connector serializes logins behind a mutex. Allow a
+		// second caller to cancel before the first handshake completes.
+		select {
+		case c.loginSlot <- struct{}{}:
+			defer func() { <-c.loginSlot }()
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+		driverCtx = ctx
+	}
+	raw, err := c.Connector.Connect(driverCtx)
 	if ctx.Err() != nil {
-		if raw != nil {
+		if err == nil {
 			_ = raw.Close()
 		}
 		return nil, ctx.Err()

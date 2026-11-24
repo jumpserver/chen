@@ -56,7 +56,7 @@ func SchemaRows(ctx context.Context, conn *sql.Conn, dialect Dialect, database, 
 	if err := validateCatalogNames(conn, dialect, database, after); err != nil {
 		return items, err
 	}
-	ctx, cancel := context.WithTimeout(ctx, catalogTimeout)
+	ctx, cancel := catalogReadContext(ctx)
 	defer cancel()
 	if !IsMySQLDialect(dialect) {
 		if database == "" {
