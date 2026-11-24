@@ -24,9 +24,7 @@ set -euo pipefail
 root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 export CHEN_BIN="$root/bin/chen-go" WISP_BIN="$root/bin/wisp" WORK_DIR="$root"
 export CHEN_STATE_DIR=${CHEN_STATE_DIR:-"$root/data/go"}
-port=8082
-if [[ ${1:-managed} == single || ${1:-managed} == standalone ]]; then port=8083; fi
-export CHEN_HTTP_ADDR=${CHEN_HTTP_ADDR:-127.0.0.1:$port}
+export CHEN_HTTP_ADDR=${CHEN_HTTP_ADDR:-127.0.0.1:8082}
 # Use a consistent UTF-8 locale for command output.
 export LANG=C.UTF-8 LC_ALL=C.UTF-8
 exec "$root/entrypoint.sh" "$@"

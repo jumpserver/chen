@@ -8,9 +8,7 @@ export WORK_DIR=${WISP_WORK_DIR:-"$root"}
 export CHEN_STATE_DIR=${CHEN_STATE_DIR:-"$root/data/go"}
 mode=${1:-managed}
 if (( $# )); then shift; fi
-default_port=8082
-if [[ "$mode" == single || "$mode" == standalone ]]; then default_port=8083; fi
-export CHEN_HTTP_ADDR=${CHEN_HTTP_ADDR:-127.0.0.1:${CHEN_PORT:-$default_port}}
+export CHEN_HTTP_ADDR=${CHEN_HTTP_ADDR:-127.0.0.1:${CHEN_PORT:-8082}}
 mkdir -p "$(dirname -- "$CHEN_BIN")"
 CGO_ENABLED=1 go build -tags="${GO_BUILD_TAGS:-}" -trimpath -ldflags="-X main.version=${VERSION:-dev}" -o "$CHEN_BIN" ./cmd/chen-go
 case "$mode" in

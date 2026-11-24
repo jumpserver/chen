@@ -25,6 +25,8 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
+const defaultHTTPAddr = "127.0.0.1:8082"
+
 func env(key, fallback string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
@@ -55,7 +57,7 @@ func parseOptions(args []string) (options, error) {
 	flags := flag.NewFlagSet("chen-go [single]", flag.ContinueOnError)
 	flags.StringVar(&startupTimeout, "startup-timeout", env("CHEN_STARTUP_TIMEOUT", "120s"), "Maximum wait for Wisp initialization (managed mode only)")
 	flags.BoolVar(&o.single, "single", o.single, "Run independently using a local backend file; no Core or Wisp")
-	flags.StringVar(&o.listen, "listen", env("CHEN_HTTP_ADDR", "127.0.0.1:8083"), "HTTP host:port (single mode defaults to loopback)")
+	flags.StringVar(&o.listen, "listen", env("CHEN_HTTP_ADDR", defaultHTTPAddr), "HTTP listen address (host:port)")
 	flags.StringVar(&o.wisp, "wisp-address", env("CHEN_WISP_ADDRESS", "127.0.0.1:9090"), "Wisp gRPC host:port (managed mode only)")
 	flags.StringVar(&o.state, "state-dir", env("CHEN_STATE_DIR", "data/go"), "Persistent private journal and audit directory")
 	flags.StringVar(&o.origins, "allowed-origins", env("CHEN_ALLOWED_ORIGINS", ""), "Additional exact trusted origins, comma separated")
