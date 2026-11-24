@@ -57,7 +57,7 @@ func runUtility(args []string, output io.Writer) (bool, error) {
 		if len(args) != 1 {
 			return true, errors.New("healthcheck does not accept arguments")
 		}
-		host, port, err := net.SplitHostPort(env("CHEN_HTTP_ADDR", "127.0.0.1:8083"))
+		host, port, err := net.SplitHostPort(env("CHEN_HTTP_ADDR", defaultHTTPAddr))
 		if err != nil {
 			return true, errors.New("healthcheck_invalid_listen_address")
 		}

@@ -68,7 +68,7 @@ Edit the configuration with your database connection details, then start Chen:
 make single BACKENDS=data/standalone_backends.yml WEB_DIR=../luna/.output/public
 ```
 
-Open `http://127.0.0.1:8083/luna/chen/?selector=local-pg`, using a selector from
+Open `http://127.0.0.1:8082/luna/chen/?selector=local-pg`, using a selector from
 the [configuration](conf/standalone_backends_example.yaml). Single mode has no
 Core authentication; keep access limited to the intended users. The selector
 identifies a connection and is not a password.
