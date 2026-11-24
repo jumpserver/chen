@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -18,7 +19,7 @@ import (
 	goora "github.com/sijms/go-ora/v2"
 )
 
-func extraDatabase(c jumpserver.ConnectionConfig, t *tls.Config) (*sql.DB, error) {
+func extraDatabase(c jumpserver.ConnectionConfig, t *tls.Config, catalog bool) (*sql.DB, error) {
 	switch c.Dialect {
 	case "oceanbase-mysql", "oceanbase-oracle":
 		cfg := ob.NewConfig()
@@ -34,13 +35,16 @@ func extraDatabase(c jumpserver.ConnectionConfig, t *tls.Config) (*sql.DB, error
 		}
 		cfg.Timeout = 10 * time.Second
 		cfg.ReadTimeout = 2 * time.Minute
+		if catalog {
+			cfg.ReadTimeout = catalogSocketTimeout
+		}
 		cfg.WriteTimeout = 15 * time.Second
 		cfg.TLS = t
 		connector, err := ob.NewConnector(cfg)
 		if err != nil {
 			return nil, errors.New("invalid OceanBase connection configuration")
 		}
-		return sql.OpenDB(connector), nil
+		return openDriverPool(connector, catalog, 2*time.Minute), nil
 	case "sqlserver":
 		config, err := msdsn.Parse("server=127.0.0.1;user id=chen;database=master;encrypt=disable;connection timeout=10;dial timeout=10")
 		if err != nil {
@@ -54,7 +58,17 @@ func extraDatabase(c jumpserver.ConnectionConfig, t *tls.Config) (*sql.DB, error
 			config.Encryption = msdsn.EncryptionRequired
 			config.HostInCertificateProvided = true
 		}
-		return sql.OpenDB(mssql.NewConnectorConfig(config)), nil
+		socketTimeout := config.ConnTimeout
+		if catalog {
+			// go-mssqldb applies ConnTimeout to reads and writes together.
+			config.ConnTimeout = 0
+		}
+		connector := mssql.NewConnectorConfig(config)
+		if catalog {
+			dialer := &net.Dialer{KeepAlive: config.KeepAlive}
+			connector.Dialer = catalogSocketDialer{dial: dialer.DialContext, writeTimeout: socketTimeout}
+		}
+		return openDriverPool(connector, catalog, socketTimeout), nil
 	case "clickhouse":
 		protocol := clickhouse.Native
 		if c.Transport == "http" || c.Transport == "" && (c.Port == 8123 || c.Port == 8443) {
@@ -65,6 +79,15 @@ func extraDatabase(c jumpserver.ConnectionConfig, t *tls.Config) (*sql.DB, error
 			database = "default"
 		}
 		options := &clickhouse.Options{Addr: []string{net.JoinHostPort(c.Host, strconv.Itoa(c.Port))}, Auth: clickhouse.Auth{Database: database, Username: c.User, Password: c.Password}, TLS: t, Protocol: protocol, DialTimeout: 10 * time.Second, ReadTimeout: 2 * time.Minute, ClientInfo: clickhouse.ClientInfo{Products: []struct{ Name, Version string }{{Name: "chen", Version: "go"}}}}
+		if catalog {
+			// The Java HTTP driver used its own 30s socket timeout. The
+			// native protocol has separate driver defaults and skips this hook.
+			options.TransportFunc = func(rt *http.Transport) (http.RoundTripper, error) {
+				rt.ResponseHeaderTimeout = 0
+				rt.DialContext = catalogSocketDialer{dial: rt.DialContext, readTimeout: 30 * time.Second, http: true}.DialContext
+				return rt, nil
+			}
+		}
 		if protocol == clickhouse.HTTP {
 			return sql.OpenDB(&clickHouseHTTPConnector{options: *options}), nil
 		}
@@ -74,15 +97,23 @@ func extraDatabase(c jumpserver.ConnectionConfig, t *tls.Config) (*sql.DB, error
 		return clickhouse.OpenDB(options), nil
 	case "oracle":
 		options := oracleConnectionOptions(c)
+		if catalog {
+			// go-ora's TIMEOUT configures both directions.
+			options["TIMEOUT"] = "0"
+		}
 		if t != nil {
 			options["SSL"] = "true"
 			options["SSL VERIFY"] = strconv.FormatBool(!t.InsecureSkipVerify)
 		}
 		connector := goora.NewConnector(goora.BuildUrl(c.Host, c.Port, c.Database, c.User, c.Password, options)).(*goora.OracleConnector)
+		if catalog {
+			dialer := &net.Dialer{Timeout: 10 * time.Second}
+			connector.Dialer(catalogSocketDialer{dial: dialer.DialContext, writeTimeout: 2 * time.Minute})
+		}
 		if t != nil {
 			connector.WithTLSConfig(t)
 		}
-		return sql.OpenDB(connector), nil
+		return openDriverPool(connector, catalog, 2*time.Minute), nil
 	case "dameng":
 		if t != nil {
 			return nil, errors.New("Dameng TLS requires a configured vendor certificate directory; TLS cannot be silently disabled")
@@ -93,11 +124,15 @@ func extraDatabase(c jumpserver.ConnectionConfig, t *tls.Config) (*sql.DB, error
 		if strings.Contains(c.User, ":") {
 			return nil, errors.New("Dameng usernames containing colon are unsupported by the driver")
 		}
-		dsn := "dm://" + c.User + ":" + c.Password + "@" + net.JoinHostPort(c.Host, strconv.Itoa(c.Port)) + "?connectTimeout=10000&socketTimeout=120&doSwitch=0&logLevel=off&lobMode=1&dialName=" + damengDialName
-		return openDameng(dsn)
+		dialName := damengDialName
+		if catalog {
+			dialName = damengCatalogDialName
+		}
+		dsn := "dm://" + c.User + ":" + c.Password + "@" + net.JoinHostPort(c.Host, strconv.Itoa(c.Port)) + "?connectTimeout=10000&socketTimeout=120&doSwitch=0&logLevel=off&lobMode=1&dialName=" + dialName
+		return openDameng(dsn, catalog)
 
 	case "db2":
-		return openDB2(c, t)
+		return openDB2(c, t, catalog)
 	default:
 		return nil, errors.New("unsupported database protocol")
 	}

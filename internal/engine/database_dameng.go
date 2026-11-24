@@ -17,9 +17,11 @@ import (
 // network-transport snapshot, then joins before synchronous driver cleanup.
 // A dispatched cancel has unknown database outcome and discards the console.
 const damengDialName = "chen-bounded-dameng"
+const damengCatalogDialName = "chen-catalog-dameng"
 
 func init() {
 	dm.RegisterDialContext(damengDialName, damengDial(120*time.Second, 15*time.Second))
+	dm.RegisterDialContext(damengCatalogDialName, damengDial(catalogSocketTimeout, 15*time.Second))
 }
 
 func damengDial(readTimeout, writeTimeout time.Duration) func(context.Context, string) (net.Conn, error) {
@@ -29,6 +31,7 @@ func damengDial(readTimeout, writeTimeout time.Duration) func(context.Context, s
 		if err != nil {
 			return nil, err
 		}
+		watchCatalogLogin(ctx, conn)
 		return &damengSocket{conn, readTimeout, writeTimeout}, nil
 	}
 }
@@ -81,7 +84,7 @@ func isDamengTransportError(err error) bool {
 	return false
 }
 
-func openDameng(dsn string) (*sql.DB, error) {
+func openDameng(dsn string, catalog bool) (*sql.DB, error) {
 	// Obtain the initialized registered driver without opening a network connection.
 	raw, err := sql.Open("dm", dsn)
 	if err != nil {
@@ -93,7 +96,7 @@ func openDameng(dsn string) (*sql.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	return sql.OpenDB(c), nil
+	return openDriverPool(c, catalog, 2*time.Minute), nil
 }
 
 type damengDriver struct{ driver.DriverContext }
@@ -126,7 +129,7 @@ func (c damengConnector) Connect(ctx context.Context) (driver.Conn, error) {
 	}
 	raw, err := c.Connector.Connect(context.WithoutCancel(ctx))
 	if ctx.Err() != nil {
-		if raw != nil {
+		if err == nil {
 			_ = raw.Close()
 		}
 		return nil, ctx.Err()

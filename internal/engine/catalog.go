@@ -186,7 +186,7 @@ func (v *Server) beginCatalogAccess(w http.ResponseWriter, r *http.Request, oper
 		return nil
 	}
 	if s.catalog == nil {
-		db, err := openDatabase(s.grant.Config, 2)
+		db, err := openCatalogDatabase(s.grant.Config, 2)
 		if err != nil {
 			s.mu.Unlock()
 			fail(w, 502, "catalog_unavailable", "Unable to initialize catalog access")
@@ -211,21 +211,19 @@ func (v *Server) beginCatalogAccess(w http.ResponseWriter, r *http.Request, oper
 	resource := s.catalog
 	s.catalogOps.Add(1)
 	s.mu.Unlock()
-	timeout := 3 * time.Second
-	if operation == "inspect" || operation == "ai" || operation == "overview" || operation == "diagram" {
-		timeout = catalogInspectionTimeout
+	var ctx context.Context
+	var cancel context.CancelFunc
+	if operation == "ai" {
+		ctx, cancel = context.WithTimeout(r.Context(), catalogInspectionTimeout)
+	} else {
+		ctx, cancel = sqlservice.CatalogBrowserContext(r.Context())
 	}
-	if operation == "ddl" {
-		timeout = 30 * time.Second
-	}
-	ctx, cancel := context.WithTimeout(r.Context(), timeout)
 	stop := context.AfterFunc(s.ctx, cancel)
 	s.grant.SetBusy(true)
 	s.grant.Touch()
 	finish := func() { stop(); cancel(); s.grant.SetBusy(false); s.catalogOps.Done() }
-	// A short burst of metadata reads waits within the request deadline instead
-	// of failing while another tab is loading. Take the session slot first so
-	// one session's waiting requests cannot occupy the entire global budget.
+	// Take the session slot first so one session's waiting requests cannot
+	// occupy the entire global budget.
 	select {
 	case resource.slots <- struct{}{}:
 	case <-ctx.Done():
@@ -278,7 +276,7 @@ func (v *Server) beginCatalogAccess(w http.ResponseWriter, r *http.Request, oper
 			ctx = sqlservice.WithConsoleCatalogLifetime(ctx, c.ctx)
 			stopConsole = interruptCatalogOnCancel(ctx, s, c)
 		} else {
-			ctx, stopConsole = context.WithTimeout(c.ctx, timeout)
+			ctx, stopConsole = context.WithTimeout(c.ctx, catalogInspectionTimeout)
 		}
 		finish = func() { stopConsole(); c.mu.Unlock(); consoleFinish() }
 		if c.closed.Load() || c.lost.Load() || c.conn == nil {
@@ -293,7 +291,7 @@ func (v *Server) beginCatalogAccess(w http.ResponseWriter, r *http.Request, oper
 		if targeted {
 			cfg := s.grant.Config
 			cfg.Database = scope.database
-			db, err = openDatabase(cfg, 1)
+			db, err = openCatalogDatabase(cfg, 1)
 			if err == nil {
 				db.SetMaxIdleConns(0)
 				poolFinish := finish

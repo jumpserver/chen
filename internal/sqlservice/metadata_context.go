@@ -3,6 +3,13 @@ package sqlservice
 import "context"
 
 type consoleCatalogLifetime struct{}
+type catalogBrowser struct{}
+
+// CatalogBrowserContext lets all queries for a resource tree request inherit
+// its lifetime, including queries shared with the editor and AI tools.
+func CatalogBrowserContext(parent context.Context) (context.Context, context.CancelFunc) {
+	return context.WithCancel(context.WithValue(parent, catalogBrowser{}, true))
+}
 
 // WithConsoleCatalogLifetime lets MySQL finish a statement on the pinned console
 // when the AI request expires. The engine interrupts the query separately.
@@ -20,7 +27,7 @@ func CatalogQueryContext(ctx context.Context) context.Context {
 }
 
 func catalogReadContext(ctx context.Context) (context.Context, context.CancelFunc) {
-	if ctx.Value(consoleCatalogLifetime{}) != nil {
+	if ctx.Value(catalogBrowser{}) != nil || ctx.Value(consoleCatalogLifetime{}) != nil {
 		return context.WithCancel(ctx)
 	}
 	return context.WithTimeout(ctx, catalogTimeout)
@@ -30,7 +37,7 @@ func catalogReadContext(ctx context.Context) (context.Context, context.CancelFun
 // deadline for drivers whose cancellation discards the physical connection.
 // Table metadata requires several network round trips; expiring a separate
 // three-second budget can otherwise destroy a console after a successful read.
-// Callers without an operation deadline retain the standard catalog bound.
+// Resource tree requests inherit the browser's deadline and cancellation.
 func MetadataContext(ctx context.Context, dialect Dialect) (context.Context, context.CancelFunc) {
 	if dialect == Dameng || dialect == DB2 {
 		if _, bounded := ctx.Deadline(); bounded {

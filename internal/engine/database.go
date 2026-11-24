@@ -84,6 +84,14 @@ func makeTLS(c jumpserver.ConnectionConfig) (*tls.Config, error) {
 	return t, nil
 }
 func openDatabase(c jumpserver.ConnectionConfig, max int) (*sql.DB, error) {
+	return openDatabasePool(c, max, false)
+}
+
+func openCatalogDatabase(c jumpserver.ConnectionConfig, max int) (*sql.DB, error) {
+	return openDatabasePool(c, max, true)
+}
+
+func openDatabasePool(c jumpserver.ConnectionConfig, max int, catalog bool) (*sql.DB, error) {
 	t, err := makeTLS(c)
 	if err != nil {
 		return nil, databaseTLSError{err}
@@ -104,13 +112,16 @@ func openDatabase(c jumpserver.ConnectionConfig, max int) (*sql.DB, error) {
 		cfg.Loc = time.UTC
 		cfg.Timeout = 10 * time.Second
 		cfg.ReadTimeout = 2 * time.Minute
+		if catalog {
+			cfg.ReadTimeout = catalogSocketTimeout
+		}
 		cfg.WriteTimeout = 15 * time.Second
 		cfg.TLS = t
 		connector, e := mysql.NewConnector(cfg)
 		if e != nil {
 			return nil, errors.New("invalid MySQL connection configuration")
 		}
-		db = sql.OpenDB(connector)
+		db = openDriverPool(connector, catalog, 2*time.Minute)
 	case "postgresql":
 		if os.Getenv("PGSERVICE") != "" {
 			return nil, errors.New("PGSERVICE cannot override server-managed database connections")
@@ -131,6 +142,9 @@ func openDatabase(c jumpserver.ConnectionConfig, max int) (*sql.DB, error) {
 		}
 		cfg.TLSConfig = t
 		cfg.Fallbacks = nil
+		if catalog {
+			cfg.DialFunc = catalogSocketDialer{dial: cfg.DialFunc}.DialContext
+		}
 		configurePostgresTransport(cfg, c, t)
 		cfg.SSLNegotiation = "postgres"
 		cfg.ConnectTimeout = 10 * time.Second
@@ -141,7 +155,7 @@ func openDatabase(c jumpserver.ConnectionConfig, max int) (*sql.DB, error) {
 		}
 		db = stdlib.OpenDB(*cfg)
 	default:
-		db, err = extraDatabase(c, t)
+		db, err = extraDatabase(c, t, catalog)
 		if err != nil {
 			return nil, err
 		}

@@ -927,7 +927,7 @@ func (c *DmConnector) Driver() driver.Driver {
 
 func (c *DmConnector) connect(ctx context.Context) (*DmConnection, error) {
 	if c.group != nil && len(c.group.epList) > 0 {
-		return c.group.connect(c)
+		return c.group.connect(ctx, c)
 	} else {
 		return c.connectSingle(ctx)
 	}

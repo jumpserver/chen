@@ -34,6 +34,7 @@ type SessionConfig struct {
 	SSLClientKeyPath   string
 	TLSConfig          *tls.Config
 	Timeout            time.Duration
+	DialContext        func(context.Context, string, string) (net.Conn, error)
 	BlockSize          int
 	SecurityMechanism  uint16
 	AllowPlaintextAuth bool
@@ -283,11 +284,12 @@ func (s *Session) connectRaw(ctx context.Context) error {
 	}
 
 	address := fmt.Sprintf("%s:%d", s.cfg.Host, s.cfg.Port)
-	dialer := &net.Dialer{
-		Timeout: s.cfg.Timeout,
+	dial := s.cfg.DialContext
+	if dial == nil {
+		dial = (&net.Dialer{Timeout: s.cfg.Timeout}).DialContext
 	}
 
-	rawConn, err := dialer.DialContext(ctx, "tcp", address)
+	rawConn, err := dial(ctx, "tcp", address)
 	if err != nil {
 		return fmt.Errorf("failed to connect to Db2 at %s: %w", address, err)
 	}

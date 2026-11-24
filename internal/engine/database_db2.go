@@ -15,10 +15,13 @@ import (
 	"github.com/jumpserver/chen/internal/jumpserver"
 )
 
-func openDB2(c jumpserver.ConnectionConfig, t *tls.Config) (*sql.DB, error) {
+func openDB2(c jumpserver.ConnectionConfig, t *tls.Config, catalog bool) (*sql.DB, error) {
 	cfg, err := db2Config(c, t)
 	if err != nil {
 		return nil, err
+	}
+	if catalog {
+		cfg.DialContext = catalogSocketDialer{dial: (&net.Dialer{Timeout: cfg.Timeout}).DialContext}.DialContext
 	}
 	return sql.OpenDB(&db2Connector{Connector: db2.NewConnector(cfg)}), nil
 }
