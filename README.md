@@ -79,3 +79,9 @@ identifies a connection and is not a password.
 The archive includes binaries, configuration examples, licenses and this README.
 On a matching Linux system, extract it and run `./start.sh managed`, or
 `./start.sh single --backends /path/to/backends.yml --web-dir /path/to/luna`.
+
+## License
+
+Copyright (c) 2014-2026 FIT2CLOUD, All rights reserved.
+
+Licensed under the GNU General Public License version 3 (GPLv3), consistent with the [JumpServer main repository](https://github.com/jumpserver/jumpserver). See [LICENSE](LICENSE) for the full license text.
