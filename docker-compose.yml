@@ -6,7 +6,7 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        CHEN_BASE_IMAGE: ${CHEN_BASE_IMAGE:-jumpserver/chen-base:20261117_081404}
+        CHEN_BASE_IMAGE: ${CHEN_BASE_IMAGE:-jumpserver/chen-base:20261127_051723}
         VERSION: ${VERSION:-dev}
     environment:
       CORE_HOST: ${CORE_HOST:-http://host.docker.internal:8080}
