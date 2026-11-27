@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 )
@@ -75,9 +76,11 @@ func SchemaRows(ctx context.Context, conn *sql.Conn, dialect Dialect, database, 
 			rows, err = queryCatalogRows(ctx, conn, dialect, query.SQL, query.Args...)
 		}
 	} else if IsMySQLDialect(dialect) {
+		// An empty binary prefix selects bytewise comparison on MySQL, even
+		// with a linguistic connection collation. StarRocks UNHEX returns VARCHAR.
 		rows, err = conn.QueryContext(ctx, `SELECT SCHEMA_NAME, SCHEMA_NAME FROM information_schema.SCHEMATA
-WHERE BINARY SCHEMA_NAME > BINARY ?
-ORDER BY BINARY SCHEMA_NAME LIMIT ?`, after, catalogLimit(limit)+1)
+WHERE CONCAT(UNHEX(''), SCHEMA_NAME) > CONCAT(UNHEX(''), ?)
+ORDER BY CONCAT(UNHEX(''), SCHEMA_NAME) LIMIT `+mysqlCatalogPageLimit(limit), after)
 	} else {
 		rows, err = conn.QueryContext(ctx, `SELECT catalog_name, schema_name FROM information_schema.schemata
 WHERE catalog_name = $1 AND schema_name COLLATE pg_catalog."C" > $2 COLLATE pg_catalog."C"
@@ -137,23 +140,23 @@ func ObjectRows(ctx context.Context, conn *sql.Conn, dialect Dialect, req Catalo
 		// MySQL's INFORMATION_SCHEMA applies the current account's table and
 		// column privileges itself, including active roles. No grant parsing or
 		// elevated helper account is used.
-		schemaMatch := "BINARY TABLE_SCHEMA = BINARY ?"
+		schemaMatch := "CONCAT(UNHEX(''), TABLE_SCHEMA) = CONCAT(UNHEX(''), ?)"
 		args := []any{req.Database}
 		if dialect == MySQL || dialect == MariaDB {
 			// Let the dictionary narrow the schema before the exact check.
 			schemaMatch = "TABLE_SCHEMA = ? AND " + schemaMatch
 			args = append(args, req.Database)
 		}
-		args = append(args, req.Kind, req.Kind, req.Kind, catalogSearch(req.Query), req.AfterSchema, req.AfterSchema, req.AfterName, catalogLimit(req.Limit)+1)
+		args = append(args, req.Kind, req.Kind, req.Kind, req.Query, req.AfterSchema, req.AfterSchema, req.AfterName)
 		rows, err = conn.QueryContext(CatalogQueryContext(ctx), `SELECT TABLE_SCHEMA, TABLE_SCHEMA, TABLE_NAME,
 CASE WHEN TABLE_TYPE = 'VIEW' THEN 'view' ELSE 'table' END,
 CASE WHEN TABLE_TYPE = 'VIEW' THEN 'view' ELSE 'table' END, COALESCE(TABLE_COMMENT, '')
 FROM information_schema.TABLES
 WHERE `+schemaMatch+` AND TABLE_TYPE IN ('BASE TABLE', 'VIEW', 'SYSTEM VIEW', 'SYSTEM VERSIONED')
 AND (? = '' OR (? = 'table' AND TABLE_TYPE <> 'VIEW') OR (? = 'view' AND TABLE_TYPE = 'VIEW'))
-AND TABLE_NAME LIKE ? ESCAPE '!'
-AND (BINARY TABLE_SCHEMA > BINARY ? OR (BINARY TABLE_SCHEMA = BINARY ? AND BINARY TABLE_NAME > BINARY ?))
-ORDER BY BINARY TABLE_SCHEMA, BINARY TABLE_NAME LIMIT ?`, args...)
+AND INSTR(TABLE_NAME, ?) > 0
+AND (CONCAT(UNHEX(''), TABLE_SCHEMA) > CONCAT(UNHEX(''), ?) OR (CONCAT(UNHEX(''), TABLE_SCHEMA) = CONCAT(UNHEX(''), ?) AND CONCAT(UNHEX(''), TABLE_NAME) > CONCAT(UNHEX(''), ?)))
+ORDER BY CONCAT(UNHEX(''), TABLE_SCHEMA), CONCAT(UNHEX(''), TABLE_NAME) LIMIT `+mysqlCatalogPageLimit(req.Limit), args...)
 	} else {
 		rows, err = conn.QueryContext(ctx, `SELECT pg_catalog.current_database(), n.nspname, c.relname,
 CASE WHEN c.relkind IN ('v', 'm') THEN 'view' ELSE 'table' END,
@@ -194,19 +197,19 @@ func ColumnRows(ctx context.Context, conn *sql.Conn, dialect Dialect, req Catalo
 func MySQLSearchColumns(ctx context.Context, conn *sql.Conn, database string, objects []CatalogObject, limit int) (map[string][]CatalogColumn, error) {
 	// Plain equalities let the metadata optimizer narrow the lookup. Keep the
 	// binary comparisons for exact schema and table names.
-	const statement = `SELECT TABLE_NAME, COLUMN_NAME, COALESCE(COLUMN_COMMENT, ''), ORDINAL_POSITION
+	statement := `SELECT TABLE_NAME, COLUMN_NAME, COALESCE(COLUMN_COMMENT, ''), ORDINAL_POSITION
 FROM information_schema.COLUMNS
-WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND BINARY TABLE_SCHEMA = BINARY ? AND BINARY TABLE_NAME = BINARY ?
-ORDER BY ORDINAL_POSITION LIMIT ?`
+WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND CONCAT(UNHEX(''), TABLE_SCHEMA) = CONCAT(UNHEX(''), ?) AND CONCAT(UNHEX(''), TABLE_NAME) = CONCAT(UNHEX(''), ?)
+ORDER BY ORDINAL_POSITION LIMIT ` + mysqlCatalogPageLimit(limit)
 	columns := make(map[string][]CatalogColumn, len(objects))
 	if len(objects) == 0 {
 		return columns, nil
 	}
 	parts := make([]string, 0, len(objects))
-	args := make([]any, 0, len(objects)*5)
+	args := make([]any, 0, len(objects)*4)
 	for _, object := range objects {
 		parts = append(parts, "("+statement+")")
-		args = append(args, database, object.Name, database, object.Name, catalogLimit(limit)+1)
+		args = append(args, database, object.Name, database, object.Name)
 	}
 	query := statement
 	if len(parts) > 1 {
@@ -293,7 +296,7 @@ func columnRows(ctx context.Context, conn *sql.Conn, dialect Dialect, req Catalo
 			}
 		}
 	} else if IsMySQLDialect(dialect) {
-		target := "BINARY TABLE_SCHEMA = BINARY ? AND BINARY TABLE_NAME = BINARY ?"
+		target := "CONCAT(UNHEX(''), TABLE_SCHEMA) = CONCAT(UNHEX(''), ?) AND CONCAT(UNHEX(''), TABLE_NAME) = CONCAT(UNHEX(''), ?)"
 		args := []any{req.Schema, req.Table}
 		if dialect != MySQL || !complete {
 			// Plain equalities narrow the dictionary lookup. Binary comparisons
@@ -308,8 +311,7 @@ WHERE ` + target + ` AND ORDINAL_POSITION > ?
 ORDER BY ORDINAL_POSITION`
 		args = append(args, req.AfterOrdinal)
 		if limit > 0 {
-			query += " LIMIT ?"
-			args = append(args, limit)
+			query += " LIMIT " + strconv.Itoa(limit)
 		}
 		rows, err = conn.QueryContext(CatalogQueryContext(ctx), query, args...)
 	} else {
@@ -383,7 +385,7 @@ func catalogDatabaseAccess(ctx context.Context, conn *sql.Conn, dialect Dialect,
 	var allowed bool
 	var err error
 	if IsMySQLDialect(dialect) {
-		err = conn.QueryRowContext(CatalogQueryContext(ctx), `SELECT EXISTS (SELECT 1 FROM information_schema.SCHEMATA WHERE BINARY SCHEMA_NAME = BINARY ?)`, database).Scan(&allowed)
+		err = conn.QueryRowContext(CatalogQueryContext(ctx), `SELECT EXISTS (SELECT 1 FROM information_schema.SCHEMATA WHERE CONCAT(UNHEX(''), SCHEMA_NAME) = CONCAT(UNHEX(''), ?))`, database).Scan(&allowed)
 	} else {
 		err = conn.QueryRowContext(ctx, `SELECT pg_catalog.current_database() = $1`, database).Scan(&allowed)
 	}
@@ -445,7 +447,7 @@ func catalogObjectAccessMode(ctx context.Context, conn *sql.Conn, dialect Dialec
 	if IsMySQLDialect(dialect) {
 		var exists bool
 		query := `SELECT EXISTS (SELECT 1 FROM information_schema.TABLES
-WHERE BINARY TABLE_SCHEMA = BINARY ? AND BINARY TABLE_NAME = BINARY ? AND TABLE_TYPE IN ('BASE TABLE', 'VIEW', 'SYSTEM VIEW', 'SYSTEM VERSIONED'))`
+WHERE CONCAT(UNHEX(''), TABLE_SCHEMA) = CONCAT(UNHEX(''), ?) AND CONCAT(UNHEX(''), TABLE_NAME) = CONCAT(UNHEX(''), ?) AND TABLE_TYPE IN ('BASE TABLE', 'VIEW', 'SYSTEM VIEW', 'SYSTEM VERSIONED'))`
 		err := conn.QueryRowContext(CatalogQueryContext(ctx), query, schema, table).Scan(&exists)
 		if err != nil {
 			return fmt.Errorf("check catalog object: %w", err)
@@ -514,15 +516,23 @@ func catalogLimit(limit int) int {
 	return limit
 }
 
+// StarRocks 3.5 rejects placeholders in LIMIT during statement preparation.
+// Only format the engine-bounded page size; identifiers and filters stay bound.
+func mysqlCatalogPageLimit(limit int) string {
+	return strconv.Itoa(catalogLimit(limit) + 1)
+}
+
 // ConsoleContextNames lists the namespaces the connected principal can select.
 // MySQL's object tree uses the same account-visible database namespaces.
 func ConsoleContextNames(ctx context.Context, conn *sql.Conn, d Dialect, database, after string, limit int) ([]string, error) {
 	names := []string{}
 	limit = catalogLimit(limit)
 	var query string
+	args := []any{after, limit + 1}
 	switch {
 	case IsMySQLDialect(d):
-		query = "SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE BINARY SCHEMA_NAME > BINARY ? ORDER BY BINARY SCHEMA_NAME LIMIT ?"
+		args = []any{after}
+		query = "SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE CONCAT(UNHEX(''), SCHEMA_NAME) > CONCAT(UNHEX(''), ?) ORDER BY CONCAT(UNHEX(''), SCHEMA_NAME) LIMIT " + mysqlCatalogPageLimit(limit)
 	case d == ClickHouse:
 		query = "SELECT name FROM system.databases WHERE name > ? ORDER BY name LIMIT ?"
 	case d == SQLServer:
@@ -534,7 +544,7 @@ func ConsoleContextNames(ctx context.Context, conn *sql.Conn, d Dialect, databas
 		}
 		return names, err
 	}
-	rows, err := conn.QueryContext(ctx, query, after, limit+1)
+	rows, err := conn.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
