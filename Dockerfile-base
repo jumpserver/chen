@@ -1,6 +1,6 @@
 # Publish the standard multi-architecture base with the Build and Push Base Image workflow.
 # CGO builds run on the target architecture. Do not force BUILDPLATFORM here.
-ARG GO_IMAGE=golang:1.26.3-bookworm@sha256:386d475a660466863d9f8c766fec64d7fdad3edac2c6a05020c09534d71edb4b
+ARG GO_IMAGE=golang:1.26.10-trixie@sha256:fd9a91f0ece5664556f4851d06dce5e5b505a71166dffd385a03ba9d200b6983
 FROM --platform=$BUILDPLATFORM ${GO_IMAGE} AS wisp-build
 ARG TARGETARCH
 ARG TARGETOS
@@ -17,5 +17,11 @@ ARG APT_MIRROR=https://deb.debian.org
 RUN sed -i "s@http://.*.debian.org@${APT_MIRROR}@g" /etc/apt/sources.list.d/debian.sources \
     && apt-get -o Acquire::Retries=3 update && apt-get install -y --no-install-recommends ca-certificates \
     && rm -rf /var/lib/apt/lists/*
-COPY --from=wisp-build /out/wisp /out/wisp.version /usr/local/bin/
 WORKDIR /opt/chen
+COPY go.mod go.sum ./
+COPY third_party/dm/go.mod ./third_party/dm/
+COPY third_party/go-db2/go.mod ./third_party/go-db2/
+COPY third_party/go-ora/go.mod ./third_party/go-ora/
+RUN go mod download
+
+COPY --from=wisp-build /out/wisp /out/wisp.version /usr/local/bin/

@@ -1,15 +1,13 @@
-ARG CHEN_BASE_IMAGE=jumpserver/chen-base:20261117_081404
+ARG CHEN_BASE_IMAGE=jumpserver/chen-base:20261127_051723
 FROM ${CHEN_BASE_IMAGE} AS stage-build
 ARG TARGETARCH
 ARG VERSION=dev
 WORKDIR /opt/chen
 COPY go.mod go.sum ./
 COPY third_party/ ./third_party/
-RUN --mount=type=cache,target=/go/pkg/mod go mod download
 COPY cmd/ ./cmd/
 COPY internal/ ./internal/
-RUN --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=cache,target=/root/.cache/go-build,id=chen-go-${TARGETARCH} \
+RUN --mount=type=cache,target=/root/.cache/go-build,id=chen-go-${TARGETARCH} \
     GOMAXPROCS=2 GOMEMLIMIT=1GiB CGO_ENABLED=1 go build -p=2 -trimpath \
       -ldflags="-s -w -X main.version=${VERSION}" -o /out/chen-go ./cmd/chen-go
 

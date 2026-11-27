@@ -7,6 +7,7 @@ on:
       - Dockerfile-base
       - go.mod
       - go.sum
+      - 'third_party/*/go.mod'
       - scripts/build-wisp.sh
       - scripts/wisp/**
       - scripts/update-base-image.py
